@@ -27,7 +27,6 @@ deps:
 # Run all tests
 test:
     just license-check
-    just recipes-check
     just go-test
 
 # --- Data generation ---
@@ -55,10 +54,6 @@ license-check:
       exit 1
     fi
     echo "licence header present on every .go file"
-
-# Validate recipes/ against schemas/recipe.schema.json
-recipes-check:
-    uvx --with pyyaml --with jsonschema python3 tools/check_recipes.py
 
 # Rebuild schemas/hx-stomp.catalog.json from a local HX Edit installation
 catalog:

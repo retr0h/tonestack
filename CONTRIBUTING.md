@@ -161,10 +161,16 @@ use `_`. Omitting is the only form satisfying both.
 
 ### Generated code
 
-No Python, no shell one-offs. Anything regenerating an artifact is a Go program
-carrying a `//go:generate` directive, run by `go generate ./...`, which
-`just generate` invokes and `just ready` includes. A generator lives beside what
-it generates. Generated files are `*.gen.go` or live under `gen/`.
+No Python, no shell one-offs in the build. Anything regenerating an artifact is
+a Go program carrying a `//go:generate` directive, run by `go generate ./...`,
+which `just generate` invokes and `just ready` includes. A generator lives
+beside what it generates. Generated files are `*.gen.go` or live under `gen/`.
+
+One exception, and it is outside the build: `tools/extract_gear_map.py` reads
+the model-to-gear table out of HX Edit's manual. The manual's model-name column
+uses a subset-embedded font no Go PDF library decodes, and it runs once per Line
+6 release rather than on every build. `just gear-map` invokes it; nothing in
+`just test` or `just ready` does.
 
 ### Go patterns
 

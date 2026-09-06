@@ -8,7 +8,7 @@ the gear map are derived from Line 6's files and cannot be shipped.
 
 - **How to write one:** [docs/recipes.md](../docs/recipes.md)
 - **The contract:** [schemas/recipe.schema.json](../schemas/recipe.schema.json),
-  enforced by `just recipes-check`
+  enforced by `pkg/recipe`, which refuses to load a recipe that violates it
 
 ```text
 artists/    a named player

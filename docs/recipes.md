@@ -57,7 +57,9 @@ provenance:
 ```
 
 The contract is [`schemas/recipe.schema.json`](../schemas/recipe.schema.json)
-and `just recipes-check` enforces it.
+Loading a recipe validates it: `pkg/recipe` refuses anything the contract
+rejects, and a conformance test pins the shipped recipes to the published
+schema.
 
 ## `rig` versus `variants`
 
