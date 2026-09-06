@@ -1,0 +1,46 @@
+# Mike Dirnt — Green Day
+#
+# Recipes name real-world gear, never Line 6 model IDs. "Ampeg SVT" resolves to
+# HD2_AmpSVBeastNrm through schemas/gear-map.json, so this file stays readable,
+# stays correct when Line 6 renames something, and works for any Helix device.
+
+id: mike-dirnt
+kind: artist
+name: Mike Dirnt
+band: Green Day
+instrument_type: bass
+
+# The stable layer. This is career-long and rarely wrong once confirmed.
+rig:
+  instrument: Fender Precision Bass
+  amp: Ampeg SVT
+  cab: Ampeg 8x10
+  pedals: []
+  technique: pick, near the bridge
+
+# How it should sound, in words a person would use. The generator turns these
+# into parameter moves against the catalog's real ranges.
+character:
+  - mid-forward, not scooped
+  - minimal drive, grit only on hard attack
+  - tight low end, short decay
+  - pick attack audible
+
+# Per-song or per-era departures from the stable layer. Only the settings move;
+# the gear does not.
+variants:
+  - id: longview
+    name: Longview
+    character:
+      - fingers rather than pick
+      - rounder, more low-mid
+      - cleaner — the part carries the song
+
+provenance:
+  source: llm
+  confidence: medium
+  notes: >
+    Gear identification is from model knowledge, not a cited source, and has
+    not been confirmed against a rig rundown or an interview. Treat the amp and
+    instrument as likely, the character notes as a starting point, and correct
+    them from what you hear.
