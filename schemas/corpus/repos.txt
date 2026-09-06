@@ -1,0 +1,34 @@
+# Corpus sources. One per line: <owner/repo> <licence>
+# Regenerate the corpus with: ./fetch.sh
+Arenteria518/pod-go-tools	MIT
+GetPsycho/HX-IA-generator	no license file
+HackLabsGuitar/helix-py-api	BSD-3-Clause
+JesseWebDotCom/bobs-fault	no license file
+MrCitron/helaix	MIT
+SeannyQuest/tonemaker	MIT
+Zavsek/POD_GO-Helix_converter	no license file
+agarat/openpodgo	MIT
+b-vesco/vesco-helixpresets	no license file
+basstones/stomp_xl_presets	no license file
+bb-joelle/helix-preset-generator	no license file
+crmne/tonepush	MIT
+dry-socket/HXman-preset	no license file
+engageintellect/helix-tones	no license file
+f3sty/Yamaha_THRII_presets	no license file
+fargraph/pod-go-presets	MIT
+guyburton/HelixAudioClipLooper	Apache-2.0
+johnsherlock/HelixSetlistEditor	no license file
+lmeadors/helix-catalog	no license file
+mthines/hx-ctrl	no license file
+mthines/kaiju-helix	no license file
+noseglasses/MatchPatch	MIT
+novff/PersonalRepo	no license file
+planbnet/hxgen	no license file
+rachokthebot-dev/music-apps	MIT
+rdalin82/hx-stomp-patch-creator	no license file
+ruizjme/hx-effects	no license file
+sgreer81/hx-stomp-ai-skills	MIT
+sheax0r/helixgen-core	MIT
+thatmarkb/tmbsuperpatch	no license file
+turtelduo/helix	no license file
+tylerdrakemusic/Music	MIT
