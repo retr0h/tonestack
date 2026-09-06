@@ -91,6 +91,12 @@ func (s *ParamValuePublicTestSuite) TestMarshalRoundTripsEachType() {
 		json string
 	}{
 		{"float", catalog.Float(0.5), "0.5"},
+		// A whole-numbered float is the case that breaks: encoding/json
+		// writes 1.0 as "1", and a literal with no decimal point reads back
+		// as an integer. Every float below must survive as a float.
+		{"float 1.0", catalog.Float(1.0), "1.0"},
+		{"float 0.0", catalog.Float(0.0), "0.0"},
+		{"float -2.0", catalog.Float(-2.0), "-2.0"},
 		{"int", catalog.Int(3), "3"},
 		{"bool true", catalog.Bool(true), "true"},
 		{"bool false", catalog.Bool(false), "false"},
@@ -132,6 +138,26 @@ func (s *ParamValuePublicTestSuite) TestUnmarshalAcceptsNegativeNumbers() {
 	got, ok := i.Int()
 	s.Require().True(ok)
 	s.Require().Equal(int64(-3), got)
+}
+
+func (s *ParamValuePublicTestSuite) TestWholeNumberedFloatsStayFloats() {
+	// Regression: catalog defaults are full of whole floats — an amp's Master
+	// at 1.0 — and reading one back as an int made every such parameter fail
+	// validation against its own declared type.
+	for _, v := range []float64{0, 1, -1, 2, 100} {
+		var back catalog.ParamValue
+
+		raw, err := json.Marshal(catalog.Float(v))
+		s.Require().NoError(err)
+		s.Require().NoError(json.Unmarshal(raw, &back))
+
+		s.Require().Equal(catalog.ParamFloat, back.Type(),
+			"%v marshalled as %s and came back the wrong kind", v, raw)
+
+		got, ok := back.Float()
+		s.Require().True(ok)
+		s.Require().InDelta(v, got, 1e-9)
+	}
 }
 
 func (s *ParamValuePublicTestSuite) TestMarshalZeroValueIsAnError() {

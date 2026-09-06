@@ -35,7 +35,7 @@ type ValidateBudgetPublicTestSuite struct {
 }
 
 func (*ValidateBudgetPublicTestSuite) limits() rig.Limits {
-	return rig.Limits{MaxBlocks: 6, Chips: 2, ChipCeiling: 0.95}
+	return rig.Limits{MaxBlocks: 6, Chips: 2, ChipCeiling: 95.0}
 }
 
 func (s *ValidateBudgetPublicTestSuite) TestAcceptsARigInsideTheCeiling() {
@@ -63,7 +63,7 @@ func (s *ValidateBudgetPublicTestSuite) TestRejectsAChipOverTheCeiling() {
 	var target *rig.OverBudgetError
 	s.Require().True(errors.As(err, &target))
 	s.Require().Equal(0, target.Chip)
-	s.Require().InDelta(1.20, target.Cost, 1e-9)
+	s.Require().InDelta(106.68, target.Cost, 1e-9)
 }
 
 func (s *ValidateBudgetPublicTestSuite) TestCountsBypassedBlocks() {
@@ -81,18 +81,24 @@ func (s *ValidateBudgetPublicTestSuite) TestCountsBypassedBlocks() {
 }
 
 func (s *ValidateBudgetPublicTestSuite) TestChargesStereoBlocksTheStereoCost() {
+	// stereo costs 40.1 each; three is 120.3, over 95
 	blk := testAmp()
 	blk.Stereo = true
 
 	spec := rig.Spec{Blocks: []rig.SpecBlock{
 		{Model: "HD2_AmpTest", DSP: 0, Enabled: true},
 		{Model: "HD2_AmpTest", DSP: 0, Enabled: true},
+		{Model: "HD2_AmpTest", DSP: 0, Enabled: true},
 	}}
 
+	// three stereo instances cost 120.3; three mono would be 80.01 and fit
 	s.Require().ErrorIs(
 		rig.ValidateBudget(newCatalog(blk), spec, s.limits()),
 		rig.ErrOverBudget,
 	)
+	s.Require().NoError(
+		rig.ValidateBudget(newCatalog(testAmp()), spec, s.limits()),
+		"the same three blocks fit when mono")
 }
 
 func (s *ValidateBudgetPublicTestSuite) TestRefusesAnAssumedDSPCost() {
@@ -141,6 +147,28 @@ func (s *ValidateBudgetPublicTestSuite) TestRejectsAnUnknownModel() {
 		rig.ValidateBudget(newCatalog(testAmp()), spec, s.limits()),
 		rig.ErrUnknownBlock,
 	)
+}
+
+func (s *ValidateBudgetPublicTestSuite) TestARealisticRigFits() {
+	// Regression: ChipCeiling was once a fraction while the catalog states
+	// cost in percent, so every rig was rejected as over budget — including
+	// a single amp. A chain the device would happily load must validate.
+	spec := rig.Spec{Blocks: []rig.SpecBlock{
+		{Model: "HD2_AmpTest", DSP: 0, Pos: 0, Enabled: true},
+		{Model: "HD2_AmpTest", DSP: 0, Pos: 1, Enabled: true},
+		{Model: "HD2_AmpTest", DSP: 1, Pos: 0, Enabled: true},
+	}}
+
+	s.Require().NoError(
+		rig.ValidateBudget(newCatalog(testAmp()), spec, rig.HXStompLimits()),
+		"two amps on one chip and one on the other is well within a Stomp")
+}
+
+func (s *ValidateBudgetPublicTestSuite) TestCostAndCeilingShareUnits() {
+	// The catalog states an Ampeg SVT at 26.67. A ceiling below that would
+	// mean no amp ever fits, which is how the units drifted apart before.
+	s.Require().Greater(rig.HXStompLimits().ChipCeiling, 26.67,
+		"the ceiling must admit at least one amp")
 }
 
 func TestValidateBudgetPublicTestSuite(t *testing.T) {

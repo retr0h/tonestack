@@ -21,6 +21,7 @@ package catalogen
 
 import (
 	"encoding/json"
+	"strings"
 
 	"github.com/retr0h/tonestack/pkg/catalog"
 )
@@ -54,6 +55,14 @@ func block(m wireModel, family string, gear gearEntry) catalog.Block {
 	}
 
 	for _, p := range m.Params {
+		// Line 6 lists block attributes alongside parameters — @enabled,
+		// @bypassvolume, @topology0. Those are the device's to set, not a
+		// knob anyone turns, and writing them as parameters would put a value
+		// we chose where the device owns one.
+		if strings.HasPrefix(p.SymbolicID, "@") {
+			continue
+		}
+
 		b.Params[p.SymbolicID] = param(p)
 	}
 

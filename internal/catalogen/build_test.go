@@ -135,6 +135,21 @@ func (s *BuildTestSuite) TestBuildLeavesBoolAndStringWithoutARange() {
 	s.Require().Zero(b.Params["Topology"].Max, "empty strings are not a range")
 }
 
+func (s *BuildTestSuite) TestBuildTreatsAtPrefixedEntriesAsAttributes() {
+	// Regression: Line 6 lists block attributes alongside knobs. Carrying
+	// @enabled or @bypassvolume as parameters puts a value we chose where the
+	// device owns one, and writes it into every generated preset.
+	c, err := Build(s.opts())
+	s.Require().NoError(err)
+
+	b, ok := c.Block("HD2_AmpTestBass")
+	s.Require().True(ok)
+
+	for key := range b.Params {
+		s.Require().NotContains(key, "@", "attribute %q became a parameter", key)
+	}
+}
+
 func (s *BuildTestSuite) TestBuildReportsAMissingResourcesDir() {
 	o := s.opts()
 	o.ResourcesDir = "testdata/does-not-exist"

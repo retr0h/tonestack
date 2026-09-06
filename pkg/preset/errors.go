@@ -17,22 +17,29 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
+package preset
 
-package rig
+import (
+	"errors"
+	"fmt"
+)
 
-// HXStompLimits returns the ceilings for a Line 6 HX Stomp.
-//
-// ChipCeiling is in percent, matching the units Line 6 states a block's cost
-// in. An earlier revision had it as a fraction, which rejected every rig: an
-// Ampeg SVT costs 26.67 and no chain fits under 0.95.
-//
-// The block count and chip count come from published specifications and are
-// still unconfirmed against hardware. A generated preset that the device
-// refuses is the most likely way these are wrong.
-func HXStompLimits() Limits {
-	return Limits{
-		MaxBlocks:   6,
-		Chips:       2,
-		ChipCeiling: 95.0,
-	}
+// ErrNotAPreset reports a document that is not a Line 6 preset.
+var ErrNotAPreset = errors.New("not a preset")
+
+// NotAPresetError says what the document turned out to be.
+type NotAPresetError struct {
+	Schema string
 }
+
+// Error implements the error interface.
+func (e *NotAPresetError) Error() string {
+	if e.Schema == "" {
+		return "not a preset: no schema field"
+	}
+
+	return fmt.Sprintf("not a preset: schema is %q, want %q", e.Schema, Schema)
+}
+
+// Unwrap returns ErrNotAPreset so callers can match with errors.Is.
+func (*NotAPresetError) Unwrap() error { return ErrNotAPreset }

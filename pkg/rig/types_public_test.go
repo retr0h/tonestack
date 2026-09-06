@@ -72,7 +72,9 @@ func (s *RigPublicTestSuite) TestHXStompLimitsAreTheDocumentedCeilings() {
 
 	s.Require().Equal(6, l.MaxBlocks)
 	s.Require().Equal(2, l.Chips)
-	s.Require().InDelta(0.95, l.ChipCeiling, 1e-9)
+	s.Require().InDelta(95.0, l.ChipCeiling, 1e-9)
+	s.Require().Greater(l.ChipCeiling, 1.0,
+		"the ceiling is a percentage, matching how Line 6 states a block's cost")
 }
 
 func (s *RigPublicTestSuite) TestOriginsAreDistinct() {

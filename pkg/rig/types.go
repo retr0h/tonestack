@@ -77,8 +77,11 @@ type Limits struct {
 	MaxBlocks int
 	// Chips is how many DSP processors the device has.
 	Chips int
-	// ChipCeiling is the fraction of one processor a rig may occupy. It is
-	// deliberately below 1.0: a rig that exactly fills a chip in theory is a
-	// rig that fails to load in practice.
+	// ChipCeiling is how much of one processor a rig may occupy, in the same
+	// units the catalog states a block's cost: percent. Line 6 records an
+	// Ampeg SVT at 26.67, meaning a quarter of a processor.
+	//
+	// It sits below 100 deliberately. A rig that exactly fills a chip in
+	// theory is a rig that fails to load in practice.
 	ChipCeiling float64
 }
