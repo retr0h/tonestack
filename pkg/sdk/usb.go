@@ -1,3 +1,5 @@
+//go:build cgo
+
 // Copyright (c) 2026 John Dewey
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy

@@ -13,7 +13,8 @@ device and stays pure Go.
 ## Prerequisites
 
 ```bash
-brew install libusb
+brew install libusb        # macOS
+apt-get install libusb-1.0-0-dev   # Debian/Ubuntu
 ```
 
 `github.com/google/gousb` binds to it. On macOS no special privileges are
@@ -55,3 +56,17 @@ type Lister interface {
 thin.** Anything with a decision in it belongs on the other side of the
 interface where a test can reach it. If that file grows past enumeration and
 transfer, the logic has leaked into the untestable half.
+
+## Builds without cgo still work
+
+`usb.go` carries `//go:build cgo`; `usb_nocgo.go` provides the same surface for
+builds without it, returning `ErrNoUSBSupport` from every call.
+
+That keeps `go install` working for someone who has no libusb. They get
+everything except device access — describing a chain, validating it and writing
+a preset are all pure Go — and a clear message rather than a link error if they
+try to reach hardware.
+
+CI installs libusb so `pkg/sdk` is compiled, vetted and linted like everything
+else. Running CI with `CGO_ENABLED=0` would avoid the system dependency but
+would leave that package unchecked anywhere except a developer's machine.
