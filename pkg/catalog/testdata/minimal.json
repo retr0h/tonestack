@@ -1,0 +1,34 @@
+{
+  "device": "HX Stomp",
+  "device_id": 2162689,
+  "schema_version": 6,
+  "modeldata_version": 30,
+  "blocks": {
+    "HD2_AmpTest": {
+      "id": "HD2_AmpTest",
+      "name": "Test Amp",
+      "category": "amp",
+      "stereo": false,
+      "dsp": { "mono": 0.30, "stereo": 0.55, "prov": "measured" },
+      "prov": "observed",
+      "params": {
+        "Gain": {
+          "key": "Gain",
+          "label": "Drive",
+          "type": "float",
+          "min": 0.0,
+          "max": 1.0,
+          "default": 0.5,
+          "unit": ""
+        },
+        "Mode": {
+          "key": "Mode",
+          "label": "Mode",
+          "type": "enum",
+          "enum": ["Normal", "Bright"],
+          "default": "Normal"
+        }
+      }
+    }
+  }
+}
