@@ -1,0 +1,22 @@
+.coverage/
+.just/
+dist/
+
+# Preset corpus — reference data, not source.
+#
+# ~67 MB of third-party presets, many from repositories carrying no licence.
+# schemas/corpus/fetch.sh rebuilds it from repos.txt, so the reproducer and the
+# attribution record are committed and the payload is not.
+schemas/corpus/**
+!schemas/corpus/fetch.sh
+!schemas/corpus/repos.txt
+!schemas/corpus/github/
+!schemas/corpus/github/SOURCES.md
+!schemas/corpus/customtone/
+!schemas/corpus/customtone/SOURCES.md
+!schemas/corpus/customtone/fetch_customtone.py
+
+# Generated from a licensed HX Edit installation. Line 6's data; ours to use
+# locally, not to redistribute. Rebuild with `just catalog` and `just gear-map`.
+schemas/hx-stomp.catalog.json
+schemas/gear-map.json
