@@ -1,0 +1,37 @@
+---
+name: Go
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install libusb
+        # pkg/sdk reaches the device through libusb. Everything else is pure
+        # Go; only linting and vetting that package needs the headers.
+        run: sudo apt-get update && sudo apt-get install -y libusb-1.0-0-dev
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: stable
+      - name: Install just
+        uses: extractions/setup-just@v4
+      - name: Fetch justfiles
+        run: just fetch
+      - name: Deps
+        run: just deps
+      - name: Test
+        run: just test
+      - name: Upload coverage reports to Codecov
+        if: hashFiles('.github/codecov.yml') != ''
+        uses: codecov/codecov-action@v7
+        with:
+          files: .coverage/cover.out
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}

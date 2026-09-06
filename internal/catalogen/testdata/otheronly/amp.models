@@ -1,0 +1,9 @@
+[
+  {
+    "symbolicID": "HD2_AmpOtherDevice",
+    "name": "Not On Our Device",
+    "load": 10.0,
+    "devices": [{"id": 2162689}],
+    "params": []
+  }
+]

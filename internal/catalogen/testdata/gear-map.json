@@ -1,0 +1,10 @@
+{
+  "models": {
+    "HD2_AmpTestBass": {
+      "name": "Test Bass Amp",
+      "family": "amp",
+      "subcategory": "Bass",
+      "based_on": "Ampeg SVT® (normal channel)"
+    }
+  }
+}

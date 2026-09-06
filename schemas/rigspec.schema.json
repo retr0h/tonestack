@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://retr0h.github.io/helix-rigspec/v1/rigspec.schema.json",
+  "title": "RigSpec",
+  "description": "A guitar or bass signal chain described independently of any device file format. Every input path \u2014 a text description, an artist name, a recording, a captured amp \u2014 resolves to a RigSpec, and everything that writes a device preset consumes one. RigSpec is not a Line 6 concept; it is this project's own intermediate representation.",
+  "type": "object",
+  "required": [
+    "name",
+    "origin",
+    "blocks"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Human-readable name for the rig. Becomes the preset name."
+    },
+    "origin": {
+      "$ref": "#/$defs/origin"
+    },
+    "blocks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/specBlock"
+      },
+      "description": "The chain, in no particular array order. Placement is carried by each block's dsp and pos, not by array index."
+    },
+    "snapshots": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/snapshot"
+      },
+      "description": "Named parameter variations over the same chain."
+    }
+  },
+  "$defs": {
+    "origin": {
+      "type": "string",
+      "enum": [
+        "curated",
+        "llm",
+        "audio"
+      ],
+      "description": "How this rig was decided. Distinct from a catalog entry's provenance, which records how the catalog learned about a block. A rig has one origin; the blocks it references each carry their own provenance."
+    },
+    "modelId": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9_]+$",
+      "description": "A device-internal model identifier, such as HD2_AmpAmpegSVT. Opaque to this schema \u2014 validity is decided against a catalog, not here."
+    },
+    "paramValue": {
+      "description": "One parameter value. Device parameters mix floats, integers, booleans and enumerated strings within a single object, so the JSON type carries the kind. A number literal without a decimal point or exponent is an integer; any other number is a float.",
+      "oneOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "string"
+        }
+      ]
+    },
+    "params": {
+      "type": "object",
+      "description": "Parameter values keyed by the device's own parameter key, such as Gain or Mode.",
+      "additionalProperties": {
+        "$ref": "#/$defs/paramValue"
+      }
+    },
+    "specBlock": {
+      "type": "object",
+      "required": [
+        "model",
+        "dsp",
+        "pos",
+        "enabled"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "model": {
+          "$ref": "#/$defs/modelId"
+        },
+        "params": {
+          "$ref": "#/$defs/params"
+        },
+        "dsp": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Which DSP processor this block occupies. Zero-based."
+        },
+        "pos": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Position within its processor. Positions on one processor must form the contiguous run 0..n-1."
+        },
+        "enabled": {
+          "type": "boolean",
+          "description": "Whether the block is active. A disabled block still occupies its processor and still costs DSP."
+        }
+      }
+    },
+    "snapshot": {
+      "type": "object",
+      "required": [
+        "name",
+        "overrides"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "overrides": {
+          "type": "object",
+          "description": "Parameter overrides keyed by the index of the block in the blocks array. JSON object keys are strings, so an index appears as \"0\", not 0.",
+          "propertyNames": {
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/params"
+          }
+        }
+      }
+    }
+  }
+}

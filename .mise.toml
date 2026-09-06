@@ -1,0 +1,4 @@
+[tools]
+go = "latest"
+just = "latest"
+uv = "latest"

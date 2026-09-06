@@ -1,0 +1,9 @@
+/cmd/
+/examples/
+/gen/
+main.go
+/mocks/
+pkg/sdk/usb.go
+*.gen.go
+internal/catalogen/cmd/
+pkg/sdk/usb_nocgo.go
