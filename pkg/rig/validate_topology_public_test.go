@@ -34,7 +34,7 @@ type ValidateTopologyPublicTestSuite struct {
 }
 
 func (*ValidateTopologyPublicTestSuite) limits() rig.Limits {
-	return rig.Limits{MaxBlocks: 6, Chips: 2, ChipCeiling: 0.95}
+	return rig.Limits{MaxBlocks: 6, Chips: 2, ChipCeiling: 95.0}
 }
 
 func (s *ValidateTopologyPublicTestSuite) TestAcceptsContiguousPositionsPerChip() {

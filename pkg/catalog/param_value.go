@@ -23,6 +23,7 @@ package catalog
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -65,7 +66,15 @@ func (v ParamValue) Enum() (value string, ok bool) {
 func (v ParamValue) MarshalJSON() ([]byte, error) {
 	switch v.typ {
 	case ParamFloat:
-		return json.Marshal(v.f)
+		// Always emit a decimal point. encoding/json writes 1.0 as "1", and
+		// UnmarshalJSON reads a literal without a point as an integer — so a
+		// whole-numbered float would not survive its own round trip.
+		out := strconv.FormatFloat(v.f, 'f', -1, 64)
+		if !strings.ContainsAny(out, ".eE") {
+			out += ".0"
+		}
+
+		return []byte(out), nil
 	case ParamInt:
 		return json.Marshal(v.i)
 	case ParamBool:

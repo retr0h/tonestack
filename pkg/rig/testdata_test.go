@@ -43,7 +43,7 @@ func testAmp() catalog.Block {
 		Category: catalog.CategoryAmp,
 		Stereo:   false,
 		Prov:     catalog.ProvObserved,
-		DSP:      catalog.DSPCost{Mono: 0.30, Stereo: 0.55, Prov: catalog.ProvMeasured},
+		DSP:      catalog.DSPCost{Mono: 26.67, Stereo: 40.1, Prov: catalog.ProvOfficial},
 		Params: map[string]catalog.Param{
 			"Gain": {
 				Key: "Gain", Label: "Drive", Type: catalog.ParamFloat,
