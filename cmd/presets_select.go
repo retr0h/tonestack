@@ -17,47 +17,43 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
+
 package cmd
 
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/retr0h/tonestack/internal/presets"
+	"github.com/retr0h/tonestack/internal/slots"
+	"github.com/retr0h/tonestack/pkg/slot"
 )
 
-var presetsMakeOptions presets.MakeOptions
+var presetsSelectOptions slots.DeviceOptions
 
-// presetsMakeCmd represents the presets make command.
-var presetsMakeCmd = &cobra.Command{
-	Use:   "make",
-	Short: "Build a preset from a recipe",
-	Long: `Build a preset from curated knowledge.
+// presetsSelectCmd represents the presets select command.
+var presetsSelectCmd = &cobra.Command{
+	Use:   "select",
+	Short: "Load a preset on the device",
+	Long: `Make one preset the active one.
 
-The recipe names real-world gear; the catalog says what this device has. Every
-parameter is set to what Line 6 states as its default — a recipe's character
-lines do not move knobs yet.`,
+The device loads it and starts making that sound, which is what stepping on the
+footswitch does. Nothing is written: the slot it came from is untouched, so this
+is the one device command that changes what you hear without changing what the
+device holds.`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		return presets.Make(cmd.OutOrStdout(), presetsMakeOptions)
+		return slots.SelectDevice(cmd.Context(), cmd.OutOrStdout(), presetsSelectOptions)
 	},
 }
 
 func init() {
-	presetsCmd.AddCommand(presetsMakeCmd)
+	presetsCmd.AddCommand(presetsSelectCmd)
 
-	f := presetsMakeCmd.Flags()
-	f.StringVar(&presetsMakeOptions.RecipeID, "id", "", "recipe to build from")
-	f.StringVar(
-		&presetsMakeOptions.RecipesDir,
-		"recipes",
-		"",
-		"a directory of recipes to use instead of the built-in ones",
+	f := presetsSelectCmd.Flags()
+	f.IntVar(&presetsSelectOptions.Setlist, "setlist", 0, "which setlist to load from")
+	f.Var(
+		slot.NewValue(&presetsSelectOptions.Slot),
+		"slot",
+		"which slot — a label the pedal shows such as 31A, or a number from zero",
 	)
-	f.StringVar(&presetsMakeOptions.CatalogPath, "catalog", "",
-		"a generated catalog to use instead of the built-in one")
-	f.StringVar(&presetsMakeOptions.StatsPath, "stats", "",
-		"measured corpus statistics to use instead of the built-in ones")
-	f.StringVar(&presetsMakeOptions.OutputPath, "out", "", "where to write the preset")
-	_ = presetsMakeCmd.MarkFlagRequired("id")
-	_ = presetsMakeCmd.MarkFlagRequired("out")
+	_ = presetsSelectCmd.MarkFlagRequired("slot")
 }

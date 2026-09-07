@@ -205,10 +205,18 @@ func (s *Session) Presets(ctx context.Context, setlist int) ([]wire.Preset, erro
 //
 // The device answers with its own document and goes on playing whatever it
 // was. Nothing is selected and nothing is written.
+//
+// On the data channel, where every preset document goes, and carrying the
+// same third argument a preset listing does. Both are needed: on the control
+// channel, or without it, a device answers successfully with nothing at all.
+//
+// An empty slot answers with nothing too, which is a slot holding no preset
+// rather than a failure.
 func (s *Session) ReadPreset(ctx context.Context, setlist, slot int) (any, error) {
-	resp, err := s.Call(ctx, channelControl, opReadPreset, []wire.Arg{
+	resp, err := s.Call(ctx, channelData, opReadPreset, []wire.Arg{
 		{Key: argSetlist, Value: uint64(setlist)},
 		{Key: argSlot, Value: uint64(slot)},
+		{Key: argListKind, Value: listKind},
 	})
 	if err != nil {
 		return nil, err

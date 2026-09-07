@@ -592,3 +592,40 @@ func labelOf(entry map[any]any, gear string) string {
 
 	return label
 }
+
+// Loaded is which preset a device is playing.
+type Loaded struct {
+	// Setlist is which setlist it came from.
+	Setlist int
+	// Slot is its position within that setlist, counted from zero.
+	Slot int
+	// Name is what the device calls it.
+	Name string
+}
+
+// DecodeLoaded reads what a device answers when asked what it is playing.
+//
+// The one honest signal that a select has finished. A device takes a select
+// and completes it afterwards, and answers other questions while the switch
+// is still in flight, so "it answered again" is not "it finished".
+func DecodeLoaded(result any) (Loaded, error) {
+	body, ok := result.(map[any]any)
+	if !ok {
+		return Loaded{}, fmt.Errorf(
+			"%w: expected a map, got %T", ErrNotAPreset, result)
+	}
+
+	setlist, ok := asUint(body[int8(keySetlist)])
+	if !ok {
+		return Loaded{}, fmt.Errorf("%w: it names no setlist", ErrNotAPreset)
+	}
+
+	slot, ok := asUint(body[int8(keyPresetIndex)])
+	if !ok {
+		return Loaded{}, fmt.Errorf("%w: it names no slot", ErrNotAPreset)
+	}
+
+	name, _ := asString(body[int8(keyPresetName)])
+
+	return Loaded{Setlist: int(setlist), Slot: int(slot), Name: name}, nil
+}

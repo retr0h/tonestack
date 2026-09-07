@@ -173,11 +173,27 @@ func (s *Session) Model() Model { return s.model }
 // until an otherwise innocent write stops the device.
 func (s *Session) Close() {
 	if s.in != nil {
-		s.drain(context.Background())
+		ctx := context.Background()
+
+		s.drain(ctx)
 
 		for _, c := range s.chans {
 			_ = s.send(c, wire.MsgAck, nil)
 		}
+
+		// The message that opens a channel closes one: it is a session
+		// boundary and appears at both ends of the conversation. A device
+		// left without it goes on believing an editor is attached, and its
+		// front panel stops refreshing footswitches as somebody browses
+		// presets on the pedal itself.
+		for _, c := range s.chans {
+			_ = s.closeChannel(c)
+		}
+
+		// The device answers each one. Reading them is what makes the next
+		// session's handshake the first thing it sees rather than the last
+		// thing this one left.
+		s.drain(ctx)
 	}
 
 	if s.done != nil {

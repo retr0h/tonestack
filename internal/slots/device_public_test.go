@@ -23,9 +23,11 @@ package slots_test
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
@@ -232,6 +234,93 @@ func (s *DevicePublicTestSuite) TestWritesOneSlotToAFile() {
 	body, err := os.ReadFile(out) //nolint:gosec // a path this test chose
 	s.Require().NoError(err)
 	s.Require().Contains(string(body), "schema: RigSpec")
+}
+
+// TestReportsASlotHoldingNothing covers the answer a device gives for an
+// empty slot: no document at all.
+//
+// It used to reach a diagnostic left over from before the format was decoded,
+// which printed what shape had arrived. An export then wrote that prose into
+// the file and reported success.
+func (s *DevicePublicTestSuite) TestReportsASlotHoldingNothing() {
+	s.dev.EXPECT().Presets(gomock.Any(), 0).Return(s.listing(), nil).Times(2)
+	s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 4).Return(nil, nil).Times(2)
+
+	var out bytes.Buffer
+
+	err := slots.ShowWith(context.Background(), &out, s.dev,
+		slots.DeviceOptions{Slot: 4})
+	s.Require().ErrorIs(err, slots.ErrEmptySlot)
+
+	// And an export writes nothing rather than a file that is not a preset.
+	path := filepath.Join(s.T().TempDir(), "empty.hlx")
+
+	s.Require().ErrorIs(slots.ExportWith(context.Background(), &out, s.dev,
+		slots.ExportOptions{Slot: 4, As: "hlx", OutputPath: path}),
+		slots.ErrEmptySlot)
+
+	s.Require().NoFileExists(path, "an empty slot leaves no file behind")
+}
+
+// TestWritesOneSlotAsTheDevicesOwnFile covers `--as hlx`, which the device
+// path ignored: it wrote a rig whatever was asked for.
+//
+// The positions are the check that matters. A preset counts its blocks along
+// the path and a device counts across a grid holding its routing too, so an
+// export carrying the device's numbers is not the file HX Edit writes. Slot
+// 27B exported from HX Edit holds these six at 1 to 6, and preset.bin is that
+// same slot as the device sent it.
+func (s *DevicePublicTestSuite) TestWritesOneSlotAsTheDevicesOwnFile() {
+	out := filepath.Join(s.T().TempDir(), "slot.hlx")
+
+	s.dev.EXPECT().Presets(gomock.Any(), 0).Return(s.listing(), nil)
+	s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 0).Return(s.answer("preset.bin"), nil)
+
+	s.Require().NoError(slots.ExportWith(context.Background(), &bytes.Buffer{},
+		s.dev, slots.ExportOptions{Slot: 0, As: "hlx", OutputPath: out}))
+
+	body, err := os.ReadFile(out) //nolint:gosec // a path this test chose
+	s.Require().NoError(err)
+
+	// A tone holds more than blocks — the globals, the snapshots, the routing
+	// — so entries are read one at a time rather than through one shape.
+	var doc struct {
+		Data struct {
+			Tone map[string]map[string]json.RawMessage `json:"tone"`
+		} `json:"data"`
+	}
+
+	s.Require().NoError(json.Unmarshal(body, &doc))
+
+	at := map[int]string{}
+
+	for key, raw := range doc.Data.Tone["dsp0"] {
+		if !strings.HasPrefix(key, "block") {
+			continue
+		}
+
+		var entry struct {
+			Model    string `json:"@model"`
+			Position *int   `json:"@position"`
+		}
+
+		s.Require().NoError(json.Unmarshal(raw, &entry))
+		s.Require().NotNil(entry.Position, "%s states no position", key)
+
+		at[*entry.Position] = entry.Model
+	}
+
+	s.Require().Equal(map[int]string{
+		1: "HD2_VolPanVol",
+		2: "HD2_CompressorLAStudioComp",
+		3: "HD2_FM4Growler",
+		4: "HD2_DM4BassOctaver",
+		5: "HD2_AmpSVBeastNrm",
+		6: "HD2_Cab8x10SVBeast",
+	}, at, "what HX Edit writes for this slot")
+
+	s.Require().Contains(doc.Data.Tone["dsp0"], "inputA",
+		"the routing a device wraps a chain in comes too")
 }
 
 func (s *DevicePublicTestSuite) TestReportsAFileItCannotWrite() {

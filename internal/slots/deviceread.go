@@ -23,6 +23,7 @@ package slots
 import (
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/retr0h/tonestack/internal/catalogview"
 	"github.com/retr0h/tonestack/internal/lift"
@@ -55,25 +56,22 @@ func writeDeviceRig(w io.Writer, body []byte, opts DeviceOptions) error {
 		name = "slot " + slotpkg.Label(opts.Slot)
 	}
 
-	c, err := chainOf(name, got, cat)
+	doc, empty, err := deviceDocument(got, cat, name)
 	if err != nil {
 		return err
 	}
 
-	if len(c.Blocks) == 0 {
+	if empty {
 		_, err := fmt.Fprintf(w, "# %s is empty\n", name)
 
 		return err
 	}
 
-	// An untouched preset the device itself wrote, which cannot fail to
-	// decode: it is embedded in this binary and a test reads it. The chain
-	// goes into it, and what comes out is a rig.
-	doc, _ := preset.Blank()
-	doc.Data.Device = cat.DeviceID
-	doc.Data.Meta.Name = name
-
-	_ = doc.SetSpec(c)
+	// The device's own file, when that is what was asked for. A rig is the
+	// default because it reads on other hardware; this is the faithful copy.
+	if opts.As == FormatPreset {
+		return preset.Write(w, doc)
+	}
 
 	spec, err := lift.Lift(doc, cat)
 	if err != nil {
@@ -91,6 +89,45 @@ func writeDeviceRig(w io.Writer, body []byte, opts DeviceOptions) error {
 	spec.Footswitches = footswitchesOf(got, cat)
 
 	return writeRigTo(w, spec)
+}
+
+// deviceDocument builds the preset a device's answer describes.
+//
+// Everything a preset holds, not only the chain: the routing a device wraps
+// one in, and the cabinets its amplifiers carry, which a preset keeps as
+// sibling entries rather than inside the block.
+//
+// The blank it is written into is an untouched preset the device itself
+// wrote, embedded in this binary and read by a test, so it cannot fail to
+// decode.
+func deviceDocument(
+	got wire.DevicePreset,
+	cat *catalog.Catalog,
+	name string,
+) (*preset.Document, bool, error) {
+	c, err := chainOf(name, got, cat)
+	if err != nil {
+		return nil, false, err
+	}
+
+	if len(c.Blocks) == 0 {
+		return nil, true, nil
+	}
+
+	doc, _ := preset.Blank()
+	doc.Data.Device = cat.DeviceID
+	doc.Data.Meta.Name = name
+
+	_ = doc.SetSpec(c)
+
+	if state := routingOf(got, cat); state != nil {
+		for key, body := range *state {
+			doc.Data.Tone[processorKey][strings.TrimPrefix(
+				key, processorKey+".")] = body
+		}
+	}
+
+	return doc, false, nil
 }
 
 // snapshotsOf carries what the device recalls on a footswitch.
@@ -132,7 +169,9 @@ func footswitchesOf(got wire.DevicePreset, cat *catalog.Catalog) *[]riggen.Foots
 	out := make([]riggen.Footswitch, 0, len(got.Footswitches))
 
 	for _, f := range got.Footswitches {
-		label, gear, at, block := f.Label, f.Gear, f.Switch, f.Block
+		// The block as the chain numbers it, so a footswitch and the entry
+		// it works on agree.
+		label, gear, at, block := f.Label, f.Gear, f.Switch, f.Block-wire.GridOffset
 		fs := riggen.Footswitch{
 			Switch: &at, Label: &label, Gear: &gear, Block: &block,
 		}

@@ -121,6 +121,23 @@ func (s *Session) OpenChannels() {
 	}
 }
 
+// MessageKind reads the message type out of a frame a session sent.
+func MessageKind(frame []byte) (uint16, error) {
+	f, _, err := wire.DecodeFrame(frame)
+
+	return f.Type, err
+}
+
+// ChannelNames is every channel a session opens.
+func ChannelNames() []string {
+	out := make([]string, 0, len(channelSpecs))
+	for _, spec := range channelSpecs {
+		out = append(out, spec.name)
+	}
+
+	return out
+}
+
 // FirstTxn is the transaction number a channel starts at.
 const FirstTxn = wire.FirstTxn
 
@@ -175,6 +192,13 @@ const StreamChunk = streamChunk
 // FlashBudget is how long a write is given to reach flash, exported so a test
 // does not spend it.
 var FlashBudget = &flashBudget
+
+// SelectPoll and SelectBudget pace the wait for a switch to land, exported so
+// a test does not spend it.
+var (
+	SelectPoll   = &selectPoll
+	SelectBudget = &selectBudget
+)
 
 // CommitBudget is how long a device is given to finish a write, exported so a
 // test need not wait the whole of it.
