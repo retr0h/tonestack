@@ -17,26 +17,22 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
-// Package device reports what hardware is attached.
-package device
 
-import (
-	"context"
-	"io"
+package rig
 
-	"github.com/retr0h/tonestack/pkg/sdk"
-)
+// LoadSchema is the contract reader, exported for tests that hand it a
+// document other than the one this binary ships.
+var LoadSchema = load
 
-// newLister is how a bus is obtained, so a test can stand in for it.
-//
-// The one thing in this package that needs hardware; everything reached
-// through it takes the lister as an argument instead.
-var newLister = sdk.NewUSBLister
+// Contract is the cached schema, exported so a test can stand in a failure
+// for it. The real one is embedded and cannot fail; what needs covering is
+// what happens to a rig if it ever did.
+var Contract = &contract
 
-// List writes every recognised device to w.
-func List(ctx context.Context, w io.Writer) error {
-	l := newLister()
-	defer func() { _ = l.Close() }()
+// Against checks a document against the contract, exported so a test can
+// hand it something a generated type could never produce.
+var Against = against
 
-	return ListWith(ctx, w, l)
-}
+// Invalid turns a schema failure into one that names the field, exported so
+// a test can hand it a failure the library does not currently produce.
+var Invalid = invalid

@@ -40,7 +40,7 @@ type USBLister struct {
 // NewUSBLister returns a Lister backed by libusb.
 //
 // The caller must Close it; libusb holds an open context until then.
-func NewUSBLister() *USBLister {
+func NewUSBLister() Bus {
 	return &USBLister{ctx: gousb.NewContext()}
 }
 

@@ -17,26 +17,20 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
-// Package device reports what hardware is attached.
-package device
 
-import (
-	"context"
-	"io"
-
-	"github.com/retr0h/tonestack/pkg/sdk"
-)
-
-// newLister is how a bus is obtained, so a test can stand in for it.
+// Package schemas holds the contracts this project speaks, and ships them.
 //
-// The one thing in this package that needs hardware; everything reached
-// through it takes the lister as an argument instead.
-var newLister = sdk.NewUSBLister
+// The RigSpec schema is embedded rather than read from disk because it is
+// what validates every rig: a binary that had to find its own contract on the
+// filesystem could not validate anything once installed.
+package schemas
 
-// List writes every recognised device to w.
-func List(ctx context.Context, w io.Writer) error {
-	l := newLister()
-	defer func() { _ = l.Close() }()
+import _ "embed"
 
-	return ListWith(ctx, w, l)
-}
+// RigSpec is the contract a rig is checked against.
+//
+// The same file the Go types are generated from, so a constraint stated once
+// is both a type and a check.
+//
+//go:embed rigspec.openapi.yaml
+var RigSpec []byte

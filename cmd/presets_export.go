@@ -42,6 +42,13 @@ than a reading — it carries the routing and snapshots a rig models but nobody
 chooses.`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
+		// No file means the device itself, which is what somebody with one
+		// plugged in almost always wants.
+		if presetsExportOptions.Path == "" {
+			return slots.ExportDevice(
+				cmd.Context(), cmd.OutOrStdout(), presetsExportOptions)
+		}
+
 		return slots.Export(cmd.OutOrStdout(), presetsExportOptions)
 	},
 }
@@ -72,7 +79,6 @@ func init() {
 		"rigspec for a rig, hlx for the device's own file")
 	f.StringVar(&presetsExportOptions.CatalogPath, "catalog", "",
 		"a generated catalog to use instead of the built-in one")
-	_ = presetsExportCmd.MarkFlagRequired("file")
 	_ = presetsExportCmd.MarkFlagRequired("slot")
 	_ = presetsExportCmd.MarkFlagRequired("out")
 }

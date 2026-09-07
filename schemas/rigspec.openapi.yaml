@@ -135,6 +135,8 @@ components:
         name:
           type: string
           minLength: 1
+          # Something other than spaces: a name of blanks is not a name.
+          pattern: "\\S"
         band:
           type: string
           description: The group, where the subject is a person.
@@ -219,6 +221,8 @@ components:
         gear:
           type: string
           minLength: 1
+          # Something other than spaces: a name of blanks is not a name.
+          pattern: "\\S"
           description: >
             Real-world gear, as a person would say it — "Ampeg SVT", "Klon
             Centaur". Never a device model identifier: those are one
@@ -310,6 +314,8 @@ components:
         name:
           type: string
           minLength: 1
+          # Something other than spaces: a name of blanks is not a name.
+          pattern: "\\S"
         slot:
           type: integer
           description: >
@@ -384,6 +390,8 @@ components:
         ask:
           type: string
           minLength: 1
+          # Something other than spaces: a name of blanks is not a name.
+          pattern: "\\S"
           description: >
             What was asked for, in the words used. "Clunky" is not a
             parameter, and normalising it away loses the question.
@@ -666,7 +674,7 @@ components:
           $ref: "#/components/schemas/Instrument"
         aliases:
           type: array
-          items: { type: string, minLength: 1 }
+          items: { type: string, minLength: 1, pattern: "\\S" }
           description: >
             Other names this rig answers to.
 
@@ -699,7 +707,7 @@ components:
             device, and it still decides what the rig has to do.
         character:
           type: array
-          items: { type: string, minLength: 1 }
+          items: { type: string, minLength: 1, pattern: "\\S" }
           description: >
             How it should sound, in the words a person would use. Describe the
             result, not the control: "mid-forward, not scooped", not "raise the

@@ -46,12 +46,15 @@ go build .
 Plug in the Helix and quit HX Edit — it holds the device open, and nothing else
 can talk to it while it runs.
 
-**See what the device holds.** Both of these read the hardware:
+**Read the device.** All three talk to the hardware over USB:
 
 ```bash
-tonestack presets list                 # every slot
-tonestack presets show --slot 31A      # one slot, as a rig
+tonestack presets list                              # every slot
+tonestack presets show   --slot 31A                 # one slot, as a rig
+tonestack presets export --slot 31A --out lead.yaml # the same, to a file
 ```
+
+Slots are addressed the way the pedal labels them — `01A` through `42C`.
 
 **Build a preset.** Gear is named the way you say it — "Ampeg SVT", never a
 model identifier:

@@ -36,9 +36,7 @@ import (
 // the single most reliable way to wedge a device: every failure amplifies
 // into a burst of them, and recovery needs the power supply pulled.
 func (s *Session) handshake(ctx context.Context) error {
-	if err := s.drain(ctx); err != nil {
-		return err
-	}
+	s.drain(ctx)
 
 	for _, spec := range channelSpecs {
 		c := &channel{
@@ -59,9 +57,7 @@ func (s *Session) handshake(ctx context.Context) error {
 				// The device answers the close before it will answer a new
 				// opening. Reopening without reading first leaves it talking
 				// about the channel that just went away.
-				if _, err := s.receive(ctx, openReadWait); err != nil {
-					return err
-				}
+				s.receive(ctx, openReadWait)
 
 				c.seq = 0
 				c.rxBytes = 0
@@ -89,9 +85,7 @@ func (s *Session) openService(ctx context.Context, c *channel, service uint16) e
 
 	// The device answers some openings and not others. A timeout here is not
 	// a failure; the first request is what proves the session is alive.
-	if _, err := s.receive(ctx, openReadWait); err != nil {
-		return err
-	}
+	s.receive(ctx, openReadWait)
 
 	body := wire.EncodeEnvelope(wire.Envelope{
 		Originator: wire.FromHost, Service: service,
@@ -102,9 +96,7 @@ func (s *Session) openService(ctx context.Context, c *channel, service uint16) e
 		return err
 	}
 
-	if _, err := s.receive(ctx, openReadWait); err != nil {
-		return err
-	}
+	s.receive(ctx, openReadWait)
 
 	return s.send(c, wire.MsgAck, nil)
 }
@@ -157,10 +149,7 @@ func (s *Session) awaitReply(
 	deadline := time.Now().Add(replyBudget)
 
 	for time.Now().Before(deadline) {
-		got, err := s.receive(ctx, replyReadWait)
-		if err != nil {
-			return wire.Response{}, err
-		}
+		got := s.receive(ctx, replyReadWait)
 
 		for {
 			body, ok := message(c)

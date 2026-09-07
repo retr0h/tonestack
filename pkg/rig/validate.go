@@ -22,18 +22,26 @@
 //
 // The types in gen/ are generated from schemas/rigspec.openapi.yaml, and
 // generation gives them shape but not rules: nothing stops a required field
-// being empty or an enumeration holding a word that is not in it. This is
-// where the document's own constraints are enforced, so a rig that has been
-// read, written or lifted can be asserted to still be one.
+// being empty or an enumeration holding a word that is not in it.
+//
+// Those rules are enforced by checking a rig against that same document,
+// rather than against a second copy of it written in Go. Two copies drift: a
+// constraint added to the schema becomes a type nothing enforces, and one
+// removed becomes a check nothing asked for.
 package rig
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
-	"regexp"
+	"strconv"
 	"strings"
+	"sync"
+
+	"github.com/getkin/kin-openapi/openapi3"
 
 	"github.com/retr0h/tonestack/pkg/rig/gen"
+	"github.com/retr0h/tonestack/schemas"
 )
 
 // ErrInvalid reports a rig that does not meet its own contract.
@@ -53,162 +61,120 @@ func (e *InvalidError) Error() string {
 
 func (*InvalidError) Unwrap() error { return ErrInvalid }
 
-// idPattern is the shape the schema states for an identifier.
-var idPattern = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
-
 // Validate reports whether a rig meets the contract in the schema.
-//
-// Checked in the order that gives the most useful first failure: the document
-// says what it is, then what it is about, then what it holds.
 func Validate(s gen.RigSpec) error {
-	if !s.Schema.Valid() {
-		return &InvalidError{
-			Field:  "schema",
-			Reason: fmt.Sprintf("is %q, which is not a rig", s.Schema),
-		}
+	// Through JSON, because that is the shape a schema describes. The tags on
+	// the generated types map one to the other, and they came from the same
+	// document as the rules.
+	// A rig can carry raw JSON it was handed — the state a device wrote —
+	// and something that is not JSON cannot be checked against anything.
+	body, err := json.Marshal(s)
+	if err != nil {
+		return fmt.Errorf("reading the rig: %w", err)
 	}
 
-	if !idPattern.MatchString(s.ID) {
-		return &InvalidError{
-			Field:  "id",
-			Reason: fmt.Sprintf("%q is not lower case words joined by hyphens", s.ID),
-		}
+	// What Marshal produced is JSON, so reading it back cannot fail.
+	var document any
+	_ = json.Unmarshal(body, &document)
+
+	return against(document)
+}
+
+// schemaName is the contract a rig is checked against.
+const schemaName = "RigSpec"
+
+// contract returns the schema, parsed once.
+//
+// Parsing an OpenAPI document is not cheap and the document never changes, so
+// it happens on the first rig checked and not again.
+var contract = sync.OnceValues(func() (*openapi3.Schema, error) {
+	return load(schemas.RigSpec)
+})
+
+// load reads the contract out of an OpenAPI document.
+func load(raw []byte) (*openapi3.Schema, error) {
+	doc, err := openapi3.NewLoader().LoadFromData(raw)
+	if err != nil {
+		return nil, fmt.Errorf("reading the %s schema: %w", schemaName, err)
 	}
 
-	if err := validateSubject(s.Subject); err != nil {
+	ref, ok := doc.Components.Schemas[schemaName]
+	if !ok {
+		return nil, fmt.Errorf("the schema describes no %s", schemaName)
+	}
+
+	return ref.Value, nil
+}
+
+// against checks a document against the schema.
+//
+// The schema is the contract, so it is what does the checking. Writing the
+// same rules a second time in Go is how the two drift: a constraint added to
+// the schema would be a type nothing enforced, and one removed would be a
+// check nothing had asked for.
+func against(document any) error {
+	schema, err := contract()
+	if err != nil {
 		return err
 	}
 
-	if !s.Instrument.Valid() {
-		return &InvalidError{
-			Field:  "instrument",
-			Reason: fmt.Sprintf("is %q, which is not guitar or bass", s.Instrument),
-		}
-	}
-
-	if len(s.Chain) == 0 {
-		return &InvalidError{Field: "chain", Reason: "holds nothing"}
-	}
-
-	return validateChain(s)
-}
-
-// validateSubject checks who or what a rig is attributed to.
-func validateSubject(sub gen.Subject) error {
-	if !sub.Kind.Valid() {
-		return &InvalidError{
-			Field:  "subject.kind",
-			Reason: fmt.Sprintf("is %q, which is not a kind of subject", sub.Kind),
-		}
-	}
-
-	if strings.TrimSpace(sub.Name) == "" {
-		return &InvalidError{Field: "subject.name", Reason: "is empty"}
+	if err := schema.VisitJSON(document); err != nil {
+		return invalid(err)
 	}
 
 	return nil
 }
 
-// validateChain checks every piece of gear and what is claimed about it.
-func validateChain(s gen.RigSpec) error {
-	for i, entry := range s.Chain {
-		at := fmt.Sprintf("chain[%d]", i)
-
-		if !entry.Role.Valid() {
-			return &InvalidError{
-				Field:  at + ".role",
-				Reason: fmt.Sprintf("is %q, which is not a role", entry.Role),
-			}
-		}
-
-		if strings.TrimSpace(entry.Gear) == "" {
-			return &InvalidError{Field: at + ".gear", Reason: "is empty"}
-		}
-
-		if err := validateSettings(at, entry.Settings); err != nil {
-			return err
-		}
-
-		if err := validateConfidence(at, entry.Confidence); err != nil {
-			return err
-		}
-
-		if err := validateEvidence(at, entry.Evidence); err != nil {
-			return err
-		}
-	}
-
-	return validateMutations(s.Mutations)
-}
-
-// validateSettings checks the musical layer stays inside its stated range.
+// invalid turns a schema failure into one that names the field.
 //
-// A setting outside nought to one is not a value any device accepts, and it
-// means the rig was written against a different idea of what these are.
-func validateSettings(at string, settings *gen.Settings) error {
-	if settings == nil {
-		return nil
-	}
-
-	for key, v := range *settings {
-		if v < 0 || v > 1 {
-			return &InvalidError{
-				Field:  at + ".settings." + key,
-				Reason: fmt.Sprintf("is %g, outside nought to one", v),
-			}
-		}
-	}
-
-	return nil
-}
-
-// validateConfidence checks a stated confidence is one the schema knows.
-func validateConfidence(at string, c *gen.Confidence) error {
-	if c == nil || c.Valid() {
-		return nil
+// A rig is hand-written, so the field is the useful half of the message.
+func invalid(err error) error {
+	var schemaErr *openapi3.SchemaError
+	if !errors.As(err, &schemaErr) {
+		return &InvalidError{Field: schemaName, Reason: err.Error()}
 	}
 
 	return &InvalidError{
-		Field:  at + ".confidence",
-		Reason: fmt.Sprintf("is %q, which is not low, medium or high", *c),
+		Field:  fieldOf(schemaErr),
+		Reason: reasonOf(schemaErr),
 	}
 }
 
-// validateEvidence checks each claim says how it came to be believed.
-func validateEvidence(at string, evidence *[]gen.Evidence) error {
-	if evidence == nil {
-		return nil
-	}
-
-	for i, e := range *evidence {
-		if !e.Kind.Valid() {
-			return &InvalidError{
-				Field:  fmt.Sprintf("%s.evidence[%d].kind", at, i),
-				Reason: fmt.Sprintf("is %q, which is not a kind of evidence", e.Kind),
-			}
-		}
-	}
-
-	return nil
-}
-
-// validateMutations checks each round of correction says what was asked for.
+// fieldOf names what failed, the way the file writes it.
 //
-// An entry with no ask is not a record of anything: the words somebody used
-// are the part that cannot be reconstructed later.
-func validateMutations(mutations *[]gen.Mutation) error {
-	if mutations == nil {
-		return nil
+// A schema points at a value with a JSON pointer, where every step is a name
+// — `chain.0.role`. Somebody looking at their own YAML sees a list, so the
+// steps that are positions are written as ones: `chain[0].role`.
+func fieldOf(err *openapi3.SchemaError) string {
+	path := err.JSONPointer()
+	if len(path) == 0 {
+		return schemaName
 	}
 
-	for i, m := range *mutations {
-		if strings.TrimSpace(m.Ask) == "" {
-			return &InvalidError{
-				Field:  fmt.Sprintf("mutations[%d].ask", i),
-				Reason: "is empty, so the entry records no request",
-			}
+	var out strings.Builder
+
+	for _, step := range path {
+		if _, err := strconv.Atoi(step); err == nil {
+			fmt.Fprintf(&out, "[%s]", step)
+
+			continue
 		}
+
+		if out.Len() > 0 {
+			out.WriteString(".")
+		}
+
+		out.WriteString(step)
 	}
 
-	return nil
+	return out.String()
+}
+
+// reasonOf says what was wrong with it, without repeating the field.
+func reasonOf(err *openapi3.SchemaError) string {
+	if err.Reason != "" {
+		return err.Reason
+	}
+
+	return err.Error()
 }

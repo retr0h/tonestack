@@ -110,23 +110,27 @@ It is read-only: it asks the device to describe a setlist and nothing more.
 Nothing is selected, loaded or written. [protocol.md](protocol.md) covers how,
 and carries the rules that keep a device alive if you are working on that code.
 
-`presets show` reads the hardware too, and prints the slot as a rig:
+`presets show` and `presets export` read the hardware too, and give the slot
+back as a rig:
 
 ```bash
-tonestack presets show --slot 31A
+tonestack presets show   --slot 31A
+tonestack presets export --slot 31A --out lead.yaml
 ```
 
-Moving a preset between slots still needs a backup HX Edit wrote — a `.hlb` of
-the whole device, or a `.hls` of one setlist — because writing over USB is not
-implemented:
+A slot is addressed the way the pedal labels it — `01A` through `42C` — and a
+bare number works too, for scripts.
+
+Every reading command also takes `--file`, for a backup HX Edit wrote when no
+device is attached:
 
 ```bash
 tonestack presets list --file device.hlb
 tonestack presets show --file device.hlb --slot 31A
 ```
 
-A slot is addressed the way the pedal labels it — `01A` through `42C` — and a
-bare number works too, for scripts.
+Putting a preset *onto* a device is the part that is not live — see
+[Get it onto the device](#get-it-onto-the-device).
 
 One thing a live read cannot carry: the routing and controller assignments a
 preset holds arrive in a numbering nobody has decoded, so a rig read off the

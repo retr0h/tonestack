@@ -182,6 +182,8 @@ reply     the preset, as the three values described below
 Read-only in the strongest sense: the device answers and goes on playing
 whatever it was. Nothing is selected and nothing is written.
 
+This is what `presets show` and `presets export` run.
+
 The reply carries no name. That comes from the listing, which is why reading one
 slot costs two calls.
 

@@ -17,26 +17,9 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
-// Package device reports what hardware is attached.
-package device
 
-import (
-	"context"
-	"io"
+package slots
 
-	"github.com/retr0h/tonestack/pkg/sdk"
-)
-
-// newLister is how a bus is obtained, so a test can stand in for it.
-//
-// The one thing in this package that needs hardware; everything reached
-// through it takes the lister as an argument instead.
-var newLister = sdk.NewUSBLister
-
-// List writes every recognised device to w.
-func List(ctx context.Context, w io.Writer) error {
-	l := newLister()
-	defer func() { _ = l.Close() }()
-
-	return ListWith(ctx, w, l)
-}
+// OpenDevice is how a session is obtained, exported so a test can stand in
+// for the one line in this package that needs hardware.
+var OpenDevice = &openDevice

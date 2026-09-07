@@ -21,14 +21,23 @@
 package slots
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
+	"os"
 
 	"github.com/retr0h/tonestack/internal/cli"
 	"github.com/retr0h/tonestack/pkg/sdk"
+	"github.com/retr0h/tonestack/pkg/sdk/wire"
 	slotpkg "github.com/retr0h/tonestack/pkg/slot"
 )
+
+// openDevice is how a session is obtained, so a test can stand in for it.
+//
+// The one line in this package that needs hardware; everything reached
+// through it takes the session as an argument instead.
+var openDevice = sdk.Open
 
 // DeviceOptions says which setlist to read off an attached device.
 type DeviceOptions struct {
@@ -49,20 +58,31 @@ type DeviceOptions struct {
 // Read-only: the device hands back the preset and goes on playing whatever it
 // was. Nothing is selected, loaded or written.
 func ShowDevice(ctx context.Context, w io.Writer, opts DeviceOptions) error {
-	s, err := sdk.Open(ctx)
+	s, err := openDevice(ctx)
 	if err != nil {
 		return err
 	}
 
 	defer s.Close()
 
+	return ShowWith(ctx, w, s, opts)
+}
+
+// ShowWith reads one slot off the given session.
+//
+// Taking the session makes reading a device testable without one attached,
+// which is the only part of this that needs hardware.
+func ShowWith(
+	ctx context.Context,
+	w io.Writer,
+	s sdk.Editor,
+	opts DeviceOptions,
+) error {
 	// The name comes from the listing rather than the preset: what the device
 	// hands back for one slot does not carry it.
 	if opts.Name == "" {
 		if found, err := s.Presets(ctx, opts.Setlist); err == nil {
-			if opts.Slot >= 0 && opts.Slot < len(found) {
-				opts.Name = found[opts.Slot].Name
-			}
+			opts.Name = nameOf(found, opts.Slot)
 		}
 	}
 
@@ -83,18 +103,86 @@ func ShowDevice(ctx context.Context, w io.Writer, opts DeviceOptions) error {
 	return writeDeviceRig(w, []byte(body), opts)
 }
 
-// ListDevice prints what an attached device holds.
+// nameOf finds what a listing calls one slot.
 //
-// Read-only: it asks the device to describe a setlist and nothing more.
-// Nothing is selected, loaded or written.
-func ListDevice(ctx context.Context, w io.Writer, opts DeviceOptions) error {
-	s, err := sdk.Open(ctx)
+// Searched rather than indexed. A device answers with every slot in order, so
+// the two are the same today — and a listing that ever skipped an empty slot
+// would silently name every preset after it wrongly.
+func nameOf(found []wire.Preset, slot int) string {
+	for _, p := range found {
+		if p.Slot == slot {
+			return p.Name
+		}
+	}
+
+	return ""
+}
+
+// ExportDevice writes one slot off an attached device to a file.
+//
+// The same rig `presets show` prints, which is the point: a slot read off the
+// hardware and one read out of a backup are the same document.
+func ExportDevice(ctx context.Context, w io.Writer, opts ExportOptions) error {
+	s, err := openDevice(ctx)
 	if err != nil {
 		return err
 	}
 
 	defer s.Close()
 
+	return ExportWith(ctx, w, s, opts)
+}
+
+// ExportWith writes one slot off the given session to a file.
+func ExportWith(
+	ctx context.Context,
+	w io.Writer,
+	s sdk.Editor,
+	opts ExportOptions,
+) error {
+	var buf bytes.Buffer
+
+	err := ShowWith(ctx, &buf, s, DeviceOptions{
+		Setlist:     opts.Setlist,
+		Slot:        opts.Slot,
+		CatalogPath: opts.CatalogPath,
+	})
+	if err != nil {
+		return err
+	}
+
+	if err := os.WriteFile(opts.OutputPath, buf.Bytes(), 0o600); err != nil {
+		return fmt.Errorf("writing %s: %w", opts.OutputPath, err)
+	}
+
+	_, err = fmt.Fprintf(w, "\n%s%s\n\n",
+		cli.Indent, cli.Success(w, "wrote "+opts.OutputPath))
+
+	return err
+}
+
+// ListDevice prints what an attached device holds.
+//
+// Read-only: it asks the device to describe a setlist and nothing more.
+// Nothing is selected, loaded or written.
+func ListDevice(ctx context.Context, w io.Writer, opts DeviceOptions) error {
+	s, err := openDevice(ctx)
+	if err != nil {
+		return err
+	}
+
+	defer s.Close()
+
+	return ListWith(ctx, w, s, opts)
+}
+
+// ListWith prints what the given session holds.
+func ListWith(
+	ctx context.Context,
+	w io.Writer,
+	s sdk.Editor,
+	opts DeviceOptions,
+) error {
 	presets, err := s.Presets(ctx, opts.Setlist)
 	if err != nil {
 		return fmt.Errorf("listing presets: %w", err)
