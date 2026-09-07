@@ -102,9 +102,18 @@ func (s *DeviceReadTestSuite) TestADeviceAnswerBecomesARig() {
 	s.Require().Contains(got, "snapshots:")
 	s.Require().Contains(got, "SNAPSHOT 1")
 
-	// The untouched preset it was assembled into is not this slot, so none of
-	// its state may be presented as though it were.
-	s.Require().NotContains(got, "\ndevice:")
+	// What the device wraps the chain in, named the way a preset names it.
+	// The models come from the catalog, because a device knows which inputs
+	// and outputs are its own and does not say.
+	s.Require().Contains(got, "dsp0.inputA")
+	s.Require().Contains(got, "'@model': HelixStomp_AppDSPFlowInput")
+	s.Require().Contains(got, "threshold: -48")
+	s.Require().Contains(got, "dsp0.split")
+	s.Require().Contains(got, "'@model': HD2_AppDSPFlowSplitY")
+	s.Require().Contains(got, "dsp0.join")
+
+	// Controller assignments are not decoded, so nothing claims them.
+	s.Require().NotContains(got, "controller")
 }
 
 func (s *DeviceReadTestSuite) TestASlotWithNoNameIsCalledBySlot() {
@@ -170,6 +179,32 @@ func (s *DeviceReadTestSuite) TestReportsAChainThatIsNotARig() {
 
 	s.Require().Error(err)
 	s.Require().Contains(err.Error(), "slot 01A")
+}
+
+func (s *DeviceReadTestSuite) TestARigReadOffTheDeviceRebuildsItsRouting() {
+	// The claim this closes: a rig read over USB used to carry no routing, so
+	// compiling it fell back to whatever preset it was built into. It now
+	// carries the device's own, and building it puts that back.
+	dir := s.T().TempDir()
+	rigPath := filepath.Join(dir, "rig.yaml")
+	out := filepath.Join(dir, "out.hlx")
+
+	var buf bytes.Buffer
+	s.Require().NoError(writeDeviceRig(&buf, s.capture(), DeviceOptions{Slot: 0}))
+	s.Require().NoError(os.WriteFile(rigPath, buf.Bytes(), 0o600))
+
+	s.Require().NoError(Compile(&bytes.Buffer{}, CompileOptions{
+		RigPath: rigPath, OutputPath: out,
+	}))
+
+	built, err := os.ReadFile(out) //nolint:gosec // a path this test chose
+	s.Require().NoError(err)
+
+	got := string(built)
+	s.Require().Contains(got, `"@model": "HelixStomp_AppDSPFlowInput"`)
+	s.Require().Contains(got, `"threshold": -48`)
+	s.Require().Contains(got, `"@model": "HD2_AppDSPFlowSplitY"`)
+	s.Require().Contains(got, `"@model": "HD2_AppDSPFlowJoin"`)
 }
 
 func TestDeviceReadTestSuite(t *testing.T) {

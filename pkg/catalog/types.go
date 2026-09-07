@@ -166,6 +166,12 @@ type Catalog struct {
 	// which is why a device can name a model beyond the count of models it
 	// can load.
 	Symbols []Symbol `json:"symbols,omitempty"`
+	// Flow is what a device wraps a chain in.
+	//
+	// A preset read over USB describes its inputs and outputs without naming
+	// the models behind them: the device knows which are its own. A file has
+	// to name them, so this is where the names come from.
+	Flow Flow `json:"flow,omitzero"`
 	// LEDColours is what a device calls its footswitch colours, in the order
 	// it numbers them.
 	//
@@ -187,6 +193,20 @@ func (c *Catalog) LEDColour(n int) (string, bool) {
 	}
 
 	return c.LEDColours[n], true
+}
+
+// Flow is the models a device puts either side of a chain.
+//
+// Line 6 name these per device: an HX Stomp writes HelixStomp_AppDSPFlowInput
+// where a Helix Floor writes HD2_AppDSPFlow1Input. Both ship in the same file
+// with a list of the devices they belong to.
+type Flow struct {
+	// Input is what a signal arrives through.
+	Input ModelID `json:"input,omitempty"`
+	// OutputMain is the main pair out.
+	OutputMain ModelID `json:"output_main,omitempty"`
+	// OutputSend is the second output, where a device has one.
+	OutputSend ModelID `json:"output_send,omitempty"`
 }
 
 // Symbol is one entry in a device's own model table.

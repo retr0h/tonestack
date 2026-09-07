@@ -184,6 +184,59 @@ func (s *PresetShapeTestSuite) TestASwitchShowsWhatThePedalPrints() {
 	}
 }
 
+func (s *PresetShapeTestSuite) TestRoutingInTheWrongShape() {
+	// Everything here comes off a wire, so a malformed answer must produce an
+	// empty reading rather than a panic mid-session on hardware somebody is
+	// playing.
+	for _, tc := range []struct {
+		name  string
+		entry map[int8]any
+	}{
+		{"a kind that is not a number", map[int8]any{
+			keyBlockKind: "text", keyBlockBody: map[int8]any{},
+		}},
+		{"a body that is not a map", map[int8]any{
+			keyBlockKind: kindInput, keyBlockBody: "text",
+		}},
+		{"a split with nothing after it", map[int8]any{
+			keyBlockKind: kindSplit,
+			keyBlockBody: map[int8]any{keySplitBlock: "text"},
+		}},
+		{"a join with nothing before it", map[int8]any{
+			keyBlockKind: kindJoin,
+			keyBlockBody: map[int8]any{keyJoinBlock: "text"},
+		}},
+	} {
+		s.Run(tc.name, func() {
+			got, err := DecodePreset(s.encode(map[int8]any{
+				keyTone: map[int8]any{keyBlocks: []any{tc.entry}},
+			}))
+
+			s.Require().NoError(err)
+			s.Require().Empty(got.Routing)
+		})
+	}
+}
+
+func (s *PresetShapeTestSuite) TestRoutingParametersInTheWrongShape() {
+	// A routing entry that names itself but says nothing readable about its
+	// settings is still a routing entry.
+	for _, body := range []map[int8]any{
+		{keyInputSelect: 1, keyFlowParams: "text"},
+		{keyInputSelect: 1, keyFlowParams: map[int8]any{keyValues: "text"}},
+	} {
+		got, err := DecodePreset(s.encode(map[int8]any{
+			keyTone: map[int8]any{keyBlocks: []any{
+				map[int8]any{keyBlockKind: kindInput, keyBlockBody: body},
+			}},
+		}))
+
+		s.Require().NoError(err)
+		s.Require().Len(got.Routing, 1)
+		s.Require().Empty(got.Routing[0].Values)
+	}
+}
+
 func (s *PresetShapeTestSuite) TestReadsANumberOfAnyWidth() {
 	// A tempo arrives as a float in one preset and as an integer in another,
 	// because MessagePack carries a value in the narrowest form that fits.

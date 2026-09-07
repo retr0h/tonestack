@@ -47,8 +47,35 @@ const (
 	keyBypassed  = 10
 )
 
-// kindBlock marks an entry holding a model rather than routing or a gap.
-const kindBlock = 6
+// What a chain entry is. The device lays routing out in the same array as the
+// blocks, so a chain and what wraps it arrive together.
+const (
+	// kindInput is where a signal arrives.
+	kindInput = 0
+	// kindOutput is the main pair out.
+	kindOutput = 1
+	// kindSplit carries the second input and the split that follows it.
+	kindSplit = 2
+	// kindJoin carries the second output and the join that precedes it.
+	kindJoin = 3
+	// kindBlock is a block somebody placed. Every other kind not named here
+	// is a gap in the layout where nothing sits.
+	kindBlock = 6
+)
+
+// Keys inside the routing entries.
+const (
+	keyInputSelect  = 5
+	keyOutputSelect = 6
+	keyFlowParams   = 7
+	keySplitInput   = 14
+	keySplitBlock   = 15
+	keyJoinOutput   = 16
+	keyJoinBlock    = 17
+	keyFlowPosition = 13
+	keyFlowEnabled  = 10
+	keyFlowModel    = 8
+)
 
 // Keys the footswitch and snapshot sections sit under.
 const (
@@ -76,6 +103,35 @@ type DevicePreset struct {
 	Snapshots []DeviceSnapshot
 	// Footswitches are what the pedal shows on its own screen.
 	Footswitches []DeviceFootswitch
+	// Routing is what the device wraps the chain in: its inputs, its outputs,
+	// and the split and join of a parallel path.
+	//
+	// Read from the same array as the blocks, because that is where the
+	// device puts them.
+	Routing []DeviceRouting
+}
+
+// DeviceRouting is one entry either side of a chain.
+type DeviceRouting struct {
+	// Slot names which entry this is, as a preset names it: `inputA`,
+	// `outputB`, `split`, `join`.
+	Slot string
+	// Model is the block's position in the device's own model table, for the
+	// split and the join. An input or an output carries none, because a
+	// device knows which are its own.
+	Model int
+	// HasModel says whether Model means anything.
+	HasModel bool
+	// Select is which input or output this is, as the preset records it.
+	Select int
+	// HasSelect says whether Select means anything.
+	HasSelect bool
+	// Position is where the split or join sits in the layout.
+	Position int
+	// Enabled is whether a split or join is switched on.
+	Enabled bool
+	// Values are the parameters, in the order the model table names them.
+	Values []any
 }
 
 // DeviceSnapshot is one snapshot as the hardware stores it.
@@ -172,7 +228,123 @@ func DecodePreset(body []byte) (DevicePreset, error) {
 		Blocks:       blocksOf(doc),
 		Snapshots:    snapshotsOf(doc),
 		Footswitches: footswitchesOf(doc),
+		Routing:      routingOf(doc),
 	}, nil
+}
+
+// routingOf reads what the device wraps the chain in.
+//
+// The same array the blocks come from. An entry that is not a block is one of
+// four things, and each names itself the way a preset does.
+func routingOf(doc map[any]any) []DeviceRouting {
+	entries := chainEntries(doc)
+	out := []DeviceRouting(nil)
+
+	for _, e := range entries {
+		entry, ok := e.(map[any]any)
+		if !ok {
+			continue
+		}
+
+		kind, ok := asUint(entry[int8(keyBlockKind)])
+		if !ok {
+			continue
+		}
+
+		body, _ := entry[int8(keyBlockBody)].(map[any]any)
+		if body == nil {
+			continue
+		}
+
+		switch kind {
+		case kindInput:
+			out = append(out, flowOf("inputA", body, keyInputSelect))
+		case kindOutput:
+			out = append(out, flowOf("outputA", body, keyOutputSelect))
+		case kindSplit:
+			out = appendPair(out, body,
+				"inputB", keySplitInput, keyInputSelect,
+				"split", keySplitBlock)
+		case kindJoin:
+			out = appendPair(out, body,
+				"outputB", keyJoinOutput, keyOutputSelect,
+				"join", keyJoinBlock)
+		}
+	}
+
+	return out
+}
+
+// appendPair reads the two entries a split or a join arrives with.
+//
+// A device pairs its second input with the split that follows it, and its
+// second output with the join that precedes it. A preset stores them apart.
+func appendPair(
+	out []DeviceRouting,
+	body map[any]any,
+	endSlot string, endKey, selectKey int,
+	blockSlot string, blockKey int,
+) []DeviceRouting {
+	if end, ok := body[int8(endKey)].(map[any]any); ok {
+		out = append(out, flowOf(endSlot, end, selectKey))
+	}
+
+	block, ok := body[int8(blockKey)].(map[any]any)
+	if !ok {
+		return out
+	}
+
+	got := DeviceRouting{Slot: blockSlot, Values: flowValues(block)}
+
+	if n, ok := asUint(block[int8(keyFlowModel)]); ok {
+		got.Model, got.HasModel = int(n), true
+	}
+
+	if n, ok := asUint(block[int8(keyFlowPosition)]); ok {
+		got.Position = int(n)
+	}
+
+	got.Enabled, _ = block[int8(keyFlowEnabled)].(bool)
+
+	return append(out, got)
+}
+
+// flowOf reads one input or output.
+func flowOf(slot string, body map[any]any, selectKey int) DeviceRouting {
+	out := DeviceRouting{Slot: slot, Values: flowValues(body)}
+
+	if n, ok := asUint(body[int8(selectKey)]); ok {
+		out.Select, out.HasSelect = int(n), true
+	}
+
+	return out
+}
+
+// flowValues reads a routing entry's parameters.
+func flowValues(body map[any]any) []any {
+	params, ok := body[int8(keyFlowParams)].(map[any]any)
+	if !ok {
+		return nil
+	}
+
+	values, ok := params[int8(keyValues)].([]any)
+	if !ok {
+		return nil
+	}
+
+	return narrow(values)
+}
+
+// chainEntries returns the array holding the chain and its routing.
+func chainEntries(doc map[any]any) []any {
+	tone, ok := doc[int8(keyTone)].(map[any]any)
+	if !ok {
+		return nil
+	}
+
+	entries, _ := tone[int8(keyBlocks)].([]any)
+
+	return entries
 }
 
 // snapshotsOf reads the snapshots a preset carries.
@@ -282,15 +454,7 @@ func footswitchesOf(doc map[any]any) []DeviceFootswitch {
 // gap where nothing is placed. They are skipped rather than reported, because
 // a chain is what somebody put there.
 func blocksOf(doc map[any]any) []DeviceBlock {
-	tone, ok := doc[int8(keyTone)].(map[any]any)
-	if !ok {
-		return nil
-	}
-
-	entries, ok := tone[int8(keyBlocks)].([]any)
-	if !ok {
-		return nil
-	}
+	entries := chainEntries(doc)
 
 	out := make([]DeviceBlock, 0, len(entries))
 
