@@ -29,6 +29,10 @@ treating the failure as real.
 conventions, testing and the licence header every file carries. It applies to
 agents exactly as it applies to people, and none of it is repeated here.
 
+Two of its rules are easy to skip and worth naming: run `just ready` before
+committing, and put every markdown change through the unslop skill first. See
+[Prose](CONTRIBUTING.md#prose).
+
 ## Finding your way around the domain
 
 [docs/](docs/) covers what the code is *for*, which is not derivable from the

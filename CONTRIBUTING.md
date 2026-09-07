@@ -42,8 +42,11 @@ marketplace:
 /plugin install commit-commands@claude-plugins-official
 ```
 
-- **commit-commands.** provides `/commit` and `/commit-push-pr` slash commands
-  that follow the project's commit conventions automatically.
+- **commit-commands.** Provides `/commit` and `/commit-push-pr` slash commands
+  that follow the project's commit conventions.
+
+Install the [unslop] skill as well. Every markdown change here goes through it,
+so working without it means the next person runs it over your text.
 
 ## Setup
 
@@ -118,13 +121,28 @@ formatting.
 
 ### Documentation
 
-Markdown files are formatted with [mdformat] through `uvx`. This style is
-enforced by CI.
+Markdown files are formatted with [mdformat] through `uvx`. CI enforces it.
 
 ```bash
 just md-fmt-check   # Check formatting
 just md-fmt         # Auto-fix formatting
 ```
+
+### Prose
+
+mdformat handles layout. It has no opinion about the words, and the words are
+where writing gives itself away as machine-generated.
+
+Every markdown change here goes through the [unslop] skill before it is
+committed, new files and edits alike. Run it while writing rather than as a
+final polish, so nobody has to unpick the patterns later. If your session does
+not have the skill, read the rules from that link and apply them by hand.
+
+The tells are invisible from the inside, which is why this is a rule and not a
+preference. The largest one here was the em dash. There were 242, and each stood
+in for a decision the sentence had not made about whether the clause was a new
+sentence, a parenthetical, or a list. One slopped paragraph is unremarkable. A
+repository of them reads as though nobody was home.
 
 ## Code standards
 
@@ -413,4 +431,5 @@ If you have questions, open a [Discussion] on GitHub.
 [just]: https://just.systems
 [mdformat]: https://pypi.org/project/mdformat/
 [mise]: https://mise.jdx.dev
+[unslop]: https://github.com/cursor/plugins/blob/main/pstack/skills/unslop/SKILL.md
 [uv]: https://docs.astral.sh/uv/
