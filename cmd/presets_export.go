@@ -23,6 +23,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/retr0h/tonestack/internal/slots"
+	"github.com/retr0h/tonestack/pkg/slot"
 )
 
 var presetsExportOptions slots.ExportOptions
@@ -41,6 +42,13 @@ than a reading — it carries the routing and snapshots a rig models but nobody
 chooses.`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
+		// No file means the device itself, which is what somebody with one
+		// plugged in almost always wants.
+		if presetsExportOptions.Path == "" {
+			return slots.ExportDevice(
+				cmd.Context(), cmd.OutOrStdout(), presetsExportOptions)
+		}
+
 		return slots.Export(cmd.OutOrStdout(), presetsExportOptions)
 	},
 }
@@ -61,13 +69,16 @@ func init() {
 		0,
 		"which setlist, when the file is a backup holding several",
 	)
-	f.IntVar(&presetsExportOptions.Slot, "slot", 0, "which slot, from zero")
+	f.Var(
+		slot.NewValue(&presetsExportOptions.Slot),
+		"slot",
+		"which slot — a label the pedal shows such as 31A, or a number from zero",
+	)
 	f.StringVar(&presetsExportOptions.OutputPath, "out", "", "where to write it")
 	f.StringVar((*string)(&presetsExportOptions.As), "as", "rigspec",
 		"rigspec for a rig, hlx for the device's own file")
 	f.StringVar(&presetsExportOptions.CatalogPath, "catalog", "",
 		"a generated catalog to use instead of the built-in one")
-	_ = presetsExportCmd.MarkFlagRequired("file")
 	_ = presetsExportCmd.MarkFlagRequired("slot")
 	_ = presetsExportCmd.MarkFlagRequired("out")
 }

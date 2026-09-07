@@ -37,6 +37,23 @@ type CompilePublicTestSuite struct {
 	suite.Suite
 }
 
+// handWritten returns a rig nobody lifted from a preset: gear and nothing
+// else, which is what somebody typing one produces.
+func (s *CompilePublicTestSuite) handWritten(dir string) string {
+	out := filepath.Join(dir, "typed.yaml")
+
+	s.Require().NoError(os.WriteFile(out, []byte(`schema: RigSpec
+version: 2
+id: typed
+subject: { kind: sound, name: Typed }
+instrument: bass
+chain:
+  - { role: amp, gear: Ampeg SVT }
+`), 0o600))
+
+	return out
+}
+
 // exported writes a slot out as a rig and returns where it went.
 func (s *CompilePublicTestSuite) exported(dir string) string {
 	out := filepath.Join(dir, "rig.yaml")
@@ -73,6 +90,25 @@ func (s *CompilePublicTestSuite) TestARigBecomesAPresetAndBack() {
 	s.Require().NotEmpty(c.Blocks)
 }
 
+func (s *CompilePublicTestSuite) TestALiftedRigRebuildsItsOwnPreset() {
+	// A lifted rig carries what the preset it came from carried, and that
+	// wins over whatever the preset being written into holds. Otherwise a rig
+	// shared with somebody else would rebuild with a stranger's routing.
+	dir := s.T().TempDir()
+	out := filepath.Join(dir, "out.hlx")
+
+	s.Require().NoError(slots.Compile(&bytes.Buffer{}, slots.CompileOptions{
+		RigPath: s.exported(dir), OutputPath: out, CatalogPath: catalogPath(),
+		TemplatePath: fixture("preset.hlx"),
+	}))
+
+	raw, err := os.ReadFile(out) //nolint:gosec // a path this test chose
+	s.Require().NoError(err)
+
+	s.Require().NotContains(string(raw), "controller",
+		"the template's own state must not leak into a rig that carries its own")
+}
+
 func (s *CompilePublicTestSuite) TestTheResultCarriesWhatADeviceExpects() {
 	// A device expects inputs, outputs, a split and a join around a chain.
 	// 98.6% of real presets carry them, and one assembled from nothing
@@ -81,7 +117,7 @@ func (s *CompilePublicTestSuite) TestTheResultCarriesWhatADeviceExpects() {
 	out := filepath.Join(dir, "out.hlx")
 
 	s.Require().NoError(slots.Compile(&bytes.Buffer{}, slots.CompileOptions{
-		RigPath: s.exported(dir), OutputPath: out, CatalogPath: catalogPath(),
+		RigPath: s.handWritten(dir), OutputPath: out, CatalogPath: catalogPath(),
 	}))
 
 	raw, err := os.ReadFile(out) //nolint:gosec // a path this test chose
@@ -97,14 +133,14 @@ func (s *CompilePublicTestSuite) TestATemplateIsWrittenInto() {
 	out := filepath.Join(dir, "out.hlx")
 
 	s.Require().NoError(slots.Compile(&bytes.Buffer{}, slots.CompileOptions{
-		RigPath: s.exported(dir), OutputPath: out, CatalogPath: catalogPath(),
+		RigPath: s.handWritten(dir), OutputPath: out, CatalogPath: catalogPath(),
 		TemplatePath: fixture("preset.hlx"),
 	}))
 
 	raw, err := os.ReadFile(out) //nolint:gosec // a path this test chose
 	s.Require().NoError(err)
 	s.Require().Contains(string(raw), "controller",
-		"whatever the template held that a rig does not model is still there")
+		"a rig nobody lifted carries no state, so the template's is kept")
 }
 
 func (s *CompilePublicTestSuite) TestReportsProblems() {

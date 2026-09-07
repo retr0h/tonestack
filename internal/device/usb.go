@@ -27,9 +27,15 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk"
 )
 
+// newLister is how a bus is obtained, so a test can stand in for it.
+//
+// The one thing in this package that needs hardware; everything reached
+// through it takes the lister as an argument instead.
+var newLister = sdk.NewUSBLister
+
 // List writes every recognised device to w.
 func List(ctx context.Context, w io.Writer) error {
-	l := sdk.NewUSBLister()
+	l := newLister()
 	defer func() { _ = l.Close() }()
 
 	return ListWith(ctx, w, l)

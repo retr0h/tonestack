@@ -85,7 +85,7 @@ func (s *LoadPublicTestSuite) TestRefusesWhatIsNotARig() {
 			"a rig holding no chain",
 			"schema: RigSpec\nid: x\nsubject: {kind: artist, name: X}\n" +
 				"instrument: bass\nchain: []\n",
-			"chain holds nothing",
+			"chain minimum number of items is 1",
 		},
 	}
 

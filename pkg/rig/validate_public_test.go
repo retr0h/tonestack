@@ -21,6 +21,7 @@
 package rig_test
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
@@ -163,4 +164,17 @@ func (s *ValidatePublicTestSuite) TestAcceptsEverythingOptional() {
 
 func TestValidatePublicTestSuite(t *testing.T) {
 	suite.Run(t, new(ValidatePublicTestSuite))
+}
+
+func (s *ValidatePublicTestSuite) TestReportsARigItCannotRead() {
+	// A rig carries raw JSON it was handed — the state a device wrote — and
+	// something that is not JSON cannot be checked against anything.
+	spec := s.good()
+	broken := json.RawMessage("not json")
+	spec.Device = &gen.DeviceState{Version: &broken}
+
+	err := rig.Validate(spec)
+
+	s.Require().Error(err)
+	s.Require().Contains(err.Error(), "reading the rig")
 }

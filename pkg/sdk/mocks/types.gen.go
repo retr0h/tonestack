@@ -14,6 +14,7 @@ import (
 	reflect "reflect"
 
 	sdk "github.com/retr0h/tonestack/pkg/sdk"
+	wire "github.com/retr0h/tonestack/pkg/sdk/wire"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -54,4 +55,137 @@ func (m *MockLister) List(ctx context.Context) ([]sdk.Descriptor, error) {
 func (mr *MockListerMockRecorder) List(ctx any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockLister)(nil).List), ctx)
+}
+
+// MockBus is a mock of Bus interface.
+type MockBus struct {
+	ctrl     *gomock.Controller
+	recorder *MockBusMockRecorder
+	isgomock struct{}
+}
+
+// MockBusMockRecorder is the mock recorder for MockBus.
+type MockBusMockRecorder struct {
+	mock *MockBus
+}
+
+// NewMockBus creates a new mock instance.
+func NewMockBus(ctrl *gomock.Controller) *MockBus {
+	mock := &MockBus{ctrl: ctrl}
+	mock.recorder = &MockBusMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockBus) EXPECT() *MockBusMockRecorder {
+	return m.recorder
+}
+
+// Close mocks base method.
+func (m *MockBus) Close() error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Close")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Close indicates an expected call of Close.
+func (mr *MockBusMockRecorder) Close() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockBus)(nil).Close))
+}
+
+// List mocks base method.
+func (m *MockBus) List(ctx context.Context) ([]sdk.Descriptor, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "List", ctx)
+	ret0, _ := ret[0].([]sdk.Descriptor)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// List indicates an expected call of List.
+func (mr *MockBusMockRecorder) List(ctx any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockBus)(nil).List), ctx)
+}
+
+// MockEditor is a mock of Editor interface.
+type MockEditor struct {
+	ctrl     *gomock.Controller
+	recorder *MockEditorMockRecorder
+	isgomock struct{}
+}
+
+// MockEditorMockRecorder is the mock recorder for MockEditor.
+type MockEditorMockRecorder struct {
+	mock *MockEditor
+}
+
+// NewMockEditor creates a new mock instance.
+func NewMockEditor(ctrl *gomock.Controller) *MockEditor {
+	mock := &MockEditor{ctrl: ctrl}
+	mock.recorder = &MockEditorMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockEditor) EXPECT() *MockEditorMockRecorder {
+	return m.recorder
+}
+
+// Close mocks base method.
+func (m *MockEditor) Close() {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "Close")
+}
+
+// Close indicates an expected call of Close.
+func (mr *MockEditorMockRecorder) Close() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockEditor)(nil).Close))
+}
+
+// Model mocks base method.
+func (m *MockEditor) Model() sdk.Model {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Model")
+	ret0, _ := ret[0].(sdk.Model)
+	return ret0
+}
+
+// Model indicates an expected call of Model.
+func (mr *MockEditorMockRecorder) Model() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Model", reflect.TypeOf((*MockEditor)(nil).Model))
+}
+
+// Presets mocks base method.
+func (m *MockEditor) Presets(ctx context.Context, setlist int) ([]wire.Preset, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Presets", ctx, setlist)
+	ret0, _ := ret[0].([]wire.Preset)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Presets indicates an expected call of Presets.
+func (mr *MockEditorMockRecorder) Presets(ctx, setlist any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Presets", reflect.TypeOf((*MockEditor)(nil).Presets), ctx, setlist)
+}
+
+// ReadPreset mocks base method.
+func (m *MockEditor) ReadPreset(ctx context.Context, setlist, slot int) (any, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ReadPreset", ctx, setlist, slot)
+	ret0, _ := ret[0].(any)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ReadPreset indicates an expected call of ReadPreset.
+func (mr *MockEditorMockRecorder) ReadPreset(ctx, setlist, slot any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadPreset", reflect.TypeOf((*MockEditor)(nil).ReadPreset), ctx, setlist, slot)
 }

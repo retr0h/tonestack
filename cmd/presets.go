@@ -25,6 +25,7 @@ import "github.com/spf13/cobra"
 var presetsCmd = &cobra.Command{
 	Use:   "presets",
 	Short: "Build and inspect preset files",
+	Args:  cobra.NoArgs,
 	Long: `Build a preset from curated knowledge, or read one back.
 
 A preset is a set of decisions: which amp, which cabinet, what every knob is

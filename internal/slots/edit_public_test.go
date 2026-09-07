@@ -226,7 +226,7 @@ func (s *EditPublicTestSuite) TestExportReportsProblemsWritingARig() {
 		{
 			"a slot holding nothing, which is not a rig",
 			func(o *slots.ExportOptions) { o.Slot = 2 },
-			"chain holds nothing",
+			"chain minimum number of items is 1",
 		},
 	}
 

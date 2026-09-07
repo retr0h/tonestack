@@ -1,5 +1,3 @@
-//go:build cgo
-
 // Copyright (c) 2026 John Dewey
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -72,7 +70,7 @@ func (s *Session) send(c *channel, msgType uint16, payload []byte) error {
 // acknowledgement is owed: the device sends empty transfers when it has
 // nothing to say, and acknowledging one burns a sequence number and
 // desynchronises the channel.
-func (s *Session) receive(ctx context.Context, wait time.Duration) (bool, error) {
+func (s *Session) receive(ctx context.Context, wait time.Duration) bool {
 	rctx, cancel := context.WithTimeout(ctx, wait)
 	defer cancel()
 
@@ -80,8 +78,10 @@ func (s *Session) receive(ctx context.Context, wait time.Duration) (bool, error)
 
 	n, err := s.in.ReadContext(rctx, buf)
 	if err != nil {
-		// A timeout means the device had nothing to say, which is ordinary.
-		return false, nil
+		// A read that fails is the device having nothing to say. That is what
+		// a timeout looks like, and a timeout is the ordinary case: a device
+		// is asked far more often than it answers.
+		return false
 	}
 
 	if debug {
@@ -116,7 +116,7 @@ func (s *Session) receive(ctx context.Context, wait time.Duration) (bool, error)
 		got = true
 	}
 
-	return got, nil
+	return got
 }
 
 // channelFor finds which conversation a frame belongs to.
@@ -138,18 +138,13 @@ func (s *Session) channelFor(f wire.Frame) *channel {
 // Bounded on purpose. A stale backlog clears in about a hundred frames; an
 // unbounded drain keeps the endpoint under load and has coincided with
 // devices locking up.
-func (s *Session) drain(ctx context.Context) error {
+func (s *Session) drain(ctx context.Context) {
 	deadline := time.Now().Add(drainBudget)
 
 	quiet := 0
 
 	for quiet < drainQuietRuns && time.Now().Before(deadline) {
-		got, err := s.receive(ctx, drainReadWait)
-		if err != nil {
-			return err
-		}
-
-		if got {
+		if s.receive(ctx, drainReadWait) {
 			quiet = 0
 
 			continue
@@ -162,8 +157,6 @@ func (s *Session) drain(ctx context.Context) error {
 	for _, c := range s.chans {
 		c.buf = nil
 	}
-
-	return nil
 }
 
 // message takes one complete envelope out of a channel's buffer.

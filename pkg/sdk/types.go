@@ -25,7 +25,11 @@
 // usb.go and is the only part that needs hardware.
 package sdk
 
-import "context"
+import (
+	"context"
+
+	"github.com/retr0h/tonestack/pkg/sdk/wire"
+)
 
 // VendorID is Line 6's USB vendor identifier. Every device this package
 // recognises reports it.
@@ -79,4 +83,32 @@ type Device struct {
 // hardware is this package's job, not theirs.
 type Lister interface {
 	List(ctx context.Context) ([]Descriptor, error)
+}
+
+// Bus is a lister holding something that needs releasing.
+//
+// Returned rather than the type behind it, so that a caller can be handed a
+// bus instead of finding one — which is what lets the code around it be
+// tested without hardware.
+type Bus interface {
+	Lister
+
+	// Close releases whatever the lister holds.
+	Close() error
+}
+
+// Editor is a session with an attached device.
+//
+// What everything above this package needs from one: what it is, what it
+// holds, and one preset at a time. *Session satisfies it, and so does a mock,
+// which is what lets the code that reads a device be tested without one.
+type Editor interface {
+	// Model is which device answered.
+	Model() Model
+	// Presets lists what a setlist holds.
+	Presets(ctx context.Context, setlist int) ([]wire.Preset, error)
+	// ReadPreset fetches one slot without loading it.
+	ReadPreset(ctx context.Context, setlist, slot int) (any, error)
+	// Close releases the device.
+	Close()
 }

@@ -87,3 +87,24 @@ func asString(v any) (string, bool) {
 
 	return s, true
 }
+
+// asFloat reads a number a device sent in whatever width holds it.
+//
+// MessagePack carries a value in the narrowest form that fits, so the same
+// field arrives as an integer in one preset and a float in another.
+func asFloat(v any) (float64, bool) {
+	switch t := v.(type) {
+	case float64:
+		return t, true
+	case float32:
+		return float64(t), true
+	}
+
+	// asInt already falls back to the unsigned widths, so this covers every
+	// integer a device can send.
+	if n, ok := asInt(v); ok {
+		return float64(n), true
+	}
+
+	return 0, false
+}

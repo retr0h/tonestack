@@ -25,6 +25,7 @@ import "github.com/spf13/cobra"
 var recipesCmd = &cobra.Command{
 	Use:   "recipes",
 	Short: "Work with curated gear knowledge",
+	Args:  cobra.NoArgs,
 	Long: `A recipe says which gear a player or style uses, and how it should
 sound. Recipes name real-world gear — "Ampeg SVT" — never a device model
 identifier, so one recipe serves every Helix device.

@@ -1,20 +1,30 @@
 # Talking to a device
 
-Two ways to reach an HX Stomp, and the reason only one of them carries presets.
+Two ways to reach an HX Stomp, and the reason only one of them carries presets
+in both directions.
 
-## Presets travel by file, not by wire
+## Reading is live; writing is not
 
-Everything to do with reading, editing and replacing presets goes through a file
-HX Edit wrote, not over USB:
+`presets list`, `show` and `export` talk to the device over USB. Nothing is
+selected, loaded or written — the device answers and goes on playing whatever it
+was:
+
+```bash
+tonestack presets list
+tonestack presets show   --slot 31A
+tonestack presets export --slot 31A --out lead.yaml
+```
+
+Putting a preset *onto* a device still goes through a file HX Edit wrote:
 
 ```text
 HX Edit  ──backup──▶  device.hlb  ──▶  tonestack  ──▶  edited.hlb  ──restore──▶  HX Edit
 ```
 
-`presets list`, `show`, `copy`, `swap`, `export` and `import` all work on that
-file. A `.hlb` holds every setlist on the device, so one backup is the whole
-instrument and one restore puts it back. HX Edit is in the loop twice per
-session rather than twice per preset.
+`copy`, `swap` and `import` work on that file, and every reading command takes
+`--file` too, for working from a backup with no device attached. A `.hlb` holds
+every setlist, so one backup is the whole instrument and one restore puts it
+back.
 
 An earlier version of this document claimed writing over USB was unsolved. That
 was wrong, and researching it properly is what produced
@@ -36,8 +46,8 @@ and `join` routing that a generated one has none of.
 
 ## What USB is for
 
-`pkg/sdk` reaches the hardware over USB for the things a file cannot answer:
-which devices are attached, and which preset is selected right now.
+`pkg/sdk` reaches the hardware over USB for what a file cannot answer: which
+devices are attached, what each slot holds, and what one slot actually contains.
 
 It is the only package needing cgo, which is why it is the only one that cannot
 be cross-compiled or built with `CGO_ENABLED=0`.

@@ -38,7 +38,21 @@ var ErrNoUSBSupport = errors.New("built without usb support: rebuild with cgo en
 type USBLister struct{}
 
 // NewUSBLister returns a Lister that cannot reach a device.
-func NewUSBLister() *USBLister { return &USBLister{} }
+func NewUSBLister() Bus { return &USBLister{} }
+
+// openUSB reports that this build cannot reach a bus.
+func openUSB() bus { return noBus{} }
+
+// noBus is what a build without cgo has instead of a bus.
+type noBus struct{}
+
+// Devices reports ErrNoUSBSupport.
+func (noBus) Devices(func(vendor, product uint16) bool) ([]handle, error) {
+	return nil, ErrNoUSBSupport
+}
+
+// Close does nothing.
+func (noBus) Close() error { return nil }
 
 // Close does nothing.
 func (*USBLister) Close() error { return nil }

@@ -23,8 +23,11 @@ Install tools using [mise]:
 mise install
 ```
 
-- **[Go].** tonestack is written in Go. We always support the latest two major
-  Go versions, so make sure your version is recent enough.
+- **[Go] 1.27.** Pinned in `.mise.toml` and in `go.mod`, and continuous
+  integration reads it from `go.mod` so the two cannot drift apart. They did
+  once: a test asserted that a map keyed by `any` could not be encoded as JSON,
+  which was true on Go 1.26 and stopped being true on 1.27, so it passed locally
+  and failed in CI.
 - **[uv].** Python package runner. `just md-fmt` formats markdown with
   [mdformat] through `uvx`; nothing is installed into the repository.
 - **[just].** Task runner used for building, testing, formatting, and other
@@ -258,15 +261,27 @@ just go-unit-cov   # Generate coverage report
 go test -run TestName -v ./...  # Run a single test
 ```
 
-Coverage is gated at 100%. `just test` fails if total coverage drops below it,
-so a change that adds untested code fails locally and in CI:
+Coverage is gated at 99%. `just test` fails if total coverage drops below it, so
+a change that adds untested code fails locally and in CI:
 
 ```bash
 just go-unit-cov-check   # Report coverage and fail below the target
 ```
 
-The target is declared in `.github/codecov.yml` and in the shared `go` justfile
-module. Change both together.
+The target is declared in `.github/codecov.yml` and in this repository's
+`justfile`. Change both together.
+
+It is 99 rather than 100 because of one file. `pkg/sdk/usb.go` is every call
+this project makes into libusb — one expression per method — and there is no way
+to reach it without a device on the bus. Everything it forwards to is behind an
+interface and covered: finding a device, choosing between two, claiming an
+interface, waiting on a busy one, framing, sequence numbers, acknowledgements,
+opening a channel and making a call all run against a bus a test supplies.
+
+That file is counted rather than excluded on purpose. An exclusion hides how big
+a file is; a target says what cannot be reached and gets worse if that file
+grows. `.coverignore` holds only generated code and command wiring, and anything
+added to it needs a better reason than being hard to test.
 
 ### Validation layers are tested independently
 

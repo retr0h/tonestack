@@ -135,6 +135,8 @@ components:
         name:
           type: string
           minLength: 1
+          # Something other than spaces: a name of blanks is not a name.
+          pattern: "\\S"
         band:
           type: string
           description: The group, where the subject is a person.
@@ -219,6 +221,8 @@ components:
         gear:
           type: string
           minLength: 1
+          # Something other than spaces: a name of blanks is not a name.
+          pattern: "\\S"
           description: >
             Real-world gear, as a person would say it — "Ampeg SVT", "Klon
             Centaur". Never a device model identifier: those are one
@@ -310,6 +314,8 @@ components:
         name:
           type: string
           minLength: 1
+          # Something other than spaces: a name of blanks is not a name.
+          pattern: "\\S"
         slot:
           type: integer
           description: >
@@ -384,6 +390,8 @@ components:
         ask:
           type: string
           minLength: 1
+          # Something other than spaces: a name of blanks is not a name.
+          pattern: "\\S"
           description: >
             What was asked for, in the words used. "Clunky" is not a
             parameter, and normalising it away loses the question.
@@ -405,6 +413,234 @@ components:
           type: string
           description: When, so a run of corrections can be read in order.
 
+    Footswitch:
+      type: object
+      description: >
+        One thing a switch on the pedal does.
+
+
+        A switch can carry more than one assignment — two blocks toggled
+        together are two entries naming the same switch — so this is a list
+        rather than a map.
+      properties:
+        switch:
+          type: integer
+          minimum: 1
+          description: >
+            Which footswitch, counted the way the pedal prints them: FS1 is 1.
+
+
+            Without this a label says nothing about where to look.
+        block:
+          type: integer
+          description: >
+            Which block the switch works on, by the number the preset stores
+            it under rather than its place in the chain. The two differ.
+        path:
+          type: integer
+          description: >
+            Which processor the block is on. Omitted means the first, which is
+            the only one an HX Stomp has.
+        label:
+          type: string
+          description: >
+            What the pedal prints under the switch.
+
+
+            Somebody's own words when they set them, and the block's name when
+            they did not. "60s / 70s" is what a player reads on stage; the
+            block behind it is an Ampeg B-15NF.
+        gear:
+          type: string
+          description: >
+            The block the switch works on, by name, whatever the label says.
+        led:
+          type: string
+          description: >
+            The colour somebody chose for the switch, by name — `green`,
+            `violet`, `off`.
+
+
+            `auto` is the default and the interesting one: the light follows
+            the block rather than a choice, which is why an untouched preset
+            lights its switches red for an amp, amber for drive and blue for
+            modulation without anybody setting anything.
+
+
+            Read from a device, which reports the choice. A preset file stores
+            the colour the choice resolved to instead — see `colour` — and the
+            two are not yet known to convert.
+        colour:
+          type: integer
+          description: >
+            The colour it lights, as the packed number a preset file stores.
+
+
+            This is the resolved colour rather than the choice: measured over
+            17,665 assignments in the corpus it tracks the block's own kind —
+            red for an amp or cabinet, amber for drive, green for delay, blue
+            for modulation, purple for a filter, pitch block or wah, orange
+            for reverb — at two brightnesses, bright while the block is
+            engaged and dim while it is bypassed.
+        enabled:
+          type: boolean
+          description: Whether the switch acts on the block at all.
+        momentary:
+          type: boolean
+          description: >
+            Whether the switch holds while pressed rather than latching.
+        primary:
+          type: boolean
+          description: >
+            Whether this is the assignment the switch shows when more than one
+            block is on it.
+        rest:
+          type: object
+          additionalProperties:
+            x-go-type: json.RawMessage
+          description: >
+            Anything else the device stored here, kept as it arrived, so a
+            field this does not model is not a field it drops.
+
+    Snapshot:
+      type: object
+      description: >
+        One snapshot: a set of block states a footswitch recalls.
+      properties:
+        name:
+          type: string
+          description: What the device shows on its screen.
+        tempo:
+          type: number
+          format: double
+          description: Beats per minute this snapshot recalls.
+        led:
+          type: integer
+          description: >
+            The colour the footswitch lights, as the device numbers colours.
+        pedal:
+          type: integer
+          description: Which expression pedal state this snapshot recalls.
+        named:
+          type: boolean
+          description: >
+            Whether somebody named it. A device ships them called SNAPSHOT 1
+            through 3, and the difference between that and a name is whether
+            anybody has been here before.
+        valid:
+          type: boolean
+          description: Whether the device considers the snapshot set up.
+        blocks:
+          type: object
+          x-go-type: json.RawMessage
+          description: >
+            Which blocks are on, keyed the way the preset keys them. Kept as
+            the device wrote it: it addresses blocks by their own numbering,
+            which is not the order of the chain.
+        controllers:
+          type: object
+          x-go-type: json.RawMessage
+          description: What this snapshot recalls for assigned parameters.
+        rest:
+          type: object
+          additionalProperties:
+            x-go-type: json.RawMessage
+          description: >
+            Anything else the device stored here, kept as it arrived.
+
+
+            Line 6 add fields — a few presets carry recorded commands — and a
+            format that modelled only what was known when it was written would
+            quietly drop them. Nothing reads this; it exists so nothing is
+            lost.
+
+    DeviceState:
+      type: object
+      description: >
+        Everything a preset carries that this format does not model as musical
+        intent, kept exactly as the device wrote it.
+
+
+        A rig describes a sound, so it models gear, settings and why they were
+        chosen. A preset also carries footswitch assignments, snapshot names,
+        the blocks a device puts either side of a chain, and metadata nobody
+        documented. None of that is intent, and all of it is somebody's work.
+
+
+        Without this a rig read out of a preset could not rebuild it: the
+        footswitches would be gone and the snapshots would be whatever the
+        template happened to hold. With it, a rig is the whole preset — which
+        is what makes it safe to be the only thing this project exchanges.
+
+
+        Written by lifting a preset, and only then. A rig somebody typed has
+        none of it, and compiling one falls back to an untouched preset the
+        device itself wrote.
+      properties:
+        id:
+          type: integer
+          description: >
+            Which device wrote it. Line 6 identify a model by a number here,
+            and a preset carrying the wrong one is refused.
+        version:
+          x-go-type: json.RawMessage
+          description: >
+            The device firmware's own version field, kept in whatever form it
+            arrived. Presets in the wild spell it as a number and as a string,
+            and rewriting one as the other changes a file nobody asked to
+            change.
+        format:
+          type: integer
+          description: The preset schema version the file declares.
+        name:
+          type: string
+          description: >
+            The preset's name exactly as the device stored it.
+
+
+            Distinct from the rig's subject, which is a name for a sound a
+            person chose. This one is a label, padding and all, and presets in
+            the wild carry leading spaces that a rig would otherwise tidy away
+            — rewriting a file nobody asked to change.
+        file:
+          type: object
+          x-go-type: json.RawMessage
+          description: >
+            What the file records about itself, outside the preset payload.
+            Uncommon, and carried because some presets have it.
+        meta:
+          type: object
+          additionalProperties:
+            x-go-type: json.RawMessage
+          description: >
+            Everything a preset records about itself except its name, which is
+            the rig's subject. Presets carry song, band, author, tnid and an
+            application version spelled two different ways.
+        tone:
+          type: object
+          additionalProperties:
+            x-go-type: json.RawMessage
+          description: >
+            Entries beside the processors — controller assignments, snapshot
+            names and state, global and Variax settings.
+
+
+            Footswitch and snapshot decisions are musical, and losing them
+            silently is the worst outcome here: the preset still loads and the
+            player finds out on stage.
+        routing:
+          type: object
+          additionalProperties:
+            x-go-type: json.RawMessage
+          description: >
+            The entries inside each processor that are not blocks: inputs,
+            outputs, and the split and join of a parallel path.
+
+
+            98.6% of real presets carry these and one assembled from nothing
+            carries none, so a rig that dropped them would rebuild into a
+            preset that routes differently from the one it came from.
+
     RigSpec:
       type: object
       description: >
@@ -421,6 +657,12 @@ components:
         version:
           type: integer
           default: 2
+          description: >
+            Which version of this contract the document was written against.
+
+
+            A rig this project writes states it, so a file says what validated
+            it without anybody having to guess from which fields are present.
         id:
           type: string
           pattern: "^[a-z0-9]+(-[a-z0-9]+)*$"
@@ -432,7 +674,7 @@ components:
           $ref: "#/components/schemas/Instrument"
         aliases:
           type: array
-          items: { type: string, minLength: 1 }
+          items: { type: string, minLength: 1, pattern: "\\S" }
           description: >
             Other names this rig answers to.
 
@@ -465,7 +707,7 @@ components:
             device, and it still decides what the rig has to do.
         character:
           type: array
-          items: { type: string, minLength: 1 }
+          items: { type: string, minLength: 1, pattern: "\\S" }
           description: >
             How it should sound, in the words a person would use. Describe the
             result, not the control: "mid-forward, not scooped", not "raise the
@@ -486,3 +728,29 @@ components:
         mutations:
           type: array
           items: { $ref: "#/components/schemas/Mutation" }
+        snapshots:
+          type: array
+          items: { $ref: "#/components/schemas/Snapshot" }
+          description: >
+            The rig's snapshots, in the order the device numbers them.
+
+
+            A snapshot is a musical decision — which blocks are on, at what
+            tempo, under what name — so it is modelled rather than carried as
+            device state. What a person put on a footswitch is part of the rig.
+        footswitches:
+          type: array
+          items: { $ref: "#/components/schemas/Footswitch" }
+          description: >
+            What the pedal prints under each switch, and the colour it lights.
+
+
+            A label and a colour are decisions about somebody's own pedal,
+            made once and looked at every time they play, and nothing else in
+            a rig records them.
+
+
+            Read and written both ways: a preset stores them per block, and a
+            rig carrying them rebuilds that exactly.
+        device:
+          $ref: "#/components/schemas/DeviceState"

@@ -25,6 +25,7 @@ import "github.com/spf13/cobra"
 var devicesCmd = &cobra.Command{
 	Use:   "devices",
 	Short: "Work with attached Helix hardware",
+	Args:  cobra.NoArgs,
 	Long: `Work with Line 6 Helix-family devices attached over USB.
 
 Reaching a device needs libusb through cgo. A build without it can still

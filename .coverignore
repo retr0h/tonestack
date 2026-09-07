@@ -3,12 +3,3 @@
 /gen/
 main.go
 /mocks/
-pkg/sdk/usb.go
-*.gen.go
-internal/catalogen/cmd/
-pkg/sdk/usb_nocgo.go
-internal/device/usb.go
-pkg/sdk/session.go
-pkg/sdk/transport.go
-pkg/sdk/handshake.go
-internal/slots/device.go

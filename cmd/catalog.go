@@ -25,6 +25,7 @@ import "github.com/spf13/cobra"
 var catalogCmd = &cobra.Command{
 	Use:   "catalog",
 	Short: "Work with the device catalog",
+	Args:  cobra.NoArgs,
 	Long: `The catalog says what a device can do: which blocks exist, what
 parameters each accepts, their real ranges, and what each costs in DSP.
 

@@ -8,6 +8,19 @@ import? '.just/remote/just.just'
 # No documentation site, so md formats every markdown file in the repository.
 md_site_dir := ""
 
+# Coverage target for this repository.
+#
+# Not 100%, and the missing part is one file. pkg/sdk/usb.go is every call this
+# project makes into libusb, one expression per method, and there is no way to
+# reach it without a device on the bus. Everything it forwards to — finding a
+# device, choosing between two, claiming an interface, waiting on a busy one,
+# framing, sequence numbers, acknowledgements — is behind an interface and
+# covered.
+#
+# It is counted rather than excluded on purpose. An exclusion hides a file's
+# size; a target says what is not reachable and gets worse if that file grows.
+go_coverage_target := "99"
+
 # --- Fetch ---
 
 # Fetch shared justfiles from osapi-justfiles

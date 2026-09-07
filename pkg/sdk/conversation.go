@@ -1,5 +1,3 @@
-//go:build cgo
-
 // Copyright (c) 2026 John Dewey
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -20,14 +18,14 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
+// This file is the conversation: what a session says and how it counts. It
+// takes its endpoints as interfaces, so all of it runs against a scripted
+// device. Finding and claiming hardware lives in usb_open.go.
 package sdk
 
 import (
 	"context"
-	"fmt"
 	"time"
-
-	"github.com/google/gousb"
 
 	"github.com/retr0h/tonestack/pkg/sdk/wire"
 )
@@ -122,135 +120,40 @@ func (c *channel) ack() uint32 { return wire.AckBase + c.rxBytes }
 // Not safe for concurrent use. The protocol is a sequence of exchanges with
 // per-channel counters, and two callers sharing one would desynchronise them.
 type Session struct {
-	uctx  *gousb.Context
-	dev   *gousb.Device
+	// holds is what the session took to reach the device, released in the
+	// order it was taken. Kept as an interface so that a session is a
+	// conversation rather than a piece of hardware: everything below this is
+	// framing and counters, and none of it needs a bus.
+	holds []releaser
 	done  func()
-	out   *gousb.OutEndpoint
-	in    *gousb.InEndpoint
+	out   sender
+	in    receiver
 	chans map[string]*channel
 	model Model
 }
 
+// sender is the outgoing endpoint: everything this writes goes to a device.
+//
+// The two endpoints are interfaces so that the protocol above them — framing,
+// sequence numbers, acknowledgements, opening a channel — can be exercised
+// against a scripted device instead of a real one. Only finding and claiming
+// hardware needs the real thing.
+type sender interface {
+	Write(p []byte) (int, error)
+}
+
+// releaser is something taken to reach a device and given back afterwards.
+type releaser interface {
+	Close() error
+}
+
+// receiver is the incoming endpoint.
+type receiver interface {
+	ReadContext(ctx context.Context, p []byte) (int, error)
+}
+
 // Model returns what the device is.
 func (s *Session) Model() Model { return s.model }
-
-// Open starts a session with the first attached device.
-//
-// HX Edit must be quit first: it claims the editor interface exclusively.
-func Open(ctx context.Context) (*Session, error) {
-	uctx := gousb.NewContext()
-
-	dev, model, err := findDevice(uctx)
-	if err != nil {
-		_ = uctx.Close()
-
-		return nil, err
-	}
-
-	s := &Session{uctx: uctx, dev: dev, model: model, chans: map[string]*channel{}}
-
-	if err := s.claim(); err != nil {
-		s.Close()
-
-		return nil, err
-	}
-
-	if err := s.handshake(ctx); err != nil {
-		s.Close()
-
-		return nil, err
-	}
-
-	return s, nil
-}
-
-// findDevice opens the first device this package recognises.
-func findDevice(uctx *gousb.Context) (*gousb.Device, Model, error) {
-	var (
-		found *gousb.Device
-		model Model
-	)
-
-	devs, err := uctx.OpenDevices(func(d *gousb.DeviceDesc) bool {
-		_, ok := ModelFor(uint16(d.Product))
-
-		return ok
-	})
-	if err != nil && len(devs) == 0 {
-		return nil, Model{}, fmt.Errorf("looking for a device: %w", err)
-	}
-
-	for i, d := range devs {
-		if i > 0 {
-			_ = d.Close()
-
-			continue
-		}
-
-		found = d
-		model, _ = ModelFor(uint16(d.Desc.Product))
-	}
-
-	if found == nil {
-		return nil, Model{}, ErrNoDevice
-	}
-
-	return found, model, nil
-}
-
-// claim takes the editor interface.
-//
-// Claimed, released, and claimed again, which is what HX Edit does. It looks
-// like startup noise until reconnecting without it fails on roughly every
-// other attempt: the device carries channel state across connections, and the
-// release is what clears it.
-func (s *Session) claim() error {
-	_, release, err := s.claimOnce()
-	if err != nil {
-		return err
-	}
-
-	release()
-
-	intf, release, err := s.claimOnce()
-	if err != nil {
-		return err
-	}
-
-	s.done = release
-
-	if s.out, err = intf.OutEndpoint(endpointOut); err != nil {
-		return fmt.Errorf("opening the outgoing endpoint: %w", err)
-	}
-
-	if s.in, err = intf.InEndpoint(endpointIn); err != nil {
-		return fmt.Errorf("opening the incoming endpoint: %w", err)
-	}
-
-	return nil
-}
-
-// claimOnce takes the interface, retrying while it is busy.
-//
-// Cleanup after a previous session races the next claim, so a busy interface
-// is worth waiting on rather than reporting.
-func (s *Session) claimOnce() (*gousb.Interface, func(), error) {
-	var last error
-
-	for range claimAttempts {
-		intf, release, err := s.dev.DefaultInterface()
-		if err == nil {
-			return intf, release, nil
-		}
-
-		last = err
-
-		time.Sleep(claimBackoff)
-	}
-
-	return nil, nil, fmt.Errorf(
-		"claiming the editor interface (is HX Edit running?): %w", last)
-}
 
 // Close ends the session.
 //
@@ -259,7 +162,7 @@ func (s *Session) claimOnce() (*gousb.Interface, func(), error) {
 // until an otherwise innocent write stops the device.
 func (s *Session) Close() {
 	if s.in != nil {
-		_ = s.drain(context.Background())
+		s.drain(context.Background())
 
 		for _, c := range s.chans {
 			_ = s.send(c, wire.MsgAck, nil)
@@ -270,11 +173,32 @@ func (s *Session) Close() {
 		s.done()
 	}
 
-	if s.dev != nil {
-		_ = s.dev.Close()
+	// In the order they were taken: the interface first, then the device,
+	// then the library's own context.
+	for _, held := range s.holds {
+		_ = held.Close()
+	}
+}
+
+// retry runs something until it works, or until patience runs out.
+//
+// Cleanup after a previous session races the next claim, so an interface that
+// is busy is worth waiting on rather than reporting. Separate from the call
+// itself because the policy — how many times, how long between — is the part
+// worth being sure about, and the call is the part that needs hardware.
+func retry(attempt func() error) error {
+	var last error
+
+	for i := range claimAttempts {
+		if last = attempt(); last == nil {
+			return nil
+		}
+
+		// Not after the last one: nobody is waiting for anything then.
+		if i < claimAttempts-1 {
+			time.Sleep(claimBackoff)
+		}
 	}
 
-	if s.uctx != nil {
-		_ = s.uctx.Close()
-	}
+	return last
 }

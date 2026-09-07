@@ -23,6 +23,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/retr0h/tonestack/internal/slots"
+	"github.com/retr0h/tonestack/pkg/slot"
 )
 
 var presetsShowOptions slots.ShowOptions
@@ -33,11 +34,25 @@ var presetsShowCmd = &cobra.Command{
 	Short: "Show the signal chain in one preset",
 	Long: `Show what a preset actually contains.
 
-The preset comes from either a slot in a setlist or a standalone .hlx file.
-Both decode to the same chain, which is the point: what the device holds and
-what this tool generates are the same kind of thing.`,
+With nothing else, this reads the attached device over USB. HX Edit has to be
+quit first: it claims the editor interface exclusively.
+
+With --file it reads a slot in a backup, and with --preset a standalone .hlx.
+All three decode to the same chain, which is the point: what the device holds
+and what this tool generates are the same kind of thing.`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
+		// No file and no preset means the device itself, which is what
+		// somebody with one plugged in almost always wants.
+		if presetsShowOptions.Path == "" && presetsShowOptions.File == "" {
+			return slots.ShowDevice(cmd.Context(), cmd.OutOrStdout(),
+				slots.DeviceOptions{
+					Setlist:     presetsShowOptions.Setlist,
+					Slot:        presetsShowOptions.Slot,
+					CatalogPath: presetsShowOptions.CatalogPath,
+				})
+		}
+
 		return slots.Show(cmd.OutOrStdout(), presetsShowOptions)
 	},
 }
@@ -59,9 +74,18 @@ func init() {
 		0,
 		"which setlist, when the file is a backup holding several",
 	)
-	f.IntVar(&presetsShowOptions.Slot, "slot", 0, "which slot, from zero")
+	f.Var(
+		slot.NewValue(&presetsShowOptions.Slot),
+		"slot",
+		"which slot — a label the pedal shows such as 31A, or a number from zero",
+	)
 	f.StringVar(&presetsShowOptions.CatalogPath, "catalog", "",
 		"a generated catalog to use instead of the built-in one")
-	presetsShowCmd.MarkFlagsOneRequired("file", "preset")
 	presetsShowCmd.MarkFlagsMutuallyExclusive("file", "preset")
+	presetsShowCmd.MarkFlagsMutuallyExclusive("preset", "slot")
+
+	// A standalone preset is one preset and needs no address. A device and a
+	// backup both hold many, so one of the two has to be given: defaulting to
+	// the first slot would show somebody a preset they did not ask about.
+	presetsShowCmd.MarkFlagsOneRequired("preset", "slot")
 }

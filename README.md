@@ -46,11 +46,15 @@ go build .
 Plug in the Helix and quit HX Edit — it holds the device open, and nothing else
 can talk to it while it runs.
 
-**See what the device holds.** This reads the hardware:
+**Read the device.** All three talk to the hardware over USB:
 
 ```bash
-tonestack presets list
+tonestack presets list                              # every slot
+tonestack presets show   --slot 31A                 # one slot, as a rig
+tonestack presets export --slot 31A --out lead.yaml # the same, to a file
 ```
+
+Slots are addressed the way the pedal labels them — `01A` through `42C`.
 
 **Build a preset.** Gear is named the way you say it — "Ampeg SVT", never a
 model identifier:
@@ -82,20 +86,18 @@ thought of it. That log is the only record of a human ear in the system —
 
 ### What is not live yet
 
-`presets list` is the only command that reads the hardware. Looking inside a
-preset, or moving one between slots, still goes through a backup HX Edit wrote —
-a `.hlb` of the whole device, or a `.hls` of one setlist — passed with `--file`:
+Reading is. Moving a preset between slots still goes through a backup HX Edit
+wrote — a `.hlb` of the whole device, or a `.hls` of one setlist — passed with
+`--file`:
 
 ```bash
-tonestack presets show   --file device.hlb --slot 3
-tonestack presets export --file device.hlb --slot 3 --out slot3.yaml
-tonestack presets copy   --file device.hlb --from 1 --to 2 --out edited.hlb
+tonestack presets copy   --file device.hlb --from 01A --to 02A --out edited.hlb
+tonestack presets import --file device.hlb --preset mike.hlx --slot 07A --out edited.hlb
 ```
 
-That detour exists because reading and writing a preset over USB is not
-implemented — not because a file is a good way to work.
-[docs/protocol.md](docs/protocol.md) states exactly what the device answers
-today and what is still unknown. `--file` goes away as those land.
+That detour exists because *writing* a preset over USB is not implemented — not
+because a file is a good way to work. [docs/protocol.md](docs/protocol.md)
+states exactly what the device answers today and what is still unknown.
 
 ## Documentation
 

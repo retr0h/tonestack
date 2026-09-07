@@ -44,7 +44,6 @@ catalog of what the device can do. Nothing else has to be installed, and no
 device has to be attached, to describe a chain and write a preset.`,
 	// Cobra prints its own "Error: …" line. Ours is the themed one, so
 	// cobra's is silenced rather than shown alongside it.
-	SilenceUsage:  true,
 	SilenceErrors: true,
 }
 
