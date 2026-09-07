@@ -21,6 +21,8 @@
 package slots
 
 import (
+	"encoding/json"
+	"math"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
@@ -169,6 +171,44 @@ func indexOf(cat *catalog.Catalog, id catalog.ModelID) int {
 	}
 
 	return -1
+}
+
+// TestMicAttr covers the value a cabinet sends past its named ones.
+func (s *DecodeTestSuite) TestMicAttr() {
+	sym := catalog.Symbol{Params: []string{"Level", "LowCut"}}
+
+	tests := []struct {
+		name   string
+		values []any
+		want   map[string]json.RawMessage
+	}{
+		{
+			name:   "a cabinet sending one past its names",
+			values: []any{0.5, 20.0, int64(11)},
+			want:   map[string]json.RawMessage{"@mic": json.RawMessage("11")},
+		},
+		{
+			name:   "a block sending exactly what it names",
+			values: []any{0.5, 20.0},
+		},
+		{
+			name:   "one sending fewer than it names",
+			values: []any{0.5},
+		},
+		{
+			// A float32 bit pattern can hold one, and encoding/json refuses
+			// to write it. Dropping the attribute is better than refusing to
+			// read the preset it came in.
+			name:   "a value JSON cannot write",
+			values: []any{0.5, 20.0, math.NaN()},
+		},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			s.Require().Equal(tt.want, micAttr(sym, tt.values))
+		})
+	}
 }
 
 func TestDecodeTestSuite(t *testing.T) {

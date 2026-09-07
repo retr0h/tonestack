@@ -42,7 +42,7 @@ usually been copied somewhere else too.`,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		recipesNewOptions.Dir = recipesDir
 		if recipesNewOptions.Dir == "" {
-			recipesNewOptions.Dir = "recipes"
+			recipesNewOptions.Dir = "resources/recipes"
 		}
 
 		return recipes.New(cmd.OutOrStdout(), recipesNewOptions)

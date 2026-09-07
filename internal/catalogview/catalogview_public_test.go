@@ -173,7 +173,7 @@ func (s *CatalogViewPublicTestSuite) TestNotFoundErrorNamesWhatWasAsked() {
 }
 
 func (s *CatalogViewPublicTestSuite) TestDefaultPathIsWhereTheCatalogLives() {
-	s.Require().Equal("schemas/hx-stomp.catalog.json", catalogview.DefaultPath)
+	s.Require().Equal("resources/schemas/hx-stomp.catalog.json", catalogview.DefaultPath)
 }
 
 type failingWriter struct{}

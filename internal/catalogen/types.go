@@ -22,7 +22,7 @@
 //
 // HX Edit ships Line 6's complete model data as JSON inside its app bundle:
 // every model's identifier, name, DSP cost, and every parameter's real range
-// and default. Joined with schemas/gear-map.json — which says what each model
+// and default. Joined with resources/schemas/gear-map.json — which says what each model
 // emulates — that is everything needed to place a block in a chain.
 //
 // The data belongs to Line 6 and reaches us only through a licensed HX Edit
@@ -40,7 +40,7 @@ type Options struct {
 	// SourceName names the application the models came from. The version is
 	// read from the bundle and appended to it.
 	SourceName string
-	// GearMapPath is schemas/gear-map.json.
+	// GearMapPath is resources/schemas/gear-map.json.
 	GearMapPath string
 	// DeviceID is the integer a preset for the target device carries in
 	// data.device. Only models the device supports are included.
@@ -86,7 +86,7 @@ type wireParam struct {
 	Default     json.RawMessage `json:"default"`
 }
 
-// gearMap is schemas/gear-map.json.
+// gearMap is resources/schemas/gear-map.json.
 type gearMap struct {
 	Models map[string]gearEntry `json:"models"`
 }

@@ -34,7 +34,7 @@ import (
 )
 
 // DefaultPath is where the generated catalog lives.
-const DefaultPath = "schemas/hx-stomp.catalog.json"
+const DefaultPath = "resources/schemas/hx-stomp.catalog.json"
 
 // Filter narrows what List reports.
 type Filter struct {

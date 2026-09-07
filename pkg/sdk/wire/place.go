@@ -23,6 +23,7 @@ package wire
 import (
 	"errors"
 	"fmt"
+	"sort"
 )
 
 // Putting a chain into a preset.
@@ -182,6 +183,45 @@ func Open(doc *Document) ([]int, error) {
 	}
 
 	return out, nil
+}
+
+// PlaceInOrder writes a chain into the positions a device has free.
+//
+// A preset counts its blocks from zero along a signal path and a device
+// counts positions across a grid that also holds the input, the split, the
+// join and the output. Those are not the same number, and what turns one into
+// the other is not established.
+//
+// So the chain keeps its order and takes the first positions the device has
+// free, rather than a guess at a mapping. A chain is an order, and the gaps a
+// preset leaves in one carry no sound.
+func PlaceInOrder(
+	doc *Document,
+	blocks []Placement,
+) error {
+	open, err := Open(doc)
+	if err != nil {
+		return err
+	}
+
+	if len(blocks) > len(open) {
+		return &NoRoomError{
+			Position: len(open),
+			Why: fmt.Sprintf(
+				"this chain has %d blocks and the device lays out %d",
+				len(blocks), len(open)),
+		}
+	}
+
+	sort.SliceStable(blocks, func(i, j int) bool {
+		return blocks[i].Position < blocks[j].Position
+	})
+
+	for i := range blocks {
+		blocks[i].Position = open[i]
+	}
+
+	return Place(doc, blocks)
 }
 
 // roomFor rejects a position that is not the device's to give.

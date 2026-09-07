@@ -197,7 +197,7 @@ func (s *RecipesPublicTestSuite) TestNotFoundErrorNamesWhatWasAsked() {
 }
 
 func (s *RecipesPublicTestSuite) TestDefaultDirIsWhereRecipesLive() {
-	s.Require().Equal("recipes", recipes.DefaultDir)
+	s.Require().Equal("resources/recipes", recipes.DefaultDir)
 	s.Require().DirExists(filepath.Join("..", "..", recipes.DefaultDir))
 }
 

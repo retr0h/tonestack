@@ -12,6 +12,7 @@ directory.
 | `rigspec.openapi.yaml`  | hand-written  | The RigSpec contract, the only format anybody types |
 | `hx-stomp.catalog.json` | **generated** | Which blocks an HX Stomp has and what each accepts  |
 | `gear-map.json`         | **generated** | Which real-world gear each Line 6 model emulates    |
+| `extract_gear_map.py`   | hand-written  | Writes `gear-map.json`, and lives beside it         |
 | `corpus/`               | collected     | ~4,400 real presets                                 |
 
 ## RigSpec is the only contract
@@ -28,8 +29,8 @@ the generator produces. They were the same document at two levels of detail, so
 now there is one. A rig is sparse when somebody types it and full once it has
 been compiled or lifted from a preset.
 
-`recipes/` is the only data here that is ours and publishable. The catalog and
-the gear map come from a licensed HX Edit installation, so we do not
+`../recipes/` is the only data in this tree that is ours and publishable. The
+catalog and the gear map come from a licensed HX Edit installation, so we do not
 redistribute them.
 
 ## rigspec.openapi.yaml
@@ -63,7 +64,7 @@ this project's own Go types:
 
 ```bash
 just generate                                    # regenerates pkg/rig/gen
-npx openapi-typescript schemas/rigspec.openapi.yaml -o rigspec.d.ts
+npx openapi-typescript resources/schemas/rigspec.openapi.yaml -o rigspec.d.ts
 ```
 
 ## hx-stomp.catalog.json

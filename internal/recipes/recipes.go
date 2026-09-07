@@ -39,11 +39,11 @@ import (
 	"github.com/retr0h/tonestack/internal/cli"
 	"github.com/retr0h/tonestack/pkg/rig"
 	"github.com/retr0h/tonestack/pkg/rig/gen"
-	recipedata "github.com/retr0h/tonestack/recipes"
+	recipedata "github.com/retr0h/tonestack/resources/recipes"
 )
 
 // DefaultDir is where recipes live.
-const DefaultDir = "recipes"
+const DefaultDir = "resources/recipes"
 
 // Load reads every rig under dir, in identifier order.
 //

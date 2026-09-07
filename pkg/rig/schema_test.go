@@ -30,7 +30,7 @@ import (
 
 	"github.com/retr0h/tonestack/pkg/rig"
 	"github.com/retr0h/tonestack/pkg/rig/gen"
-	"github.com/retr0h/tonestack/schemas"
+	"github.com/retr0h/tonestack/resources/schemas"
 )
 
 // SchemaTestSuite covers reading the contract a rig is checked against.

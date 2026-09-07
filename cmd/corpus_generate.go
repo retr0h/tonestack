@@ -47,7 +47,7 @@ func init() {
 
 	f := corpusGenerateCmd.Flags()
 	f.StringVar(&corpusGenerateOptions.CorpusDir, "corpus",
-		"schemas/corpus", "directory holding presets to measure")
+		"resources/schemas/corpus", "directory holding presets to measure")
 	f.StringVar(&corpusGenerateOptions.CatalogPath, "catalog", "",
 		"a generated catalog to use instead of the built-in one")
 	f.StringVar(&corpusGenerateOptions.OutputPath, "out",

@@ -20,7 +20,7 @@
 
 // Package rig validates a RigSpec against the contract it declares.
 //
-// The types in gen/ are generated from schemas/rigspec.openapi.yaml, and
+// The types in gen/ are generated from resources/schemas/rigspec.openapi.yaml, and
 // generation gives them shape but not rules: nothing stops a required field
 // being empty or an enumeration holding a word that is not in it.
 //
@@ -41,7 +41,7 @@ import (
 	"github.com/getkin/kin-openapi/openapi3"
 
 	"github.com/retr0h/tonestack/pkg/rig/gen"
-	"github.com/retr0h/tonestack/schemas"
+	"github.com/retr0h/tonestack/resources/schemas"
 )
 
 // ErrInvalid reports a rig that does not meet its own contract.

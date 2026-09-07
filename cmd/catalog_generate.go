@@ -45,7 +45,7 @@ func init() {
 		"/Applications/Line6/HX Edit.app/Contents/Resources",
 		"HX Edit's Contents/Resources directory")
 	f.StringVar(&catalogGenerateOptions.GearMapPath, "gear-map",
-		"schemas/gear-map.json", "gear map to join against")
+		"resources/schemas/gear-map.json", "gear map to join against")
 	f.StringVar(&catalogGenerateOptions.OutputPath, "out",
 		"pkg/catalog/data/hx-stomp.json.gz", "where to write the catalog")
 	f.IntVar(&catalogGenerateOptions.DeviceID, "device-id", 2162694,

@@ -34,6 +34,7 @@ import (
 	"go.uber.org/mock/gomock"
 
 	"github.com/retr0h/tonestack/internal/slots"
+	"github.com/retr0h/tonestack/pkg/sdk"
 	"github.com/retr0h/tonestack/pkg/sdk/mocks"
 	"github.com/retr0h/tonestack/pkg/sdk/wire"
 )
@@ -173,13 +174,45 @@ func (s *ImportDevicePublicTestSuite) TestImportReportsAFailingWriter() {
 		slots.ImportOptions{File: s.preset(), Slot: 7}))
 }
 
-// TestImportOnADeviceWithNoneAttached covers the path that opens one.
-func (s *ImportDevicePublicTestSuite) TestImportOnADeviceWithNoneAttached() {
-	err := slots.ImportDevice(
-		s.T().Context(), &bytes.Buffer{},
-		slots.ImportOptions{File: s.preset(), Slot: 7})
+// TestImportFindsItsOwnDevice covers the entry point somebody actually runs.
+//
+// One line: find a session, hand it on, release it. The only line in this
+// file that needs hardware, so the session is stood in for.
+func (s *ImportDevicePublicTestSuite) TestImportFindsItsOwnDevice() {
+	s.dev.MockWriter.EXPECT().
+		WriteNamedPreset(
+			gomock.Any(), gomock.Any(), gomock.Any(),
+			gomock.Any(), gomock.Any()).
+		Return(nil)
 
-	s.Require().Error(err, "no hardware is attached in a test")
+	restore := *slots.OpenDevice
+	*slots.OpenDevice = func(context.Context) (sdk.Editor, error) {
+		return s.dev, nil
+	}
+
+	defer func() { *slots.OpenDevice = restore }()
+
+	var out bytes.Buffer
+
+	s.Require().NoError(slots.ImportDevice(
+		s.T().Context(), &out,
+		slots.ImportOptions{File: s.preset(), Slot: 7}))
+
+	s.Require().Contains(out.String(), "written")
+}
+
+// TestImportReportsNoDeviceAttached covers finding none.
+func (s *ImportDevicePublicTestSuite) TestImportReportsNoDeviceAttached() {
+	restore := *slots.OpenDevice
+	*slots.OpenDevice = func(context.Context) (sdk.Editor, error) {
+		return nil, errors.New("nothing on the bus")
+	}
+
+	defer func() { *slots.OpenDevice = restore }()
+
+	s.Require().ErrorContains(slots.ImportDevice(
+		s.T().Context(), &bytes.Buffer{},
+		slots.ImportOptions{File: s.preset(), Slot: 7}), "nothing on the bus")
 }
 
 // TestImportReportsAPresetItCannotWrite covers a file naming gear the

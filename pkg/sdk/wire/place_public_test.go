@@ -299,6 +299,78 @@ func (s *PlacePublicTestSuite) TestOpenOnADocumentWithNoChain() {
 	s.Require().ErrorIs(err, wire.ErrNotADocument)
 }
 
+// TestPlaceInOrder covers fitting a chain into the positions a device has
+// free, which is what an import does with one.
+func (s *PlacePublicTestSuite) TestPlaceInOrder() {
+	tests := []struct {
+		name   string
+		blocks []wire.Placement
+		want   []int
+		err    error
+	}{
+		{
+			name: "a chain out of order keeps its order and moves up",
+			blocks: []wire.Placement{
+				s.at(s.drive(), 9), s.at(s.amp(), 4), s.at(s.drive(), 6),
+			},
+			want: []int{1, 2, 3},
+		},
+		{
+			name:   "a chain already where the device would put it",
+			blocks: []wire.Placement{s.at(s.drive(), 1), s.at(s.amp(), 2)},
+			want:   []int{1, 2},
+		},
+		{
+			name:   "nothing at all",
+			blocks: nil,
+			want:   []int{},
+		},
+		{
+			name:   "more blocks than the device lays out",
+			blocks: make([]wire.Placement, wire.GridSize+1),
+			err:    wire.ErrNoRoom,
+		},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			doc := s.blank()
+
+			err := wire.PlaceInOrder(doc, tt.blocks)
+
+			if tt.err != nil {
+				s.Require().ErrorIs(err, tt.err)
+				s.Require().Contains(err.Error(), "lays out")
+
+				return
+			}
+
+			s.Require().NoError(err)
+
+			got := []int{}
+			for _, b := range tt.blocks {
+				got = append(got, b.Position)
+			}
+
+			s.Require().Equal(tt.want, got)
+			s.Require().Len(s.read(doc).Blocks, len(tt.blocks))
+		})
+	}
+}
+
+// TestPlaceInOrderOnADocumentWithNoChain covers bytes no device would send.
+func (s *PlacePublicTestSuite) TestPlaceInOrderOnADocumentWithNoChain() {
+	raw, err := os.ReadFile(filepath.Join("testdata", "preset.bin"))
+	s.Require().NoError(err)
+
+	full, err := wire.DecodeDocument(raw)
+	s.Require().NoError(err)
+
+	s.Require().ErrorIs(
+		wire.PlaceInOrder(wire.NewDocument(full, []int8{1}), nil),
+		wire.ErrNotADocument)
+}
+
 // TestNoRoomErrorNamesThePosition covers what a caller reads.
 func (s *PlacePublicTestSuite) TestNoRoomErrorNamesThePosition() {
 	err := &wire.NoRoomError{Position: 9, Why: "the device keeps its routing there"}
