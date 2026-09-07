@@ -1,0 +1,13 @@
+[
+  { "symbolicID": "HelixStomp_AppDSPFlowInput",
+    "devices": [{ "id": 2162694 }],
+    "params": [{ "symbolicID": "noiseGate", "valueType": 2, "default": false }] },
+  { "symbolicID": "HelixStomp_AppDSPFlowOutputMain",
+    "devices": [{ "id": 2162694 }],
+    "params": [{ "symbolicID": "pan", "valueType": 1, "default": 0.5 }] },
+  { "symbolicID": "HelixStomp_AppDSPFlowOutputSend",
+    "devices": [{ "id": 2162694 }],
+    "params": [{ "symbolicID": "pan", "valueType": 1, "default": 0.5 }] },
+  { "symbolicID": "HD2_AppDSPFlowSplitY",
+    "params": [{ "symbolicID": "BalanceA", "valueType": 1, "default": 0.5 }] }
+]

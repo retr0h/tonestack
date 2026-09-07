@@ -229,6 +229,21 @@ A chain entry is `{19: kind, 20: body}`. Kind `6` is a block somebody placed;
 every other kind is the device's own: an input, an output, a gap where nothing
 sits.
 
+An entry that is not a block is the device's own, and each is one of four
+things:
+
+| kind | holds                                                    |
+| ---- | -------------------------------------------------------- |
+| `0`  | the input: `5` is which one, and three parameters follow |
+| `1`  | the main output: `6` is which one, and two parameters    |
+| `2`  | the second input under `14`, and the split under `15`    |
+| `3`  | the second output under `16`, and the join under `17`    |
+
+A split and a join name their own model under `8`, because more than one kind of
+split exists. An input and an output name none: the device knows which are its
+own, so the catalog carries them per device, read from the same io.models file
+that lists which devices each belongs to.
+
 **The position in that array is the block's number, and it is not its place in
 the chain.** A device lays blocks on a fixed grid and leaves gaps: a preset
 holding four blocks can have them at 5, 6, 8 and 13. Footswitch assignments

@@ -132,10 +132,11 @@ tonestack presets show --file device.hlb --slot 31A
 Putting a preset *onto* a device is the part that is not live. See
 [Get it onto the device](#get-it-onto-the-device).
 
-One thing a live read cannot carry: the routing and controller assignments a
-preset holds arrive in a numbering nobody has decoded, so a rig read off the
-device has no `device` section. Reading the same slot out of a backup carries
-it. [protocol.md](protocol.md) states what the device answers today and what is
+A rig read off the device carries its routing, so compiling one puts the
+device's own inputs, outputs, split and join back. Controller assignments are
+the exception: nothing has decoded them yet, and a rig read over USB carries
+none. Reading the same slot out of a backup carries them.
+[protocol.md](protocol.md) states what the device answers today and what is
 still unknown.
 
 ## Move a rig between formats

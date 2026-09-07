@@ -95,6 +95,10 @@ func Build(opts Options) (*catalog.Catalog, error) {
 			return nil, err
 		}
 
+		if flow := flowFor(models, opts.DeviceID); flow != (catalog.Flow{}) {
+			out.Flow = flow
+		}
+
 		family := strings.TrimSuffix(filepath.Base(path), ".models")
 
 		for _, m := range models {

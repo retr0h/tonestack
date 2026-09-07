@@ -80,16 +80,13 @@ func writeDeviceRig(w io.Writer, body []byte, opts DeviceOptions) error {
 		return fmt.Errorf("reading slot %s: %w", slotpkg.Label(opts.Slot), err)
 	}
 
-	// The chain is the device's; the rest of that section would be the
-	// untouched preset it was assembled into. Routing and controller
-	// assignments arrive over USB in a numbering nobody has decoded yet, and
-	// writing the template's in their place would put a stranger's settings
-	// in a file that claims to describe this slot.
+	// Everything else in that section would be the untouched preset this was
+	// assembled into rather than the slot it describes, so only what the
+	// device actually said is kept.
 	//
-	// Absent means absent: compiling this rig builds it into an untouched
-	// preset, the same as one somebody typed. Reading the same slot out of a
-	// backup carries the real thing — see docs/protocol.md.
-	spec.Device = nil
+	// Controller assignments are not decoded yet and so are not carried. A
+	// rig read off the device rebuilds its routing but not those.
+	spec.Device = deviceStateOf(got, cat)
 	spec.Snapshots = snapshotsOf(got)
 	spec.Footswitches = footswitchesOf(got, cat)
 
