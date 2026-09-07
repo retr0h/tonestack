@@ -230,6 +230,36 @@ func (s *TransportTestSuite) TestClosingASessionThatNeverOpened() {
 	sdk.NewTestSession(nil, nil).Close()
 }
 
+func (s *TransportTestSuite) TestWaitingOnABusyInterface() {
+	// Cleanup after a previous session races the next claim, so an interface
+	// that is busy is worth waiting on rather than reporting.
+	tries := 0
+
+	s.Require().NoError(sdk.Retry(func() error {
+		tries++
+		if tries < 2 {
+			return errors.New("busy")
+		}
+
+		return nil
+	}))
+
+	s.Require().Equal(2, tries)
+}
+
+func (s *TransportTestSuite) TestAnInterfaceThatNeverComesFree() {
+	tries := 0
+
+	err := sdk.Retry(func() error {
+		tries++
+
+		return errors.New("busy")
+	})
+
+	s.Require().Error(err)
+	s.Require().Equal(sdk.ClaimAttempts, tries, "patience runs out")
+}
+
 func TestTransportTestSuite(t *testing.T) {
 	suite.Run(t, new(TransportTestSuite))
 }

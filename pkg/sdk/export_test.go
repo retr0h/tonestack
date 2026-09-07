@@ -138,3 +138,30 @@ func (f *FailAfter) Write(p []byte) (int, error) {
 
 	return f.Sender.Write(p)
 }
+
+// Retry runs something until it works, or until patience runs out.
+var Retry = retry
+
+// ClaimAttempts is how many times a busy interface is waited on.
+const ClaimAttempts = claimAttempts
+
+// Bus, Handle and Endpoints are what finding a device runs against, exported
+// so a test can supply them.
+type (
+	TestBus       = bus
+	TestHandle    = handle
+	TestEndpoints = endpoints
+)
+
+// NewBus is how a bus is obtained, exported so a test can stand in for the
+// only line in this package that reaches hardware.
+var NewBus = &newBus
+
+// OpenOver starts a session over the given bus.
+func OpenOver(ctx context.Context, b bus) (Editor, error) { return open(ctx, b) }
+
+// TestSender and TestReceiver are the endpoints a session talks over.
+type (
+	TestSender   = sender
+	TestReceiver = receiver
+)

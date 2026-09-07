@@ -18,19 +18,48 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// The three usb_*.go files are the only ones in this package that touch
-// libusb, and the only ones a test cannot reach. Everything else — framing,
-// sequence numbers, acknowledgements, opening a channel, making a call — takes
-// its endpoints as interfaces and runs against a scripted device.
 package sdk
 
 import (
 	"context"
 	"fmt"
-	"time"
-
-	"github.com/google/gousb"
 )
+
+// bus is a USB bus this package can look at.
+//
+// Declared here rather than taken from the library, so that finding and
+// claiming a device is logic over an interface instead of a call into C. What
+// remains in usb.go is one expression per method, forwarding.
+type bus interface {
+	// Devices returns every device the matcher accepts, opened.
+	Devices(match func(vendor, product uint16) bool) ([]handle, error)
+	// Close releases the library's own context.
+	Close() error
+}
+
+// handle is one open device.
+type handle interface {
+	// Descriptor is what the device says it is, without opening anything.
+	Descriptor() Descriptor
+	// Claim takes the editor interface, and returns how to give it back.
+	Claim() (endpoints, func(), error)
+	// Close releases the device.
+	Close() error
+}
+
+// endpoints is the pair a session talks over.
+type endpoints interface {
+	// Out is where requests go.
+	Out() (sender, error)
+	// In is where answers come from.
+	In() (receiver, error)
+}
+
+// newBus is how a bus is obtained, so a test can stand in for it.
+//
+// The only line in this package that reaches hardware; everything below takes
+// what it was given.
+var newBus = openUSB
 
 // Open starts a session with the first attached device.
 //
@@ -39,17 +68,25 @@ import (
 // Returns the interface rather than the type behind it, so that everything
 // above this package can be given a session instead of finding one — which is
 // what lets reading a device be tested without one attached.
-func Open(ctx context.Context) (Editor, error) {
-	uctx := gousb.NewContext()
+func Open(ctx context.Context) (Editor, error) { return open(ctx, newBus()) }
 
-	dev, model, err := findDevice(uctx)
+// open starts a session over the given bus.
+//
+// The bus is closed on failure and handed to the session on success, because
+// a session holds it open for as long as it is talking.
+func open(ctx context.Context, b bus) (Editor, error) {
+	dev, model, err := findDevice(b)
 	if err != nil {
-		_ = uctx.Close()
+		_ = b.Close()
 
 		return nil, err
 	}
 
-	s := &Session{holds: []releaser{dev, uctx}, model: model, chans: map[string]*channel{}}
+	s := &Session{
+		holds: []releaser{dev, b},
+		model: model,
+		chans: map[string]*channel{},
+	}
 
 	if err := s.claim(dev); err != nil {
 		s.Close()
@@ -67,20 +104,21 @@ func Open(ctx context.Context) (Editor, error) {
 }
 
 // findDevice opens the first device this package recognises.
-func findDevice(uctx *gousb.Context) (*gousb.Device, Model, error) {
-	var (
-		found *gousb.Device
-		model Model
-	)
-
-	devs, err := uctx.OpenDevices(func(d *gousb.DeviceDesc) bool {
-		_, ok := ModelFor(uint16(d.Product))
+//
+// More than one is possible and only the first is used. The rest are closed
+// rather than left open, because a device held by a process that is not using
+// it is a device nothing else can claim.
+func findDevice(b bus) (handle, Model, error) {
+	devs, err := b.Devices(func(_, product uint16) bool {
+		_, ok := ModelFor(product)
 
 		return ok
 	})
 	if err != nil && len(devs) == 0 {
 		return nil, Model{}, fmt.Errorf("looking for a device: %w", err)
 	}
+
+	var found handle
 
 	for i, d := range devs {
 		if i > 0 {
@@ -90,12 +128,13 @@ func findDevice(uctx *gousb.Context) (*gousb.Device, Model, error) {
 		}
 
 		found = d
-		model, _ = ModelFor(uint16(d.Desc.Product))
 	}
 
 	if found == nil {
 		return nil, Model{}, ErrNoDevice
 	}
+
+	model, _ := ModelFor(found.Descriptor().Product)
 
 	return found, model, nil
 }
@@ -106,7 +145,7 @@ func findDevice(uctx *gousb.Context) (*gousb.Device, Model, error) {
 // like startup noise until reconnecting without it fails on roughly every
 // other attempt: the device carries channel state across connections, and the
 // release is what clears it.
-func (s *Session) claim(dev *gousb.Device) error {
+func (s *Session) claim(dev handle) error {
 	_, release, err := claimOnce(dev)
 	if err != nil {
 		return err
@@ -114,42 +153,41 @@ func (s *Session) claim(dev *gousb.Device) error {
 
 	release()
 
-	intf, release, err := claimOnce(dev)
+	ends, release, err := claimOnce(dev)
 	if err != nil {
 		return err
 	}
 
 	s.done = release
 
-	if s.out, err = intf.OutEndpoint(endpointOut); err != nil {
+	if s.out, err = ends.Out(); err != nil {
 		return fmt.Errorf("opening the outgoing endpoint: %w", err)
 	}
 
-	if s.in, err = intf.InEndpoint(endpointIn); err != nil {
+	if s.in, err = ends.In(); err != nil {
 		return fmt.Errorf("opening the incoming endpoint: %w", err)
 	}
 
 	return nil
 }
 
-// claimOnce takes the interface, retrying while it is busy.
-//
-// Cleanup after a previous session races the next claim, so a busy interface
-// is worth waiting on rather than reporting.
-func claimOnce(dev *gousb.Device) (*gousb.Interface, func(), error) {
-	var last error
+// claimOnce takes the interface, waiting while it is busy.
+func claimOnce(dev handle) (endpoints, func(), error) {
+	var (
+		ends    endpoints
+		release func()
+	)
 
-	for range claimAttempts {
-		intf, release, err := dev.DefaultInterface()
-		if err == nil {
-			return intf, release, nil
-		}
+	err := retry(func() error {
+		var err error
+		ends, release, err = dev.Claim()
 
-		last = err
-
-		time.Sleep(claimBackoff)
+		return err
+	})
+	if err != nil {
+		return nil, nil, fmt.Errorf(
+			"claiming the editor interface (is HX Edit running?): %w", err)
 	}
 
-	return nil, nil, fmt.Errorf(
-		"claiming the editor interface (is HX Edit running?): %w", last)
+	return ends, release, nil
 }

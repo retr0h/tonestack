@@ -3,5 +3,3 @@
 /gen/
 main.go
 /mocks/
-pkg/sdk/usb
-*.gen.go

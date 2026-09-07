@@ -1,5 +1,3 @@
-//go:build cgo
-
 // Copyright (c) 2026 John Dewey
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -180,4 +178,27 @@ func (s *Session) Close() {
 	for _, held := range s.holds {
 		_ = held.Close()
 	}
+}
+
+// retry runs something until it works, or until patience runs out.
+//
+// Cleanup after a previous session races the next claim, so an interface that
+// is busy is worth waiting on rather than reporting. Separate from the call
+// itself because the policy — how many times, how long between — is the part
+// worth being sure about, and the call is the part that needs hardware.
+func retry(attempt func() error) error {
+	var last error
+
+	for i := range claimAttempts {
+		if last = attempt(); last == nil {
+			return nil
+		}
+
+		// Not after the last one: nobody is waiting for anything then.
+		if i < claimAttempts-1 {
+			time.Sleep(claimBackoff)
+		}
+	}
+
+	return last
 }
