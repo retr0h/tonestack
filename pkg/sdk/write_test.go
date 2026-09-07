@@ -112,17 +112,40 @@ func (s *WriteTestSuite) TestAMessageGoesOutInPiecesADeviceCanPace() {
 	}
 }
 
-func (s *WriteTestSuite) TestAWriteWaitsForTheDeviceToFinish() {
-	// The reply says only that the device took it. A client that treats that
-	// as completion races its next write against a commit still running, and
-	// a device tolerates about a dozen of those before it stops accepting
-	// writes at all.
-	d := s.completes()
+func (s *WriteTestSuite) TestAWriteIsDoneWhenItIsAnswered() {
+	// Measured on hardware. A device answers a slot write and that is the
+	// end of it: the erase and program that follow never appear on the wire,
+	// and waiting for a completion notification waits for something that is
+	// not coming while the preset already sits in the slot.
+	//
+	// Both statuses have been seen for a write that landed, so neither is
+	// read.
+	for _, status := range []int{0, 1} {
+		d := answers(s.answer(sdk.FirstTxn, status))
 
-	s.Require().NoError(s.session(d).WritePreset(
-		context.Background(), 0, 3, []byte{0x01}))
+		s.Require().NoError(s.session(d).WritePreset(
+			context.Background(), 0, 3, []byte{0x01}),
+			"a device answering %d has written the slot", status)
+	}
+}
 
-	s.Require().Empty(d.replies, "both answers were read")
+// TestAWriteIsPacedForTheFlash covers the wait that is real.
+//
+// Nothing on the wire says when the erase and program finish, so a second
+// write landing on top of the first stacks its commit. The pause is the only
+// thing keeping them apart.
+func (s *WriteTestSuite) TestAWriteIsPacedForTheFlash() {
+	was := *sdk.FlashBudget
+	*sdk.FlashBudget = 40 * time.Millisecond
+
+	defer func() { *sdk.FlashBudget = was }()
+
+	started := time.Now()
+
+	s.Require().NoError(s.session(answers(s.answer(sdk.FirstTxn, 0))).
+		WritePreset(context.Background(), 0, 3, []byte{0x01}))
+
+	s.Require().GreaterOrEqual(time.Since(started), 40*time.Millisecond)
 }
 
 func (s *WriteTestSuite) TestAWriteThatFinishesImmediately() {
@@ -133,15 +156,13 @@ func (s *WriteTestSuite) TestAWriteThatFinishesImmediately() {
 		context.Background(), 0, 3, []byte{0x01}))
 }
 
-func (s *WriteTestSuite) TestReportsAWriteThatNeverFinishes() {
-	// A device that takes a write and goes quiet is not a device that
-	// finished, and saying so beats reporting success.
-	d := answers(s.answer(sdk.FirstTxn, 1))
-
-	err := s.session(d).WritePreset(context.Background(), 0, 3, []byte{0x01})
+func (s *WriteTestSuite) TestReportsAWriteADeviceNeverAnswers() {
+	// A device that says nothing at all is a different thing from one that
+	// answers and gets on with the erase.
+	err := s.session(answers()).WritePreset(
+		context.Background(), 0, 3, []byte{0x01})
 
 	s.Require().Error(err)
-	s.Require().Contains(err.Error(), "never said it finished")
 }
 
 func (s *WriteTestSuite) TestReportsAWriteTheDeviceRefuses() {
@@ -196,30 +217,14 @@ func (s *WriteTestSuite) TestACommitBesideAnswersMeantForSomebodyElse() {
 		context.Background(), 0, 3, []byte{0x01}))
 }
 
-func (s *WriteTestSuite) TestADeviceThatRefusesWhileCommitting() {
-	d := answers(
-		s.answer(sdk.FirstTxn, 1),
-		s.answer(sdk.FirstTxn, 255),
-	)
+func (s *WriteTestSuite) TestADeviceThatRefusesTheWrite() {
+	// What a wrongly tagged document used to draw: the device answers, and
+	// what it answers is no.
+	d := answers(s.answer(sdk.FirstTxn, 255))
 
 	err := s.session(d).WritePreset(context.Background(), 0, 3, []byte{0x01})
 
 	s.Require().ErrorIs(err, wire.ErrRefused)
-}
-
-func (s *WriteTestSuite) TestABusThatStopsListeningWhileCommitting() {
-	// Bytes that arrived are acknowledged. A device that stops taking those
-	// has to be reported: an unacknowledged stream stalls.
-	d := answers(s.answer(sdk.FirstTxn, 1), s.answer(sdk.FirstTxn+7, 0))
-	out := &sdk.FailAfter{Sender: d, OK: 1, Err: errors.New("boom")}
-
-	session := sdk.NewTestSession(out, d)
-	session.OpenChannels()
-
-	err := session.WritePreset(context.Background(), 0, 3, []byte{0x01})
-
-	s.Require().Error(err)
-	s.Require().Contains(err.Error(), "boom")
 }
 
 func TestWriteTestSuite(t *testing.T) {

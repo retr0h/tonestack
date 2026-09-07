@@ -180,7 +180,12 @@ func encodeArg(enc *msgpack.Encoder, a Arg) {
 		// terminated as running on into whatever follows it.
 		_ = enc.EncodeString(a.Text + "\x00")
 	case ArgBlob:
-		_ = enc.EncodeBytes(a.Blob)
+		// str16 rather than bin16. A device sends a preset document under
+		// MessagePack's string tag and takes it back under the same one; a
+		// generic encoder picks the narrowest binary tag that fits and the
+		// device answers error -3, a reference it does not recognise. The
+		// bytes are identical either way, and the tag is not.
+		_ = enc.EncodeString(string(a.Blob))
 	case ArgFlag:
 		_ = enc.EncodeBool(a.Flag)
 	case ArgNumber:

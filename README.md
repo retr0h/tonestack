@@ -77,10 +77,17 @@ writes nothing:
 tonestack presets select --slot 27B
 ```
 
-**Writing to the device does not work yet.** `presets import`, `copy` and `swap`
-build a write and send it, and the hardware refuses it. See
-[docs/device.md](docs/device.md), which records what the device answered. Use a
-backup and HX Edit's restore until that is solved.
+**Put it on the device.** The destination is overwritten and a device has no
+undo:
+
+```bash
+tonestack presets import --preset mike.hlx --slot 07A
+tonestack presets copy   --from 01A --to 02A
+tonestack presets swap   --from 01A --to 02A
+```
+
+Every command also takes `--file` for working from an HX Edit backup with no
+device attached.
 
 **Or just ask.** An agent runs those commands for you. The part worth doing
 yourself is listening:

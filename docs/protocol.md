@@ -423,30 +423,34 @@ carrying the same transaction with status 0. A client that treats the first as
 the end races its next write against a commit still running. A device tolerates
 about a dozen of those and then stops accepting writes at all.
 
-### It has been sent to hardware, and refused
+### What it took to make a write land
 
-On 7 September 2026 both opcodes went to an HX Stomp. Neither landed. `copy`,
-which sends back the device's own bytes verbatim, was answered `error -3`, and
-the same document built here drew no reply at all. The device then stopped
-answering until it was power cycled.
+On 7 September 2026 both opcodes went to an HX Stomp. Four things had to be
+right, and each produced a different failure. The message shape above describes
+HX Edit's captured traffic and was not enough on its own.
 
-So the message shape above describes HX Edit's captured traffic and is not
-enough on its own. Three things differ from what tonepush's implementation
-sends, and all three are now matched here:
+|                    | what the shape above implies        | what a device takes                   |
+| ------------------ | ----------------------------------- | ------------------------------------- |
+| channel            | control                             | **data**, `0x1080/0x03ed`             |
+| arguments          | `107, 108, 109, 123, 124, 125, 110` | `107, 108, 109, 110`                  |
+| the document's tag | whatever an encoder picks           | **`str16`**, the tag it arrived under |
+| afterwards         | wait for a completion notification  | 750ms for the flash, and nothing else |
 
-|            | what this document described        | what tonepush sends        |
-| ---------- | ----------------------------------- | -------------------------- |
-| channel    | control                             | **data**, `0x1080/0x03ed`  |
-| arguments  | `107, 108, 109, 123, 124, 125, 110` | `107, 108, 109, 110`       |
-| afterwards | wait for the commit notification    | wait, then 750ms for flash |
-
-Keys 123, 124 and 125 are in HX Edit's traffic and not in the implementation
+**Keys 123, 124 and 125** are in HX Edit's traffic and not in the implementation
 whose writes land, which makes them something HX Edit says rather than something
 a device needs.
 
-None of that has been run. It is the difference between an implementation whose
-writes work and one whose writes are refused, which is better evidence than the
-guess it replaced, and it is still not a result.
+**The tag is the one that cost the most.** A device sends a preset document
+under MessagePack's string tag and takes one back under the same tag. A generic
+encoder picks the narrowest binary tag that fits, `bin16` rather than `str16`.
+The bytes are identical and the tag is not, and the device answers `error -3` —
+the same code it gives for a setlist that does not exist, which is what that
+code means.
+
+**A write is finished when it is answered.** The erase and program that follow
+never appear on the wire. Status 0 and status 1 have both been seen for a write
+that landed, so neither is read. What remains is the pause: nothing says when
+the flash finishes, so a second write landing on the first stacks its commit.
 
 ## Opening a session
 

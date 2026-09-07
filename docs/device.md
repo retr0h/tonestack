@@ -15,36 +15,34 @@ tonestack presets show   --slot 31A
 tonestack presets export --slot 31A --out lead.yaml
 ```
 
-## Writing is implemented and has never worked
+## Writing works
 
-`copy`, `swap` and `import` build a write and send it. No write has ever landed
-on hardware.
+`copy`, `swap` and `import` write the attached device. Verified on an HX Stomp
+on 7 September 2026: a preset copied into an empty slot, two slots exchanged,
+and a preset built from a recipe written into a third and read back with the
+gear it was asked for.
 
-An earlier version of this document said `copy` and `swap` wrote to the device.
-That was written from the protocol two other projects document, without being
-run, and it was wrong. On 7 September 2026 it was run:
+Two things had to be right, and each produced a different failure.
 
-| command                                | what was sent                    | what the device did            |
-| -------------------------------------- | -------------------------------- | ------------------------------ |
-| `presets import --preset x --slot 42C` | a document built here            | no reply to opcode 8 within 6s |
-| `presets copy --from 27B --to 42C`     | the device's own bytes, verbatim | refused: `opcode 8, error -3`  |
+**A document goes out under the tag a device uses.** A device sends a preset
+under MessagePack's string tag, `str16`, and takes one back under the same tag.
+A generic encoder picks the narrowest binary tag that fits, `bin16`. The bytes
+are identical and the tag is not, and the device answers `error -3`, a reference
+it does not recognise. The same code answers `error -3` for a setlist that does
+not exist, which is what that code means.
 
-The second is the informative one. `copy` sends back exactly what the device
-handed over, so a refusal is not about the document. tonepush records `-3` as a
-bad block or parameter reference.
+**A slot write is finished when it is answered.** The erase and program that
+follow never appear on the wire. Waiting for a completion notification waits for
+one that is not coming, for ten seconds, while the preset already sits in the
+slot. Both status 0 and status 1 have been seen for a write that landed, so
+neither is read.
 
-Then the device stopped answering and its screen went blank, and it took a power
-cycle to come back. Nothing was lost: every preset was still there and named,
-and both writes had targeted an empty slot.
+What is left is the pause. Nothing on the wire says when the flash finishes, so
+a second write landing on the first stacks its commit, and 750ms between them is
+the only thing keeping them apart.
 
-**What has been changed since, and not tested.** tonepush sends every preset
-operation on the data channel, not the control channel, and sends none of keys
-123, 124 and 125. Both are now matched here, and a write waits 750ms afterwards
-for the erase and program that do not appear on the wire. That is the best
-explanation available for a large chunked write stalling the endpoint, and it is
-an explanation rather than a result.
-
-Until somebody runs it, use a backup and HX Edit's restore.
+An earlier version of this document said writing was implemented and had never
+worked. It was, and the two reasons are above.
 
 ## A session has to be closed
 
