@@ -23,7 +23,6 @@ package wire
 import (
 	"errors"
 	"fmt"
-	"sort"
 )
 
 // Putting a chain into a preset.
@@ -185,40 +184,26 @@ func Open(doc *Document) ([]int, error) {
 	return out, nil
 }
 
-// PlaceInOrder writes a chain into the positions a device has free.
+// GridOffset turns a preset's position into a device's.
 //
-// A preset counts its blocks from zero along a signal path and a device
-// counts positions across a grid that also holds the input, the split, the
-// join and the output. Those are not the same number, and what turns one into
-// the other is not established.
+// A preset counts its blocks from zero along a signal path; a device counts
+// across a grid that also holds the input, the split, the join and the
+// output. The two differ by one, measured against slot 27B of an HX Stomp:
+// the preset HX Edit exported puts its six blocks at 1 through 6 and the
+// document the device sent puts the same six at 2 through 7.
+const GridOffset = 1
+
+// PlaceAsWritten writes a chain where the preset says it goes.
 //
-// So the chain keeps its order and takes the first positions the device has
-// free, rather than a guess at a mapping. A chain is an order, and the gaps a
-// preset leaves in one carry no sound.
-func PlaceInOrder(
+// A position past the end of the grid, or one the device keeps its routing
+// on, is reported rather than moved: a chain that does not fit is somebody's
+// mistake to see, not one to paper over by putting blocks somewhere else.
+func PlaceAsWritten(
 	doc *Document,
 	blocks []Placement,
 ) error {
-	open, err := Open(doc)
-	if err != nil {
-		return err
-	}
-
-	if len(blocks) > len(open) {
-		return &NoRoomError{
-			Position: len(open),
-			Why: fmt.Sprintf(
-				"this chain has %d blocks and the device lays out %d",
-				len(blocks), len(open)),
-		}
-	}
-
-	sort.SliceStable(blocks, func(i, j int) bool {
-		return blocks[i].Position < blocks[j].Position
-	})
-
 	for i := range blocks {
-		blocks[i].Position = open[i]
+		blocks[i].Position += GridOffset
 	}
 
 	return Place(doc, blocks)

@@ -76,8 +76,16 @@ const listKind = 2
 // The control channel is opened twice: once for service 5, which is then
 // closed, and again from scratch for service 2. Requests sent to service 5
 // time out silently, which is easy to mistake for a flaky device.
-// channelControl is the channel every request goes on.
+// channelControl carries session control and the setlist list.
 const channelControl = "control"
+
+// channelData carries presets and global settings.
+//
+// Reading a preset works on either, which is how every read here was written
+// against the control channel and passed. Writing one does not: a device
+// answers a write on the control channel with error -3 and changes nothing.
+// tonepush sends every preset operation here.
+const channelData = "data"
 
 var channelSpecs = []struct {
 	name     string

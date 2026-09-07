@@ -299,9 +299,12 @@ func (s *PlacePublicTestSuite) TestOpenOnADocumentWithNoChain() {
 	s.Require().ErrorIs(err, wire.ErrNotADocument)
 }
 
-// TestPlaceInOrder covers fitting a chain into the positions a device has
-// free, which is what an import does with one.
-func (s *PlacePublicTestSuite) TestPlaceInOrder() {
+// TestPlaceAsWritten covers putting a chain where the preset says it goes.
+//
+// The two numberings differ by one, measured against slot 27B of an HX
+// Stomp: the preset HX Edit exported puts its six blocks at 1 through 6 and
+// the document the device sent puts the same six at 2 through 7.
+func (s *PlacePublicTestSuite) TestPlaceAsWritten() {
 	tests := []struct {
 		name   string
 		blocks []wire.Placement
@@ -309,16 +312,17 @@ func (s *PlacePublicTestSuite) TestPlaceInOrder() {
 		err    error
 	}{
 		{
-			name: "a chain out of order keeps its order and moves up",
+			name: "the six blocks of the bass preset",
 			blocks: []wire.Placement{
-				s.at(s.drive(), 9), s.at(s.amp(), 4), s.at(s.drive(), 6),
+				s.at(s.drive(), 1), s.at(s.drive(), 2), s.at(s.drive(), 3),
+				s.at(s.drive(), 4), s.at(s.amp(), 5), s.at(s.drive(), 6),
 			},
-			want: []int{1, 2, 3},
+			want: []int{2, 3, 4, 5, 6, 7},
 		},
 		{
-			name:   "a chain already where the device would put it",
-			blocks: []wire.Placement{s.at(s.drive(), 1), s.at(s.amp(), 2)},
-			want:   []int{1, 2},
+			name:   "one block at the start of a path",
+			blocks: []wire.Placement{s.at(s.drive(), 0)},
+			want:   []int{1},
 		},
 		{
 			name:   "nothing at all",
@@ -326,8 +330,13 @@ func (s *PlacePublicTestSuite) TestPlaceInOrder() {
 			want:   []int{},
 		},
 		{
-			name:   "more blocks than the device lays out",
-			blocks: make([]wire.Placement, wire.GridSize+1),
+			name:   "a position the device keeps its split on",
+			blocks: []wire.Placement{s.at(s.drive(), 8)},
+			err:    wire.ErrNoRoom,
+		},
+		{
+			name:   "a position past the end of the grid",
+			blocks: []wire.Placement{s.at(s.drive(), wire.GridSize)},
 			err:    wire.ErrNoRoom,
 		},
 	}
@@ -336,11 +345,10 @@ func (s *PlacePublicTestSuite) TestPlaceInOrder() {
 		s.Run(tt.name, func() {
 			doc := s.blank()
 
-			err := wire.PlaceInOrder(doc, tt.blocks)
+			err := wire.PlaceAsWritten(doc, tt.blocks)
 
 			if tt.err != nil {
 				s.Require().ErrorIs(err, tt.err)
-				s.Require().Contains(err.Error(), "lays out")
 
 				return
 			}
@@ -358,8 +366,8 @@ func (s *PlacePublicTestSuite) TestPlaceInOrder() {
 	}
 }
 
-// TestPlaceInOrderOnADocumentWithNoChain covers bytes no device would send.
-func (s *PlacePublicTestSuite) TestPlaceInOrderOnADocumentWithNoChain() {
+// TestPlaceAsWrittenOnADocumentWithNoChain covers bytes no device would send.
+func (s *PlacePublicTestSuite) TestPlaceAsWrittenOnADocumentWithNoChain() {
 	raw, err := os.ReadFile(filepath.Join("testdata", "preset.bin"))
 	s.Require().NoError(err)
 
@@ -367,7 +375,7 @@ func (s *PlacePublicTestSuite) TestPlaceInOrderOnADocumentWithNoChain() {
 	s.Require().NoError(err)
 
 	s.Require().ErrorIs(
-		wire.PlaceInOrder(wire.NewDocument(full, []int8{1}), nil),
+		wire.PlaceAsWritten(wire.NewDocument(full, []int8{1}), nil),
 		wire.ErrNotADocument)
 }
 

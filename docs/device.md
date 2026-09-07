@@ -15,25 +15,68 @@ tonestack presets show   --slot 31A
 tonestack presets export --slot 31A --out lead.yaml
 ```
 
-`copy` and `swap` write to the device as well. They move a preset from one slot
-to another exactly as the device wrote it: nothing is decoded and nothing is
-rebuilt, which is what makes them the safest thing to write. A preset is seeked
-through by a table of byte offsets, and the surest way to keep those right is to
-change nothing.
+## Writing is implemented and has never worked
 
-The destination is overwritten, and a device has no undo.
+`copy`, `swap` and `import` build a write and send it. No write has ever landed
+on hardware.
 
-`import` writes too. It puts a preset file into a slot, building it into an
-unused slot the device itself wrote so that everything a chain does not describe
-is what the device expects to find there:
+An earlier version of this document said `copy` and `swap` wrote to the device.
+That was written from the protocol two other projects document, without being
+run, and it was wrong. On 7 September 2026 it was run:
 
-```bash
-tonestack presets import --preset mike.hlx --slot 07A
-```
+| command                                | what was sent                    | what the device did            |
+| -------------------------------------- | -------------------------------- | ------------------------------ |
+| `presets import --preset x --slot 42C` | a document built here            | no reply to opcode 8 within 6s |
+| `presets copy --from 27B --to 42C`     | the device's own bytes, verbatim | refused: `opcode 8, error -3`  |
 
-Every command still takes `--file`, for working from a backup with no device
-attached. A `.hlb` holds every setlist, so one backup is the whole instrument
-and one restore puts it back:
+The second is the informative one. `copy` sends back exactly what the device
+handed over, so a refusal is not about the document. tonepush records `-3` as a
+bad block or parameter reference.
+
+Then the device stopped answering and its screen went blank, and it took a power
+cycle to come back. Nothing was lost: every preset was still there and named,
+and both writes had targeted an empty slot.
+
+**What has been changed since, and not tested.** tonepush sends every preset
+operation on the data channel, not the control channel, and sends none of keys
+123, 124 and 125. Both are now matched here, and a write waits 750ms afterwards
+for the erase and program that do not appear on the wire. That is the best
+explanation available for a large chunked write stalling the endpoint, and it is
+an explanation rather than a result.
+
+Until somebody runs it, use a backup and HX Edit's restore.
+
+## Reading has a cutoff nobody has explained
+
+Reading a preset stopped working past slot index 29 during the same session, and
+a power cycle did not bring it back while HX Edit read the same device fine.
+Measured slot by slot:
+
+| slot  | index | answer          |
+| ----- | ----- | --------------- |
+| `01A` | 0     | the document    |
+| `09A` | 24    | the document    |
+| `10A` | 27    | the document    |
+| `10B` | 28    | an empty preset |
+| `10C` | 29    | nil             |
+| `27B` | 79    | nil             |
+| `42C` | 125   | nil             |
+
+`27B` answered with its whole document earlier the same day. The preset list,
+which is a different opcode on the same channel, kept working throughout. The
+device reports success and returns nil rather than an error, so nothing here
+sees a failure to report.
+
+Unexplained. It is recorded because a sharp reproducible boundary is worth more
+than the theories that did not survive: it is not the channel, not the missing
+`101: 2` argument that opcode 4 is documented to take, and not a session
+bootstrap.
+
+## Working from a file
+
+Every command takes `--file`, for working from a backup with no device attached.
+A `.hlb` holds every setlist, so one backup is the whole instrument and one
+restore puts it back:
 
 ```text
 HX Edit  ──backup──▶  device.hlb  ──▶  tonestack  ──▶  edited.hlb  ──restore──▶  HX Edit
@@ -130,21 +173,6 @@ A device stores parameters as float32. Writing 0.45 and reading it back gives
 0.44999998807907104. A rig lifted off hardware already carries values that have
 been through this and survives it unchanged; one somebody typed by hand gets
 rounded to what the device can store.
-
-### Where a block lands is not settled
-
-A preset counts its blocks from zero along a signal path. Across 3,251 presets
-in the corpus every `@position` is between 0 and 9, and 2,396 of them start at
-0\. A device counts positions across a grid of 20 that also holds the input, the
-split, the join and the output, leaving 1 to 8 and 11 to 18 for blocks.
-
-Those are different numbers and nothing here has established what turns one into
-the other. So an import keeps the chain's order and gives it the first positions
-the device has free, rather than guessing at a mapping on somebody's hardware. A
-chain is an order, and the gaps a preset leaves in one carry no sound.
-
-Settling this needs one preset exported from HX Edit whose device blob is also
-captured, so the two numberings can be read side by side.
 
 **Writing a preset synthesised from nothing is the least-solved thing in the
 space, and neither project does it.** The reliable shape is to read a preset off

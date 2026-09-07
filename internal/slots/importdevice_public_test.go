@@ -234,9 +234,9 @@ func (s *ImportDevicePublicTestSuite) TestImportReportsAPresetItCannotWrite() {
 	s.Require().ErrorContains(err, "does not carry")
 }
 
-// TestImportReportsAChainTooLongForTheDevice covers a file holding more
-// blocks than a device has positions for.
-func (s *ImportDevicePublicTestSuite) TestImportReportsAChainTooLongForTheDevice() {
+// TestImportReportsAChainThatRunsIntoTheRouting covers a file whose blocks
+// reach past the eight positions a device gives a path.
+func (s *ImportDevicePublicTestSuite) TestImportReportsAChainThatRunsIntoTheRouting() {
 	blocks := make([]string, 0, 17)
 	for i := range 17 {
 		blocks = append(blocks, fmt.Sprintf(
@@ -255,7 +255,7 @@ func (s *ImportDevicePublicTestSuite) TestImportReportsAChainTooLongForTheDevice
 		s.T().Context(), &bytes.Buffer{}, s.dev,
 		slots.ImportOptions{File: path, Slot: 7})
 
-	s.Require().ErrorContains(err, "lays out")
+	s.Require().ErrorContains(err, "the device keeps its routing there")
 }
 
 type brokenWriter struct{}
