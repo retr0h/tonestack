@@ -1,9 +1,9 @@
 # Talking to a device
 
-Two ways to reach an HX Stomp, and the reason only one of them carries presets
-in both directions.
+Reaching an HX Stomp over USB, and what a preset holds that nothing here can
+generate.
 
-## Reading is live; writing is not
+## What is live
 
 `presets list`, `show` and `export` talk to the device over USB. Nothing is
 selected, loaded or written. The device answers and goes on playing whatever it
@@ -23,17 +23,21 @@ change nothing.
 
 The destination is overwritten, and a device has no undo.
 
-Building a preset from a rig and putting it on the device still goes through a
-file HX Edit wrote:
+`import` writes too. It puts a preset file into a slot, building it into an
+unused slot the device itself wrote so that everything a chain does not describe
+is what the device expects to find there:
+
+```bash
+tonestack presets import --preset mike.hlx --slot 07A
+```
+
+Every command still takes `--file`, for working from a backup with no device
+attached. A `.hlb` holds every setlist, so one backup is the whole instrument
+and one restore puts it back:
 
 ```text
 HX Edit  ──backup──▶  device.hlb  ──▶  tonestack  ──▶  edited.hlb  ──restore──▶  HX Edit
 ```
-
-`copy`, `swap` and `import` work on that file, and every reading command takes
-`--file` too, for working from a backup with no device attached. A `.hlb` holds
-every setlist, so one backup is the whole instrument and one restore puts it
-back.
 
 An earlier version of this document claimed writing over USB was unsolved. That
 was wrong, and researching it properly is what produced
@@ -126,6 +130,21 @@ A device stores parameters as float32. Writing 0.45 and reading it back gives
 0.44999998807907104. A rig lifted off hardware already carries values that have
 been through this and survives it unchanged; one somebody typed by hand gets
 rounded to what the device can store.
+
+### Where a block lands is not settled
+
+A preset counts its blocks from zero along a signal path. Across 3,251 presets
+in the corpus every `@position` is between 0 and 9, and 2,396 of them start at
+0\. A device counts positions across a grid of 20 that also holds the input, the
+split, the join and the output, leaving 1 to 8 and 11 to 18 for blocks.
+
+Those are different numbers and nothing here has established what turns one into
+the other. So an import keeps the chain's order and gives it the first positions
+the device has free, rather than guessing at a mapping on somebody's hardware. A
+chain is an order, and the gaps a preset leaves in one carry no sound.
+
+Settling this needs one preset exported from HX Edit whose device blob is also
+captured, so the two numberings can be read side by side.
 
 **Writing a preset synthesised from nothing is the least-solved thing in the
 space, and neither project does it.** The reliable shape is to read a preset off

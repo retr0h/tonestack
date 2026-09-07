@@ -65,6 +65,54 @@ func (s *SymbolPublicTestSuite) TestACatalogWithNoTable() {
 	s.Require().False(ok)
 }
 
+func (s *SymbolPublicTestSuite) TestSymbolNumber() {
+	c := &catalog.Catalog{Symbols: []catalog.Symbol{
+		{ID: "HD2_First"},
+		{ID: "HD2_SecondMono"},
+		{ID: "HD2_SecondStereo"},
+		{ID: "HD2_ThirdStereo"},
+	}}
+
+	tests := []struct {
+		name  string
+		id    catalog.ModelID
+		want  int
+		found bool
+	}{
+		{
+			name:  "a name the table carries as it stands",
+			id:    "HD2_First",
+			want:  0,
+			found: true,
+		},
+		{
+			name:  "a name the table carries with a mono suffix",
+			id:    "HD2_Second",
+			want:  1,
+			found: true,
+		},
+		{
+			name:  "one carried only in stereo",
+			id:    "HD2_Third",
+			want:  3,
+			found: true,
+		},
+		{
+			name: "a name the table does not carry",
+			id:   "HD2_Nowhere",
+		},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			got, ok := c.SymbolNumber(tt.id)
+
+			s.Require().Equal(tt.found, ok)
+			s.Require().Equal(tt.want, got)
+		})
+	}
+}
+
 func TestSymbolPublicTestSuite(t *testing.T) {
 	suite.Run(t, new(SymbolPublicTestSuite))
 }
