@@ -54,6 +54,11 @@ func (s *CallTestSuite) answer(txn uint64, status int, result any) []byte {
 	return buf.Bytes()
 }
 
+// reply frames an answer the way the device sends it.
+func (s *CallTestSuite) reply(txn uint64, status int, result any) []byte {
+	return sdk.Reply(sdk.ControlChannel, s.answer(txn, status, result))
+}
+
 // session returns one with its channels already open, over a scripted device.
 func (s *CallTestSuite) session(d *device) *sdk.Session {
 	out := sdk.NewTestSession(d, d)
@@ -62,137 +67,222 @@ func (s *CallTestSuite) session(d *device) *sdk.Session {
 	return out
 }
 
-func (s *CallTestSuite) TestACallGetsItsAnswer() {
-	d := answers(sdk.Reply(sdk.ControlChannel, s.answer(sdk.FirstTxn, 0, "done")))
+func (s *CallTestSuite) TestCall() {
+	tests := []struct {
+		name      string
+		channel   string
+		device    func() (*device, sdk.TestSender)
+		cancelled bool
+		want      any
+		err       error
+		message   string
+	}{
+		{
+			name:      "a call nobody is left waiting for",
+			channel:   sdk.ControlChannel,
+			device:    func() (*device, sdk.TestSender) { d := answers(); return d, d },
+			cancelled: true,
+			message:   "opcode 1",
+		},
+		{
+			name:    "an answer to this call",
+			channel: sdk.ControlChannel,
+			device: func() (*device, sdk.TestSender) {
+				d := answers(s.reply(sdk.FirstTxn, 0, "done"))
 
-	got, err := s.session(d).Call(
-		context.Background(), sdk.ControlChannel, 1, nil)
+				return d, d
+			},
+			want: "done",
+		},
+		{
+			// A notification carries no transaction and is not anybody's
+			// reply. Letting one be mistaken for this reply would answer the
+			// wrong question.
+			name:    "somebody else's answer, skipped",
+			channel: sdk.ControlChannel,
+			device: func() (*device, sdk.TestSender) {
+				d := answers(
+					s.reply(sdk.FirstTxn+99, 0, "not yours"),
+					s.reply(sdk.FirstTxn, 0, "yours"),
+				)
 
-	s.Require().NoError(err)
-	s.Require().Equal(uint64(sdk.FirstTxn), got.Txn)
-	s.Require().Equal("done", got.Result)
-	s.Require().NotEmpty(d.sent, "a call is a request before it is an answer")
-}
+				return d, d
+			},
+			want: "yours",
+		},
+		{
+			// Whatever arrives is not guaranteed to be a reply.
+			name:    "an answer that will not decode, skipped",
+			channel: sdk.ControlChannel,
+			device: func() (*device, sdk.TestSender) {
+				d := answers(
+					sdk.Reply(sdk.ControlChannel, []byte{0xc1}),
+					s.reply(sdk.FirstTxn, 0, "yours"),
+				)
 
-func (s *CallTestSuite) TestACallIgnoresSomebodyElsesAnswer() {
-	// A notification carries no transaction and is not anybody's reply.
-	// Letting one be mistaken for this reply would answer the wrong question.
-	d := answers(
-		sdk.Reply(sdk.ControlChannel, s.answer(sdk.FirstTxn+99, 0, "not yours")),
-		sdk.Reply(sdk.ControlChannel, s.answer(sdk.FirstTxn, 0, "yours")),
-	)
+				return d, d
+			},
+			want: "yours",
+		},
+		{
+			name:    "a channel nobody opened",
+			channel: "nowhere",
+			device:  func() (*device, sdk.TestSender) { d := answers(); return d, d },
+			message: "no nowhere channel",
+		},
+		{
+			name:    "a bus that will not take the request",
+			channel: sdk.ControlChannel,
+			device: func() (*device, sdk.TestSender) {
+				d := answers()
 
-	got, err := s.session(d).Call(
-		context.Background(), sdk.ControlChannel, 1, nil)
+				return d, &device{writeErr: errors.New("boom")}
+			},
+			message: "boom",
+		},
+		{
+			// Bytes that arrived are acknowledged, and a device that stops
+			// listening at that point has to be reported: an unacknowledged
+			// stream stalls.
+			name:    "a bus that will not take the acknowledgement",
+			channel: sdk.ControlChannel,
+			device: func() (*device, sdk.TestSender) {
+				d := answers(sdk.Reply(sdk.ControlChannel, []byte{0xc1}))
 
-	s.Require().NoError(err)
-	s.Require().Equal("yours", got.Result)
-}
+				return d, &sdk.FailAfter{Sender: d, OK: 1, Err: errors.New("boom")}
+			},
+			message: "boom",
+		},
+		{
+			// Status 255 is a refusal, and the code it carries is the useful
+			// half.
+			name:    "a device that refuses",
+			channel: sdk.ControlChannel,
+			device: func() (*device, sdk.TestSender) {
+				d := answers(s.reply(sdk.FirstTxn, 255, map[int]int{111: 7}))
 
-func (s *CallTestSuite) TestACallOnAChannelNobodyOpened() {
-	d := answers()
-
-	_, err := sdk.NewTestSession(d, d).Call(
-		context.Background(), "nowhere", 1, nil)
-
-	s.Require().Error(err)
-	s.Require().Contains(err.Error(), "no nowhere channel")
-}
-
-func (s *CallTestSuite) TestACallOnABusItCannotWriteTo() {
-	d := &device{writeErr: errors.New("boom")}
-
-	_, err := s.session(d).Call(context.Background(), sdk.ControlChannel, 1, nil)
-
-	s.Require().Error(err)
-}
-
-func (s *CallTestSuite) TestADeviceThatRefuses() {
-	// Status 255 is a refusal, and the code it carries is the useful half.
-	d := answers(sdk.Reply(sdk.ControlChannel,
-		s.answer(sdk.FirstTxn, 255, map[int]int{111: 7})))
-
-	_, err := s.session(d).Call(context.Background(), sdk.ControlChannel, 4, nil)
-
-	s.Require().ErrorIs(err, wire.ErrRefused)
-	s.Require().Contains(err.Error(), "opcode 4")
-}
-
-func (s *CallTestSuite) TestACallThatIsNeverAnswered() {
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-
-	_, err := s.session(answers()).Call(ctx, sdk.ControlChannel, 1, nil)
-
-	s.Require().Error(err)
-}
-
-func (s *CallTestSuite) TestListingPresets() {
-	rows := []any{
-		map[int]any{0: map[int]any{109: "Chunky Monkey\x00"}},
-		map[int]any{1: map[int]any{109: "Fat Mike\x00"}},
+				return d, d
+			},
+			err:     wire.ErrRefused,
+			message: "opcode 1",
+		},
 	}
-	d := answers(sdk.Reply(sdk.ControlChannel, s.answer(sdk.FirstTxn, 0, rows)))
 
-	got, err := s.session(d).Presets(context.Background(), 0)
+	for _, tc := range tests {
+		s.Run(tc.name, func() {
+			in, out := tc.device()
 
-	s.Require().NoError(err)
-	s.Require().Len(got, 2)
+			session := sdk.NewTestSession(out, in)
+			session.OpenChannels()
 
-	// Read by position, not by the key each entry carries: that key is the
-	// index a preset had before it was last reordered on the pedal.
-	s.Require().Equal("Chunky Monkey", got[0].Name)
-	s.Require().Equal(0, got[0].Slot)
-	s.Require().Equal("Fat Mike", got[1].Name)
-	s.Require().Equal(1, got[1].Slot)
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			if tc.cancelled {
+				cancel()
+			}
+
+			got, err := session.Call(ctx, tc.channel, 1, nil)
+
+			if tc.message == "" {
+				s.Require().NoError(err)
+				s.Require().Equal(tc.want, got.Result)
+				s.Require().Equal(uint64(sdk.FirstTxn), got.Txn)
+
+				return
+			}
+
+			s.Require().Error(err)
+			s.Require().Contains(err.Error(), tc.message)
+
+			if tc.err != nil {
+				s.Require().ErrorIs(err, tc.err)
+			}
+		})
+	}
 }
 
-func (s *CallTestSuite) TestReadingOnePreset() {
-	d := answers(sdk.Reply(sdk.ControlChannel,
-		s.answer(sdk.FirstTxn, 0, "a preset")))
+func (s *CallTestSuite) TestPresets() {
+	tests := []struct {
+		name   string
+		device func() *device
+		want   []wire.Preset
+		fails  bool
+	}{
+		{
+			// Read by position, not by the key each entry carries: that key
+			// is the index a preset had before it was last reordered on the
+			// pedal.
+			name: "what a setlist holds",
+			device: func() *device {
+				return answers(s.reply(sdk.FirstTxn, 0, []any{
+					map[int]any{0: map[int]any{109: "Chunky Monkey\x00"}},
+					map[int]any{1: map[int]any{109: "Fat Mike\x00"}},
+				}))
+			},
+			want: []wire.Preset{
+				{Slot: 0, Name: "Chunky Monkey"},
+				{Slot: 1, Name: "Fat Mike"},
+			},
+		},
+		{
+			name:   "a bus that will not answer",
+			device: func() *device { return &device{writeErr: errors.New("boom")} },
+			fails:  true,
+		},
+	}
 
-	got, err := s.session(d).ReadPreset(context.Background(), 0, 3)
+	for _, tc := range tests {
+		s.Run(tc.name, func() {
+			got, err := s.session(tc.device()).Presets(context.Background(), 0)
 
-	s.Require().NoError(err)
-	s.Require().Equal("a preset", got)
+			if tc.fails {
+				s.Require().Error(err)
+
+				return
+			}
+
+			s.Require().NoError(err)
+			s.Require().Equal(tc.want, got)
+		})
+	}
 }
 
-func (s *CallTestSuite) TestReportsAListingItCannotGet() {
-	d := &device{writeErr: errors.New("boom")}
+func (s *CallTestSuite) TestReadPreset() {
+	tests := []struct {
+		name   string
+		device func() *device
+		want   any
+		fails  bool
+	}{
+		{
+			name: "one slot",
+			device: func() *device {
+				return answers(s.reply(sdk.FirstTxn, 0, "a preset"))
+			},
+			want: "a preset",
+		},
+		{
+			name:   "a bus that will not answer",
+			device: func() *device { return &device{writeErr: errors.New("boom")} },
+			fails:  true,
+		},
+	}
 
-	_, err := s.session(d).Presets(context.Background(), 0)
-	s.Require().Error(err)
+	for _, tc := range tests {
+		s.Run(tc.name, func() {
+			got, err := s.session(tc.device()).ReadPreset(context.Background(), 0, 3)
 
-	_, err = s.session(d).ReadPreset(context.Background(), 0, 0)
-	s.Require().Error(err)
-}
+			if tc.fails {
+				s.Require().Error(err)
 
-func (s *CallTestSuite) TestAnAnswerThatWillNotDecode() {
-	// Whatever arrives is not guaranteed to be a reply. One that cannot be
-	// read is skipped rather than mistaken for this call's answer.
-	d := answers(
-		sdk.Reply(sdk.ControlChannel, []byte{0xc1}),
-		sdk.Reply(sdk.ControlChannel, s.answer(sdk.FirstTxn, 0, "yours")),
-	)
+				return
+			}
 
-	got, err := s.session(d).Call(context.Background(), sdk.ControlChannel, 1, nil)
-
-	s.Require().NoError(err)
-	s.Require().Equal("yours", got.Result)
-}
-
-func (s *CallTestSuite) TestAnAcknowledgementTheBusRefuses() {
-	// Bytes that arrived are acknowledged, and a device that stops listening
-	// at that point has to be reported: an unacknowledged stream stalls.
-	d := answers(sdk.Reply(sdk.ControlChannel, []byte{0xc1}))
-	out := &sdk.FailAfter{Sender: d, OK: 1, Err: errors.New("boom")}
-
-	session := sdk.NewTestSession(out, d)
-	session.OpenChannels()
-
-	_, err := session.Call(context.Background(), sdk.ControlChannel, 1, nil)
-
-	s.Require().Error(err)
+			s.Require().NoError(err)
+			s.Require().Equal(tc.want, got)
+		})
+	}
 }
 
 func TestCallTestSuite(t *testing.T) {

@@ -39,9 +39,12 @@ type DeviceReadTestSuite struct {
 	suite.Suite
 }
 
-func (s *DeviceReadTestSuite) capture() []byte {
+func (s *DeviceReadTestSuite) capture() []byte { return s.answerFrom("preset.bin") }
+
+// answerFrom returns one slot as the hardware sent it.
+func (s *DeviceReadTestSuite) answerFrom(name string) []byte {
 	raw, err := os.ReadFile(
-		filepath.Join("..", "..", "pkg", "sdk", "wire", "testdata", "preset.bin"))
+		filepath.Join("..", "..", "pkg", "sdk", "wire", "testdata", name))
 	s.Require().NoError(err)
 
 	return raw
@@ -114,6 +117,23 @@ func (s *DeviceReadTestSuite) TestADeviceAnswerBecomesARig() {
 
 	// Controller assignments are not decoded, so nothing claims them.
 	s.Require().NotContains(got, "controller")
+}
+
+func (s *DeviceReadTestSuite) TestAnAmpCarryingItsOwnCabinet() {
+	// The device stores the two as one block. A preset stores the amp with a
+	// `@cab` and the cabinet as a sibling, so both have to come out.
+	var out bytes.Buffer
+
+	s.Require().NoError(writeDeviceRig(&out, s.answerFrom("switches.bin"),
+		DeviceOptions{Slot: 24}))
+
+	got := out.String()
+	s.Require().Contains(got, "dsp0.cab0")
+	s.Require().Contains(got, "dsp0.cab1", "two amps, two cabinets")
+	s.Require().Contains(got, "'@model': HD2_Cab1x15TucknGo")
+	s.Require().Contains(got, "'@cab': cab0")
+	s.Require().Contains(got, "'@type': 3", "an amp carrying a cabinet")
+	s.Require().Contains(got, "'@mic': 10")
 }
 
 func (s *DeviceReadTestSuite) TestASlotWithNoNameIsCalledBySlot() {

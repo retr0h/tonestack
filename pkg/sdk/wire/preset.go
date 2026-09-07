@@ -45,6 +45,12 @@ const (
 	keyParams    = 11
 	keyValues    = 4
 	keyBypassed  = 10
+	// keyPairedCab is the cabinet an amp carries with it. A device stores the
+	// two as one block; a preset stores them as a block and a sibling.
+	keyPairedCab = 12
+	// keyNamedCount is how many of the values a model has names for. A paired
+	// cabinet sends one more than that, which is the microphone.
+	keyNamedCount = 3
 )
 
 // What a chain entry is. The device lays routing out in the same array as the
@@ -189,6 +195,14 @@ type DeviceBlock struct {
 	Values []any
 	// Enabled is whether the block is switched on.
 	Enabled bool
+	// Cab is the cabinet an amp carries with it, when it has one.
+	//
+	// A device stores an amp and its cabinet as one block. A preset stores
+	// them as a block and a sibling entry, so this has to come out.
+	Cab []any
+	// CabNamed is how many of those values the cabinet model has names for.
+	// Anything past it is the microphone.
+	CabNamed int
 }
 
 // DecodePreset reads what a device hands back for one slot.
@@ -507,6 +521,16 @@ func blockOf(body map[any]any) (DeviceBlock, bool) {
 	if params, ok := body[int8(keyParams)].(map[any]any); ok {
 		if values, ok := params[int8(keyValues)].([]any); ok {
 			out.Values = narrow(values)
+		}
+	}
+
+	if cab, ok := body[int8(keyPairedCab)].(map[any]any); ok {
+		if values, ok := cab[int8(keyValues)].([]any); ok && len(values) > 0 {
+			out.Cab = narrow(values)
+
+			if n, ok := asUint(cab[int8(keyNamedCount)]); ok {
+				out.CabNamed = int(n)
+			}
 		}
 	}
 

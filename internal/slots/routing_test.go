@@ -170,6 +170,81 @@ func (s *RoutingTestSuite) TestRecordsWhichDeviceAnswered() {
 	s.Require().Equal(s.cat.DeviceID, *got.Id)
 }
 
+func (s *RoutingTestSuite) TestPairedCabinets() {
+	// A device stores an amp and its cabinet as one block. A preset stores
+	// the amp with a `@cab` and the cabinet as a sibling, and 304 of 721 HX
+	// Stomp presets in the corpus have one.
+	amp := indexOf(s.cat, "HD2_AmpTucknGo")
+
+	tests := []struct {
+		name  string
+		block wire.DeviceBlock
+		want  map[string]any
+	}{
+		{
+			name: "named from the amp's own pairing",
+			block: wire.DeviceBlock{
+				Model: amp, CabNamed: 5,
+				Cab: []any{3.0, 20.0, 15000.0, 0.2, 2.0, int64(10)},
+			},
+			want: map[string]any{
+				"@model": "HD2_Cab1x15TucknGo", "@enabled": true, "@mic": 10.0,
+				"Distance": 3.0, "LowCut": 20.0, "HighCut": 15000.0,
+				"EarlyReflections": 0.2, "Level": 2.0,
+			},
+		},
+		{
+			// Anything past what the model has names for is the microphone.
+			// A device that sent no more than the names says nothing about
+			// one.
+			name: "no microphone reported",
+			block: wire.DeviceBlock{
+				Model: amp, CabNamed: 5,
+				Cab: []any{3.0, 20.0, 15000.0, 0.2, 2.0},
+			},
+			want: map[string]any{"@model": "HD2_Cab1x15TucknGo", "Distance": 3.0},
+		},
+	}
+
+	for _, tc := range tests {
+		s.Run(tc.name, func() {
+			got := s.entry(routingOf(
+				wire.DevicePreset{Blocks: []wire.DeviceBlock{tc.block}}, s.cat),
+				"dsp0.cab0")
+
+			for k, want := range tc.want {
+				s.Require().Equal(want, got[k], k)
+			}
+
+			if _, ok := tc.want["@mic"]; !ok {
+				s.Require().NotContains(got, "@mic")
+			}
+		})
+	}
+}
+
+func (s *RoutingTestSuite) TestABlockCarryingNoCabinet() {
+	for _, tc := range []struct {
+		name  string
+		block wire.DeviceBlock
+	}{
+		{"a block with none", wire.DeviceBlock{Model: indexOf(s.cat, "HD2_AmpTucknGo")}},
+		{
+			"a model the table does not reach",
+			wire.DeviceBlock{Model: 99999, Cab: []any{1.0}},
+		},
+		{
+			"a model that names no pairing",
+			wire.DeviceBlock{Model: indexOf(s.cat, "HD2_DistTeemah"), Cab: []any{1.0}},
+		},
+	} {
+		s.Run(tc.name, func() {
+			s.Require().Nil(routingOf(
+				wire.DevicePreset{Blocks: []wire.DeviceBlock{tc.block}}, s.cat))
+		})
+	}
+}
+
 func TestRoutingTestSuite(t *testing.T) {
 	suite.Run(t, new(RoutingTestSuite))
 }

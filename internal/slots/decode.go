@@ -22,6 +22,7 @@ package slots
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/retr0h/tonestack/pkg/catalog"
@@ -45,6 +46,8 @@ func chainOf(name string, got wire.DevicePreset, cat *catalog.Catalog) (chain.Ch
 
 	out := chain.Chain{Name: name, Blocks: make([]chain.Block, 0, len(got.Blocks))}
 
+	cabs := 0
+
 	for _, b := range got.Blocks {
 		sym, ok := cat.Symbol(b.Model)
 		if !ok {
@@ -54,9 +57,22 @@ func chainOf(name string, got wire.DevicePreset, cat *catalog.Catalog) (chain.Ch
 				b.Index, b.Model, len(cat.Symbols))
 		}
 
+		model := modelOf(sym.ID, cat)
+		params := paramsOf(sym, b.Values)
+
+		// An amp carrying a cabinet is one block to the device and two
+		// entries in a preset. The cabinet is named here so the block can
+		// point at it; what it holds is written alongside the routing.
+		if len(b.Cab) > 0 {
+			params[attrCab] = catalog.Enum(cabKey(cabs))
+			cabs++
+		}
+
+		params[attrType] = catalog.Int(typeOf(model, cat, len(b.Cab) > 0))
+
 		out.Blocks = append(out.Blocks, chain.Block{
-			Model:  modelOf(sym.ID, cat),
-			Params: paramsOf(sym, b.Values),
+			Model:  model,
+			Params: params,
 			// The device's own number, not a place in the chain. A footswitch
 			// names the block it works on by this, and renumbering would
 			// break the only link between the two.
@@ -67,6 +83,51 @@ func chainOf(name string, got wire.DevicePreset, cat *catalog.Catalog) (chain.Ch
 
 	return out, nil
 }
+
+// Attributes a preset stores on a block, which a device leaves implied.
+const (
+	attrCab  = "@cab"
+	attrType = "@type"
+)
+
+// What a preset means by a block's type.
+//
+// Measured over every HX Stomp preset in the corpus: an amp alone is 1 and an
+// amp carrying a cabinet is 3, on 537 and 189 blocks with no exceptions. A
+// cabinet is 2, and everything else is 0.
+const (
+	typeOther     = 0
+	typeAmp       = 1
+	typeCab       = 2
+	typeAmpAndCab = 3
+)
+
+// typeOf says what kind of block a preset would call this.
+//
+// A device does not store it, because a device knows what it put there. A
+// preset does, and one written without it is a preset that loads wrongly.
+func typeOf(model catalog.ModelID, cat *catalog.Catalog, paired bool) int64 {
+	blk, known := cat.Block(model)
+	if !known {
+		return typeOther
+	}
+
+	switch blk.Category {
+	case catalog.CategoryAmp:
+		if paired {
+			return typeAmpAndCab
+		}
+
+		return typeAmp
+	case catalog.CategoryCab:
+		return typeCab
+	default:
+		return typeOther
+	}
+}
+
+// cabKey names a paired cabinet the way a preset names it.
+func cabKey(n int) string { return "cab" + strconv.Itoa(n) }
 
 // modelOf resolves a device's own model name to the catalog's.
 //
