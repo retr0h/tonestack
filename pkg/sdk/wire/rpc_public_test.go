@@ -21,10 +21,12 @@
 package wire_test
 
 import (
+	"bytes"
 	"encoding/hex"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
+	"github.com/vmihailenco/msgpack/v5"
 
 	"github.com/retr0h/tonestack/pkg/sdk/wire"
 )
@@ -212,6 +214,37 @@ func (s *RPCPublicTestSuite) hex(in string) []byte {
 	s.Require().NoError(err)
 
 	return out
+}
+
+func (s *RPCPublicTestSuite) TestAnArgumentOfEveryKind() {
+	// A read sends numbers. A write also sends the preset itself, the name to
+	// save it under, and three booleans a device echoes back unchanged.
+	got := wire.EncodeRequest(wire.Request{
+		Txn: 1000, Opcode: 8,
+		Args: []wire.Arg{
+			wire.Number(107, 0),
+			wire.Text(109, "Mike Dirnt"),
+			wire.Flag(123, false),
+			wire.Blob(110, []byte{0x01, 0x02}),
+		},
+	})
+
+	var doc map[int8]any
+
+	dec := msgpack.NewDecoder(bytes.NewReader(got))
+	dec.SetMapDecoder(func(d *msgpack.Decoder) (any, error) {
+		return d.DecodeUntypedMap()
+	})
+	s.Require().NoError(dec.Decode(&doc))
+
+	args, ok := doc[101].(map[any]any)
+	s.Require().True(ok)
+
+	// Terminated, because a device reads a name that is not as running on
+	// into whatever follows it.
+	s.Require().Equal("Mike Dirnt\x00", args[int8(109)])
+	s.Require().Equal(false, args[int8(123)])
+	s.Require().Equal([]byte{0x01, 0x02}, args[int8(110)])
 }
 
 func TestRPCPublicTestSuite(t *testing.T) {

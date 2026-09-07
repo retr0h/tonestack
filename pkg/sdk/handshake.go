@@ -190,7 +190,7 @@ func (s *Session) awaitReply(
 
 // Presets lists what the device holds.
 func (s *Session) Presets(ctx context.Context, setlist int) ([]wire.Preset, error) {
-	resp, err := s.Call(ctx, "control", opListPresets, []wire.Arg{
+	resp, err := s.Call(ctx, channelControl, opListPresets, []wire.Arg{
 		{Key: argSetlist, Value: uint64(setlist)},
 		{Key: argListKind, Value: listKind},
 	})
@@ -206,7 +206,7 @@ func (s *Session) Presets(ctx context.Context, setlist int) ([]wire.Preset, erro
 // The device answers with its own document and goes on playing whatever it
 // was. Nothing is selected and nothing is written.
 func (s *Session) ReadPreset(ctx context.Context, setlist, slot int) (any, error) {
-	resp, err := s.Call(ctx, "control", opReadPreset, []wire.Arg{
+	resp, err := s.Call(ctx, channelControl, opReadPreset, []wire.Arg{
 		{Key: argSetlist, Value: uint64(setlist)},
 		{Key: argSlot, Value: uint64(slot)},
 	})
