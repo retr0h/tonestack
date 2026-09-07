@@ -57,9 +57,13 @@ just deps
 main.go              a single call into cmd
 cmd/                 cobra wiring — flags to behaviour, no logic
 internal/            implementation, not importable
+internal/tui/        the shared visual language: palette, table, chain view
 pkg/catalog/         what a device can do: blocks, parameters, DSP costs
 pkg/rig/             Spec — a signal chain — and its validation layers
+pkg/preset/          read and write a .hlx preset file
+pkg/setlist/         read and write .hls setlists and .hlb device backups
 pkg/sdk/             talk to a device over USB. The only cgo in the tree.
+pkg/sdk/wire/        the framing a device speaks. Pure Go, no hardware needed.
 schemas/             RigSpec and Recipe contracts, generated catalog, corpus
 recipes/             curated knowledge — which gear a player uses
 docs/                how the format, catalog and generation work
@@ -72,11 +76,13 @@ The domain — turning a request into a signal chain, the preset format, the
 device — is documented in [docs/](docs/), not here:
 
 - [docs/knowledge.md](docs/knowledge.md) — how a request becomes a signal chain
-- [docs/recipes.md](docs/recipes.md) — writing curated knowledge about a player
+- [docs/recipes.md](docs/recipes.md) — writing a rig, and the worked example
+  beside it
 - [docs/catalog.md](docs/catalog.md) — what a device can do and where that comes
   from
 - [docs/preset-format.md](docs/preset-format.md) — how a `.hlx` file is laid out
-- [docs/device.md](docs/device.md) — talking to hardware over USB
+- [docs/device.md](docs/device.md) — reading and editing what a device holds
+- [docs/protocol.md](docs/protocol.md) — the USB protocol a device speaks
 
 Keep that split. A fact about the domain belongs in `docs/`; a fact about
 working on the project belongs here.

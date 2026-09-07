@@ -34,14 +34,34 @@ established by reading real presets.
 `.hls`, `.hlb` and `.pgs` are wrappers, not presets:
 
 ```json
-{"schema":"L6Setlist","compression":{"type":"zlib"},"encoded_data":"<base64>"}
+{
+  "schema": "L6Setlist",
+  "encoding": "Base64",
+  "compression": { "type": "zlib", "crc32": 1115417524, "decompressed_size": 1916328 },
+  "encoded_data": "<base64>"
+}
 ```
 
-Base64-decode `encoded_data`, zlib-inflate, and the result is
-`{"meta":…,"presets":[…]}`. Each entry is a preset's `data` object with no
-`schema` or `version` of its own — wrap it in
-`{"schema":"L6Preset","version":6,"data":<entry>}`. Entries whose `tone` has no
-`dsp*` key are empty slots.
+Base64-decode `encoded_data`, zlib-inflate, and the result depends on the
+schema:
+
+| Schema           | Extension | Payload                         | Holds         |
+| ---------------- | --------- | ------------------------------- | ------------- |
+| `L6Setlist`      | `.hls`    | `{meta, presets: […]}`          | 128 slots     |
+| `L6PresetBundle` | `.hlb`    | `{setlists: [{meta, presets}]}` | 8 × 128 slots |
+
+Each entry is a preset's `data` object with no `schema` or `version` of its own
+— wrap it in `{"schema":"L6Preset","version":6,"data":<entry>}`. Entries whose
+`tone` has no `dsp*` key are empty slots, and a device-written setlist always
+holds all 128 of them, most untouched.
+
+`compression.crc32` and `compression.decompressed_size` describe the inflated
+payload and must be recomputed on write. A stale checksum is rejected by
+whatever loads the file next, and the message it gives blames the wrong thing.
+
+A `.hlb` is what HX Edit writes when it backs a device up, which makes it the
+only file stating everything the hardware currently holds. That is what
+[device.md](device.md) builds on.
 
 ## Device identifiers
 

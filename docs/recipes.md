@@ -1,113 +1,212 @@
-# Writing a recipe
+# Writing a rig
 
-A recipe is curated knowledge about how a sound is built — which gear a player
-uses, and how it should behave. It is the input to generation; a
-[RigSpec](../schemas/README.md) is the output.
+How to describe what somebody plays, so this project can build it.
 
-Recipes are the only data in this repository that is **ours**. The device
-catalog and the gear map are derived from Line 6's own files and cannot be
-shipped; these are hand-written and can.
+A rig is written as a **RigSpec** — the project's only hand-authored format,
+defined in [`schemas/rigspec.openapi.yaml`](../schemas/rigspec.openapi.yaml).
+One is a YAML file under `recipes/`, and it is the only data here that is ours:
+the device catalog and the gear map are derived from Line 6's own files, while
+these are written by hand.
 
-## Name gear, never model identifiers
+Every field is demonstrated on one subject in
+[`examples/rigspec/mike-dirnt.yaml`](../examples/rigspec/mike-dirnt.yaml). Read
+that alongside this.
+
+## The smallest useful rig
 
 ```yaml
-rig:
-  amp: Ampeg SVT        # not HD2_AmpSVBeastNrm
+schema: RigSpec
+version: 2
+id: mike-dirnt
+subject: { kind: artist, name: Mike Dirnt, band: Green Day }
+instrument: bass
+chain:
+  - { role: amp, gear: Ampeg SVT }
+  - { role: cab, gear: Ampeg 8x10 }
 ```
 
-[`schemas/gear-map.json`](catalog.md) resolves the name to whichever model a
-given device carries. Writing the identifier directly would tie the recipe to
-one device, break when Line 6 renames a model, and make the file unreadable to
-the person most able to correct it.
+That builds. Everything else is optional, and earns its place by making a claim
+checkable later.
 
-## A complete example
+## Name gear the way a person would
 
-`recipes/artists/mike-dirnt.yaml`:
+`gear: Ampeg SVT`, never `HD2_AmpSVBeastNrm`.
+
+Line 6 rename every model for trademark reasons and publish the mapping in their
+own manual; joining the two is what [catalog.md](catalog.md) does. Naming the
+identifier instead would tie a rig to one manufacturer, break when they rename a
+model, and stop it being read on other hardware — which is the whole reason the
+format exists.
+
+Check a name resolves before trusting it:
+
+```bash
+tonestack catalog list --search ampeg
+```
+
+Nothing back means the device does not model that gear. Either name something it
+has, or declare the gap in `requires`.
+
+## Order is the signal path
+
+`chain` is ordered, and the order is what the signal does. Drive ahead of an amp
+overdrives its input; drive after it is a different sound entirely.
+
+You do not have to guess the conventional order — it is measured:
+
+```bash
+tonestack corpus show --instrument bass
+```
+
+Across 4,324 real presets: bass chains hold a compressor 88% of the time, drive
+sits before the amp in 88% of the chains that have one, and a cabinet follows
+the amp in all but 1%.
+
+A rig omitting something near-universal gets it added during the build, and the
+build says so rather than doing it quietly.
+
+## Settings are musical, and deliberately lossy
 
 ```yaml
-id: mike-dirnt
-kind: artist
-name: Mike Dirnt
-band: Green Day
-instrument_type: bass
+settings: { drive: 0.47, bass: 0.52, mid: 0.71, treble: 0.85 }
+```
 
-rig:
-  instrument: Fender Precision Bass
-  amp: Ampeg SVT
-  cab: Ampeg 8x10
-  pedals: []
-  technique: pick, near the bridge
+A small vocabulary — `drive`, `bass`, `mid`, `treble`, `presence`, `level`,
+`mix`, `feel` — from 0 to 1, each meaning roughly the same thing on any
+amplifier.
 
+**Device controls do not belong here.** `Sag`, `Bias X`, `Ripple` and `Hum` are
+one manufacturer's knobs; the compiler sets those from catalog defaults, corpus
+medians and the manufacturer's own documentation of what they do. A rig carrying
+them would not survive being read on other hardware.
+
+Leaving `settings` out is fine, and often better. What happens then:
+
+1. Line 6's stated default is the floor, and is never invalid.
+2. Where the corpus shows players agreeing closely, the median replaces it — for
+   an Ampeg SVT that moves `Treble` from Line 6's 0.68 to 0.845.
+3. Where players disagree, the default stands, rather than an average of
+   disagreement being presented as a measurement.
+
+`tonestack corpus show --model HD2_AmpSVBeastNrm` shows the median and the
+spread. The spread is the useful column: it says how much of an opinion is worth
+having.
+
+## Character describes the result, not the control
+
+```yaml
 character:
   - mid-forward, not scooped
-  - minimal drive, grit only on hard attack
-  - tight low end, short decay
-
-variants:
-  - id: longview
-    name: Longview
-    character:
-      - fingers rather than pick
-      - rounder, more low-mid
-
-provenance:
-  source: llm
-  confidence: medium
-  notes: Gear identification is unverified against any rig rundown or interview.
+  - grit only on hard attack
 ```
 
-The contract is [`schemas/recipe.schema.json`](../schemas/recipe.schema.json)
-Loading a recipe validates it: `pkg/recipe` refuses anything the contract
-rejects, and a conformance test pins the shipped recipes to the published
-schema.
+Not "raise the mids". The first is a description that survives being read
+against different hardware; the second is an instruction to one device.
 
-## `rig` versus `variants`
+## Say where each claim came from
 
-The split is load-bearing. A player's gear is career-long; settings change per
-song.
-
-|                                           | Belongs in                  |
-| ----------------------------------------- | --------------------------- |
-| Instrument, amp, cab, pedals, technique   | `rig`                       |
-| Drive amount, EQ curve, effects on or off | `character`, or a `variant` |
-
-A wrong amp is a bad miss — nothing downstream recovers from it. A wrong drive
-level is a near miss that one correction fixes. Recording them separately means
-*"make it more like Longview"* moves only what should move.
-
-## Writing `character`
-
-Describe the **result**, not the control:
+This is what makes a rig correctable rather than merely a guess.
 
 ```yaml
-character:
-  - mid-forward, not scooped        # good — a claim about the sound
-  - grit only on hard attack        # good — describes behaviour
-  - set Mid to 0.7                  # bad  — that is the generator's job
+- role: amp
+  gear: Ampeg SVT
+  evidence:
+    - { kind: cited, url: "…", note: "Bass Player interview" }
+    - { kind: video, url: "…", at: "1:42", note: "SVT visible on stage" }
+  confidence: high
 ```
 
-The generator turns these into moves against the catalog's real parameter
-ranges. Naming a control hard-codes a number that may not suit the model that
-gets chosen.
+Evidence attaches to a **claim**, not to the document, because the amp may come
+from an interview and a drive figure from measuring a corpus. `kind` is open:
+`llm`, `cited`, `video`, `audio`, `corpus`, `measured`, `user`.
 
-## Provenance is not decoration
+Two things to be clear about.
+
+**A URL does not make a claim true.** It makes it *checkable*. That is what lets
+somebody correct one line instead of re-deriving a rig, and it is why a
+correction is a small reviewable diff.
+
+**`llm` means nobody checked.** A language model is good at well-known players
+and confabulates for obscure ones, and cannot reliably tell which it is doing.
+That is the largest correctness risk in this project. A rig sourced that way
+should carry `confidence: low` and be shown as unverified whatever it claims
+about itself.
+
+## Declare what the device does not ship with
 
 ```yaml
-provenance:
-  source: llm          # llm | curated | cited
-  confidence: medium   # low | medium | high
+requires:
+  - { kind: ir, name: Ownhammer SVT 8x10, slot: 82, url: "…" }
 ```
 
-`source: llm` means a language model asserted this and nobody checked. That is
-reliable for well-known players and unreliable for obscure ones, **and the model
-cannot always tell which it is doing** — see [knowledge.md](knowledge.md).
+Only what a catalog cannot see. Whether a model exists on a device tier, or
+needs newer firmware, is already known — the catalog carries the supported
+device list and the release it came from.
 
-Anything a person confirms becomes `curated`, which outranks `llm` permanently.
-A recipe corrected against a real amp is worth more than any amount of generated
-guessing.
+The case nothing can know is an impulse response. A preset stores the **slot
+number**, never the audio, so a rig depending on slot 82 sounds like whoever
+made it only if the same IR is loaded there. That is why generated chains never
+reach for a user IR block, and why one is flagged when reading somebody else's
+preset.
 
-## Correcting one
+## Record what you thought of it
 
-If it sounds wrong, change the line and the fix is permanent. That loop — hear
-it, correct one field, never hear it again — is the product. Prefer correcting a
-recipe over adjusting a generated preset, because only the recipe survives.
+```yaml
+mutations:
+  - ask: make it clunkier
+    changed:
+      - { path: chain[1].settings.drive, from: 0.47, to: 0.58 }
+    reason: >-
+      Line 6 document Sag as "lower values offer tighter responsiveness…
+      higher values provide more touch dynamics & sustain". Read "clunky" as
+      a looser power-amp feel rather than more gain.
+    verdict: closer, but muddy now — keep the feel, put the drive back
+```
+
+Nothing in this project can hear. Every other input is a measurement or an
+assertion, and **the verdict is the only place a human ear is written down**. It
+is also the only thing unrecoverable later: a catalog can be regenerated next
+year, and nobody can go back and ask themselves what they thought of round
+three.
+
+Four fields, four jobs:
+
+- `ask` — your words, verbatim. "Clunky" is not a parameter, and normalising it
+  away loses the question.
+- `changed` — what moved.
+- `reason` — how the ask was interpreted, cited. If the reading was wrong, this
+  is the line that shows it, rather than only that the value was.
+- `verdict` — what it sounded like. Absent means not yet heard, which is useful
+  state.
+
+Append-only, never replayed: `chain` always holds the current state.
+Reconstructing a rig from its history would be more elegant and much worse to
+read, and a person reads this file.
+
+## One artist, several rigs
+
+A player's rig changes by era and by song, and two can differ at the amp — which
+makes them siblings, not variations. Each is a complete RigSpec with its own
+`id`; one carries `default: true`, because asking for "a Mike Dirnt sound" with
+no qualifier has to land somewhere. Use `extends` only where a rig genuinely is
+a small departure from another.
+
+## Checking your work
+
+```bash
+tonestack recipes show --id mike-dirnt        # read it back
+tonestack catalog list --search "ampeg svt"   # does the gear resolve?
+tonestack corpus show --instrument bass       # what else belongs in the chain?
+tonestack presets make --id mike-dirnt --out mike.hlx
+```
+
+The build reports every block it chose, what real gear each emulates, what it
+costs, and anything it added the rig did not ask for. A wrong amp should be
+visible before anyone plugs in rather than after.
+
+## What none of this can tell you
+
+Whether it sounds right. That is a person with the preset loaded, and the answer
+belongs in `mutations` so the next round starts from it rather than from
+nothing. [knowledge.md](knowledge.md) explains why the architecture is shaped
+around that.

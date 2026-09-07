@@ -1,10 +1,46 @@
 # Talking to a device
 
-How `pkg/sdk` reaches the hardware over USB.
+Two ways to reach an HX Stomp, and the reason only one of them carries presets.
 
-`pkg/sdk` reaches the hardware over USB. It is the only package needing cgo,
-which is why it is the only one that cannot be cross-compiled or built with
-`CGO_ENABLED=0`.
+## Presets travel by file, not by wire
+
+Everything to do with reading, editing and replacing presets goes through a file
+HX Edit wrote, not over USB:
+
+```text
+HX Edit  ──backup──▶  device.hlb  ──▶  tonestack  ──▶  edited.hlb  ──restore──▶  HX Edit
+```
+
+`presets list`, `show`, `copy`, `swap`, `export` and `import` all work on that
+file. A `.hlb` holds every setlist on the device, so one backup is the whole
+instrument and one restore puts it back. HX Edit is in the loop twice per
+session rather than twice per preset.
+
+An earlier version of this document claimed writing over USB was unsolved. That
+was wrong, and researching it properly is what produced
+[protocol.md](protocol.md): two independent projects write presets over USB and
+have done for months. What remains true is narrower and still matters.
+
+**What the device gives back is not a `.hlx`.** It is an internal MessagePack
+document beginning with a 48-byte table of byte offsets into itself. The device
+seeks with that table rather than walking the document, so a re-encode that
+changes any field's byte width shifts every offset after it — and the device
+accepts such a write and then reads the preset as empty. Both projects lost
+hardware sessions to exactly this.
+
+**Writing a preset synthesised from nothing is the least-solved thing in the
+space, and neither project does it.** The reliable shape is to read a preset off
+the device, change it, and write it back. That is also what the corpus says from
+a different direction: 98.6% of real presets carry `inputA`, `outputA`, `split`
+and `join` routing that a generated one has none of.
+
+## What USB is for
+
+`pkg/sdk` reaches the hardware over USB for the things a file cannot answer:
+which devices are attached, and which preset is selected right now.
+
+It is the only package needing cgo, which is why it is the only one that cannot
+be cross-compiled or built with `CGO_ENABLED=0`.
 
 cgo is decided by the **import graph**, not the module boundary — nothing that
 avoids importing `pkg/sdk` pays for it. A future HTTP service never touches a
