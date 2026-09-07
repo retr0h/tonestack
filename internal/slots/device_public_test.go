@@ -262,6 +262,37 @@ func (s *DevicePublicTestSuite) TestReportsASlotHoldingNothing() {
 	s.Require().NoFileExists(path, "an empty slot leaves no file behind")
 }
 
+// TestShowingAnEmptySlotOnItsOwnDevice covers the entry point somebody runs,
+// where a slot holding nothing is an answer rather than a failure.
+func (s *DevicePublicTestSuite) TestShowingAnEmptySlotOnItsOwnDevice() {
+	s.dev.EXPECT().Presets(gomock.Any(), 0).Return(s.listing(), nil)
+	s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 4).Return(nil, nil)
+	s.dev.EXPECT().Close()
+
+	defer s.stand(s.dev, nil)()
+
+	var out bytes.Buffer
+
+	s.Require().NoError(slots.ShowDevice(context.Background(), &out,
+		slots.DeviceOptions{Slot: 4}))
+
+	s.Require().Contains(out.String(), "02B is empty")
+}
+
+// TestShowingASlotItCannotRead covers an error that is not an empty slot,
+// which is passed on rather than reported as one.
+func (s *DevicePublicTestSuite) TestShowingASlotItCannotRead() {
+	s.dev.EXPECT().Presets(gomock.Any(), 0).Return(s.listing(), nil)
+	s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 4).
+		Return(nil, errors.New("no answer"))
+	s.dev.EXPECT().Close()
+
+	defer s.stand(s.dev, nil)()
+
+	s.Require().ErrorContains(slots.ShowDevice(context.Background(),
+		&bytes.Buffer{}, slots.DeviceOptions{Slot: 4}), "no answer")
+}
+
 // TestWritesOneSlotAsTheDevicesOwnFile covers `--as hlx`, which the device
 // path ignored: it wrote a rig whatever was asked for.
 //

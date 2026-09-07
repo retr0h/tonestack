@@ -140,15 +140,39 @@ func (s *SelectDevicePublicTestSuite) TestReportsAFailingWriter() {
 // TestSelectFindsItsOwnDevice covers the entry point somebody runs, which is
 // one line: find a session, hand it on, release it.
 func (s *SelectDevicePublicTestSuite) TestSelectFindsItsOwnDevice() {
-	restore := *slots.OpenDevice
-	*slots.OpenDevice = func(context.Context) (sdk.Editor, error) {
-		return nil, errors.New("nothing on the bus")
-	}
+	s.dev.MockEditor.EXPECT().Presets(gomock.Any(), 0).Return(s.listing(), nil)
+	s.dev.MockSelector.EXPECT().SelectPreset(gomock.Any(), 0, 4).Return(nil)
 
-	defer func() { *slots.OpenDevice = restore }()
+	defer s.stand(s.dev, nil)()
+
+	var out bytes.Buffer
+
+	s.Require().NoError(slots.SelectDevice(context.Background(), &out,
+		slots.DeviceOptions{Slot: 4}))
+
+	s.Require().Contains(out.String(), "loaded")
+}
+
+// TestSelectReportsNoDeviceAttached covers finding none.
+func (s *SelectDevicePublicTestSuite) TestSelectReportsNoDeviceAttached() {
+	defer s.stand(nil, errors.New("nothing on the bus"))()
 
 	s.Require().ErrorContains(slots.SelectDevice(context.Background(),
 		&bytes.Buffer{}, slots.DeviceOptions{Slot: 4}), "nothing on the bus")
+}
+
+// stand puts a session in place of the one that needs hardware, and takes it
+// away again.
+func (s *SelectDevicePublicTestSuite) stand(
+	dev sdk.Editor,
+	err error,
+) func() {
+	restore := *slots.OpenDevice
+	*slots.OpenDevice = func(context.Context) (sdk.Editor, error) {
+		return dev, err
+	}
+
+	return func() { *slots.OpenDevice = restore }
 }
 
 func TestSelectDevicePublicTestSuite(t *testing.T) {

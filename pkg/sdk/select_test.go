@@ -136,6 +136,26 @@ func (s *SelectTestSuite) TestGivesUpWhenTheCallerDoes() {
 	s.Require().Error(s.session(d).SelectPreset(ctx, 0, 99))
 }
 
+// TestReportsAnAnswerNobodyExpects covers a status that is neither "taken"
+// nor "done". A refusal is already an error by the time it arrives here, so
+// this is a device saying something the protocol does not describe.
+func (s *SelectTestSuite) TestReportsAnAnswerNobodyExpects() {
+	var buf bytes.Buffer
+
+	enc := msgpack.NewEncoder(&buf)
+	s.Require().NoError(enc.EncodeMapLen(2))
+	s.Require().NoError(enc.EncodeInt(102))
+	s.Require().NoError(enc.EncodeUint(sdk.FirstTxn))
+	s.Require().NoError(enc.EncodeInt(103))
+	s.Require().NoError(enc.EncodeInt(7))
+
+	d := answers(sdk.Reply(sdk.DataChannel, buf.Bytes()))
+
+	err := s.session(d).SelectPreset(context.Background(), 0, 99)
+
+	s.Require().ErrorContains(err, "unexpected status 7")
+}
+
 func (s *SelectTestSuite) TestReadsWhatTheDeviceIsPlaying() {
 	d := answers(s.playing(sdk.FirstTxn, 0, 99))
 
