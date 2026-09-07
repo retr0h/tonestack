@@ -75,6 +75,8 @@ docs/                how the format, catalog and generation work
 The domain — turning a request into a signal chain, the preset format, the
 device — is documented in [docs/](docs/), not here:
 
+- [docs/workflows.md](docs/workflows.md) — what to do, in order, for the common
+  tasks
 - [docs/knowledge.md](docs/knowledge.md) — how a request becomes a signal chain
 - [docs/recipes.md](docs/recipes.md) — writing a rig, and the worked example
   beside it

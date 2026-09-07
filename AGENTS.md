@@ -34,15 +34,16 @@ agents exactly as it applies to people, and none of it is repeated here.
 [docs/](docs/) covers what the code is *for*, which is not derivable from the
 code. Read the one that matches the task rather than all of them:
 
-| Task                                             | Read                                                                                                                      |
-| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
-| Anything, first                                  | [docs/knowledge.md](docs/knowledge.md) — how a request becomes a signal chain, and which of the four problems is unsolved |
-| Writing or changing a rig                        | [docs/recipes.md](docs/recipes.md), with [examples/rigspec/mike-dirnt.yaml](examples/rigspec/mike-dirnt.yaml) beside it   |
-| Anything touching models, parameters or DSP cost | [docs/catalog.md](docs/catalog.md)                                                                                        |
-| Reading or writing a `.hlx`                      | [docs/preset-format.md](docs/preset-format.md)                                                                            |
-| Reading or editing what a device holds           | [docs/device.md](docs/device.md)                                                                                          |
-| Touching USB                                     | [docs/protocol.md](docs/protocol.md) — **including the rules that keep a device alive**                                   |
-| Changing the shape of the system                 | [docs/superpowers/specs/](docs/superpowers/specs/) — dated design records, superseded rather than rewritten               |
+| Task                                                                                                   | Read                                                                                                                      |
+| ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
+| **Somebody asks for help doing something** — build a rig for a player, read a device, correct a preset | [docs/workflows.md](docs/workflows.md) — the step-by-step, linking onward to whichever reference it needs                 |
+| Understanding why any of this is shaped as it is                                                       | [docs/knowledge.md](docs/knowledge.md) — how a request becomes a signal chain, and which of the four problems is unsolved |
+| Writing or changing a rig                                                                              | [docs/recipes.md](docs/recipes.md), with [examples/rigspec/mike-dirnt.yaml](examples/rigspec/mike-dirnt.yaml) beside it   |
+| Anything touching models, parameters or DSP cost                                                       | [docs/catalog.md](docs/catalog.md)                                                                                        |
+| Reading or writing a `.hlx`                                                                            | [docs/preset-format.md](docs/preset-format.md)                                                                            |
+| Reading or editing what a device holds                                                                 | [docs/device.md](docs/device.md)                                                                                          |
+| Touching USB                                                                                           | [docs/protocol.md](docs/protocol.md) — **including the rules that keep a device alive**                                   |
+| Changing the shape of the system                                                                       | [docs/superpowers/specs/](docs/superpowers/specs/) — dated design records, superseded rather than rewritten               |
 
 The contracts themselves are in [schemas/](schemas/). `rigspec.openapi.yaml` is
 the only hand-authored format; everything else is compiled from it.

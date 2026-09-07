@@ -98,6 +98,8 @@ Restore the edited backup with HX Edit. Presets do not travel over USB —
 
 ## Documentation
 
+- [`docs/workflows.md`](docs/workflows.md) — **start here**: what to do, in
+  order, for building a rig, reading a device, and correcting a preset.
 - [`docs/`](docs/) — how it all works. Start with
   [knowledge.md](docs/knowledge.md) for how a request becomes a signal chain, or
   [recipes.md](docs/recipes.md) to write one yourself.
