@@ -18,30 +18,17 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-package rig
+package chain
 
-// Validate runs every layer in the order that produces the most useful first
-// failure: structure, then parameters, then topology, then budget.
-//
-// The order is deliberate. A rig naming a model that does not exist should say
-// so rather than complain that a parameter is missing from a block that was
-// never found; a rig with too many blocks should say that rather than report
-// the DSP overflow that follows from it.
-//
-// Callers wanting to know every problem at once should call the layers
-// individually. This returns the first.
-func Validate(l BlockLookup, s Spec, lim Limits) error {
-	if err := ValidateStructure(l, s); err != nil {
-		return err
+// ValidateStructure reports the first block in s whose model the catalog does
+// not hold. It is the first of the validation layers and answers only one
+// question, so a failure names one cause.
+func ValidateStructure(l BlockLookup, s Chain) error {
+	for _, b := range s.Blocks {
+		if _, ok := l.Block(b.Model); !ok {
+			return &UnknownBlockError{Model: string(b.Model)}
+		}
 	}
 
-	if err := ValidateParams(l, s); err != nil {
-		return err
-	}
-
-	if err := ValidateTopology(s, lim); err != nil {
-		return err
-	}
-
-	return ValidateBudget(l, s, lim)
+	return nil
 }

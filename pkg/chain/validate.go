@@ -18,46 +18,30 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-package rig_test
+package chain
 
-import (
-	"errors"
-	"testing"
+// Validate runs every layer in the order that produces the most useful first
+// failure: structure, then parameters, then topology, then budget.
+//
+// The order is deliberate. A rig naming a model that does not exist should say
+// so rather than complain that a parameter is missing from a block that was
+// never found; a rig with too many blocks should say that rather than report
+// the DSP overflow that follows from it.
+//
+// Callers wanting to know every problem at once should call the layers
+// individually. This returns the first.
+func Validate(l BlockLookup, s Chain, lim Limits) error {
+	if err := ValidateStructure(l, s); err != nil {
+		return err
+	}
 
-	"github.com/stretchr/testify/suite"
+	if err := ValidateParams(l, s); err != nil {
+		return err
+	}
 
-	"github.com/retr0h/tonestack/pkg/rig"
-)
+	if err := ValidateTopology(s, lim); err != nil {
+		return err
+	}
 
-type ValidateStructurePublicTestSuite struct {
-	suite.Suite
-}
-
-func (s *ValidateStructurePublicTestSuite) TestAcceptsARigOfKnownBlocks() {
-	spec := rig.Spec{Blocks: []rig.SpecBlock{{Model: "HD2_AmpTest"}}}
-
-	s.Require().NoError(rig.ValidateStructure(newCatalog(testAmp()), spec))
-}
-
-func (s *ValidateStructurePublicTestSuite) TestAcceptsAnEmptyRig() {
-	s.Require().NoError(rig.ValidateStructure(newCatalog(), rig.Spec{}))
-}
-
-func (s *ValidateStructurePublicTestSuite) TestRejectsAnUnknownModel() {
-	spec := rig.Spec{Blocks: []rig.SpecBlock{
-		{Model: "HD2_AmpTest"},
-		{Model: "HD2_Nope"},
-	}}
-
-	err := rig.ValidateStructure(newCatalog(testAmp()), spec)
-
-	s.Require().ErrorIs(err, rig.ErrUnknownBlock)
-
-	var target *rig.UnknownBlockError
-	s.Require().True(errors.As(err, &target))
-	s.Require().Equal("HD2_Nope", target.Model)
-}
-
-func TestValidateStructurePublicTestSuite(t *testing.T) {
-	suite.Run(t, new(ValidateStructurePublicTestSuite))
+	return ValidateBudget(l, s, lim)
 }

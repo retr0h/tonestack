@@ -17,13 +17,13 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
-package rig_test
+package chain_test
 
 import "github.com/retr0h/tonestack/pkg/catalog"
 
 // newCatalog returns a real *catalog.Catalog holding blocks.
 //
-// No double is needed here: *catalog.Catalog already satisfies rig.BlockLookup,
+// No double is needed here: *catalog.Catalog already satisfies chain.BlockLookup,
 // and lookup is the whole of its behaviour. A mock would assert calls into a
 // map, which tests the test rather than the code.
 func newCatalog(blocks ...catalog.Block) *catalog.Catalog {

@@ -18,7 +18,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-package rig_test
+package chain_test
 
 import (
 	"errors"
@@ -27,7 +27,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/retr0h/tonestack/pkg/catalog"
-	"github.com/retr0h/tonestack/pkg/rig"
+	"github.com/retr0h/tonestack/pkg/chain"
 )
 
 type ValidateParamsPublicTestSuite struct {
@@ -36,9 +36,9 @@ type ValidateParamsPublicTestSuite struct {
 
 func (*ValidateParamsPublicTestSuite) specWith(
 	params map[string]catalog.ParamValue,
-) rig.Spec {
-	return rig.Spec{
-		Blocks: []rig.SpecBlock{{Model: "HD2_AmpTest", Params: params}},
+) chain.Chain {
+	return chain.Chain{
+		Blocks: []chain.Block{{Model: "HD2_AmpTest", Params: params}},
 	}
 }
 
@@ -48,7 +48,7 @@ func (s *ValidateParamsPublicTestSuite) TestAcceptsValuesInRange() {
 		"Mode": catalog.Enum("Bright"),
 	})
 
-	s.Require().NoError(rig.ValidateParams(newCatalog(testAmp()), spec))
+	s.Require().NoError(chain.ValidateParams(newCatalog(testAmp()), spec))
 }
 
 func (s *ValidateParamsPublicTestSuite) TestAcceptsValuesOnTheBoundary() {
@@ -56,7 +56,7 @@ func (s *ValidateParamsPublicTestSuite) TestAcceptsValuesOnTheBoundary() {
 		spec := s.specWith(
 			map[string]catalog.ParamValue{"Gain": catalog.Float(v)},
 		)
-		s.Require().NoError(rig.ValidateParams(newCatalog(testAmp()), spec))
+		s.Require().NoError(chain.ValidateParams(newCatalog(testAmp()), spec))
 	}
 }
 
@@ -65,7 +65,7 @@ func (s *ValidateParamsPublicTestSuite) TestRejectsAnUnknownParameter() {
 		map[string]catalog.ParamValue{"Nope": catalog.Float(0.5)},
 	)
 
-	err := rig.ValidateParams(newCatalog(testAmp()), spec)
+	err := chain.ValidateParams(newCatalog(testAmp()), spec)
 
 	s.Require().ErrorIs(err, catalog.ErrBadParam)
 
@@ -79,7 +79,7 @@ func (s *ValidateParamsPublicTestSuite) TestRejectsAWrongType() {
 		map[string]catalog.ParamValue{"Gain": catalog.Enum("loud")},
 	)
 
-	err := rig.ValidateParams(newCatalog(testAmp()), spec)
+	err := chain.ValidateParams(newCatalog(testAmp()), spec)
 
 	s.Require().ErrorIs(err, catalog.ErrBadParam)
 	s.Require().Contains(err.Error(), "expected float")
@@ -91,7 +91,7 @@ func (s *ValidateParamsPublicTestSuite) TestRejectsAFloatOutOfRange() {
 			map[string]catalog.ParamValue{"Gain": catalog.Float(v)},
 		)
 
-		err := rig.ValidateParams(newCatalog(testAmp()), spec)
+		err := chain.ValidateParams(newCatalog(testAmp()), spec)
 
 		s.Require().ErrorIs(err, catalog.ErrBadParam)
 		s.Require().Contains(err.Error(), "out of range")
@@ -106,7 +106,7 @@ func (s *ValidateParamsPublicTestSuite) TestRejectsAnIntOutOfRange() {
 
 	spec := s.specWith(map[string]catalog.ParamValue{"Taps": catalog.Int(9)})
 
-	err := rig.ValidateParams(newCatalog(blk), spec)
+	err := chain.ValidateParams(newCatalog(blk), spec)
 
 	s.Require().ErrorIs(err, catalog.ErrBadParam)
 }
@@ -121,7 +121,7 @@ func (s *ValidateParamsPublicTestSuite) TestAcceptsABoolWithoutRangeChecking() {
 		map[string]catalog.ParamValue{"Bright": catalog.Bool(true)},
 	)
 
-	s.Require().NoError(rig.ValidateParams(newCatalog(blk), spec))
+	s.Require().NoError(chain.ValidateParams(newCatalog(blk), spec))
 }
 
 func (s *ValidateParamsPublicTestSuite) TestRejectsAnEnumMemberNotDeclared() {
@@ -129,7 +129,7 @@ func (s *ValidateParamsPublicTestSuite) TestRejectsAnEnumMemberNotDeclared() {
 		map[string]catalog.ParamValue{"Mode": catalog.Enum("Sparkle")},
 	)
 
-	err := rig.ValidateParams(newCatalog(testAmp()), spec)
+	err := chain.ValidateParams(newCatalog(testAmp()), spec)
 
 	s.Require().ErrorIs(err, catalog.ErrBadParam)
 	s.Require().Contains(err.Error(), "Sparkle")
@@ -141,7 +141,7 @@ func (s *ValidateParamsPublicTestSuite) TestRejectsAKindTheCatalogInvented() {
 
 	spec := s.specWith(map[string]catalog.ParamValue{"Weird": catalog.Float(1)})
 
-	err := rig.ValidateParams(newCatalog(blk), spec)
+	err := chain.ValidateParams(newCatalog(blk), spec)
 
 	s.Require().ErrorIs(err, catalog.ErrBadParam)
 	s.Require().Contains(err.Error(), "unknown kind")
@@ -167,7 +167,7 @@ func (s *ValidateParamsPublicTestSuite) TestRejectsEachKindMismatch() {
 		s.Run(tc.name, func() {
 			spec := s.specWith(map[string]catalog.ParamValue{tc.key: tc.val})
 
-			err := rig.ValidateParams(newCatalog(blk), spec)
+			err := chain.ValidateParams(newCatalog(blk), spec)
 
 			s.Require().ErrorIs(err, catalog.ErrBadParam)
 			s.Require().Contains(err.Error(), "expected")
@@ -176,11 +176,11 @@ func (s *ValidateParamsPublicTestSuite) TestRejectsEachKindMismatch() {
 }
 
 func (s *ValidateParamsPublicTestSuite) TestRejectsAnUnknownModel() {
-	spec := rig.Spec{Blocks: []rig.SpecBlock{{Model: "HD2_Nope"}}}
+	spec := chain.Chain{Blocks: []chain.Block{{Model: "HD2_Nope"}}}
 
-	err := rig.ValidateParams(newCatalog(testAmp()), spec)
+	err := chain.ValidateParams(newCatalog(testAmp()), spec)
 
-	s.Require().ErrorIs(err, rig.ErrUnknownBlock)
+	s.Require().ErrorIs(err, chain.ErrUnknownBlock)
 }
 
 func (s *ValidateParamsPublicTestSuite) TestReportsTheFirstBadParameterInSortedOrder() {
@@ -190,7 +190,7 @@ func (s *ValidateParamsPublicTestSuite) TestReportsTheFirstBadParameterInSortedO
 	})
 
 	for range 20 {
-		err := rig.ValidateParams(newCatalog(testAmp()), spec)
+		err := chain.ValidateParams(newCatalog(testAmp()), spec)
 
 		var target *catalog.BadParamError
 		s.Require().True(errors.As(err, &target))

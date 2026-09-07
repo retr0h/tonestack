@@ -18,7 +18,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-package rig_test
+package chain_test
 
 import (
 	"errors"
@@ -27,7 +27,7 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
-	"github.com/retr0h/tonestack/pkg/rig"
+	"github.com/retr0h/tonestack/pkg/chain"
 )
 
 type ErrorsPublicTestSuite struct {
@@ -35,36 +35,36 @@ type ErrorsPublicTestSuite struct {
 }
 
 func (s *ErrorsPublicTestSuite) TestUnknownBlockError() {
-	err := &rig.UnknownBlockError{Model: "HD2_Nope"}
+	err := &chain.UnknownBlockError{Model: "HD2_Nope"}
 
 	s.Require().Contains(err.Error(), "HD2_Nope")
-	s.Require().ErrorIs(err, rig.ErrUnknownBlock)
+	s.Require().ErrorIs(err, chain.ErrUnknownBlock)
 }
 
 func (s *ErrorsPublicTestSuite) TestUnknownBlockErrorSurvivesWrapping() {
-	err := fmt.Errorf("resolving: %w", &rig.UnknownBlockError{Model: "HD2_Nope"})
+	err := fmt.Errorf("resolving: %w", &chain.UnknownBlockError{Model: "HD2_Nope"})
 
-	var target *rig.UnknownBlockError
+	var target *chain.UnknownBlockError
 	s.Require().True(errors.As(err, &target))
 	s.Require().Equal("HD2_Nope", target.Model)
 }
 
 func (s *ErrorsPublicTestSuite) TestOverBudgetErrorNamesChipAndCost() {
-	err := &rig.OverBudgetError{Chip: 1, Cost: 1.2, Ceiling: 0.95}
+	err := &chain.OverBudgetError{Chip: 1, Cost: 1.2, Ceiling: 0.95}
 
 	s.Require().Contains(err.Error(), "chip 1")
-	s.Require().ErrorIs(err, rig.ErrOverBudget)
+	s.Require().ErrorIs(err, chain.ErrOverBudget)
 }
 
 func (s *ErrorsPublicTestSuite) TestTopologyErrorCarriesReason() {
-	err := &rig.TopologyError{Reason: "too many blocks"}
+	err := &chain.TopologyError{Reason: "too many blocks"}
 
 	s.Require().Contains(err.Error(), "too many blocks")
-	s.Require().ErrorIs(err, rig.ErrBadTopology)
+	s.Require().ErrorIs(err, chain.ErrBadTopology)
 }
 
 func (s *ErrorsPublicTestSuite) TestSentinelsAreDistinct() {
-	all := []error{rig.ErrUnknownBlock, rig.ErrOverBudget, rig.ErrBadTopology}
+	all := []error{chain.ErrUnknownBlock, chain.ErrOverBudget, chain.ErrBadTopology}
 
 	for i, a := range all {
 		for j, b := range all {

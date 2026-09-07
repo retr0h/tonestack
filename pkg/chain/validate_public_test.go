@@ -18,7 +18,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-package rig_test
+package chain_test
 
 import (
 	"testing"
@@ -26,22 +26,21 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/retr0h/tonestack/pkg/catalog"
-	"github.com/retr0h/tonestack/pkg/rig"
+	"github.com/retr0h/tonestack/pkg/chain"
 )
 
 type ValidatePublicTestSuite struct {
 	suite.Suite
 }
 
-func (*ValidatePublicTestSuite) limits() rig.Limits {
-	return rig.Limits{MaxBlocks: 6, Chips: 2, ChipCeiling: 95.0}
+func (*ValidatePublicTestSuite) limits() chain.Limits {
+	return chain.Limits{MaxBlocks: 6, Paths: 2, ChipCeiling: 95.0}
 }
 
 func (s *ValidatePublicTestSuite) TestAcceptsAValidRig() {
-	spec := rig.Spec{
-		Name:   "Fine",
-		Origin: rig.OriginCurated,
-		Blocks: []rig.SpecBlock{{
+	spec := chain.Chain{
+		Name: "Fine",
+		Blocks: []chain.Block{{
 			Model:   "HD2_AmpTest",
 			Params:  map[string]catalog.ParamValue{"Gain": catalog.Float(0.5)},
 			DSP:     0,
@@ -50,56 +49,56 @@ func (s *ValidatePublicTestSuite) TestAcceptsAValidRig() {
 		}},
 	}
 
-	s.Require().NoError(rig.Validate(newCatalog(testAmp()), spec, s.limits()))
+	s.Require().NoError(chain.Validate(newCatalog(testAmp()), spec, s.limits()))
 }
 
 func (s *ValidatePublicTestSuite) TestReportsStructureBeforeParams() {
-	spec := rig.Spec{Blocks: []rig.SpecBlock{{
+	spec := chain.Chain{Blocks: []chain.Block{{
 		Model:  "HD2_Nope",
 		Params: map[string]catalog.ParamValue{"Whatever": catalog.Float(99)},
 		Pos:    0,
 	}}}
 
 	s.Require().ErrorIs(
-		rig.Validate(newCatalog(testAmp()), spec, s.limits()),
-		rig.ErrUnknownBlock,
+		chain.Validate(newCatalog(testAmp()), spec, s.limits()),
+		chain.ErrUnknownBlock,
 	)
 }
 
 func (s *ValidatePublicTestSuite) TestReportsParamsBeforeTopology() {
-	spec := rig.Spec{Blocks: []rig.SpecBlock{{
+	spec := chain.Chain{Blocks: []chain.Block{{
 		Model:  "HD2_AmpTest",
 		Params: map[string]catalog.ParamValue{"Gain": catalog.Float(99)},
 		Pos:    3,
 	}}}
 
 	s.Require().ErrorIs(
-		rig.Validate(newCatalog(testAmp()), spec, s.limits()),
+		chain.Validate(newCatalog(testAmp()), spec, s.limits()),
 		catalog.ErrBadParam,
 	)
 }
 
 func (s *ValidatePublicTestSuite) TestReportsTopologyBeforeBudget() {
-	blocks := make([]rig.SpecBlock, 7)
+	blocks := make([]chain.Block, 7)
 	for i := range blocks {
-		blocks[i] = rig.SpecBlock{Model: "HD2_AmpTest", DSP: 0, Pos: i}
+		blocks[i] = chain.Block{Model: "HD2_AmpTest", DSP: 0, Pos: i}
 	}
 
 	s.Require().ErrorIs(
-		rig.Validate(newCatalog(testAmp()), rig.Spec{Blocks: blocks}, s.limits()),
-		rig.ErrBadTopology,
+		chain.Validate(newCatalog(testAmp()), chain.Chain{Blocks: blocks}, s.limits()),
+		chain.ErrBadTopology,
 	)
 }
 
 func (s *ValidatePublicTestSuite) TestReportsBudgetLast() {
-	blocks := make([]rig.SpecBlock, 4)
+	blocks := make([]chain.Block, 4)
 	for i := range blocks {
-		blocks[i] = rig.SpecBlock{Model: "HD2_AmpTest", DSP: 0, Pos: i}
+		blocks[i] = chain.Block{Model: "HD2_AmpTest", DSP: 0, Pos: i}
 	}
 
 	s.Require().ErrorIs(
-		rig.Validate(newCatalog(testAmp()), rig.Spec{Blocks: blocks}, s.limits()),
-		rig.ErrOverBudget,
+		chain.Validate(newCatalog(testAmp()), chain.Chain{Blocks: blocks}, s.limits()),
+		chain.ErrOverBudget,
 	)
 }
 

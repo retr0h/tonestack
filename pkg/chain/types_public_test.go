@@ -18,7 +18,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-package rig_test
+package chain_test
 
 import (
 	"encoding/json"
@@ -27,7 +27,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/retr0h/tonestack/pkg/catalog"
-	"github.com/retr0h/tonestack/pkg/rig"
+	"github.com/retr0h/tonestack/pkg/chain"
 )
 
 type RigPublicTestSuite struct {
@@ -35,10 +35,9 @@ type RigPublicTestSuite struct {
 }
 
 func (s *RigPublicTestSuite) TestSpecRoundTripsThroughJSON() {
-	in := rig.Spec{
-		Name:   "Test Rig",
-		Origin: rig.OriginCurated,
-		Blocks: []rig.SpecBlock{
+	in := chain.Chain{
+		Name: "Test Rig",
+		Blocks: []chain.Block{
 			{
 				Model: "HD2_AmpTest",
 				Params: map[string]catalog.ParamValue{
@@ -49,11 +48,11 @@ func (s *RigPublicTestSuite) TestSpecRoundTripsThroughJSON() {
 				Enabled: true,
 			},
 		},
-		Snapshots: []rig.Snapshot{
+		Snapshots: []chain.Snapshot{
 			{
 				Name: "Lead",
-				Overrides: map[int]map[string]catalog.ParamValue{
-					0: {"Gain": catalog.Float(0.9)},
+				Overrides: map[string]chain.Params{
+					"0": {"Gain": catalog.Float(0.9)},
 				},
 			},
 		},
@@ -62,25 +61,21 @@ func (s *RigPublicTestSuite) TestSpecRoundTripsThroughJSON() {
 	b, err := json.Marshal(in)
 	s.Require().NoError(err)
 
-	var out rig.Spec
+	var out chain.Chain
 	s.Require().NoError(json.Unmarshal(b, &out))
 	s.Require().Equal(in, out)
 }
 
 func (s *RigPublicTestSuite) TestHXStompLimitsAreTheDocumentedCeilings() {
-	l := rig.HXStompLimits()
+	l := chain.HXStompLimits()
 
-	s.Require().Equal(6, l.MaxBlocks)
-	s.Require().Equal(2, l.Chips)
+	s.Require().Equal(8, l.MaxBlocks,
+		"the corpus shows HX Stomp presets holding eight blocks")
+	s.Require().Equal(1, l.Paths,
+		"no HX Stomp preset in the corpus has a second signal path")
 	s.Require().InDelta(95.0, l.ChipCeiling, 1e-9)
 	s.Require().Greater(l.ChipCeiling, 1.0,
 		"the ceiling is a percentage, matching how Line 6 states a block's cost")
-}
-
-func (s *RigPublicTestSuite) TestOriginsAreDistinct() {
-	s.Require().NotEqual(rig.OriginCurated, rig.OriginLLM)
-	s.Require().NotEqual(rig.OriginLLM, rig.OriginAudio)
-	s.Require().NotEqual(rig.OriginCurated, rig.OriginAudio)
 }
 
 func TestRigPublicTestSuite(t *testing.T) {

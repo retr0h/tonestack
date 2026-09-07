@@ -18,12 +18,13 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-package rig
+package chain
 
 import (
 	"fmt"
 	"maps"
 	"slices"
+	"strconv"
 )
 
 // ValidateTopology reports a rig whose shape the device cannot represent:
@@ -31,7 +32,7 @@ import (
 // processor that are not the contiguous run 0..n-1.
 //
 // It needs no catalog — every question it answers is about the rig alone.
-func ValidateTopology(s Spec, lim Limits) error {
+func ValidateTopology(s Chain, lim Limits) error {
 	if len(s.Blocks) == 0 {
 		return &TopologyError{Reason: "rig has no blocks"}
 	}
@@ -49,11 +50,11 @@ func ValidateTopology(s Spec, lim Limits) error {
 	byChip := make(map[int][]int)
 
 	for _, b := range s.Blocks {
-		if b.DSP < 0 || b.DSP >= lim.Chips {
+		if b.DSP < 0 || b.DSP >= lim.Paths {
 			return &TopologyError{
 				Reason: fmt.Sprintf(
 					"block %q is on processor %d, device has %d",
-					b.Model, b.DSP, lim.Chips,
+					b.Model, b.DSP, lim.Paths,
 				),
 			}
 		}
@@ -91,9 +92,24 @@ func ValidateTopology(s Spec, lim Limits) error {
 	return validateSnapshots(s)
 }
 
-func validateSnapshots(s Spec) error {
+func validateSnapshots(s Chain) error {
+	if len(s.Snapshots) == 0 {
+		return nil
+	}
+
 	for _, snap := range s.Snapshots {
-		for _, idx := range slices.Sorted(maps.Keys(snap.Overrides)) {
+		for _, key := range slices.Sorted(maps.Keys(snap.Overrides)) {
+			// JSON object keys are strings, so a block index arrives as "0".
+			idx, err := strconv.Atoi(key)
+			if err != nil {
+				return &TopologyError{
+					Reason: fmt.Sprintf(
+						"snapshot %q overrides block %q, which is not an index",
+						snap.Name, key,
+					),
+				}
+			}
+
 			if idx < 0 || idx >= len(s.Blocks) {
 				return &TopologyError{
 					Reason: fmt.Sprintf(

@@ -18,7 +18,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-package rig
+package chain
 
 // HXStompLimits returns the ceilings for a Line 6 HX Stomp.
 //
@@ -31,8 +31,15 @@ package rig
 // refuses is the most likely way these are wrong.
 func HXStompLimits() Limits {
 	return Limits{
-		MaxBlocks:   6,
-		Chips:       2,
+		// Eight blocks, and one signal path.
+		//
+		// Both figures are what the corpus shows rather than what the
+		// marketing says: across 714 HX Stomp presets the largest holds eight
+		// blocks, and not one of them has a second path. Helix Floor presets
+		// use a second path in 73% of cases, so the field is real — it just
+		// does not apply to this device.
+		MaxBlocks:   8,
+		Paths:       1,
 		ChipCeiling: 95.0,
 	}
 }

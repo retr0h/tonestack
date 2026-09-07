@@ -18,7 +18,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-package rig
+package chain
 
 import (
 	"fmt"
@@ -32,7 +32,7 @@ import (
 // declare, or whose value does not fit the declared kind or range. Parameters
 // are checked in sorted key order so the same rig always reports the same
 // failure.
-func ValidateParams(l BlockLookup, s Spec) error {
+func ValidateParams(l BlockLookup, s Chain) error {
 	for _, sb := range s.Blocks {
 		blk, ok := l.Block(sb.Model)
 		if !ok {

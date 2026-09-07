@@ -18,7 +18,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-package rig
+package chain
 
 import (
 	"fmt"
@@ -35,14 +35,14 @@ import (
 //
 // A block whose DSP cost carries an untrusted provenance is refused outright
 // rather than counted. A guessed figure cannot support a claim that a rig fits.
-func ValidateBudget(l BlockLookup, s Spec, lim Limits) error {
-	if lim.Chips <= 0 {
+func ValidateBudget(l BlockLookup, s Chain, lim Limits) error {
+	if lim.Paths <= 0 {
 		return &TopologyError{
 			Reason: "limits declare no dsp processors",
 		}
 	}
 
-	costs := make([]float64, lim.Chips)
+	costs := make([]float64, lim.Paths)
 
 	for _, sb := range s.Blocks {
 		blk, ok := l.Block(sb.Model)
@@ -50,11 +50,11 @@ func ValidateBudget(l BlockLookup, s Spec, lim Limits) error {
 			return &UnknownBlockError{Model: string(sb.Model)}
 		}
 
-		if sb.DSP < 0 || sb.DSP >= lim.Chips {
+		if sb.DSP < 0 || sb.DSP >= lim.Paths {
 			return &TopologyError{
 				Reason: fmt.Sprintf(
 					"block %q is on processor %d, device has %d",
-					sb.Model, sb.DSP, lim.Chips,
+					sb.Model, sb.DSP, lim.Paths,
 				),
 			}
 		}

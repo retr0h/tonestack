@@ -17,18 +17,11 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
+// Package gen is the shape of a signal chain, generated from the RigSpec
+// contract.
+//
+// Do not hand-edit rigspec.gen.go. Change schemas/rigspec.openapi.yaml and run
+// `just generate`.
+package gen
 
-package rig
-
-// ValidateStructure reports the first block in s whose model the catalog does
-// not hold. It is the first of the validation layers and answers only one
-// question, so a failure names one cause.
-func ValidateStructure(l BlockLookup, s Spec) error {
-	for _, b := range s.Blocks {
-		if _, ok := l.Block(b.Model); !ok {
-			return &UnknownBlockError{Model: string(b.Model)}
-		}
-	}
-
-	return nil
-}
+//go:generate go tool github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen -config cfg.yaml ../../../schemas/rigspec.openapi.yaml
