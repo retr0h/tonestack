@@ -81,8 +81,12 @@ func (s *RoundTripPublicTestSuite) TestALiftedRigRecordsTheExactModel() {
 }
 
 func (s *RoundTripPublicTestSuite) TestTheWholeCorpusSurvivesIt() {
-	if _, err := os.Stat(corpusDir); err != nil {
-		s.T().Skip("no corpus here; the committed fixtures cover the same ground")
+	// The directory itself is committed — the gitignore keeps a little
+	// metadata in it — so its presence says nothing. What matters is whether
+	// anybody has fetched the presets.
+	found := s.corpus()
+	if len(found) == 0 {
+		s.T().Skip("no corpus fetched; the committed fixtures cover the same ground")
 	}
 
 	var (
@@ -90,7 +94,7 @@ func (s *RoundTripPublicTestSuite) TestTheWholeCorpusSurvivesIt() {
 		failed                []string
 	)
 
-	for _, path := range s.corpus() {
+	for _, path := range found {
 		raw := s.read(path)
 
 		doc, err := preset.Read(bytes.NewReader(raw))
@@ -182,18 +186,20 @@ func (s *RoundTripPublicTestSuite) fixtures() []string {
 	return found
 }
 
-// corpus lists every preset in the uncommitted body of real ones.
+// corpus lists every preset in the body of real ones, which is fetched rather
+// than committed.
 func (s *RoundTripPublicTestSuite) corpus() []string {
 	var found []string
 
-	err := filepath.Walk(corpusDir, func(p string, i os.FileInfo, e error) error {
+	// Errors are ignored rather than asserted: an absent corpus is the
+	// ordinary case away from a machine that has fetched one.
+	_ = filepath.Walk(corpusDir, func(p string, i os.FileInfo, e error) error {
 		if e == nil && !i.IsDir() && strings.EqualFold(filepath.Ext(p), ".hlx") {
 			found = append(found, p)
 		}
 
 		return nil
 	})
-	s.Require().NoError(err)
 
 	return found
 }
