@@ -105,6 +105,33 @@ func (s *PresetPublicTestSuite) TestADocumentThatIsNotAMap() {
 	s.Require().ErrorIs(err, wire.ErrNotAPreset)
 }
 
+func (s *PresetPublicTestSuite) TestReadsTheCabinetAnAmplifierCarries() {
+	// switches.bin is a slot holding two amplifiers, each with a cabinet.
+	// A device stores the pair as one block.
+	raw, err := os.ReadFile(filepath.Join("testdata", "switches.bin"))
+	s.Require().NoError(err)
+
+	got, err := wire.DecodePreset(raw)
+	s.Require().NoError(err)
+
+	var paired int
+
+	for _, b := range got.Blocks {
+		if len(b.Cab) == 0 {
+			continue
+		}
+
+		paired++
+
+		// Five settings the cabinet model has names for, and a microphone
+		// after them.
+		s.Require().Equal(5, b.CabNamed)
+		s.Require().Len(b.Cab, 6)
+	}
+
+	s.Require().Equal(2, paired, "two amplifiers, two cabinets")
+}
+
 func TestPresetPublicTestSuite(t *testing.T) {
 	suite.Run(t, new(PresetPublicTestSuite))
 }

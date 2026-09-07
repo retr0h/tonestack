@@ -20,6 +20,8 @@
 
 package wire
 
+import "github.com/vmihailenco/msgpack/v5"
+
 // Exposed to the package's own tests. A MessagePack decoder hands back
 // whichever Go type fits the value it read, and these accept any of them —
 // which is only checkable by supplying each one.
@@ -28,3 +30,22 @@ var (
 	AsInt    = asInt
 	AsString = asString
 )
+
+// NewDocument returns a copy of one holding only the named sections, so a
+// preset with fewer than a device writes can be tested.
+func NewDocument(from *Document, keep []int8) *Document {
+	out := &Document{
+		magic:    from.magic,
+		table:    from.table,
+		sections: map[int8]msgpack.RawMessage{},
+	}
+
+	for _, key := range keep {
+		if body, ok := from.sections[key]; ok {
+			out.order = append(out.order, key)
+			out.sections[key] = body
+		}
+	}
+
+	return out
+}
