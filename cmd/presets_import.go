@@ -67,7 +67,11 @@ func init() {
 	)
 	f.StringVar(&presetsImportOptions.OutputPath, "out", "", "where to write the edited setlist")
 	_ = presetsImportCmd.MarkFlagRequired("preset")
-	_ = presetsImportCmd.MarkFlagRequired("preset")
 	_ = presetsImportCmd.MarkFlagRequired("slot")
+
+	// Importing edits a backup and writes a new file. Unlike copy and swap it
+	// has no device path yet, so both are required rather than required
+	// together.
+	_ = presetsImportCmd.MarkFlagRequired("file")
 	_ = presetsImportCmd.MarkFlagRequired("out")
 }

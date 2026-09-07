@@ -184,7 +184,7 @@ Or into a backup, which is better when you want a preset in a particular slot:
 
 ```bash
 tonestack presets import --file device.hlb --preset mike.hlx \
-  --slot 7 --out edited.hlb
+  --slot 07A --out edited.hlb
 # HX Edit → Restore
 ```
 
