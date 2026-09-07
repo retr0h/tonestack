@@ -135,8 +135,12 @@ where writing gives itself away as machine-generated.
 
 Every markdown change here goes through the [unslop] skill before it is
 committed, new files and edits alike. Run it while writing rather than as a
-final polish, so nobody has to unpick the patterns later. If your session does
-not have the skill, read the rules from that link and apply them by hand.
+final polish, so nobody has to unpick the patterns later.
+
+An agent invokes it as a skill rather than reading its file. In Claude Code that
+is the `Skill` tool with `unslop`. Reading `SKILL.md` and applying the rules by
+hand is the fallback for a session where that call fails, and a change made that
+way has to say so, because the diff looks the same either way.
 
 The tells are invisible from the inside, which is why this is a rule and not a
 preference. The largest one here was the em dash. There were 242, and each stood
