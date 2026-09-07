@@ -1,0 +1,33 @@
+{
+ "schema": "L6Preset",
+ "version": 6,
+ "data": {
+  "device": 2162694,
+  "device_version": 0,
+  "meta": {
+   "name": "Bass 7"
+  },
+  "tone": {
+   "dsp0": {
+    "block0": {
+     "@model": "HD2_DistMinotaur",
+     "Drive": 0.5,
+     "@position": 0,
+     "@enabled": true
+    },
+    "block1": {
+     "@model": "HD2_AmpSVBeastNrm",
+     "Drive": 0.47000000000000003,
+     "Bass": 0.5,
+     "@position": 1,
+     "@enabled": true
+    },
+    "block2": {
+     "@model": "HD2_Cab8x10SVBeast",
+     "@position": 2,
+     "@enabled": true
+    }
+   }
+  }
+ }
+}

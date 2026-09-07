@@ -1,0 +1,25 @@
+{
+ "schema": "L6Preset",
+ "version": 6,
+ "data": {
+  "device": 2162694,
+  "device_version": 0,
+  "meta": {
+   "name": "Switches"
+  },
+  "tone": {
+   "dsp0": {
+    "block0": {
+     "@model": "HD2_AmpSVBeastNrm",
+     "Drive": 0.44,
+     "Bass": 0.5,
+     "MidFreq": 1,
+     "Bright": true,
+     "Voicing": "Modern",
+     "@position": 0,
+     "@enabled": true
+    }
+   }
+  }
+ }
+}
