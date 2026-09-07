@@ -43,15 +43,17 @@ go build .
 
 ## Usage
 
-**See what your Helix holds.** Quit HX Edit first — it holds the device open.
+Plug in the Helix and quit HX Edit — it holds the device open, and nothing else
+can talk to it while it runs.
+
+**See what the device holds.** This reads the hardware:
 
 ```bash
 tonestack presets list
-tonestack presets list --file device.hlb    # or a backup, instead of hardware
 ```
 
-**Make a preset.** Gear is named the way you say it — "Ampeg SVT", never a model
-identifier.
+**Build a preset.** Gear is named the way you say it — "Ampeg SVT", never a
+model identifier:
 
 ```bash
 tonestack catalog list --search ampeg --subcategory bass    # is it modelled?
@@ -63,25 +65,37 @@ tonestack recipes new \
 tonestack presets make --id mike-dirnt --out mike.hlx
 ```
 
-Then `HX Edit → Import` and play it.
+Then `HX Edit → Import`, and play it.
 
-**Pull a preset back out**, as a rig you can read and edit:
+**Or just ask.** The commands above are what an agent runs on your behalf; the
+part worth doing yourself is listening:
 
-```bash
-tonestack presets export  --file device.hlb --slot 3 --out lead.yaml
-tonestack presets compile --rig lead.yaml --out lead.hlx
-```
+> What's on my Helix?
 
-**Iterate with Claude.** The scaffold has the gear; it does not know how the rig
-should sound, and nothing here can hear. That part is a conversation:
-
-> Fill in `character` and `technique` for `recipes/artists/mike-dirnt.yaml`.
+> Build me a Mike Dirnt bass tone.
 
 > Too clunky. Loosen the low end and put the drive back.
 
 Claude edits the rig, rebuilds it, and records what you asked for and what you
 thought of it. That log is the only record of a human ear in the system —
 [docs/workflows.md](docs/workflows.md) is the full loop.
+
+### What is not live yet
+
+`presets list` is the only command that reads the hardware. Looking inside a
+preset, or moving one between slots, still goes through a backup HX Edit wrote —
+a `.hlb` of the whole device, or a `.hls` of one setlist — passed with `--file`:
+
+```bash
+tonestack presets show   --file device.hlb --slot 3
+tonestack presets export --file device.hlb --slot 3 --out slot3.yaml
+tonestack presets copy   --file device.hlb --from 1 --to 2 --out edited.hlb
+```
+
+That detour exists because reading and writing a preset over USB is not
+implemented — not because a file is a good way to work.
+[docs/protocol.md](docs/protocol.md) states exactly what the device answers
+today and what is still unknown. `--file` goes away as those land.
 
 ## Documentation
 

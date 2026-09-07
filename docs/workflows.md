@@ -110,20 +110,27 @@ It is read-only: it asks the device to describe a setlist and nothing more.
 Nothing is selected, loaded or written. [protocol.md](protocol.md) covers how,
 and carries the rules that keep a device alive if you are working on that code.
 
-To read a backup instead of the hardware:
+`presets list` is the only command that reads the hardware. Everything below
+that looks inside a preset, or moves one between slots, needs a backup HX Edit
+wrote — a `.hlb` of the whole device, or a `.hls` of one setlist — because
+reading and writing a preset over USB is not implemented:
 
 ```bash
 tonestack presets list --file device.hlb
 tonestack presets show --file device.hlb --slot 3
 ```
 
+[protocol.md](protocol.md) states what the device answers today and what is
+still unknown. `--file` goes away as those land.
+
 ## Move a rig between formats
 
-RigSpec is what this project speaks, so it is what `export` writes:
+RigSpec is what this project speaks, so it is what `export` writes. Reading a
+slot still means reading a backup rather than the device:
 
 ```bash
-tonestack presets export --file device.hlb --slot 3 --out lead.yaml
-tonestack presets compile --rig lead.yaml --out lead.hlx
+tonestack presets export --file device.hlb --slot 3 --out slot3.yaml
+tonestack presets compile --rig slot3.yaml --out slot3.hlx
 ```
 
 Out and back. A preset read into a rig and compiled again is the preset it came
@@ -132,11 +139,13 @@ rather than a claim.
 
 Two things make that work, and both matter if you hand-edit a rig in between.
 
-A lifted rig records `models: { HX Stomp: HD2_... }` — the exact model each
-piece of gear resolved to. **665 models share only 469 names**, and "Ampeg SVT"
-matches both channels, so a rig carrying the name alone would rebuild into a
-different preset. Delete that line and compiling falls back to resolving the
-name, which is right for a rig you wrote and wrong for one you lifted.
+`slot3.yaml` is a rig — the same format `recipes new` writes, and the same one
+`presets make` reads. A lifted rig records `models: { HX Stomp: HD2_... }` — the
+exact model each piece of gear resolved to. **665 models share only 469 names**,
+and "Ampeg SVT" matches both channels, so a rig carrying the name alone would
+rebuild into a different preset. Delete that line and compiling falls back to
+resolving the name, which is right for a rig you wrote and wrong for one you
+lifted.
 
 Compiling writes the chain into an untouched preset the device itself wrote, so
 the result carries the inputs, outputs, split and join a device expects. 98.6%
