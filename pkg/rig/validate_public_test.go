@@ -25,82 +25,140 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
-	"github.com/retr0h/tonestack/pkg/catalog"
 	"github.com/retr0h/tonestack/pkg/rig"
+	"github.com/retr0h/tonestack/pkg/rig/gen"
 )
 
 type ValidatePublicTestSuite struct {
 	suite.Suite
 }
 
-func (*ValidatePublicTestSuite) limits() rig.Limits {
-	return rig.Limits{MaxBlocks: 6, Chips: 2, ChipCeiling: 95.0}
+// good returns the smallest rig the schema accepts.
+func (s *ValidatePublicTestSuite) good() gen.RigSpec {
+	return gen.RigSpec{
+		Schema:     gen.RigSpecSchemaRigSpec,
+		ID:         "mike-dirnt",
+		Subject:    gen.Subject{Kind: gen.KindArtist, Name: "Mike Dirnt"},
+		Instrument: gen.InstrumentBass,
+		Chain:      []gen.ChainEntry{{Role: gen.RoleAmp, Gear: "Ampeg SVT"}},
+	}
 }
 
-func (s *ValidatePublicTestSuite) TestAcceptsAValidRig() {
-	spec := rig.Spec{
-		Name:   "Fine",
-		Origin: rig.OriginCurated,
-		Blocks: []rig.SpecBlock{{
-			Model:   "HD2_AmpTest",
-			Params:  map[string]catalog.ParamValue{"Gain": catalog.Float(0.5)},
-			DSP:     0,
-			Pos:     0,
-			Enabled: true,
-		}},
+func (s *ValidatePublicTestSuite) TestTheSmallestUsefulRigIsValid() {
+	s.Require().NoError(rig.Validate(s.good()))
+}
+
+func (s *ValidatePublicTestSuite) TestRejects() {
+	settings := func(v float64) *gen.Settings {
+		out := gen.Settings{"drive": v}
+
+		return &out
+	}
+	confidence := func(c gen.Confidence) *gen.Confidence { return &c }
+
+	tests := []struct {
+		name   string
+		mutate func(*gen.RigSpec)
+		field  string
+	}{
+		{
+			"a document that is not a rig",
+			func(r *gen.RigSpec) { r.Schema = "L6Preset" },
+			"schema",
+		},
+		{
+			"an identifier with spaces",
+			func(r *gen.RigSpec) { r.ID = "Mike Dirnt" },
+			"id",
+		},
+		{
+			"an identifier that is empty",
+			func(r *gen.RigSpec) { r.ID = "" },
+			"id",
+		},
+		{
+			"a subject of no known kind",
+			func(r *gen.RigSpec) { r.Subject.Kind = "robot" },
+			"subject.kind",
+		},
+		{
+			"a subject nobody named",
+			func(r *gen.RigSpec) { r.Subject.Name = "  " },
+			"subject.name",
+		},
+		{
+			"an instrument the catalog cannot be filtered by",
+			func(r *gen.RigSpec) { r.Instrument = "theremin" },
+			"instrument",
+		},
+		{
+			"a chain holding nothing",
+			func(r *gen.RigSpec) { r.Chain = nil },
+			"chain",
+		},
+		{
+			"gear doing nothing in particular",
+			func(r *gen.RigSpec) { r.Chain[0].Role = "vibe" },
+			"chain[0].role",
+		},
+		{
+			"gear with no name",
+			func(r *gen.RigSpec) { r.Chain[0].Gear = "" },
+			"chain[0].gear",
+		},
+		{
+			"a setting above one",
+			func(r *gen.RigSpec) { r.Chain[0].Settings = settings(1.5) },
+			"chain[0].settings.drive",
+		},
+		{
+			"a setting below nought",
+			func(r *gen.RigSpec) { r.Chain[0].Settings = settings(-0.1) },
+			"chain[0].settings.drive",
+		},
+		{
+			"a confidence nobody can act on",
+			func(r *gen.RigSpec) { r.Chain[0].Confidence = confidence("certain") },
+			"chain[0].confidence",
+		},
+		{
+			"evidence of no known kind",
+			func(r *gen.RigSpec) {
+				r.Chain[0].Evidence = &[]gen.Evidence{{Kind: "vibes"}}
+			},
+			"chain[0].evidence[0].kind",
+		},
+		{
+			"a correction that records no request",
+			func(r *gen.RigSpec) {
+				r.Mutations = &[]gen.Mutation{{Ask: "  "}}
+			},
+			"mutations[0].ask",
+		},
 	}
 
-	s.Require().NoError(rig.Validate(newCatalog(testAmp()), spec, s.limits()))
-}
+	for _, tc := range tests {
+		s.Run(tc.name, func() {
+			got := s.good()
+			tc.mutate(&got)
 
-func (s *ValidatePublicTestSuite) TestReportsStructureBeforeParams() {
-	spec := rig.Spec{Blocks: []rig.SpecBlock{{
-		Model:  "HD2_Nope",
-		Params: map[string]catalog.ParamValue{"Whatever": catalog.Float(99)},
-		Pos:    0,
-	}}}
+			err := rig.Validate(got)
 
-	s.Require().ErrorIs(
-		rig.Validate(newCatalog(testAmp()), spec, s.limits()),
-		rig.ErrUnknownBlock,
-	)
-}
-
-func (s *ValidatePublicTestSuite) TestReportsParamsBeforeTopology() {
-	spec := rig.Spec{Blocks: []rig.SpecBlock{{
-		Model:  "HD2_AmpTest",
-		Params: map[string]catalog.ParamValue{"Gain": catalog.Float(99)},
-		Pos:    3,
-	}}}
-
-	s.Require().ErrorIs(
-		rig.Validate(newCatalog(testAmp()), spec, s.limits()),
-		catalog.ErrBadParam,
-	)
-}
-
-func (s *ValidatePublicTestSuite) TestReportsTopologyBeforeBudget() {
-	blocks := make([]rig.SpecBlock, 7)
-	for i := range blocks {
-		blocks[i] = rig.SpecBlock{Model: "HD2_AmpTest", DSP: 0, Pos: i}
+			s.Require().ErrorIs(err, rig.ErrInvalid)
+			s.Require().Contains(err.Error(), tc.field)
+		})
 	}
-
-	s.Require().ErrorIs(
-		rig.Validate(newCatalog(testAmp()), rig.Spec{Blocks: blocks}, s.limits()),
-		rig.ErrBadTopology,
-	)
 }
 
-func (s *ValidatePublicTestSuite) TestReportsBudgetLast() {
-	blocks := make([]rig.SpecBlock, 4)
-	for i := range blocks {
-		blocks[i] = rig.SpecBlock{Model: "HD2_AmpTest", DSP: 0, Pos: i}
-	}
+func (s *ValidatePublicTestSuite) TestAcceptsEverythingOptional() {
+	// Absent is not invalid. A hand-written rig carries almost none of this.
+	got := s.good()
+	settings := gen.Settings{"drive": 0, "treble": 1}
+	got.Chain[0].Settings = &settings
+	got.Chain[0].Evidence = &[]gen.Evidence{{Kind: gen.EvidenceCited}}
+	got.Mutations = &[]gen.Mutation{{Ask: "make it clunkier"}}
 
-	s.Require().ErrorIs(
-		rig.Validate(newCatalog(testAmp()), rig.Spec{Blocks: blocks}, s.limits()),
-		rig.ErrOverBudget,
-	)
+	s.Require().NoError(rig.Validate(got))
 }
 
 func TestValidatePublicTestSuite(t *testing.T) {

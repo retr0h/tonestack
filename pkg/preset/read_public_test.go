@@ -28,8 +28,8 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/retr0h/tonestack/pkg/catalog"
+	"github.com/retr0h/tonestack/pkg/chain"
 	"github.com/retr0h/tonestack/pkg/preset"
-	"github.com/retr0h/tonestack/pkg/rig"
 )
 
 type ReadPublicTestSuite struct {
@@ -184,9 +184,9 @@ func (s *ReadPublicTestSuite) TestRoundTripKeepsRoutingAndSnapshots() {
 func (s *ReadPublicTestSuite) TestSetSpecReplacesTheChain() {
 	d := s.doc()
 
-	s.Require().NoError(d.SetSpec(rig.Spec{
+	s.Require().NoError(d.SetSpec(chain.Chain{
 		Name: "Replaced",
-		Blocks: []rig.SpecBlock{{
+		Blocks: []chain.Block{{
 			Model:   "HD2_AmpBrit2204",
 			Params:  map[string]catalog.ParamValue{"Drive": catalog.Float(0.25)},
 			DSP:     0,
@@ -213,9 +213,9 @@ func (s *ReadPublicTestSuite) TestSetSpecReplacesTheChain() {
 }
 
 func (s *ReadPublicTestSuite) TestNewBuildsAPresetFromNothing() {
-	d, err := preset.New(2162694, rig.Spec{
+	d, err := preset.New(2162694, chain.Chain{
 		Name: "From Scratch",
-		Blocks: []rig.SpecBlock{{
+		Blocks: []chain.Block{{
 			Model:   "HD2_AmpSVBeastNrm",
 			Params:  map[string]catalog.ParamValue{"Drive": catalog.Float(0.53)},
 			Pos:     0,
@@ -238,8 +238,8 @@ func (s *ReadPublicTestSuite) TestNewBuildsAPresetFromNothing() {
 }
 
 func (s *ReadPublicTestSuite) TestEncodingRefusesAParameterNamedLikeAnAttribute() {
-	_, err := preset.New(2162694, rig.Spec{
-		Blocks: []rig.SpecBlock{{
+	_, err := preset.New(2162694, chain.Chain{
+		Blocks: []chain.Block{{
 			Model:  "HD2_AmpSVBeastNrm",
 			Params: map[string]catalog.ParamValue{"@model": catalog.Enum("nope")},
 		}},

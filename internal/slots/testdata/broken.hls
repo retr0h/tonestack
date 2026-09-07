@@ -1,0 +1,19 @@
+{
+  "schema": "L6Setlist",
+  "version": 2,
+  "meta": {
+    "application": "tonestack",
+    "appversion": 1,
+    "device": 2162694,
+    "device_version": 0,
+    "modifieddate": 0,
+    "name": "Broken"
+  },
+  "encoding": "Base64",
+  "compression": {
+    "type": "zlib",
+    "crc32": 2289076880,
+    "decompressed_size": 204
+  },
+  "encoded_data": "eJxljT0LwjAQhv/LzRlqkIKZYnFwcimIIFLS5sDQfJFLu5T+d1NRF29637uH5xZwmBWIBbxyCAKaFEb0sDKICQkzgbgvoHE2QznzXc3rw559Ft2MiUzwICr2E/WTsbqjZykA7N+bg8eN0xRvb96GYay2JF3QaAt8PvHu6GJ7bVBRviRXPDIGMvn7TKJXvUUNIqcJ1zKP9QV8YUMg"
+}

@@ -1,0 +1,19 @@
+{
+  "schema": "L6PresetBundle",
+  "version": 1,
+  "meta": {
+    "application": "tonestack",
+    "appversion": 1,
+    "device": 2162694,
+    "device_version": 0,
+    "modifieddate": 0,
+    "name": "Test Backup"
+  },
+  "encoding": "Base64",
+  "compression": {
+    "type": "zlib",
+    "crc32": 3930435128,
+    "decompressed_size": 1004
+  },
+  "encoded_data": "eJy1k8FPgzAUxv8V8s49ADGLckK3OD2IJqgXs5BC37RZaUlbNg3hf7eDbZFF42Gsp7b5+nvf+9LXgEEruLEGorcGSrQUogYkLREieEZjvbQXQEug0ujkvZThmhdOFAaTcHJ1QXYX2Rq14UpC5JMDLq+5YJn5cAcAsqffct1jrZK4lTFT+Z1cqGLV7WKUNBfIILK6RgJxqRgK9/ZuFmbXZZW+3iA1NtGlw8aVMtz2tR21owRDypIKc4yZueYeuFSW1npICfaU8F8vU5pffgb+zs8QE7ZukTESS7FQkp0Q2d+9+qOZTHDjPXUf5YfRkdgvciXVRnpzpPqEGBJl7+WUWirU+y8xLLZmj0ahj/58w/Aoxde5ZqFradF+AyFkSUA="
+}

@@ -1,0 +1,34 @@
+{
+  "schema": "L6Preset",
+  "version": 6,
+  "meta": {
+    "original": 0,
+    "pbn": 0,
+    "premium": 0
+  },
+  "data": {
+    "device": 2162694,
+    "device_version": 57737216,
+    "meta": {
+      "name": "Uses An IR",
+      "application": "HX Edit"
+    },
+    "tone": {
+      "dsp0": {
+        "block0": {
+          "@model": "HD2_AmpSVBeastNrm",
+          "@position": 0,
+          "@enabled": true,
+          "Drive": 0.5
+        },
+        "block1": {
+          "@model": "HD2_ImpulseResponse1024",
+          "@position": 1,
+          "@enabled": true,
+          "Index": 82,
+          "Level": -11.97
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,10 @@
+id: minimal
+kind: genre
+name: Minimal
+instrument_type: guitar
+aliases: [spare, bare]
+rig:
+  amp: Fender Twin Reverb
+provenance:
+  source: curated
+  confidence: high

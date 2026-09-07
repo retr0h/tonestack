@@ -1,0 +1,175 @@
+# A worked RigSpec, showing every part of the format on one subject.
+#
+# Most rigs are a tenth of this. Everything below `chain` is optional, and a
+# hand-written rig usually has a subject, an instrument and three or four
+# pieces of gear. This one is filled in to show what each part is for.
+#
+# Validate with:  tonestack recipes show --id mike-dirnt
+# Build from it:  tonestack presets make --id mike-dirnt --out mike.hlx
+
+schema: RigSpec
+version: 2
+id: mike-dirnt
+
+# Who this belongs to. `kind` also takes song, genre, band or sound, so a rig
+# does not have to be attributed to a person.
+subject:
+  kind: artist
+  name: Mike Dirnt
+  band: Green Day
+  # A player's rig changes. Saying when this one applies is more honest than
+  # implying it is timeless.
+  era: Dookie through American Idiot
+
+instrument: bass
+default: true
+
+# The signal path, in order. Order is not decoration: a compressor ahead of
+# the amp squeezes what the amp is fed, one after it levels what comes out.
+chain:
+  - role: comp
+    gear: Teletronix LA-2A
+    settings:
+      level: 0.5
+    # Nobody has confirmed Dirnt uses this specific compressor. It is here
+    # because 88% of bass chains in the corpus have one, so the honest
+    # confidence is low and the evidence says so.
+    evidence:
+      - kind: corpus
+        note: 88% of 158 measured bass chains hold a compressor
+    confidence: low
+
+  - role: amp
+    # Written by hand this would just be "Ampeg SVT". The fuller name and the
+    # models map below are what a rig lifted off a device carries, and they
+    # are here to show what that looks like: "Ampeg SVT" matches both
+    # channels, and 665 models share only 469 names, so a rig carrying the
+    # name alone rebuilds into a different preset.
+    gear: Ampeg SVT® (bright channel)
+    models:
+      HX Stomp: HD2_AmpSVBeastBrt
+    settings:
+      drive: 0.47
+      bass: 0.52
+      mid: 0.71
+      treble: 0.85
+    evidence:
+      # A citation is the strongest evidence: somebody asked him.
+      - kind: cited
+        url: https://www.bassplayer.com/artists/mike-dirnt-green-day
+        note: names the SVT as his live amplifier
+      # A video does not prove settings, but it does show the rig.
+      - kind: video
+        url: https://www.youtube.com/watch?v=EXAMPLE
+        at: "1:42"
+        note: SVT stack visible behind him
+        caveat: live footage — the room and the PA are in what you hear
+      # Audio evidence carries measurements rather than conclusions. These
+      # compare against the same measurement taken from a generated preset;
+      # they are not knob positions, because a record is not an amplifier.
+      - kind: audio
+        url: https://www.youtube.com/watch?v=EXAMPLE2
+        at: "1:20-1:45"
+        note: isolated bass stem, separated with htdemucs
+        caveat: >-
+          measuring a record measures the bass, the player, the amp, the mic,
+          the desk and the master — treat as a direction, not a value
+        measured:
+          mid_ratio: 0.61
+          spectral_tilt: -3.2
+          crest_factor: 8.4
+      # Where a number came from the corpus rather than from him.
+      - kind: corpus
+        note: >-
+          treble 0.85 is the median across 28 measured uses of this amp; Line
+          6 state 0.68 as the default, which is measurably not what players use
+    confidence: high
+
+  - role: cab
+    gear: Ampeg 8x10
+    evidence:
+      - kind: cited
+        url: https://www.bassplayer.com/artists/mike-dirnt-green-day
+    confidence: high
+
+# How it should sound, in the words a person would use. Describe the result,
+# not the control — "raise the mids" is an instruction, "mid-forward" is a
+# description, and only the second survives being read on other hardware.
+character:
+  - mid-forward, not scooped
+  - minimal drive, grit only on hard attack
+  - tight low end, short decay
+  - pick attack audible
+
+technique: pick, near the bridge
+
+# Anything a device does not ship with. Only what a catalog cannot already
+# see belongs here: whether a model exists on your device tier, or needs newer
+# firmware, is known from the catalog itself.
+#
+# An impulse response is the case nothing can know. A preset stores the slot
+# number, never the audio, so this rig sounds like somebody else's unless the
+# same IR is loaded in the same slot.
+requires:
+  - kind: ir
+    name: Ownhammer SVT 8x10
+    slot: 82
+    url: https://ownhammer.com/EXAMPLE
+
+# Device parameters under their own names, as distinct from the musical
+# settings above. A rig written by hand has none of these; one lifted from a
+# preset has all of them, and stating them means exactly those — no catalog
+# defaults are added on top.
+#
+# They are here rather than dropped for portability because somebody dialling
+# Sag by ear produces the one kind of knowledge nothing else can.
+#
+#   params:
+#     Sag: 0.5
+#     BiasX: 0.5
+
+# Where these numbers were arrived at. Advisory, never a restriction — a
+# Helix Floor owner can still use this, they just know the tuning was not done
+# for them and should re-tune rather than trust.
+target:
+  device: HX Stomp
+  catalog: HX Edit 3.82
+  # How the person using this rig plays, where it differs from the rig's own
+  # technique above. A pick puts high-frequency attack into every note that
+  # fingers do not, so a rig tuned from picked playing reads duller under
+  # fingers — and the compensation belongs in the amp and the compressor.
+  technique: fingerstyle
+
+# What was asked for, what changed, and what it sounded like.
+#
+# This is the only place in the whole system a human ear is written down.
+# Everything else is a measurement or an assertion. A verdict cannot be
+# recovered later if it is not captured when it happens, which is why the
+# field exists before there is much to put in it.
+#
+# Append-only, and never replayed: `chain` above always holds the current
+# state. An entry with no verdict has not been listened to yet.
+mutations:
+  - at: "2026-09-06"
+    ask: make it clunkier
+    changed:
+      - path: chain[1].settings.drive
+        from: 0.47
+        to: 0.58
+    # Why the ask was read this way, cited. If the reading was wrong, this is
+    # the line that shows it — rather than only that the value was wrong.
+    reason: >-
+      Line 6 document Sag as "lower values offer tighter responsiveness…
+      higher values provide more touch dynamics & sustain", and Bias X as "set
+      low for a tighter feel". Read "clunky" as a looser power-amp feel rather
+      than more gain, so the drive moved and the feel followed it.
+    verdict: closer, but muddy now — keep the feel, put the drive back
+
+  - at: "2026-09-06"
+    ask: put the drive back
+    changed:
+      - path: chain[1].settings.drive
+        from: 0.58
+        to: 0.47
+    reason: reverting the previous round on the player's judgement
+    # No verdict yet. That is state, not a gap: nobody has heard it.

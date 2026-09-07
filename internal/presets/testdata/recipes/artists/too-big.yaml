@@ -1,0 +1,10 @@
+id: too-big
+kind: artist
+name: Too Big
+instrument_type: bass
+rig:
+  amp: Ampeg SVT
+  pedals: [Heavy Thing, Heavy Thing, Heavy Thing, Heavy Thing, Heavy Thing, Heavy Thing, Heavy Thing]
+provenance:
+  source: llm
+  confidence: low

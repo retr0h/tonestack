@@ -1,0 +1,19 @@
+{
+  "schema": "L6Setlist",
+  "version": 2,
+  "meta": {
+    "application": "tonestack",
+    "appversion": 1,
+    "device": 2162694,
+    "device_version": 0,
+    "modifieddate": 0,
+    "name": "Test Setlist"
+  },
+  "encoding": "Base64",
+  "compression": {
+    "type": "zlib",
+    "crc32": 374864515,
+    "decompressed_size": 778
+  },
+  "encoded_data": "eJytkk1LxDAQhv9KmXMObZFFe6ru4sfBIlS9iJS0GTVsPkoy3RVK/7uxuytWFA/bnDLhnWfeeUkPGolD1oPhGiGDe/QUlUhKeoKBQevQI3nInnoQuJFNEKXJIl2cnbD9Q7VB56U1kMXsC1d3UonKv4UCgB3ol9LtsGQNfsqEb+NRrmyzHm85Gl4rFJCR65BBrq1AFXqvV2l1rtvy8QK5p8LpgM1b6yXtZgfqSEmmlBeu/E/MKix3K40l3rkpJTlQ0n+9LHl9+p7Eez9TTDqEw+ZIrMTGGnFEZH/vGs9mssBtdDd+lG9GZ2I/mLWxWxNdIXdHxFBYujFLTlzZ119ieB4+ANwB/iE="
+}

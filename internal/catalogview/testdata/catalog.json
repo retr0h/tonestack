@@ -1,0 +1,53 @@
+{
+  "device": "HX Stomp",
+  "device_id": 2162694,
+  "schema_version": 6,
+  "blocks": {
+    "HD2_AmpTestBass": {
+      "id": "HD2_AmpTestBass",
+      "name": "Test Bass Amp",
+      "category": "amp",
+      "subcategory": "Bass",
+      "based_on": "Ampeg SVT (normal channel)",
+      "stereo": false,
+      "dsp": {
+        "mono": 26.67,
+        "stereo": 40.1,
+        "prov": "official"
+      },
+      "prov": "official",
+      "params": {
+        "Drive": {
+          "key": "Drive",
+          "name": "Drive",
+          "type": "float",
+          "min": 0.0,
+          "max": 1.0,
+          "default": 0.53,
+          "prov": "official"
+        },
+        "Bright": {
+          "key": "Bright",
+          "name": "Bright",
+          "type": "bool",
+          "default": true,
+          "prov": "official"
+        }
+      }
+    },
+    "HD2_DriveTest": {
+      "id": "HD2_DriveTest",
+      "name": "Test Drive",
+      "category": "drive",
+      "subcategory": "Mono, Stereo",
+      "based_on": "Klon Centaur",
+      "stereo": false,
+      "dsp": {
+        "mono": 8.55,
+        "prov": "official"
+      },
+      "prov": "official",
+      "params": {}
+    }
+  }
+}

@@ -1,0 +1,478 @@
+openapi: 3.0.3
+info:
+  title: RigSpec
+  version: "2.0.0"
+  description: >
+    A rig: what somebody plays, described in gear a person would recognise
+    rather than in any device's model identifiers.
+
+
+    This is the project's only hand-authored format. A RigSpec is what a
+    person writes, what a model generates, what gets shared, and what a preset
+    read off a device lifts back to. Everything else — the chain of model
+    identifiers, the .hlx file — is compiled from one and is not a format
+    anybody authors.
+
+
+    Version 2 merges the former Recipe and RigSpec schemas. They were two
+    documents with their names the wrong way round: Recipe held the
+    abstraction and RigSpec held compiler output. See
+    docs/superpowers/specs/2026-09-06-rigspec-as-the-one-model-design.md.
+
+
+    This document is the source for the Go types in pkg/rig/gen. Do not
+    hand-edit those; change this and run `just generate`.
+
+paths: {}
+
+components:
+  schemas:
+    Kind:
+      type: string
+      description: >
+        What a rig is attributed to. Artist is the common case, but a rig can
+        belong to a song, a genre, or to nothing at all.
+      enum: [artist, band, song, genre, sound]
+      x-enum-varnames: [KindArtist, KindBand, KindSong, KindGenre, KindSound]
+
+    Instrument:
+      type: string
+      description: >
+        Selects which half of a device's catalog is eligible. Line 6 tags
+        every amp and cabinet Guitar or Bass; everything else serves either.
+      enum: [guitar, bass]
+      x-enum-varnames: [InstrumentGuitar, InstrumentBass]
+
+    Role:
+      type: string
+      description: >
+        What a piece of gear does in a chain. The same vocabulary the catalog
+        groups blocks by, so a role resolves without translation.
+
+
+        `utility` is plumbing — volume, gain, a send, a looper. Nobody chooses
+        one for how it sounds, and a chain still contains them, so a rig that
+        could not name one could not describe a real preset.
+      enum:
+        [
+          amp,
+          cab,
+          drive,
+          comp,
+          gate,
+          eq,
+          mod,
+          delay,
+          reverb,
+          wah,
+          pitch,
+          filter,
+          utility,
+          other,
+        ]
+      x-enum-varnames:
+        [
+          RoleAmp,
+          RoleCab,
+          RoleDrive,
+          RoleComp,
+          RoleGate,
+          RoleEQ,
+          RoleMod,
+          RoleDelay,
+          RoleReverb,
+          RoleWah,
+          RolePitch,
+          RoleFilter,
+          RoleUtility,
+          RoleOther,
+        ]
+
+    EvidenceKind:
+      type: string
+      description: >
+        How something came to be believed. Open by design: a new way of
+        learning is a new value here, not a new document.
+
+
+        `llm` means a model asserted it and nobody checked — reliable for
+        well-known players, unreliable for obscure ones, and the model cannot
+        always tell which it is doing.
+      enum: [llm, cited, video, audio, corpus, measured, user]
+      x-enum-varnames:
+        [
+          EvidenceLLM,
+          EvidenceCited,
+          EvidenceVideo,
+          EvidenceAudio,
+          EvidenceCorpus,
+          EvidenceMeasured,
+          EvidenceUser,
+        ]
+
+    Confidence:
+      type: string
+      description: >
+        How far a claim should be trusted. Set by a person, not derived. A
+        claim asserting high confidence with no evidence behind it is worth
+        showing as unverified whatever it says about itself.
+      enum: [low, medium, high]
+      x-enum-varnames: [ConfidenceLow, ConfidenceMedium, ConfidenceHigh]
+
+    Subject:
+      type: object
+      description: >
+        Who or what this rig belongs to.
+
+
+        A field rather than the document's shape, because people ask for a
+        player, a song, a genre and a bare description in the same breath, and
+        making one of them primary makes the rest second-class.
+      required: [kind, name]
+      properties:
+        kind:
+          $ref: "#/components/schemas/Kind"
+        name:
+          type: string
+          minLength: 1
+        band:
+          type: string
+          description: The group, where the subject is a person.
+        era:
+          type: string
+          description: >
+            When this rig applies — "1994", "American Idiot". A player's rig
+            changes; a rig that does not say when it applies claims to be
+            timeless and usually is not.
+
+    Evidence:
+      type: object
+      description: >
+        Why one claim is believed. Attached per claim rather than per
+        document, because the amp may come from an interview and the drive
+        figure from measuring a corpus.
+
+
+        A URL does not make a claim true. It makes it checkable, which is what
+        lets somebody correct one line instead of re-deriving a rig.
+      required: [kind]
+      properties:
+        kind:
+          $ref: "#/components/schemas/EvidenceKind"
+        url:
+          type: string
+          x-go-name: URL
+        at:
+          type: string
+          description: >
+            Where in the source — a timestamp such as "1:42", or a range.
+        note:
+          type: string
+        caveat:
+          type: string
+          description: >
+            What the source does not show. Live footage carries the room and
+            the PA; a studio track carries the mix.
+        measured:
+          type: object
+          additionalProperties: { type: number, format: double }
+          description: >
+            Figures taken from audio, keyed by feature. Measuring a record
+            measures the record — the bass, the player, the amp, the mic, the
+            desk and the master — so these compare against another measurement
+            rather than name a knob position.
+
+    Settings:
+      type: object
+      additionalProperties:
+        type: number
+        format: double
+        minimum: 0
+        maximum: 1
+      description: >
+        How the gear is set, in musical terms, from 0 to 1.
+
+
+        Deliberately small and deliberately lossy. `drive`, `bass`, `mid`,
+        `treble`, `presence`, `level`, `mix`, `feel` mean roughly the same
+        thing on any amplifier; `Sag`, `Bias X` and `Ripple` are one
+        manufacturer's controls and belong to the compiler, which sets them
+        from catalog defaults, corpus medians and the manual's own directional
+        guidance.
+
+
+        A rig that carried device parameters would not survive being read on
+        different hardware, which is the whole point of the format.
+
+    ChainEntry:
+      type: object
+      description: >
+        One piece of gear, in signal order.
+
+
+        Order is the signal path. It is not decoration: drive ahead of an amp
+        overdrives its input, drive after it does something else entirely.
+      required: [role, gear]
+      properties:
+        role:
+          $ref: "#/components/schemas/Role"
+        gear:
+          type: string
+          minLength: 1
+          description: >
+            Real-world gear, as a person would say it — "Ampeg SVT", "Klon
+            Centaur". Never a device model identifier: those are one
+            manufacturer's internal names, they change, and they do not
+            survive being read on other hardware.
+        settings:
+          $ref: "#/components/schemas/Settings"
+        models:
+          type: object
+          additionalProperties: { type: string }
+          description: >
+            The exact model this resolved to, keyed by device.
+
+
+            Gear names do not identify a model on their own: 665 models share
+            469 names, and "Ampeg SVT" matches both channels. A rig lifted
+            from a preset records what was actually there so it rebuilds
+            exactly; one written by hand carries none, and the gear name is
+            resolved against the catalog instead.
+
+
+            Reading a rig on a device it has no entry for falls back to the
+            name, which is the portable behaviour and the reason the name is
+            still required.
+        params:
+          type: object
+          additionalProperties: true
+          description: >
+            Device parameters by their own name — Sag, Bias X, Ripple.
+
+
+            Values are numbers, booleans or enumerated strings, because a
+            device mixes all three within one block and a switch is not a
+            number. Narrowing them to numbers turns every switch off.
+
+
+            Distinct from settings, which is the small musical vocabulary that
+            means something on any amplifier. These mean something on one, and
+            they are here because somebody dialling Sag by ear is producing the
+            one kind of knowledge nothing else can produce. Dropping it to stay
+            portable would throw away exactly what is worth keeping.
+        evidence:
+          type: array
+          items: { $ref: "#/components/schemas/Evidence" }
+        confidence:
+          $ref: "#/components/schemas/Confidence"
+        position:
+          type: integer
+          description: >
+            Where the block sits on its path, when that is not simply its
+            order in the chain.
+
+
+            A device lays blocks out on a fixed grid and a preset may leave
+            gaps in it, so position carries information the array order does
+            not. A rig written by hand omits this and is laid out in order.
+        path:
+          type: integer
+          description: >
+            Which signal path the block is on, for devices that have more
+            than one. Omitted means the first, which is the only one an HX
+            Stomp has.
+        enabled:
+          type: boolean
+          default: true
+          description: >
+            Whether the gear is switched on. A bypassed pedal is still part of
+            a rig and still costs a device something to carry.
+
+    Requirement:
+      type: object
+      description: >
+        Something a rig needs that a device does not ship with.
+
+
+        Only what a catalog cannot see belongs here. Whether a model exists on
+        a device tier, or needs newer firmware, is already known — the catalog
+        carries the supported device list and the release it came from. What
+        nothing can know is a third-party impulse response or purchased
+        content, so those are declared.
+      required: [kind, name]
+      properties:
+        kind:
+          type: string
+          enum: [ir, model]
+          description: >
+            `ir` is an impulse response the owner loaded themselves. `model`
+            is content that did not ship with the device.
+        name:
+          type: string
+          minLength: 1
+        slot:
+          type: integer
+          description: >
+            Where the author had it loaded. A preset references the slot, not
+            the audio, so the same rig sounds different to anybody whose slot
+            holds something else.
+        url:
+          type: string
+          x-go-name: URL
+
+    Target:
+      type: object
+      description: >
+        Where the settings in this rig were arrived at.
+
+
+        Advisory, never a restriction. A rig pinned to one device could not be
+        used on another, which would cost the portability the format exists
+        for. This says "these numbers were tuned here", so somebody on other
+        hardware knows to re-tune rather than trust.
+      properties:
+        device:
+          type: string
+          description: Human-readable device name, such as "HX Stomp".
+        catalog:
+          type: string
+          description: >
+            The release the catalog came from, such as "HX Edit 3.82".
+        technique:
+          type: string
+          description: >
+            How the person using this rig plays, where it differs from the
+            rig's own technique.
+
+
+            The distinction is not pedantry. A pick puts high-frequency
+            attack into every note that fingers do not, so a rig tuned from a
+            picked recording sounds duller played fingered — and the fix is in
+            the amp and the compressor, not in the player. Recording both
+            lets the difference be compensated rather than discovered.
+
+    Change:
+      type: object
+      description: One field a mutation moved.
+      required: [path]
+      properties:
+        path:
+          type: string
+          description: >
+            What moved, as a path into this document —
+            "chain[1].settings.drive".
+        from: {}
+        to: {}
+
+    Mutation:
+      type: object
+      description: >
+        One round of correction, and what a person made of the result.
+
+
+        This is the only place a human ear's judgement is written down.
+        Nothing in this system can hear; every other input is a measurement or
+        an assertion. A verdict is the one piece of information that cannot be
+        recovered later if it is not captured when it happens.
+
+
+        Append-only, and never replayed: `chain` always holds the current
+        state. Reconstructing a rig from its history would be more elegant and
+        much worse to read, and a person reads this file.
+      required: [ask]
+      properties:
+        ask:
+          type: string
+          minLength: 1
+          description: >
+            What was asked for, in the words used. "Clunky" is not a
+            parameter, and normalising it away loses the question.
+        changed:
+          type: array
+          items: { $ref: "#/components/schemas/Change" }
+        reason:
+          type: string
+          description: >
+            Why the ask was read that way, cited where possible. This is what
+            lets a later reader see that the interpretation was wrong, rather
+            than only that the value was.
+        verdict:
+          type: string
+          description: >
+            What it sounded like. Absent means not yet evaluated, which is
+            useful state rather than a gap.
+        at:
+          type: string
+          description: When, so a run of corrections can be read in order.
+
+    RigSpec:
+      type: object
+      description: >
+        A rig, complete. Sparse when hand-written; the same document carries
+        settings and evidence once anything has been measured or tuned.
+      required: [schema, id, subject, instrument, chain]
+      properties:
+        schema:
+          type: string
+          enum: [RigSpec]
+          description: >
+            Names the format, so a file says what it is without relying on
+            where it was found.
+        version:
+          type: integer
+          default: 2
+        id:
+          type: string
+          pattern: "^[a-z0-9]+(-[a-z0-9]+)*$"
+          description: Stable identifier, matching the filename stem.
+          x-go-name: ID
+        subject:
+          $ref: "#/components/schemas/Subject"
+        instrument:
+          $ref: "#/components/schemas/Instrument"
+        default:
+          type: boolean
+          description: >
+            Whether this is the rig a bare request resolves to. A player owns
+            several — by era, by song — and asking for "a Mike Dirnt sound"
+            with no qualifier has to land somewhere.
+        extends:
+          type: string
+          description: >
+            Another rig this one departs from, by identifier. Only for a rig
+            that genuinely is a small change; rigs that differ at the amp are
+            siblings, not deltas.
+        chain:
+          type: array
+          minItems: 1
+          items: { $ref: "#/components/schemas/ChainEntry" }
+          description: The signal path, in order.
+        technique:
+          type: string
+          description: >
+            How the instrument is played, where it changes the sound — "pick,
+            near the bridge", "fingerstyle", "palm muted". Not modelled by any
+            device, and it still decides what the rig has to do.
+        character:
+          type: array
+          items: { type: string, minLength: 1 }
+          description: >
+            How it should sound, in the words a person would use. Describe the
+            result, not the control: "mid-forward, not scooped", not "raise the
+            mids".
+        confidence:
+          $ref: "#/components/schemas/Confidence"
+        evidence:
+          type: array
+          items: { $ref: "#/components/schemas/Evidence" }
+          description: >
+            Evidence for the rig as a whole. Evidence for one piece of gear
+            belongs on that entry.
+        requires:
+          type: array
+          items: { $ref: "#/components/schemas/Requirement" }
+        target:
+          $ref: "#/components/schemas/Target"
+        mutations:
+          type: array
+          items: { $ref: "#/components/schemas/Mutation" }

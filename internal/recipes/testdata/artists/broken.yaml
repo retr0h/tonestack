@@ -1,0 +1,9 @@
+id: broken
+kind: banjo
+name: Broken
+instrument_type: bass
+rig:
+  amp: Ampeg SVT
+provenance:
+  source: llm
+  confidence: medium

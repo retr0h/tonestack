@@ -1,0 +1,19 @@
+{
+  "schema": "L6Setlist",
+  "version": 2,
+  "meta": {
+    "application": "tonestack",
+    "appversion": 1,
+    "device": 2162694,
+    "device_version": 0,
+    "modifieddate": 0,
+    "name": "Test"
+  },
+  "encoding": "Base64",
+  "compression": {
+    "type": "zlib",
+    "crc32": 909125302,
+    "decompressed_size": 740
+  },
+  "encoded_data": "!!!not base64!!!"
+}

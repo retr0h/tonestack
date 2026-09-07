@@ -1,0 +1,22 @@
+{
+ "schema": "L6Preset",
+ "version": 6,
+ "data": {
+  "device": 2162689,
+  "device_version": 0,
+  "meta": {
+   "name": "Other Device"
+  },
+  "tone": {
+   "dsp0": {
+    "block0": {
+     "@model": "HD2_AmpSVBeastNrm",
+     "Drive": 0.44,
+     "Bass": 0.5,
+     "@position": 0,
+     "@enabled": true
+    }
+   }
+  }
+ }
+}

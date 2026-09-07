@@ -1,0 +1,9 @@
+id: unbuildable
+kind: artist
+name: Unbuildable
+instrument_type: bass
+rig:
+  amp: Orange Rockerverb
+provenance:
+  source: llm
+  confidence: low

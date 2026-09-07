@@ -1,0 +1,18 @@
+{
+ "schema": "L6Preset",
+ "version": 6,
+ "data": {
+  "device": 2162694,
+  "device_version": 0,
+  "meta": {
+   "name": "Empty"
+  },
+  "tone": {
+   "dsp0": {
+    "inputA": {
+     "@model": "HD2_AppDSPFlow1Input"
+    }
+   }
+  }
+ }
+}

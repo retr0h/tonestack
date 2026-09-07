@@ -13,12 +13,16 @@ The goal is a system that knows *how a chain is built*. That decomposes into
 four problems with four different sources, and conflating them is why generated
 tones come out generic.
 
-| Problem                 | Source                                         | State                     |
-| ----------------------- | ---------------------------------------------- | ------------------------- |
-| Who plays what          | `recipes/` — hand-written                      | thin, grows by correction |
-| Gear to model ID        | `schemas/gear-map.json`                        | 547 models                |
-| What order blocks go in | statistics over `schemas/corpus/`              | not built                 |
-| What values to set      | catalog defaults, corpus distributions, intent | not built                 |
+| Problem                 | Source                                   | State                     |
+| ----------------------- | ---------------------------------------- | ------------------------- |
+| Who plays what          | `recipes/` — hand-written                | thin, grows by correction |
+| Gear to model ID        | `schemas/gear-map.json`                  | 547 models                |
+| What order blocks go in | statistics over `schemas/corpus/`        | not built                 |
+| Which way a knob moves  | the Pilot's Guide parameter tables       | not built                 |
+| What values to set      | catalog defaults, corpus medians, intent | not built                 |
+
+The model for all of this — one specification, and what it holds — is
+[the RigSpec design record](superpowers/specs/2026-09-06-rigspec-as-the-one-model-design.md).
 
 ## 1. Who plays what
 
@@ -51,7 +55,9 @@ tends to occupy, and which categories a bass chain almost always contains. One
 person's bad preset barely moves an average; copying that same preset inherits
 all of it.
 
-Not built. The corpus is collected; the measurements are not taken.
+Not built. The corpus is collected; the measurements are not taken. They are
+cheap once taken: across 169 bass-amp chains, 89% hold a compressor and 63% hold
+drive, which sits *before* the amp 89% of the time.
 
 ## 4. What values to set
 
@@ -62,9 +68,18 @@ of authority:
    parameter. This is the anchor and is never wrong.
 2. **Corpus distributions.** The median `Drive` across every preset using this
    model beats a guess, and the spread says how much it varies in practice.
+   Across 54 SVT instances the median `Treble` is 0.845 where Line 6's stated
+   default is 0.68 — the factory default is measurably not what players use.
+   `Bass` sits in 0.50–0.53 and `Drive` spans 0.28–0.60, so the spread also says
+   how much of an opinion is worth having.
 3. **Intent.** A recipe's `character` lines — "mid-forward, not scooped", "grit
    only on hard attack" — become directional moves against the catalog's real
-   ranges.
+   ranges. Which direction is not guesswork either: the Pilot's Guide documents
+   the controls that cannot be inferred, in the same language a recipe uses. Of
+   `Sag` it says *"lower values offer tighter responsiveness … higher values
+   provide more touch dynamics & sustain"*; of `Bias X`, *"set low for a tighter
+   feel"*. It says nothing about Drive, Bass, Mid or Treble, because those need
+   no explaining.
 
 Not built.
 

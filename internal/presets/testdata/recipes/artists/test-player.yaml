@@ -1,0 +1,10 @@
+id: test-player
+kind: artist
+name: Test Player
+instrument_type: bass
+rig:
+  amp: Ampeg SVT
+  cab: Ampeg SVT 410HLF
+provenance:
+  source: llm
+  confidence: medium

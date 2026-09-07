@@ -57,7 +57,7 @@ license-check:
 
 # Rebuild schemas/hx-stomp.catalog.json from a local HX Edit installation
 catalog:
-    go run ./internal/catalogen/cmd
+    go run . catalog generate
 
 # Rebuild schemas/gear-map.json from a local HX Edit installation
 gear-map:

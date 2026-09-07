@@ -63,6 +63,20 @@ func (v ParamValue) Enum() (value string, ok bool) {
 }
 
 // MarshalJSON writes the value in its own kind. A zero ParamValue is an error.
+// String renders the value the way the device would show it.
+//
+// A ParamValue holds one of four kinds, and a caller that only wants to print
+// it should not have to ask which. Marshalling is the same rendering, so it
+// is reused rather than duplicated.
+func (v ParamValue) String() string {
+	raw, err := v.MarshalJSON()
+	if err != nil {
+		return ""
+	}
+
+	return strings.Trim(string(raw), `"`)
+}
+
 func (v ParamValue) MarshalJSON() ([]byte, error) {
 	switch v.typ {
 	case ParamFloat:

@@ -1,0 +1,319 @@
+{
+  "device": "HX Stomp",
+  "device_id": 2162694,
+  "schema_version": 6,
+  "blocks": {
+    "HD2_AmpSVBeastNrm": {
+      "id": "HD2_AmpSVBeastNrm",
+      "name": "Ampeg SVT Nrm",
+      "category": "amp",
+      "subcategory": "Bass",
+      "based_on": "Ampeg SVT (normal channel)",
+      "cablink": "HD2_Cab8x10SVBeast",
+      "dsp": {
+        "mono": 26.67,
+        "stereo": 40.1,
+        "prov": "official"
+      },
+      "prov": "official",
+      "params": {
+        "Drive": {
+          "key": "Drive",
+          "name": "Drive",
+          "type": "float",
+          "min": 0.0,
+          "max": 1.0,
+          "default": 0.53,
+          "prov": "official"
+        },
+        "Bass": {
+          "key": "Bass",
+          "name": "Bass",
+          "type": "float",
+          "min": 0.0,
+          "max": 1.0,
+          "default": 0.5,
+          "prov": "official"
+        },
+        "Treble": {
+          "type": "float",
+          "min": 0.0,
+          "max": 1.0,
+          "default": 0.68
+        },
+        "MidFreq": {
+          "type": "int",
+          "min": 0,
+          "max": 2,
+          "default": 1
+        },
+        "Bright": {
+          "type": "bool",
+          "min": 0,
+          "max": 0,
+          "default": false
+        }
+      }
+    },
+    "HD2_AmpSVBeastBrt": {
+      "id": "HD2_AmpSVBeastBrt",
+      "name": "Ampeg SVT Brt",
+      "category": "amp",
+      "subcategory": "Bass",
+      "based_on": "Ampeg SVT (bright channel)",
+      "cablink": "HD2_Cab8x10SVBeast",
+      "dsp": {
+        "mono": 26.6,
+        "prov": "official"
+      },
+      "prov": "official",
+      "params": {
+        "Drive": {
+          "key": "Drive",
+          "name": "Drive",
+          "type": "float",
+          "min": 0.0,
+          "max": 1.0,
+          "default": 0.5,
+          "prov": "official"
+        }
+      }
+    },
+    "HD2_AmpGuitarOnly": {
+      "id": "HD2_AmpGuitarOnly",
+      "name": "Brit 2204",
+      "category": "amp",
+      "subcategory": "Guitar",
+      "based_on": "Marshall JCM-800",
+      "dsp": {
+        "mono": 26.5,
+        "prov": "official"
+      },
+      "prov": "official",
+      "params": {
+        "Drive": {
+          "key": "Drive",
+          "name": "Drive",
+          "type": "float",
+          "min": 0.0,
+          "max": 1.0,
+          "default": 0.5,
+          "prov": "official"
+        }
+      }
+    },
+    "HD2_Cab8x10SVBeast": {
+      "id": "HD2_Cab8x10SVBeast",
+      "name": "8x10 Ampeg SVT-E",
+      "category": "cab",
+      "dsp": {
+        "mono": 7.2,
+        "prov": "official"
+      },
+      "prov": "official",
+      "params": {}
+    },
+    "HD2_CabNamed": {
+      "id": "HD2_CabNamed",
+      "name": "4x10 Rhino",
+      "category": "cab",
+      "based_on": "Ampeg SVT 410HLF",
+      "dsp": {
+        "mono": 7.0,
+        "prov": "official"
+      },
+      "prov": "official",
+      "params": {}
+    },
+    "HD2_DistMinotaur": {
+      "id": "HD2_DistMinotaur",
+      "name": "Minotaur",
+      "category": "drive",
+      "based_on": "Klon Centaur",
+      "dsp": {
+        "mono": 8.55,
+        "prov": "official"
+      },
+      "prov": "official",
+      "params": {
+        "Gain": {
+          "key": "Gain",
+          "name": "Gain",
+          "type": "float",
+          "min": 0.0,
+          "max": 1.0,
+          "default": 0.5,
+          "prov": "official"
+        }
+      }
+    },
+    "HD2_NoDefault": {
+      "id": "HD2_NoDefault",
+      "name": "No Default",
+      "category": "drive",
+      "based_on": "Nothing Real",
+      "dsp": {
+        "mono": 1.0,
+        "prov": "official"
+      },
+      "prov": "official",
+      "params": {
+        "Weird": {
+          "key": "Weird",
+          "name": "Weird",
+          "type": "float",
+          "prov": "official"
+        }
+      }
+    },
+    "HD2_Heavy": {
+      "id": "HD2_Heavy",
+      "name": "Heavy",
+      "category": "drive",
+      "based_on": "Heavy Thing",
+      "dsp": {
+        "mono": 60.0,
+        "prov": "official"
+      },
+      "prov": "official",
+      "params": {}
+    },
+    "HD2_AmpNoCab": {
+      "id": "HD2_AmpNoCab",
+      "name": "No Cab Amp",
+      "category": "amp",
+      "subcategory": "Bass",
+      "based_on": "Cabless Bass Head",
+      "dsp": {
+        "mono": 10.0,
+        "prov": "official"
+      },
+      "prov": "official",
+      "params": {}
+    },
+    "HD2_AmpDanglingCab": {
+      "id": "HD2_AmpDanglingCab",
+      "name": "Dangling",
+      "category": "amp",
+      "subcategory": "Bass",
+      "based_on": "Dangling Bass Head",
+      "cablink": "HD2_CabNotHere",
+      "dsp": {
+        "mono": 10.0,
+        "prov": "official"
+      },
+      "prov": "official",
+      "params": {}
+    },
+    "HD2_StereoDrive": {
+      "id": "HD2_StereoDrive",
+      "name": "Stereo Drive",
+      "category": "drive",
+      "based_on": "Wide Thing",
+      "stereo": true,
+      "dsp": {
+        "mono": 5.0,
+        "stereo": 50.0,
+        "prov": "official"
+      },
+      "prov": "official",
+      "params": {}
+    },
+    "HD2_TieB": {
+      "id": "HD2_TieB",
+      "name": "Tie B",
+      "category": "drive",
+      "based_on": "Tied Pedal Two",
+      "dsp": {
+        "mono": 1.0,
+        "prov": "official"
+      },
+      "prov": "official",
+      "params": {}
+    },
+    "HD2_TieA": {
+      "id": "HD2_TieA",
+      "name": "Tie A",
+      "category": "drive",
+      "based_on": "Tied Pedal One",
+      "dsp": {
+        "mono": 1.0,
+        "prov": "official"
+      },
+      "prov": "official",
+      "params": {}
+    },
+    "HD2_Short": {
+      "id": "HD2_Short",
+      "name": "Short",
+      "category": "drive",
+      "based_on": "Fuzz Face",
+      "dsp": {
+        "mono": 1.0,
+        "prov": "official"
+      },
+      "prov": "official",
+      "params": {}
+    },
+    "HD2_Long": {
+      "id": "HD2_Long",
+      "name": "Long",
+      "category": "drive",
+      "based_on": "Fuzz Face Germanium Reissue",
+      "dsp": {
+        "mono": 1.0,
+        "prov": "official"
+      },
+      "prov": "official",
+      "params": {}
+    },
+    "HD2_ImpulseResponse1024": {
+      "id": "HD2_ImpulseResponse1024",
+      "name": "IR 1024",
+      "category": "cab",
+      "based_on": "Slotted Cab",
+      "params": {},
+      "stereo": false,
+      "dsp": {
+        "mono": 7.0,
+        "stereo": 7.0,
+        "prov": "official"
+      },
+      "prov": "official"
+    },
+    "HD2_ReverbTest": {
+      "id": "HD2_ReverbTest",
+      "name": "Test Reverb",
+      "category": "reverb",
+      "params": {
+        "Decay": {
+          "type": "float",
+          "min": 0.0,
+          "max": 1.0,
+          "default": 0.4
+        }
+      },
+      "stereo": false,
+      "dsp": {
+        "mono": 3.0,
+        "stereo": 3.0,
+        "prov": "official"
+      },
+      "prov": "official"
+    },
+    "HD2_CabGuitarOnly": {
+      "id": "HD2_CabGuitarOnly",
+      "name": "Guitar Cab",
+      "category": "cab",
+      "subcategory": "Guitar",
+      "params": {},
+      "stereo": false,
+      "dsp": {
+        "mono": 2.0,
+        "stereo": 2.0,
+        "prov": "official"
+      },
+      "prov": "official"
+    }
+  }
+}

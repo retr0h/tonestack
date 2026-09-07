@@ -28,7 +28,7 @@ import (
 	"strings"
 
 	"github.com/retr0h/tonestack/pkg/catalog"
-	"github.com/retr0h/tonestack/pkg/rig"
+	"github.com/retr0h/tonestack/pkg/chain"
 )
 
 // Read decodes a preset file.
@@ -51,32 +51,60 @@ func Read(r io.Reader) (*Document, error) {
 // splits, joins — describe routing rather than a chain and are left in the
 // document, which is why Write needs the document it came from to reproduce
 // a preset faithfully.
-func (d *Document) Spec() (rig.Spec, error) {
-	spec := rig.Spec{Name: d.Data.Meta.Name, Origin: rig.OriginCurated}
+func (d *Document) Spec() (chain.Chain, error) { return d.Data.Spec() }
 
-	for _, key := range sortedProcessors(d.Data.Tone) {
+// Spec extracts the signal chain a payload describes.
+//
+// This is the level a setlist addresses. A slot in a backup holds a Data and
+// nothing around it, so the conversion belongs here and Document delegates.
+func (d *Data) Spec() (chain.Chain, error) {
+	spec := chain.Chain{Name: d.Meta.Name}
+
+	for _, key := range sortedProcessors(d.Tone) {
 		dsp, err := processorIndex(key)
 		if err != nil {
-			return rig.Spec{}, err
+			return chain.Chain{}, err
 		}
 
-		blocks, err := readBlocks(d.Data.Tone[key])
+		blocks, err := readBlocks(d.Tone[key])
 		if err != nil {
-			return rig.Spec{}, fmt.Errorf("%s: %w", key, err)
+			return chain.Chain{}, fmt.Errorf("%s: %w", key, err)
 		}
 
 		for _, b := range blocks {
-			spec.Blocks = append(spec.Blocks, rig.SpecBlock{
+			spec.Blocks = append(spec.Blocks, chain.Block{
 				Model:   b.Model,
 				Params:  b.Params,
+				Attrs:   b.Attrs,
 				DSP:     dsp,
-				Pos:     b.Position,
+				Pos:     b.Slot,
 				Enabled: b.Enabled,
 			})
 		}
 	}
 
 	return spec, nil
+}
+
+// keep records an attribute exactly as it arrived.
+func keep(b *Block, key string, val json.RawMessage) {
+	if b.Attrs == nil {
+		b.Attrs = map[string]json.RawMessage{}
+	}
+
+	b.Attrs[key] = val
+}
+
+// assignTyped fills the attributes this package models as fields.
+func assignTyped(b *Block, key string, val json.RawMessage) error {
+	switch key {
+	case attrPath:
+		return json.Unmarshal(val, &b.Path)
+	case attrStereo:
+		return json.Unmarshal(val, &b.Stereo)
+	default:
+		return json.Unmarshal(val, &b.Type)
+	}
 }
 
 // sortedProcessors returns the dspN keys in index order, so a chain is read
@@ -126,6 +154,10 @@ func readBlocks(t Tone) ([]Block, error) {
 			continue
 		}
 
+		if b.Slot, err = strconv.Atoi(strings.TrimPrefix(key, "block")); err != nil {
+			return nil, fmt.Errorf("%s: block key is not numbered: %w", key, err)
+		}
+
 		out = append(out, b)
 	}
 
@@ -158,21 +190,30 @@ func assign(b *Block, key string, val json.RawMessage) error {
 	case attrModel:
 		return json.Unmarshal(val, &b.Model)
 	case attrPosition:
+		// Kept raw as well as typed. A block's key and its position are
+		// independent — block5 can carry @position 6 — so the attribute
+		// travels rather than being derived from the key.
+		keep(b, key, val)
+
 		return json.Unmarshal(val, &b.Position)
 	case attrEnabled:
 		return json.Unmarshal(val, &b.Enabled)
-	case attrPath:
-		return json.Unmarshal(val, &b.Path)
-	case attrStereo:
-		return json.Unmarshal(val, &b.Stereo)
-	case attrType:
-		return json.Unmarshal(val, &b.Type)
+	case attrPath, attrStereo, attrType:
+		// Typed for convenience and kept raw as well. A chain has no opinion
+		// about which path a block sits on, so it carries the attribute
+		// rather than deciding it, and a preset written back has the value
+		// the device put there.
+		keep(b, key, val)
+
+		return assignTyped(b, key, val)
 	}
 
 	if strings.HasPrefix(key, "@") {
-		// An attribute this package does not model. Not a parameter, so
-		// leaving it out of Params keeps a value the device owns from being
-		// written back as if we chose it.
+		// An attribute this package does not model. Kept verbatim rather than
+		// dropped: it is not a parameter, and rewriting a preset without it
+		// changes a file nobody asked to change.
+		keep(b, key, val)
+
 		return nil
 	}
 

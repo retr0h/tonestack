@@ -69,11 +69,49 @@ type Data struct {
 // DataMeta names the preset. The name a person sees lives here, not in the
 // document's top-level meta.
 type DataMeta struct {
-	Name         string `json:"name"`
-	Application  string `json:"application,omitempty"`
-	AppVersion   int    `json:"appversion,omitempty"`
-	BuildSHA     string `json:"build_sha,omitempty"`
-	ModifiedDate int64  `json:"modifieddate,omitempty"`
+	// Name is what a player sees, and the only field this package has an
+	// opinion about.
+	Name string
+	// Rest is everything else, kept exactly as it arrived.
+	//
+	// Presets in the wild carry fields nobody documented — song, band,
+	// author, tnid, an appVersion spelled two different ways. Modelling a
+	// fixed set drops the rest, which silently rewrites somebody's preset.
+	// A file this tool wrote should differ from the original only where
+	// somebody asked it to.
+	Rest map[string]json.RawMessage
+}
+
+// nameKey is the one metadata field this package reads.
+const nameKey = "name"
+
+// UnmarshalJSON keeps every field, modelled or not.
+func (m *DataMeta) UnmarshalJSON(b []byte) error {
+	if err := json.Unmarshal(b, &m.Rest); err != nil {
+		return fmt.Errorf("decoding preset metadata: %w", err)
+	}
+
+	if raw, ok := m.Rest[nameKey]; ok {
+		if err := json.Unmarshal(raw, &m.Name); err != nil {
+			return fmt.Errorf("decoding preset name: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// MarshalJSON writes back what arrived, with the name as it now stands.
+func (m DataMeta) MarshalJSON() ([]byte, error) {
+	out := make(map[string]json.RawMessage, len(m.Rest)+1)
+	for k, v := range m.Rest {
+		out[k] = v
+	}
+
+	// A string always marshals, so there is no failure to report.
+	name, _ := json.Marshal(m.Name)
+	out[nameKey] = name
+
+	return json.Marshal(out)
 }
 
 // Tone is one entry under the tone object: a processor's blocks, a snapshot,
@@ -87,13 +125,26 @@ type Tone map[string]json.RawMessage
 // them in the union that keeps a float from being written where the device
 // expects an enum.
 type Block struct {
-	Model    catalog.ModelID
+	Model catalog.ModelID
+	// Slot is the number in the block's own key — block5 is slot 5.
+	//
+	// Independent of Position: a preset can hold block5 whose @position is 6.
+	// Deriving one from the other moves blocks around a preset that nobody
+	// asked to change.
+	Slot     int
 	Position int
 	Enabled  bool
 	Path     int
 	Stereo   bool
 	Type     int
 	Params   map[string]catalog.ParamValue
+	// Attrs holds every @-prefixed attribute except the three modelled
+	// above, exactly as it arrived.
+	//
+	// A device owns these — @path, @stereo, @type, @trails,
+	// @no_snapshot_bypass — and a preset this tool rewrote should differ from
+	// the original only where somebody asked it to.
+	Attrs map[string]json.RawMessage
 }
 
 // FlexInt is an integer that tolerates being written as a string.
@@ -101,13 +152,31 @@ type Block struct {
 // Devices always write device_version as a number. Hand-made templates in the
 // wild do not, and refusing to read one because of a field nothing depends on
 // would be pedantry rather than correctness.
-type FlexInt int
+type FlexInt struct {
+	Value int
+	// Raw is the literal exactly as it arrived, set whenever the value came
+	// in as a string.
+	//
+	// Kept rather than reconstructed because the string forms do not survive
+	// being parsed and reprinted: "0.00" comes back as "0", and rewriting a
+	// preset that way changes a file nobody asked to change.
+	Raw json.RawMessage
+}
+
+// MarshalJSON writes the value back in the form it arrived in.
+func (f FlexInt) MarshalJSON() ([]byte, error) {
+	if len(f.Raw) > 0 {
+		return f.Raw, nil
+	}
+
+	return json.Marshal(f.Value)
+}
 
 // UnmarshalJSON accepts a number or a string holding one.
 func (f *FlexInt) UnmarshalJSON(b []byte) error {
 	var n int
 	if err := json.Unmarshal(b, &n); err == nil {
-		*f = FlexInt(n)
+		f.Value = n
 
 		return nil
 	}
@@ -118,6 +187,8 @@ func (f *FlexInt) UnmarshalJSON(b []byte) error {
 	}
 
 	if s == "" {
+		f.Raw = b
+
 		return nil
 	}
 
@@ -128,7 +199,8 @@ func (f *FlexInt) UnmarshalJSON(b []byte) error {
 		return fmt.Errorf("device_version %q is not a number: %w", s, err)
 	}
 
-	*f = FlexInt(int(v))
+	f.Value = int(v)
+	f.Raw = b
 
 	return nil
 }
