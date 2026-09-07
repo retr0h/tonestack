@@ -247,3 +247,51 @@ Whether it sounds right. That is a person with the preset loaded, and the answer
 belongs in `mutations` so the next round starts from it rather than from
 nothing. [knowledge.md](knowledge.md) explains why the architecture is shaped
 around that.
+
+## What a rig keeps
+
+A rig describes a sound, and it also carries everything else the preset it came
+from held. That is what makes it safe to be the only thing this project
+exchanges: a rig read out of a preset rebuilds that preset exactly, with the
+original file gone.
+
+| field          | what it holds                                              |
+| -------------- | ---------------------------------------------------------- |
+| `chain`        | the gear, in order, with settings and evidence             |
+| `snapshots`    | what each footswitch recalls: name, tempo, block states    |
+| `footswitches` | what the pedal prints under each switch, and its colour    |
+| `device`       | everything else, verbatim — routing, controllers, metadata |
+
+`snapshots` and `footswitches` are modelled rather than kept verbatim, because
+they are musical decisions somebody made and might want to change. `device` is
+the remainder: entries a person would not hand-edit, kept exactly as they
+arrived so a field nobody has modelled yet is not a field this drops.
+
+Only a lifted rig carries `device`. One somebody typed has none, and compiling
+it uses an untouched preset the device itself wrote.
+
+### How that is known to hold
+
+Three assertions over every HX Stomp preset in the corpus, all of which must
+pass:
+
+1. **A preset becomes a rig and is written back into itself** — byte for byte.
+2. **A preset becomes a rig and is built into an untouched preset** — byte for
+   byte, which is the path a rig takes when somebody shares it.
+3. **A rig becomes a preset and is read back as a rig** — the same rig.
+
+The third is the one that catches a field this format reads but never writes.
+Such a field survives the first two, because the preset underneath still holds
+it, and disappears in the third because the rig is all there is.
+
+## A footswitch's colour
+
+Stored as a packed number, and not a free choice. Measured over 17,665
+assignments in the corpus, a switch takes the colour of the block it works on
+unless somebody sets it: red for an amp or a cabinet, amber for drive, green for
+delay, blue for modulation, purple for a filter, pitch block or wah, orange for
+reverb, lime for a compressor or EQ.
+
+Each is one hue at two brightnesses — bright while the block is engaged, dim
+while it is bypassed — which is why a palette covering twelve categories holds
+twenty-four values.

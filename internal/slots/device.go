@@ -27,6 +27,7 @@ import (
 
 	"github.com/retr0h/tonestack/internal/cli"
 	"github.com/retr0h/tonestack/pkg/sdk"
+	slotpkg "github.com/retr0h/tonestack/pkg/slot"
 )
 
 // DeviceOptions says which setlist to read off an attached device.
@@ -37,6 +38,10 @@ type DeviceOptions struct {
 	All bool
 	// Slot selects a position within the setlist, for reading one preset.
 	Slot int
+	// Name is what the device calls the preset, when it is already known.
+	Name string
+	// CatalogPath is the generated catalog for the target device.
+	CatalogPath string
 }
 
 // ShowDevice reads one slot off an attached device.
@@ -51,16 +56,31 @@ func ShowDevice(ctx context.Context, w io.Writer, opts DeviceOptions) error {
 
 	defer s.Close()
 
+	// The name comes from the listing rather than the preset: what the device
+	// hands back for one slot does not carry it.
+	if opts.Name == "" {
+		if found, err := s.Presets(ctx, opts.Setlist); err == nil {
+			if opts.Slot >= 0 && opts.Slot < len(found) {
+				opts.Name = found[opts.Slot].Name
+			}
+		}
+	}
+
 	got, err := s.ReadPreset(ctx, opts.Setlist, opts.Slot)
 	if err != nil {
-		return fmt.Errorf("reading slot %d: %w", opts.Slot, err)
+		return fmt.Errorf("reading slot %s: %w", slotpkg.Label(opts.Slot), err)
 	}
 
 	if err := dump(got); err != nil {
 		return err
 	}
 
-	return describe(w, s.Model().Name, opts.Slot, got)
+	body, ok := got.(string)
+	if !ok {
+		return describe(w, s.Model().Name, opts.Slot, got)
+	}
+
+	return writeDeviceRig(w, []byte(body), opts)
 }
 
 // ListDevice prints what an attached device holds.

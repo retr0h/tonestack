@@ -28,6 +28,7 @@
 package cli
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"sort"
@@ -238,3 +239,40 @@ func marked(symbol, fallback, msg string) string {
 
 	return symbol + " " + msg
 }
+
+// Swatch renders s in a colour a device chose rather than one this theme did.
+//
+// A footswitch's colour is stored as a single packed number, which tells
+// somebody nothing. Painting the number in the colour it names turns it into
+// what it actually is: the light under that switch.
+func Swatch(w io.Writer, rgb int, s string) string {
+	if rgb < 0 || rgb > 0xFFFFFF {
+		return s
+	}
+
+	st := lipgloss.NewStyle().
+		Foreground(lipgloss.Color(fmt.Sprintf("#%06x", brighten(rgb))))
+
+	return st.Renderer(rendererFor(w)).Render(s)
+}
+
+// brighten raises a colour to full intensity without changing its hue.
+//
+// A device stores the same hue at two brightnesses: bright while a block is
+// engaged, and dim while it is bypassed — 0x03000b is the same purple as
+// 0x4400ff. The dim one is a few points off black on a terminal, so showing
+// it as stored would show nothing at all. The number printed beside it is
+// still what the device holds.
+func brighten(rgb int) int {
+	r, g, b := rgb>>16&0xFF, rgb>>8&0xFF, rgb&0xFF
+
+	peak := max(r, max(g, b))
+	if peak == 0 {
+		return rgb
+	}
+
+	return scale(r, peak)<<16 | scale(g, peak)<<8 | scale(b, peak)
+}
+
+// scale raises one channel so the brightest reaches full.
+func scale(v, peak int) int { return v * 0xFF / peak }

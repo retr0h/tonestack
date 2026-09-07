@@ -33,6 +33,7 @@ import (
 	"github.com/retr0h/tonestack/internal/lift"
 	"github.com/retr0h/tonestack/pkg/catalog"
 	"github.com/retr0h/tonestack/pkg/preset"
+	riggen "github.com/retr0h/tonestack/pkg/rig/gen"
 )
 
 // corpusDir holds thousands of presets other people made. It is not committed
@@ -68,6 +69,22 @@ func (s *RoundTripPublicTestSuite) TestAPresetSurvivesBecomingARigAndBack() {
 // so lowering into that preset proves nothing about what the rig carries.
 // Building from an untouched preset does: whatever survives came out of the
 // rig, and whatever a rig cannot say is visible here as a difference.
+// TestARigSurvivesBecomingAPresetAndBack is the second direction.
+//
+// A rig built into a preset and read back must be the rig that went in.
+// Anything RigSpec models but does not write is invisible to the other test
+// and obvious here.
+func (s *RoundTripPublicTestSuite) TestARigSurvivesBecomingAPresetAndBack() {
+	for _, path := range s.fixtures() {
+		s.Run(filepath.Base(path), func() {
+			was, now := s.backAgain(s.read(path))
+
+			s.Require().Equal(was, now,
+				"every field a rig models must be written as well as read")
+		})
+	}
+}
+
 func (s *RoundTripPublicTestSuite) TestARigRebuildsAPresetOnItsOwn() {
 	for _, path := range s.fixtures() {
 		s.Run(filepath.Base(path), func() {
@@ -127,8 +144,10 @@ func (s *RoundTripPublicTestSuite) TestTheWholeCorpusSurvivesIt() {
 			continue
 		}
 
+		was, now := s.backAgain(raw)
 		if s.canonical(raw) == s.canonical(s.roundTrip(path)) &&
-			s.canonical(raw) == s.canonical(s.fromNothing(path)) {
+			s.canonical(raw) == s.canonical(s.fromNothing(path)) &&
+			was == now {
 			same++
 
 			continue
@@ -144,8 +163,9 @@ func (s *RoundTripPublicTestSuite) TestTheWholeCorpusSurvivesIt() {
 	s.T().Logf("round-tripped %d presets for this device, skipped %d others",
 		same+differ, skipped)
 	s.Require().Zero(differ,
-		"every preset must survive becoming a rig and being written back, "+
-			"both into itself and into nothing; first failures: %v", failed)
+		"every preset must survive becoming a rig and being written back — "+
+			"into itself, into nothing, and rig to preset to rig; "+
+			"first failures: %v", failed)
 	s.Require().Positive(same)
 }
 
@@ -175,6 +195,42 @@ func (s *RoundTripPublicTestSuite) fromNothing(path string) []byte {
 	s.Require().NoError(err)
 
 	return s.through(s.read(path), blank)
+}
+
+// backAgain lifts a preset, builds it, and lifts what was built.
+//
+// The other direction, and the one that catches a field which reads but never
+// writes: such a field survives .hlx to .hlx because the preset underneath
+// still holds it, and disappears here because the rig is all there is. Both
+// rigs must say the same thing.
+func (s *RoundTripPublicTestSuite) backAgain(raw []byte) (string, string) {
+	from, err := preset.Read(bytes.NewReader(raw))
+	s.Require().NoError(err)
+
+	first, err := lift.Lift(from, s.cat)
+	s.Require().NoError(err)
+
+	blank, err := preset.Blank()
+	s.Require().NoError(err)
+	s.Require().NoError(lift.Lower(blank, first, s.cat))
+
+	second, err := lift.Lift(blank, s.cat)
+	s.Require().NoError(err)
+
+	return s.marshal(first), s.marshal(second)
+}
+
+// marshal renders a rig for comparison, as JSON rather than as the YAML it is
+// written in.
+//
+// Go sorts a map's keys when it encodes JSON; the YAML writer orders them
+// differently for the same content, which would make this test fail over how
+// a document was laid out rather than over what it says.
+func (s *RoundTripPublicTestSuite) marshal(spec riggen.RigSpec) string {
+	body, err := json.Marshal(spec)
+	s.Require().NoError(err)
+
+	return s.canonical(body)
 }
 
 // through lifts raw to a rig and lowers that rig into doc.

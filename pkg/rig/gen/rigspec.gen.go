@@ -319,6 +319,54 @@ type Evidence struct {
 // `llm` means a model asserted it and nobody checked — reliable for well-known players, unreliable for obscure ones, and the model cannot always tell which it is doing.
 type EvidenceKind string
 
+// Footswitch One thing a switch on the pedal does.
+//
+// A switch can carry more than one assignment — two blocks toggled together are two entries naming the same switch — so this is a list rather than a map.
+type Footswitch struct {
+	// Block Which block the switch works on, by the number the preset stores it under rather than its place in the chain. The two differ.
+	Block *int `json:"block,omitempty"`
+
+	// Colour The colour it lights, as the packed number a preset file stores.
+	//
+	// This is the resolved colour rather than the choice: measured over 17,665 assignments in the corpus it tracks the block's own kind — red for an amp or cabinet, amber for drive, green for delay, blue for modulation, purple for a filter, pitch block or wah, orange for reverb — at two brightnesses, bright while the block is engaged and dim while it is bypassed.
+	Colour *int `json:"colour,omitempty"`
+
+	// Enabled Whether the switch acts on the block at all.
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// Gear The block the switch works on, by name, whatever the label says.
+	Gear *string `json:"gear,omitempty"`
+
+	// Label What the pedal prints under the switch.
+	//
+	// Somebody's own words when they set them, and the block's name when they did not. "60s / 70s" is what a player reads on stage; the block behind it is an Ampeg B-15NF.
+	Label *string `json:"label,omitempty"`
+
+	// Led The colour somebody chose for the switch, by name — `green`, `violet`, `off`.
+	//
+	// `auto` is the default and the interesting one: the light follows the block rather than a choice, which is why an untouched preset lights its switches red for an amp, amber for drive and blue for modulation without anybody setting anything.
+	//
+	// Read from a device, which reports the choice. A preset file stores the colour the choice resolved to instead — see `colour` — and the two are not yet known to convert.
+	Led *string `json:"led,omitempty"`
+
+	// Momentary Whether the switch holds while pressed rather than latching.
+	Momentary *bool `json:"momentary,omitempty"`
+
+	// Path Which processor the block is on. Omitted means the first, which is the only one an HX Stomp has.
+	Path *int `json:"path,omitempty"`
+
+	// Primary Whether this is the assignment the switch shows when more than one block is on it.
+	Primary *bool `json:"primary,omitempty"`
+
+	// Rest Anything else the device stored here, kept as it arrived, so a field this does not model is not a field it drops.
+	Rest *map[string]json.RawMessage `json:"rest,omitempty"`
+
+	// Switch Which footswitch, counted the way the pedal prints them: FS1 is 1.
+	//
+	// Without this a label says nothing about where to look.
+	Switch *int `json:"switch,omitempty"`
+}
+
 // Instrument Selects which half of a device's catalog is eligible. Line 6 tags every amp and cabinet Guitar or Bass; everything else serves either.
 type Instrument string
 
@@ -395,6 +443,13 @@ type RigSpec struct {
 	// Extends Another rig this one departs from, by identifier. Only for a rig that genuinely is a small change; rigs that differ at the amp are siblings, not deltas.
 	Extends *string `json:"extends,omitempty"`
 
+	// Footswitches What the pedal prints under each switch, and the colour it lights.
+	//
+	// A label and a colour are decisions about somebody's own pedal, made once and looked at every time they play, and nothing else in a rig records them.
+	//
+	// Read and written both ways: a preset stores them per block, and a rig carrying them rebuilds that exactly.
+	Footswitches *[]Footswitch `json:"footswitches,omitempty"`
+
 	// ID Stable identifier, matching the filename stem.
 	ID string `json:"id"`
 
@@ -405,6 +460,11 @@ type RigSpec struct {
 
 	// Schema Names the format, so a file says what it is without relying on where it was found.
 	Schema RigSpecSchema `json:"schema"`
+
+	// Snapshots The rig's snapshots, in the order the device numbers them.
+	//
+	// A snapshot is a musical decision — which blocks are on, at what tempo, under what name — so it is modelled rather than carried as device state. What a person put on a footswitch is part of the rig.
+	Snapshots *[]Snapshot `json:"snapshots,omitempty"`
 
 	// Subject Who or what this rig belongs to.
 	//
@@ -418,7 +478,11 @@ type RigSpec struct {
 
 	// Technique How the instrument is played, where it changes the sound — "pick, near the bridge", "fingerstyle", "palm muted". Not modelled by any device, and it still decides what the rig has to do.
 	Technique *string `json:"technique,omitempty"`
-	Version   *int    `json:"version,omitempty"`
+
+	// Version Which version of this contract the document was written against.
+	//
+	// A rig this project writes states it, so a file says what validated it without anybody having to guess from which fields are present.
+	Version *int `json:"version,omitempty"`
 }
 
 // RigSpecSchema Names the format, so a file says what it is without relying on where it was found.
@@ -435,6 +499,38 @@ type Role string
 //
 // A rig that carried device parameters would not survive being read on different hardware, which is the whole point of the format.
 type Settings map[string]float64
+
+// Snapshot One snapshot: a set of block states a footswitch recalls.
+type Snapshot struct {
+	// Blocks Which blocks are on, keyed the way the preset keys them. Kept as the device wrote it: it addresses blocks by their own numbering, which is not the order of the chain.
+	Blocks *json.RawMessage `json:"blocks,omitempty"`
+
+	// Controllers What this snapshot recalls for assigned parameters.
+	Controllers *json.RawMessage `json:"controllers,omitempty"`
+
+	// Led The colour the footswitch lights, as the device numbers colours.
+	Led *int `json:"led,omitempty"`
+
+	// Name What the device shows on its screen.
+	Name *string `json:"name,omitempty"`
+
+	// Named Whether somebody named it. A device ships them called SNAPSHOT 1 through 3, and the difference between that and a name is whether anybody has been here before.
+	Named *bool `json:"named,omitempty"`
+
+	// Pedal Which expression pedal state this snapshot recalls.
+	Pedal *int `json:"pedal,omitempty"`
+
+	// Rest Anything else the device stored here, kept as it arrived.
+	//
+	// Line 6 add fields — a few presets carry recorded commands — and a format that modelled only what was known when it was written would quietly drop them. Nothing reads this; it exists so nothing is lost.
+	Rest *map[string]json.RawMessage `json:"rest,omitempty"`
+
+	// Tempo Beats per minute this snapshot recalls.
+	Tempo *float64 `json:"tempo,omitempty"`
+
+	// Valid Whether the device considers the snapshot set up.
+	Valid *bool `json:"valid,omitempty"`
+}
 
 // Subject Who or what this rig belongs to.
 //

@@ -155,6 +155,56 @@ type Catalog struct {
 	// checked against anything.
 	Source string            `json:"source"`
 	Blocks map[ModelID]Block `json:"blocks"`
+	// Symbols is how a device names a model and orders its parameters.
+	//
+	// A preset read over USB carries neither. It names a model by its
+	// position in this table and sends parameters as a bare array, so without
+	// it a preset off the hardware is a list of numbers nothing can name.
+	//
+	// Longer than the block list, and deliberately not filtered by device: it
+	// holds mono and stereo variants of the same model as separate entries,
+	// which is why a device can name a model beyond the count of models it
+	// can load.
+	Symbols []Symbol `json:"symbols,omitempty"`
+	// LEDColours is what a device calls its footswitch colours, in the order
+	// it numbers them.
+	//
+	// A device reports the position rather than the name, so without this a
+	// switch somebody set to violet reads as `9`. Line 6's, like everything
+	// else here, and generated rather than written down: a firmware that adds
+	// a colour would otherwise be reported under the wrong name.
+	LEDColours []string `json:"led_colours,omitempty"`
+}
+
+// LEDColour returns what a device calls one of its footswitch colours.
+//
+// A number this catalog does not reach keeps its number: a device on newer
+// firmware may know colours the release this was generated from did not, and
+// inventing a name for one would be worse than saying nothing.
+func (c *Catalog) LEDColour(n int) (string, bool) {
+	if n < 0 || n >= len(c.LEDColours) {
+		return "", false
+	}
+
+	return c.LEDColours[n], true
+}
+
+// Symbol is one entry in a device's own model table.
+type Symbol struct {
+	// ID is the model, as the catalog names it.
+	ID ModelID `json:"id"`
+	// Params are the model's parameters, in the order a device sends their
+	// values. Position is the only thing that identifies them on the wire.
+	Params []string `json:"params"`
+}
+
+// Symbol returns the model a device's own numbering names.
+func (c *Catalog) Symbol(n int) (Symbol, bool) {
+	if n < 0 || n >= len(c.Symbols) {
+		return Symbol{}, false
+	}
+
+	return c.Symbols[n], true
 }
 
 // ParamType names the kind a ParamValue holds.

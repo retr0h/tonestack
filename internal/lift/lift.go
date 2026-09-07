@@ -56,6 +56,7 @@ func Lift(doc *preset.Document, cat *catalog.Catalog) (riggen.RigSpec, error) {
 	}
 
 	device := cat.Device
+	version := rig.Version
 
 	entries := make([]riggen.ChainEntry, 0, len(c.Blocks))
 
@@ -63,14 +64,20 @@ func Lift(doc *preset.Document, cat *catalog.Catalog) (riggen.RigSpec, error) {
 		entries = append(entries, entryFor(b, cat, device))
 	}
 
+	snapshots := snapshotsOf(doc)
+	switches := footswitchesOf(doc)
+
 	out := riggen.RigSpec{
-		Schema:     riggen.RigSpecSchemaRigSpec,
-		ID:         identifier(doc.Data.Meta.Name),
-		Subject:    riggen.Subject{Kind: riggen.KindSound, Name: subjectName(doc)},
-		Chain:      entries,
-		Instrument: instrumentOf(c, cat),
-		Target:     &riggen.Target{Device: &device},
-		Device:     deviceState(doc),
+		Schema:       riggen.RigSpecSchemaRigSpec,
+		Version:      &version,
+		ID:           identifier(doc.Data.Meta.Name),
+		Subject:      riggen.Subject{Kind: riggen.KindSound, Name: subjectName(doc)},
+		Chain:        entries,
+		Instrument:   instrumentOf(c, cat),
+		Target:       &riggen.Target{Device: &device},
+		Snapshots:    snapshots,
+		Footswitches: switches,
+		Device:       deviceState(doc, modelledKeys(doc, snapshots, switches)),
 	}
 
 	// A rig this package produced must be one anybody else can read. Lifting
@@ -235,4 +242,30 @@ func instrumentOf(c chain.Chain, cat *catalog.Catalog) riggen.Instrument {
 	}
 
 	return riggen.InstrumentGuitar
+}
+
+// modelledKeys names the tone entries a rig carries as fields of its own.
+//
+// Only the ones it actually carried: a preset can hold an empty footswitch
+// section, which produces no fields and is still something the file said.
+func modelledKeys(
+	doc *preset.Document,
+	snapshots *[]riggen.Snapshot,
+	switches *[]riggen.Footswitch,
+) map[string]bool {
+	out := map[string]bool{}
+
+	if snapshots != nil {
+		for key := range doc.Data.Tone {
+			if snapshotIndex(key) >= 0 {
+				out[key] = true
+			}
+		}
+	}
+
+	if switches != nil {
+		out[footswitchKey] = true
+	}
+
+	return out
 }

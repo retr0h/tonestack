@@ -106,6 +106,14 @@ func Build(opts Options) (*catalog.Catalog, error) {
 		}
 	}
 
+	if out.Symbols, err = readSymbols(opts.ResourcesDir); err != nil {
+		return nil, err
+	}
+
+	if out.LEDColours, err = readLEDColours(opts.ResourcesDir); err != nil {
+		return nil, err
+	}
+
 	if len(out.Blocks) == 0 {
 		return nil, fmt.Errorf("%w: no models support device %d", ErrNoResources, opts.DeviceID)
 	}

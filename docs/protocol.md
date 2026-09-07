@@ -163,12 +163,27 @@ selecting preset 999 on a device holding 126 answers `1` and does nothing.
 | Framing                                     | implemented, tested against real captures |
 | Session handshake                           | implemented, verified on hardware         |
 | List presets (opcode 1)                     | implemented, verified on hardware         |
-| Read a preset without loading it (opcode 4) | not implemented                           |
+| Read a preset without loading it (opcode 4) | implemented, verified on hardware         |
 | Write a preset (opcodes 5, 8, 21, 71)       | not implemented, and see below            |
 
 Verified means an HX Stomp on firmware 3.80 answered, not that a test asserts
 it. `pkg/sdk` needs hardware and is excluded from the coverage gate;
 `pkg/sdk/wire` needs none and is covered in full.
+
+## Reading one preset
+
+Opcode 4, on the control channel:
+
+```text
+request   {102: txn, 100: 4, 101: {107: setlist, 108: slot}}
+reply     the preset, as the three values described below
+```
+
+Read-only in the strongest sense: the device answers and goes on playing
+whatever it was. Nothing is selected and nothing is written.
+
+The reply carries no name. That comes from the listing, which is why reading one
+slot costs two calls.
 
 ## What the device gives back is not a `.hlx`
 
@@ -195,6 +210,68 @@ mutate it, write it back** — which is also what
 [the RigSpec design record](superpowers/specs/2026-09-06-rigspec-as-the-one-model-design.md)
 concluded from a different direction, and what the corpus said when it showed
 98.6% of real presets carrying routing that a generated one has none of.
+
+## Inside the preset map
+
+Everything is numbered. The keys below are what an HX Stomp on firmware 3.71
+answered; nothing in Line 6's files documents them.
+
+| key  | holds                                                           |
+| ---- | --------------------------------------------------------------- |
+| `0`  | the tone: `22` is the chain, as a fixed-length array of entries |
+| `3`  | footswitches: `8` is a list of switches, in order               |
+| `7`  | metadata — the firmware version the preset was written by       |
+| `10` | snapshots: `10` is the list of them                             |
+
+A chain entry is `{19: kind, 20: body}`. Kind `6` is a block somebody placed;
+every other kind is the device's own — an input, an output, a gap where nothing
+sits. The body holds:
+
+| key         | holds                                         |
+| ----------- | --------------------------------------------- |
+| `24` → `25` | the model, as a number — see below            |
+| `11` → `4`  | the parameters, as a bare array with no names |
+| `10`        | whether the block is switched on              |
+
+A footswitch entry is `{10: ordinal, 11: body, 16: colour}` inside the list at
+`3` → `8`. The list position is the switch — the first group is FS1 — and a
+switch can carry more than one entry when it toggles several blocks.
+
+`16` is the colour somebody chose, as a position in the device's own list, and
+`0` is "Auto Color", where the light follows the block instead. Confirmed
+against hardware: a switch set to Green in HX Edit reports `6` and one set to
+Violet reports `9`.
+
+The body's `5` is the label the pedal prints. Its `6` is *not* the switch colour
+— it is the block's own, the same for every block of that kind, which is why it
+stays put when somebody changes a light. That is a trap worth naming: `6`
+correlates with the colour so strongly on untouched presets that it reads as
+correct until somebody sets one.
+
+The names for those positions come from `HelixControls.json`, under
+`footswitchLED`, and are generated into the catalog rather than written down — a
+firmware that adds a colour would otherwise be reported under the wrong name.
+
+A snapshot carries `4` as its name, `5` as its tempo and `12` as its colour.
+
+## Model numbers are an index into HX Edit's own table
+
+A block names its model with a number, and that number is a position in
+`Helix.sym` — a plain JSON file in HX Edit's resources listing **833** symbols,
+each with its parameters **in the order the device sends their values**.
+
+That file is what makes a preset off the hardware readable: without it a block
+is a number and its settings are an unlabelled array.
+
+833 is larger than the 681 models in Line 6's `.models` files because the table
+holds a mono and a stereo entry for the same model. Trimming that suffix joins
+813 of them to a catalog block; the remaining 20 are hardware an HX Stomp does
+not have — a second effects loop, the flow inputs of a bigger Helix — and keep
+their own name so a rig still rebuilds them exactly.
+
+The table is generated into the catalog, so it ships in the binary rather than
+being read at run time. A catalog generated before this existed has none, and
+`presets show` against hardware says so rather than guessing.
 
 ## Opening a session
 

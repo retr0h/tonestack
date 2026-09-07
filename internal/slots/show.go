@@ -21,14 +21,17 @@
 package slots
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"os"
 
 	"github.com/retr0h/tonestack/internal/catalogview"
+	"github.com/retr0h/tonestack/internal/cli"
 	"github.com/retr0h/tonestack/internal/lift"
 	"github.com/retr0h/tonestack/pkg/preset"
 	"github.com/retr0h/tonestack/pkg/rig"
+	riggen "github.com/retr0h/tonestack/pkg/rig/gen"
 )
 
 // ShowOptions says which preset to show.
@@ -78,11 +81,7 @@ func Show(w io.Writer, opts ShowOptions) error {
 		return fmt.Errorf("reading slot %d: %w", opts.Slot, err)
 	}
 
-	if err := rig.Write(w, spec); err != nil {
-		return fmt.Errorf("writing the rig: %w", err)
-	}
-
-	return nil
+	return writeRigTo(w, spec)
 }
 
 // document resolves the options to the preset they name.
@@ -123,4 +122,22 @@ func readFile(path string) (*preset.Document, error) {
 	}
 
 	return doc, nil
+}
+
+// writeRigTo writes a rig for reading.
+//
+// Painted for a terminal and plain for anything else, which is what makes it
+// safe to redirect: the bytes are the same document either way.
+func writeRigTo(w io.Writer, spec riggen.RigSpec) error {
+	var buf bytes.Buffer
+
+	// The rig was validated on the way here and a buffer cannot fail, so the
+	// only thing that can go wrong is the sink.
+	_ = rig.Write(&buf, spec)
+
+	if _, err := io.WriteString(w, cli.YAML(w, buf.String())); err != nil {
+		return fmt.Errorf("writing the rig: %w", err)
+	}
+
+	return nil
 }

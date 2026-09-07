@@ -23,7 +23,6 @@ package lift_test
 import (
 	"bytes"
 	"encoding/json"
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
@@ -47,12 +46,9 @@ type DevicePublicTestSuite struct {
 }
 
 func (s *DevicePublicTestSuite) SetupSuite() {
-	f, err := os.Open("../../schemas/hx-stomp.catalog.json")
-	s.Require().NoError(err)
+	var err error
 
-	defer func() { s.Require().NoError(f.Close()) }()
-
-	s.cat, err = catalog.Load(f)
+	s.cat, err = catalog.BuiltIn()
 	s.Require().NoError(err)
 }
 
@@ -82,6 +78,20 @@ func (s *DevicePublicTestSuite) TestAToneEntryThatIsNotAnObjectIsIgnored() {
 	var out bytes.Buffer
 	s.Require().NoError(preset.Write(&out, doc))
 	s.Require().NotContains(out.String(), "nonsense")
+}
+
+func (s *DevicePublicTestSuite) TestAToneEntryThatWillNotReadIsIgnored() {
+	// A rig somebody edited can put anything under `device`. One entry that
+	// will not read is dropped rather than failing the whole build.
+	doc, err := preset.Blank()
+	s.Require().NoError(err)
+
+	tone := map[string]json.RawMessage{"controller": json.RawMessage(`[1, 2]`)}
+	s.Require().NoError(lift.Lower(doc, s.rig(&riggen.DeviceState{Tone: &tone}), s.cat))
+
+	var out bytes.Buffer
+	s.Require().NoError(preset.Write(&out, doc))
+	s.Require().NotContains(out.String(), `"controller": [`)
 }
 
 func (s *DevicePublicTestSuite) TestRoutingNotNamingAProcessorIsIgnored() {

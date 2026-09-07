@@ -47,8 +47,9 @@ and what this tool generates are the same kind of thing.`,
 		if presetsShowOptions.Path == "" && presetsShowOptions.File == "" {
 			return slots.ShowDevice(cmd.Context(), cmd.OutOrStdout(),
 				slots.DeviceOptions{
-					Setlist: presetsShowOptions.Setlist,
-					Slot:    presetsShowOptions.Slot,
+					Setlist:     presetsShowOptions.Setlist,
+					Slot:        presetsShowOptions.Slot,
+					CatalogPath: presetsShowOptions.CatalogPath,
 				})
 		}
 

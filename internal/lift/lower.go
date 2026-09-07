@@ -73,6 +73,18 @@ func Lower(
 	// than keeping whatever the preset underneath came with.
 	restore(doc, spec.Device)
 
+	// After the device's own state, because a rig's snapshots are its own
+	// even when it carries a verbatim record of everything else.
+	if spec.Snapshots != nil {
+		pruneSnapshots(doc)
+		restoreSnapshots(doc, *spec.Snapshots)
+	}
+
+	if spec.Footswitches != nil {
+		pruneFootswitches(doc)
+		restoreFootswitches(doc, *spec.Footswitches)
+	}
+
 	// The rig names the preset, not the document underneath: compiling into
 	// an untouched preset would otherwise write out the template's own name.
 	// A lifted rig carries the label the device stored, padding and all,

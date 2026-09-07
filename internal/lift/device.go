@@ -45,7 +45,7 @@ const blockPrefix = "block"
 // Kept as raw JSON rather than decoded values, because a preset spells the
 // same number more than one way — `"0.00"` and `0` are both real — and
 // rewriting one as the other changes a file nobody asked to change.
-func deviceState(doc *preset.Document) *riggen.DeviceState {
+func deviceState(doc *preset.Document, modelled map[string]bool) *riggen.DeviceState {
 	out := &riggen.DeviceState{
 		Id:      &doc.Data.Device,
 		Format:  &doc.Version,
@@ -64,8 +64,18 @@ func deviceState(doc *preset.Document) *riggen.DeviceState {
 
 	for key, entry := range doc.Data.Tone {
 		if !strings.HasPrefix(key, processorPrefix) {
+			// What is modelled is not carried here as well: two places to
+			// change one thing is how they drift apart.
+			//
+			// Only what actually was. A preset can hold an empty footswitch
+			// section, which models nothing and is still something the file
+			// said — dropping it would rewrite a file nobody asked to change.
+			if modelled[key] {
+				continue
+			}
+
 			// Not a processor, so it is state beside the chain: a controller
-			// assignment, a snapshot, the global or Variax settings.
+			// assignment, the global or Variax settings.
 			tone[key] = mustRaw(entry)
 
 			continue
@@ -128,6 +138,24 @@ func restore(doc *preset.Document, state *riggen.DeviceState) {
 	restoreRouting(doc, state.Routing)
 }
 
+// pruneSnapshots drops what the preset being written into came with.
+//
+// A rig's snapshots replace them rather than merging: an untouched preset
+// carries three of its own, and keeping those beside a rig's would rebuild a
+// preset holding snapshots nobody made.
+func pruneSnapshots(doc *preset.Document) {
+	for key := range doc.Data.Tone {
+		if snapshotIndex(key) >= 0 {
+			delete(doc.Data.Tone, key)
+		}
+	}
+}
+
+// pruneFootswitches drops what the preset being written into came with.
+func pruneFootswitches(doc *preset.Document) {
+	delete(doc.Data.Tone, footswitchKey)
+}
+
 // restoreTone puts back the entries that sit beside the processors.
 func restoreTone(doc *preset.Document, tone *map[string]json.RawMessage) {
 	// Replace rather than merge. An untouched preset carries entries of its
@@ -149,6 +177,9 @@ func restoreTone(doc *preset.Document, tone *map[string]json.RawMessage) {
 
 	for key, raw := range *tone {
 		var entry preset.Tone
+
+		// A rig somebody edited can put anything here. One entry that will
+		// not read is dropped rather than failing the whole build.
 		if err := json.Unmarshal(raw, &entry); err != nil {
 			continue
 		}
