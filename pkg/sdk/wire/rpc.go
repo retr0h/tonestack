@@ -70,7 +70,44 @@ const (
 type Arg struct {
 	Key   int
 	Value uint64
+	// Text is a string argument, such as the name a preset is saved under.
+	Text string
+	// Blob is a binary argument, which is how a preset document travels.
+	Blob []byte
+	// Flag is a boolean argument. A device sends three of them alongside
+	// every write and echoes them back unchanged.
+	Flag bool
+	// Kind says which of the above this argument is. The zero value is a
+	// number, which is what almost every argument is.
+	Kind ArgKind
 }
+
+// ArgKind is what sort of value an argument carries.
+type ArgKind uint8
+
+// The kinds an argument can be.
+const (
+	// ArgNumber is an unsigned number, and the default.
+	ArgNumber ArgKind = iota
+	// ArgText is a string.
+	ArgText
+	// ArgBlob is a run of bytes.
+	ArgBlob
+	// ArgFlag is a boolean.
+	ArgFlag
+)
+
+// Number returns an argument carrying a count or an index.
+func Number(key int, v uint64) Arg { return Arg{Key: key, Value: v} }
+
+// Text returns an argument carrying a string.
+func Text(key int, v string) Arg { return Arg{Key: key, Text: v, Kind: ArgText} }
+
+// Blob returns an argument carrying bytes.
+func Blob(key int, v []byte) Arg { return Arg{Key: key, Blob: v, Kind: ArgBlob} }
+
+// Flag returns an argument carrying a boolean.
+func Flag(key int, v bool) Arg { return Arg{Key: key, Flag: v, Kind: ArgFlag} }
 
 // Request is a call to make.
 type Request struct {
@@ -129,13 +166,31 @@ func EncodeRequest(r Request) []byte {
 
 	for _, a := range r.Args {
 		_ = enc.EncodeInt(int64(a.Key))
-		// EncodeUint rather than Encode: the generic path writes a value at
-		// full width, where the device is sent the narrowest unsigned form
-		// that holds it — 1000 as a three-byte uint16, 2 as a single byte.
-		_ = enc.EncodeUint(a.Value)
+		encodeArg(enc, a)
 	}
 
 	return buf.Bytes()
+}
+
+// encodeArg writes one argument in the form the device expects.
+func encodeArg(enc *msgpack.Encoder, a Arg) {
+	switch a.Kind {
+	case ArgText:
+		// A device terminates its strings, and reads a name that is not
+		// terminated as running on into whatever follows it.
+		_ = enc.EncodeString(a.Text + "\x00")
+	case ArgBlob:
+		_ = enc.EncodeBytes(a.Blob)
+	case ArgFlag:
+		_ = enc.EncodeBool(a.Flag)
+	case ArgNumber:
+		fallthrough
+	default:
+		// EncodeUint rather than Encode: the generic path writes a value at
+		// full width, where the device is sent the narrowest unsigned form
+		// that holds it, 1000 as a three-byte uint16 and 2 as a single byte.
+		_ = enc.EncodeUint(a.Value)
+	}
 }
 
 // DecodeResponse reads a reply.

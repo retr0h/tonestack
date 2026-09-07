@@ -165,3 +165,16 @@ type (
 	TestSender   = sender
 	TestReceiver = receiver
 )
+
+// StreamChunk is how much of a message a device takes per frame.
+const StreamChunk = streamChunk
+
+// CommitBudget is how long a device is given to finish a write, exported so a
+// test need not wait the whole of it.
+var CommitBudget = &commitBudget
+
+// Write sends a request too large for one frame and waits for the device to
+// finish acting on it.
+func (s *Session) Write(ctx context.Context, opcode uint64, args []wire.Arg) error {
+	return s.write(ctx, opcode, args)
+}

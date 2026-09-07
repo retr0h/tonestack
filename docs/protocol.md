@@ -164,7 +164,8 @@ selecting preset 999 on a device holding 126 answers `1` and does nothing.
 | Session handshake                           | implemented, verified on hardware         |
 | List presets (opcode 1)                     | implemented, verified on hardware         |
 | Read a preset without loading it (opcode 4) | implemented, verified on hardware         |
-| Write a preset (opcodes 5, 8, 21, 71)       | not implemented, and see below            |
+| Write a preset (opcodes 5, 8)               | implemented, never sent to hardware       |
+| Save from the edit buffer (opcode 71)       | not implemented                           |
 
 Verified means an HX Stomp on firmware 3.80 answered, not that a test asserts
 it. `pkg/sdk` needs hardware and is excluded from the coverage gate;
@@ -336,6 +337,44 @@ their own name so a rig still rebuilds them exactly.
 The table is generated into the catalog, so it ships in the binary rather than
 being read at run time. A catalog generated before this existed has none, and
 `presets show` against hardware says so rather than guessing.
+
+## Writing a preset
+
+Opcode 5 writes a document into a slot and leaves its name alone. Opcode 8
+writes one and names it, which is what a paste or an import does.
+
+```text
+opcode 5   {102: txn, 100: 5, 101: {107: setlist, 108: slot,
+                                    123: false, 124: false, 125: 0,
+                                    110: document}}
+opcode 8   the same, with 109: name
+```
+
+Keys 123, 124 and 125 go out with every write and come back unchanged. Nobody
+has established what they mean; every capture carries `false`, `false` and `0`.
+A preset listing carries the same trio.
+
+Three rules, and a device punishes each of them.
+
+**The document must be byte-exact.** One that differs in length from what its
+offset table claims leaves those offsets pointing at the wrong places. The
+device accepts the write and then reads the preset as empty. `wire.Document` is
+what keeps that from happening.
+
+**A message goes out in pieces.** A device takes 256 bytes of stream data per
+frame and paces the sender with acknowledgements. Sending a whole preset at once
+fills its receive window and stalls the endpoint: the transfer times out, and
+the interface will not be claimed again until the device is power cycled.
+
+**A write is not finished when it is accepted.** The reply carries status 1,
+meaning the device took it, and completion arrives later as a notification
+carrying the same transaction with status 0. A client that treats the first as
+the end races its next write against a commit still running. A device tolerates
+about a dozen of those and then stops accepting writes at all.
+
+None of this has been sent to hardware from here. It is tested against a
+scripted device, which establishes that the message is built and paced correctly
+and nothing about whether the device likes it.
 
 ## Opening a session
 

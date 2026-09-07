@@ -76,13 +76,16 @@ const listKind = 2
 // The control channel is opened twice: once for service 5, which is then
 // closed, and again from scratch for service 2. Requests sent to service 5
 // time out silently, which is easy to mistake for a flaky device.
+// channelControl is the channel every request goes on.
+const channelControl = "control"
+
 var channelSpecs = []struct {
 	name     string
 	device   uint16
 	host     uint16
 	services []uint16
 }{
-	{"control", 0x1001, 0x03ef, []uint16{5, 2}},
+	{channelControl, 0x1001, 0x03ef, []uint16{5, 2}},
 	{"events", 0x1002, 0x03f0, []uint16{4}},
 	{"data", 0x1080, 0x03ed, []uint16{6}},
 }
