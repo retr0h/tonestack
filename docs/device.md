@@ -85,6 +85,48 @@ A value needing more room widens to the narrowest form that holds it.
 captures and writes each one back as itself, asserting the section is unchanged
 every time.
 
+## A chain goes into a preset a device wrote
+
+A device lays a chain out on a fixed grid of 20 positions. The first holds the
+input, the tenth and eleventh the split and the join, the last the output, and
+the device decides where those sit. The other 16 hold blocks or nothing.
+
+`wire.Place` writes every position that can hold a block. One the chain names
+gets that block and one it does not gets emptied, so a preset says the same
+thing whatever it held before. A block entry reads:
+
+```text
+19: 6                                    a block
+20:
+  9:  1 | 15 | 17 | 18                   what it is
+  10: true                               switched on
+  11: {2: count, 3: named, 4: [values]}  its parameters
+  12: {2: count, 3: named, 4: [values]}  the cabinet it carries, if any
+  24: {23: carries one, 25: model, 26: cabinet model}
+```
+
+Key `9` is read off the captures rather than documented. Every effect says 1, a
+cabinet on its own says 15, an amp with no cabinet says 17, and an amp carrying
+one says 18. That is ten blocks across three presets, so treat it as a rule that
+has not been contradicted rather than one anybody confirmed.
+
+### The snapshots are part of the chain
+
+Each of the three snapshots carries an array of 20 in step with the grid,
+holding whether each position is switched on. Snapshot 0 of the bass capture
+matches the live chain exactly, and the other two differ, which is what a
+snapshot is for.
+
+So a chain written without them recalls the wrong blocks the moment anybody
+presses a snapshot. `Place` writes both or neither.
+
+### Every float is a float32
+
+A device stores parameters as float32. Writing 0.45 and reading it back gives
+0.44999998807907104. A rig lifted off hardware already carries values that have
+been through this and survives it unchanged; one somebody typed by hand gets
+rounded to what the device can store.
+
 **Writing a preset synthesised from nothing is the least-solved thing in the
 space, and neither project does it.** The reliable shape is to read a preset off
 the device, change it, and write it back. That is also what the corpus says from

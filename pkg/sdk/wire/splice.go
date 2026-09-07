@@ -102,11 +102,20 @@ func SpliceRaw(
 		return nil, err
 	}
 
+	return replaceSpan(body, start, end, raw), nil
+}
+
+// replaceSpan swaps one byte range for another, copying the rest through.
+func replaceSpan(
+	body []byte,
+	start, end int,
+	raw []byte,
+) []byte {
 	out := make([]byte, 0, len(body)-(end-start)+len(raw))
 	out = append(out, body[:start]...)
 	out = append(out, raw...)
 
-	return append(out, body[end:]...), nil
+	return append(out, body[end:]...)
 }
 
 // Splice replaces one value, encoding it the way the device would.
@@ -130,11 +139,7 @@ func Splice(
 		return nil, err
 	}
 
-	out := make([]byte, 0, len(body)-(end-start)+len(raw))
-	out = append(out, body[:start]...)
-	out = append(out, raw...)
-
-	return append(out, body[end:]...), nil
+	return replaceSpan(body, start, end, raw), nil
 }
 
 // locate walks one step at a time, carrying the whole path for the error.
