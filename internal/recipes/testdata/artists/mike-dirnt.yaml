@@ -39,22 +39,8 @@ variants:
 provenance:
   source: llm
   confidence: medium
-  url: https://www.youtube.com/watch?v=NDjtguZG6iw
   notes: >
     Gear identification is from model knowledge, not a cited source, and has
     not been confirmed against a rig rundown or an interview. Treat the amp and
     instrument as likely, the character notes as a starting point, and correct
     them from what you hear.
-
-
-    The URL is a listening reference, not a citation: nothing has measured it,
-    and nobody has confirmed what is in the signal path on it. It is here so
-    the next round has something to compare against.
-
-
-    Played fingered rather than with a pick. That is a real tonal difference —
-    a pick puts high-frequency attack into every note that fingers do not — so
-    a rig tuned from picked playing reads duller under fingers, and the
-    compensation belongs in the amp and the compressor. There is nowhere in
-    this schema version to say so; RigSpec v2 carries it as
-    `target.technique`.

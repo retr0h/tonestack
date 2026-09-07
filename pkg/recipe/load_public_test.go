@@ -26,6 +26,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/retr0h/tonestack/pkg/recipe"
+	"github.com/retr0h/tonestack/pkg/recipe/gen"
 )
 
 type LoadPublicTestSuite struct {
@@ -49,8 +50,8 @@ func (s *LoadPublicTestSuite) TestLoadReadsAValidRecipe() {
 
 	s.Require().NoError(err)
 	s.Require().Equal("mike-dirnt", r.ID)
-	s.Require().Equal(recipe.KindArtist, r.Kind)
-	s.Require().Equal(recipe.InstrumentBass, r.InstrumentType)
+	s.Require().Equal(gen.KindArtist, r.Kind)
+	s.Require().Equal(gen.InstrumentBass, r.InstrumentType)
 	s.Require().Equal("Ampeg SVT", r.Rig.Amp)
 }
 
@@ -99,7 +100,8 @@ func (s *LoadPublicTestSuite) TestLoadAcceptsAGoodVariant() {
 		valid + "variants:\n  - id: longview\n    name: Longview\n"))
 
 	s.Require().NoError(err)
-	s.Require().Len(r.Variants, 1)
+	s.Require().NotNil(r.Variants)
+	s.Require().Len(*r.Variants, 1)
 }
 
 func (s *LoadPublicTestSuite) TestLoadReportsAFailingReader() {
@@ -109,9 +111,9 @@ func (s *LoadPublicTestSuite) TestLoadReportsAFailingReader() {
 }
 
 func (s *LoadPublicTestSuite) TestTrustedDistinguishesConfirmedKnowledge() {
-	s.Require().False(recipe.Provenance{Source: recipe.SourceLLM}.Trusted())
-	s.Require().True(recipe.Provenance{Source: recipe.SourceCurated}.Trusted())
-	s.Require().True(recipe.Provenance{Source: recipe.SourceCited}.Trusted())
+	s.Require().False(recipe.Trusted(gen.Provenance{Source: gen.SourceLLM}))
+	s.Require().True(recipe.Trusted(gen.Provenance{Source: gen.SourceCurated}))
+	s.Require().True(recipe.Trusted(gen.Provenance{Source: gen.SourceCited}))
 }
 
 type failingReader struct{}

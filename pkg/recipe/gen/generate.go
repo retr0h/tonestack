@@ -17,11 +17,10 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
+// Package gen is the shape of a recipe, generated from the Recipe contract.
+//
+// Do not hand-edit recipe.gen.go. Change schemas/recipe.openapi.yaml and run
+// `just generate`.
+package gen
 
-// Package tonestack Describe a guitar or bass sound, get a Line 6 Helix preset.
-package tonestack
-
-// Name reports the name of this command.
-func Name() string {
-	return "tonestack"
-}
+//go:generate go tool github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen -config cfg.yaml ../../../schemas/recipe.openapi.yaml

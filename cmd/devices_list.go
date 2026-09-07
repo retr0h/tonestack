@@ -17,19 +17,28 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
-
-package tonestack_test
+package cmd
 
 import (
-	"testing"
+	"github.com/spf13/cobra"
 
-	"github.com/retr0h/tonestack/internal/tonestack"
+	"github.com/retr0h/tonestack/internal/device"
 )
 
-func TestName(t *testing.T) {
-	t.Parallel()
+// devicesListCmd represents the devices list command.
+var devicesListCmd = &cobra.Command{
+	Use:   "list",
+	Short: "List attached Helix hardware",
+	Long: `List every Line 6 Helix-family device attached over USB.
 
-	if got := tonestack.Name(); got != "tonestack" {
-		t.Errorf("Name() = %q, want %q", got, "tonestack")
-	}
+Devices are enumerated by descriptor only — none is opened — so this needs no
+special privileges and cannot disturb a device in use by other software.`,
+	Args: cobra.NoArgs,
+	RunE: func(cmd *cobra.Command, _ []string) error {
+		return device.List(cmd.Context(), cmd.OutOrStdout())
+	},
+}
+
+func init() {
+	devicesCmd.AddCommand(devicesListCmd)
 }
