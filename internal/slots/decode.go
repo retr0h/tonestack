@@ -21,6 +21,7 @@
 package slots
 
 import (
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -71,7 +72,11 @@ func chainOf(name string, got wire.DevicePreset, cat *catalog.Catalog) (chain.Ch
 		params[attrType] = catalog.Int(typeOf(model, cat, len(b.Cab) > 0))
 
 		out.Blocks = append(out.Blocks, chain.Block{
-			Model:  model,
+			Model: model,
+			// A cabinet standing on its own sends one value past what its
+			// model names, and that is the microphone. Dropping it loses a
+			// setting somebody chose.
+			Attrs:  micAttr(sym, b.Values),
 			Params: params,
 			// The device's own number, not a place in the chain. A footswitch
 			// names the block it works on by this, and renumbering would
@@ -161,8 +166,9 @@ func modelOf(id catalog.ModelID, cat *catalog.Catalog) catalog.ModelID {
 // paramsOf puts names back on the values a device sent by position.
 //
 // A device sends fewer values than the table names when it has nothing to say
-// about the rest, and more is not something it does — so the shorter of the
-// two is what can be read.
+// about the rest, so the shorter of the two is what can be read. It sends one
+// more for a cabinet, and that one is the microphone: micOf picks it up, and
+// a preset keeps it as an attribute rather than a parameter.
 func paramsOf(sym catalog.Symbol, values []any) map[string]catalog.ParamValue {
 	out := make(map[string]catalog.ParamValue, len(values))
 
@@ -177,6 +183,20 @@ func paramsOf(sym catalog.Symbol, values []any) map[string]catalog.ParamValue {
 	}
 
 	return out
+}
+
+// micAttr keeps the microphone a cabinet sends past its named values.
+func micAttr(sym catalog.Symbol, values []any) map[string]json.RawMessage {
+	if len(values) <= len(sym.Params) {
+		return nil
+	}
+
+	raw, err := json.Marshal(values[len(sym.Params)])
+	if err != nil {
+		return nil
+	}
+
+	return map[string]json.RawMessage{cabMic: raw}
 }
 
 // paramValue keeps a device's value in the shape it arrived in.

@@ -277,6 +277,28 @@ func (s *PlacePublicTestSuite) TestBlankIsAPresetADeviceWrote() {
 	s.Require().Empty(s.read(doc).Blocks, "each call gets its own document")
 }
 
+// TestOpen covers which grid positions a chain may use.
+func (s *PlacePublicTestSuite) TestOpen() {
+	got, err := wire.Open(s.blank())
+
+	s.Require().NoError(err)
+	s.Require().Equal(
+		[]int{1, 2, 3, 4, 5, 6, 7, 8, 11, 12, 13, 14, 15, 16, 17, 18}, got,
+		"the input, split, join and output take the other four")
+}
+
+// TestOpenOnADocumentWithNoChain covers bytes no device would send.
+func (s *PlacePublicTestSuite) TestOpenOnADocumentWithNoChain() {
+	raw, err := os.ReadFile(filepath.Join("testdata", "preset.bin"))
+	s.Require().NoError(err)
+
+	full, err := wire.DecodeDocument(raw)
+	s.Require().NoError(err)
+
+	_, err = wire.Open(wire.NewDocument(full, []int8{1}))
+	s.Require().ErrorIs(err, wire.ErrNotADocument)
+}
+
 // TestNoRoomErrorNamesThePosition covers what a caller reads.
 func (s *PlacePublicTestSuite) TestNoRoomErrorNamesThePosition() {
 	err := &wire.NoRoomError{Position: 9, Why: "the device keeps its routing there"}

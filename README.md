@@ -68,7 +68,17 @@ tonestack recipes new \
 tonestack presets make --id mike-dirnt --out mike.hlx
 ```
 
-Then `HX Edit → Import`, and play it.
+**Put it on the device.** Writing is live too. The destination is overwritten
+and a device has no undo:
+
+```bash
+tonestack presets import --preset mike.hlx --slot 07A
+tonestack presets copy   --from 01A --to 02A
+```
+
+Every command also takes `--file` for working from an HX Edit backup with no
+device attached. [docs/device.md](docs/device.md) says what a device answers and
+what is still unknown.
 
 **Or just ask.** An agent runs those commands for you. The part worth doing
 yourself is listening:
@@ -82,21 +92,6 @@ yourself is listening:
 Claude edits the rig, rebuilds it, and writes down what you asked for and what
 you thought of the result. That log is the only record of a human ear in the
 system. [docs/workflows.md](docs/workflows.md) has the full loop.
-
-### What is not live yet
-
-Reading is. Moving a preset between slots still goes through a backup HX Edit
-wrote, passed with `--file`. A `.hlb` holds the whole device; a `.hls` holds one
-setlist.
-
-```bash
-tonestack presets copy --from 01A --to 02A            # the device
-tonestack presets import --file device.hlb --preset mike.hlx --slot 07A --out edited.hlb
-```
-
-That detour exists because nobody has implemented *writing* a preset over USB,
-not because a file is a good way to work. [docs/protocol.md](docs/protocol.md)
-states what the device answers today and what is still unknown.
 
 ## Documentation
 

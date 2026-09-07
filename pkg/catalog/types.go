@@ -227,6 +227,29 @@ func (c *Catalog) Symbol(n int) (Symbol, bool) {
 	return c.Symbols[n], true
 }
 
+// SymbolNumber returns the device's number for a model, which is where the
+// model sits in the table.
+//
+// A device names a mono and a stereo instance of the same model separately,
+// so a catalog name can reach more than one symbol. The first is returned,
+// which is the mono one: the table lists them in that order and an HX Stomp
+// runs mono unless a preset asks otherwise.
+func (c *Catalog) SymbolNumber(id ModelID) (int, bool) {
+	// Most exact first: a name the table carries as it stands beats one it
+	// carries only with a suffix.
+	for _, suffix := range []string{"", "Mono", "Stereo"} {
+		want := id + ModelID(suffix)
+
+		for n, sym := range c.Symbols {
+			if sym.ID == want {
+				return n, true
+			}
+		}
+	}
+
+	return 0, false
+}
+
 // ParamType names the kind a ParamValue holds.
 type ParamType string
 

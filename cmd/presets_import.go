@@ -34,11 +34,22 @@ var presetsImportCmd = &cobra.Command{
 	Short: "Put a preset file into a slot",
 	Long: `Place a standalone .hlx into a slot.
 
-This is how a generated preset reaches the hardware: import it into a backup,
-then restore that backup with HX Edit. Whatever the slot held is gone, so the
-result is written to a new file.`,
+With no --file this writes the attached device, which is how a generated preset
+reaches the hardware. The chain goes into an unused slot the device itself
+wrote, so everything a chain does not describe is what the device expects to
+find there.
+
+With --file it edits an HX Edit backup instead, for working without a device
+attached. Either way whatever the slot held is gone, and a device has no undo.`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
+		// No file means the device itself, which is what somebody with one
+		// plugged in almost always wants.
+		if presetsImportOptions.Path == "" {
+			return slots.ImportDevice(
+				cmd.Context(), cmd.OutOrStdout(), presetsImportOptions)
+		}
+
 		return slots.Import(cmd.OutOrStdout(), presetsImportOptions)
 	},
 }
@@ -66,12 +77,13 @@ func init() {
 		"which slot — a label the pedal shows such as 31A, or a number from zero",
 	)
 	f.StringVar(&presetsImportOptions.OutputPath, "out", "", "where to write the edited setlist")
+	f.StringVar(&presetsImportOptions.CatalogPath, "catalog", "",
+		"a catalog to resolve models against, when writing to a device")
 	_ = presetsImportCmd.MarkFlagRequired("preset")
 	_ = presetsImportCmd.MarkFlagRequired("slot")
 
-	// Importing edits a backup and writes a new file. Unlike copy and swap it
-	// has no device path yet, so both are required rather than required
-	// together.
-	_ = presetsImportCmd.MarkFlagRequired("file")
-	_ = presetsImportCmd.MarkFlagRequired("out")
+	// Importing into a backup writes a new file, and importing into a device
+	// writes the device. So a file needs somewhere to put the result and a
+	// device does not.
+	presetsImportCmd.MarkFlagsRequiredTogether("file", "out")
 }

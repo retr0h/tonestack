@@ -162,6 +162,28 @@ func Place(
 	return snapshots(doc, at)
 }
 
+// Open lists the grid positions a block may take, in order.
+//
+// Read off the document rather than assumed. A device decides where it keeps
+// the input, the split, the join and the output, and everything left over is
+// what a chain can use.
+func Open(doc *Document) ([]int, error) {
+	body, ok := doc.Section(int8(keyTone))
+	if !ok {
+		return nil, fmt.Errorf("%w: it has no chain", ErrNotADocument)
+	}
+
+	out := []int(nil)
+
+	for i := range GridSize {
+		if _, _, ok := openAt(body, i); ok {
+			out = append(out, i)
+		}
+	}
+
+	return out, nil
+}
+
 // roomFor rejects a position that is not the device's to give.
 func roomFor(
 	body []byte,

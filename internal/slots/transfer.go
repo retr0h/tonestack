@@ -134,6 +134,9 @@ type ImportOptions struct {
 	Slot    int
 	// OutputPath is where the edited setlist is written.
 	OutputPath string
+	// CatalogPath is a catalog to resolve models against, when the preset is
+	// going to a device. Empty means the one built into this binary.
+	CatalogPath string
 }
 
 // Import puts a standalone preset into a slot.
