@@ -1,0 +1,30 @@
+schema: RigSpec
+version: 2
+id: mike-dirnt-longview
+extends: mike-dirnt
+
+subject:
+  kind: song
+  name: Longview
+  band: Green Day
+
+instrument: bass
+
+chain:
+  - role: amp
+    gear: Ampeg SVT
+    evidence:
+      - { kind: llm }
+    confidence: medium
+  - role: cab
+    gear: Ampeg 8x10
+    evidence:
+      - { kind: llm }
+    confidence: medium
+
+character:
+  - fingers rather than pick
+  - rounder, more low-mid
+  - cleaner — the part carries the song
+
+technique: fingerstyle

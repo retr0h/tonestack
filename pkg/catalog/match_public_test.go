@@ -55,6 +55,19 @@ func (s *MatchPublicTestSuite) TestMatches() {
 		{"a name in a different case", svt, "ampeg svt", true},
 		{"a name with the spacing off", svt, "  Ampeg   SVT  ", true},
 		{"part of a name", klon, "Minotaur", true},
+		{
+			// Line 6 call it "8x10 Ampeg SVT-E"; everyone who owns one calls
+			// it an Ampeg 8x10. Requiring the same word order would reject
+			// the name a person actually types.
+			"a name written in the order a person says it",
+			catalog.Block{Name: "8x10 Ampeg SVT-E"},
+			"Ampeg 8x10", true,
+		},
+		{
+			"a word the name does not hold",
+			catalog.Block{Name: "8x10 Ampeg SVT-E"},
+			"Ampeg 4x10", false,
+		},
 		{"gear this is not", svt, "Marshall JCM800", false},
 		{"nothing at all", svt, "", false},
 		{"nothing but spaces", svt, "   ", false},

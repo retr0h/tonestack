@@ -320,6 +320,11 @@ type RequirementKind string
 
 // RigSpec A rig, complete. Sparse when hand-written; the same document carries settings and evidence once anything has been measured or tuned.
 type RigSpec struct {
+	// Aliases Other names this rig answers to.
+	//
+	// People ask for a band as readily as a player, and for a nickname as readily as either. An alias costs nothing and saves somebody guessing which of them was written down.
+	Aliases *[]string `json:"aliases,omitempty"`
+
 	// Chain The signal path, in order.
 	Chain []ChainEntry `json:"chain"`
 

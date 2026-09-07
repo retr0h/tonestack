@@ -430,6 +430,16 @@ components:
           $ref: "#/components/schemas/Subject"
         instrument:
           $ref: "#/components/schemas/Instrument"
+        aliases:
+          type: array
+          items: { type: string, minLength: 1 }
+          description: >
+            Other names this rig answers to.
+
+
+            People ask for a band as readily as a player, and for a nickname as
+            readily as either. An alias costs nothing and saves somebody
+            guessing which of them was written down.
         default:
           type: boolean
           description: >

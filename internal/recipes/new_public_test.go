@@ -30,6 +30,8 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/retr0h/tonestack/internal/recipes"
+	"github.com/retr0h/tonestack/pkg/rig"
+	"github.com/retr0h/tonestack/pkg/rig/gen"
 )
 
 type NewPublicTestSuite struct {
@@ -58,7 +60,7 @@ func (s *NewPublicTestSuite) TestWritesARecipeThatLoads() {
 	s.Require().NoError(err)
 	s.Require().Len(all, 1)
 	s.Require().Equal("test-player", all[0].ID)
-	s.Require().Equal("Ampeg SVT", all[0].Rig.Amp)
+	s.Require().Equal("Ampeg SVT", rig.GearName(all[0], gen.RoleAmp))
 
 	s.Require().Contains(log.String(), "Test Player")
 	s.Require().Contains(log.String(), "presets make")
@@ -77,8 +79,12 @@ func (s *NewPublicTestSuite) TestWritesEverythingItWasGiven() {
 
 	all, err := recipes.Load(dir)
 	s.Require().NoError(err)
-	s.Require().Equal("Ampeg SVT 410HLF", *all[0].Rig.Cab)
-	s.Require().Equal([]string{"Klon Centaur"}, *all[0].Rig.Pedals)
+	s.Require().Equal("Ampeg SVT 410HLF", rig.GearName(all[0], gen.RoleCab))
+
+	// The pedal is written ahead of the amp, because that is where a pedal
+	// goes and a chain is ordered by what the signal does.
+	s.Require().Equal("Klon Centaur", all[0].Chain[0].Gear)
+	s.Require().Equal(gen.RoleAmp, all[0].Chain[1].Role)
 	s.Require().Contains(log.String(), "Klon Centaur")
 }
 

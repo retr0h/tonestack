@@ -39,8 +39,33 @@ func (b Block) Matches(want string) bool {
 		return false
 	}
 
-	return strings.Contains(normalize(b.BasedOn), want) ||
-		strings.Contains(normalize(b.Name), want)
+	return holds(normalize(b.BasedOn), want) || holds(normalize(b.Name), want)
+}
+
+// holds reports whether a name covers everything a request asked for.
+//
+// Substring first, because gear written the way Line 6 write it is the
+// strongest signal there is. Word by word after that, because people write
+// gear the way they say it: a cabinet Line 6 call "8x10 Ampeg SVT-E" is an
+// "Ampeg 8x10" to everyone who owns one. Requiring the same word order would
+// reject the name a person actually types, and the name a person types is
+// what this format is for.
+func holds(name, want string) bool {
+	if name == "" {
+		return false
+	}
+
+	if strings.Contains(name, want) {
+		return true
+	}
+
+	for _, word := range strings.Fields(want) {
+		if !strings.Contains(name, word) {
+			return false
+		}
+	}
+
+	return true
 }
 
 // noise is the punctuation that appears in a manufacturer's own spelling and

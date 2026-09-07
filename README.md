@@ -43,74 +43,62 @@ go build .
 
 ## Usage
 
+**See what your Helix holds.** Quit HX Edit first — it holds the device open.
+
 ```bash
-tonestack recipes list                       # what gear knowledge exists
-tonestack recipes show --id mike-dirnt       # one recipe in full
-tonestack catalog list --subcategory bass    # what the device can do
-tonestack catalog show --model HD2_AmpSVBeastNrm
-tonestack devices list                       # attached hardware
-tonestack corpus show --instrument bass      # what real chains contain
+tonestack presets list
+tonestack presets list --file device.hlb    # or a backup, instead of hardware
+```
+
+**Make a preset.** Gear is named the way you say it — "Ampeg SVT", never a model
+identifier.
+
+```bash
+tonestack catalog list --search ampeg --subcategory bass    # is it modelled?
+
+tonestack recipes new \
+  --id mike-dirnt --name "Mike Dirnt" --band "Green Day" \
+  --instrument bass --amp "Ampeg SVT" --cab "Ampeg 8x10"
+
 tonestack presets make --id mike-dirnt --out mike.hlx
 ```
 
-Building a preset reports every decision, including the ones nobody asked for. A
-recipe names an amp; a rig is several blocks, and the rest come from what the
-corpus shows chains of that kind almost always hold:
+Then `HX Edit → Import` and play it.
 
-```
-  Mike Dirnt
-
-  ●  0.0  LA Studio Comp    Teletronix® LA-2A®          5.8
-  ●  0.1  Ampeg SVT Brt     Ampeg SVT (bright channel)  26.6
-  ●  0.2  8x10 Ampeg SVT-E                              7.2
-
-  dsp0  █████████░░░░░░░░░░░░░░░  39.6%
-
-  added LA Studio Comp — almost every chain has one (88% of chains)
-
-  [ok] wrote mike.hlx
-```
-
-### What the device already holds
-
-Point the same commands at a backup HX Edit wrote — a `.hls` setlist or a `.hlb`
-of the whole device — and a slot reads back as the same kind of chain:
+**Pull a preset back out**, as a rig you can read and edit:
 
 ```bash
-tonestack presets list   --file device.hlb                 # every slot
-tonestack presets show   --file device.hlb --slot 3        # one chain
-tonestack presets export  --file device.hlb --slot 3 --out lead.yaml   # to a rig
-tonestack presets compile --rig lead.yaml --out lead.hlx               # and back
-tonestack presets import --file device.hlb --preset mike.hlx --slot 7 --out edited.hlb
-tonestack presets copy   --file device.hlb --from 1 --to 2 --out edited.hlb
-tonestack presets swap   --file device.hlb --from 1 --to 2 --out edited.hlb
+tonestack presets export  --file device.hlb --slot 3 --out lead.yaml
+tonestack presets compile --rig lead.yaml --out lead.hlx
 ```
 
-```
-  Songs  128 slots · 115 in use
+**Iterate with Claude.** The scaffold has the gear; it does not know how the rig
+should sound, and nothing here can hear. That part is a conversation:
 
-  SLOT  NAME              CHAIN
-  01A   Claptone          drive → mod → amp → cab → delay → utility → mod → reverb
-  01B   Divider there2    drive → mod → amp → cab → utility → mod → reverb
-```
+> Fill in `character` and `technique` for `recipes/artists/mike-dirnt.yaml`.
 
-Restore the edited backup with HX Edit. Presets do not travel over USB —
-[docs/device.md](docs/device.md) explains why.
+> Too clunky. Loosen the low end and put the drive back.
+
+Claude edits the rig, rebuilds it, and records what you asked for and what you
+thought of it. That log is the only record of a human ear in the system —
+[docs/workflows.md](docs/workflows.md) is the full loop.
 
 ## Documentation
 
 - [`docs/workflows.md`](docs/workflows.md) — **start here**: what to do, in
   order, for building a rig, reading a device, and correcting a preset.
-- [`docs/`](docs/) — how it all works. Start with
-  [knowledge.md](docs/knowledge.md) for how a request becomes a signal chain, or
-  [recipes.md](docs/recipes.md) to write one yourself.
+- [`docs/recipes.md`](docs/recipes.md) — every RigSpec field, and how to write
+  one by hand.
+- [`docs/knowledge.md`](docs/knowledge.md) — where the gear knowledge comes
+  from, and how far each source can be trusted.
+- [`docs/catalog.md`](docs/catalog.md) — what the device can do, and how that is
+  extracted from HX Edit.
+- [`docs/protocol.md`](docs/protocol.md) — the USB protocol, reverse engineered.
+- [`schemas/`](schemas/) — the RigSpec contract, the generated device catalog,
+  and the preset corpus.
+- [`recipes/`](recipes/) — curated rigs that ship in the binary.
 - [Package documentation](https://pkg.go.dev/github.com/retr0h/tonestack) on
   pkg.go.dev.
-- [`docs/`](docs/) — how it works: turning a request into a chain, the device
-  catalog, the preset format.
-- [`schemas/`](schemas/) — the RigSpec and Recipe contracts, the generated
-  device catalog, the preset corpus.
-- [`recipes/`](recipes/) — curated knowledge about players and styles.
 
 ## Contributing
 

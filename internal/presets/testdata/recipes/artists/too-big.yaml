@@ -1,10 +1,18 @@
+schema: RigSpec
+version: 2
 id: too-big
-kind: artist
-name: Too Big
-instrument_type: bass
-rig:
-  amp: Ampeg SVT
-  pedals: [Heavy Thing, Heavy Thing, Heavy Thing, Heavy Thing, Heavy Thing, Heavy Thing, Heavy Thing]
-provenance:
-  source: llm
-  confidence: low
+
+subject: { kind: artist, name: Too Big }
+instrument: bass
+
+chain:
+  - { role: other, gear: Heavy Thing, evidence: [{ kind: llm }] }
+  - { role: other, gear: Heavy Thing, evidence: [{ kind: llm }] }
+  - { role: other, gear: Heavy Thing, evidence: [{ kind: llm }] }
+  - { role: other, gear: Heavy Thing, evidence: [{ kind: llm }] }
+  - { role: other, gear: Heavy Thing, evidence: [{ kind: llm }] }
+  - { role: other, gear: Heavy Thing, evidence: [{ kind: llm }] }
+  - { role: other, gear: Heavy Thing, evidence: [{ kind: llm }] }
+  - { role: amp, gear: Ampeg SVT, evidence: [{ kind: llm }] }
+
+confidence: low

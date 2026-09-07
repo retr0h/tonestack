@@ -42,9 +42,10 @@ func (s *RecipesPublicTestSuite) TestLoadReadsEveryRecipe() {
 	all, err := recipes.Load(s.good())
 
 	s.Require().NoError(err)
-	s.Require().Len(all, 2)
+	s.Require().Len(all, 3)
 	s.Require().Equal("mike-dirnt", all[0].ID, "sorted by identifier")
-	s.Require().Equal("minimal", all[1].ID)
+	s.Require().Equal("mike-dirnt-longview", all[1].ID)
+	s.Require().Equal("minimal", all[2].ID)
 }
 
 func (s *RecipesPublicTestSuite) TestLoadStopsOnAnInvalidRecipe() {
@@ -67,7 +68,7 @@ func (s *RecipesPublicTestSuite) TestFindByIdentifier() {
 	r, err := recipes.Find(s.good(), "mike-dirnt")
 
 	s.Require().NoError(err)
-	s.Require().Equal("Mike Dirnt", r.Name)
+	s.Require().Equal("Mike Dirnt", r.Subject.Name)
 }
 
 func (s *RecipesPublicTestSuite) TestFindIsCaseInsensitive() {
@@ -157,11 +158,25 @@ func (s *RecipesPublicTestSuite) TestShowRendersEverythingAPersonWrote() {
 	got := out.String()
 	s.Require().Contains(got, "Mike Dirnt")
 	s.Require().Contains(got, "Green Day")
+	s.Require().Contains(got, "Dookie through American Idiot")
 	s.Require().Contains(got, "pick, near the bridge")
 	s.Require().Contains(got, "mid-forward")
 	s.Require().Contains(got, "Longview")
 	s.Require().Contains(got, "unverified",
 		"an llm-sourced recipe must say nobody confirmed it")
+}
+
+func (s *RecipesPublicTestSuite) TestShowPropagatesALoadFailure() {
+	s.Require().Error(recipes.Show(&bytes.Buffer{}, s.mixed(), "mike-dirnt"))
+}
+
+func (s *RecipesPublicTestSuite) TestShowTreatsAnUnstatedConfidenceAsLow() {
+	// Saying nothing about how far to trust a rig is not a claim that it can
+	// be trusted.
+	var out bytes.Buffer
+
+	s.Require().NoError(recipes.Show(&out, s.good(), "mike-dirnt-longview"))
+	s.Require().Contains(out.String(), "low confidence")
 }
 
 func (s *RecipesPublicTestSuite) TestShowReportsAnUnknownRecipe() {

@@ -17,7 +17,8 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
-package recipe_test
+
+package rig_test
 
 import (
 	"os"
@@ -26,23 +27,23 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
-	"github.com/retr0h/tonestack/pkg/recipe"
+	"github.com/retr0h/tonestack/pkg/rig"
 )
 
-// ShippedPublicTestSuite checks the recipes this repository ships.
+// ShippedPublicTestSuite checks the rigs this repository ships.
 //
 // Drift between the Go types and the contract is impossible — the types are
-// generated from schemas/recipe.openapi.yaml. What generation does not
-// guarantee is that the files on disk satisfy it, or that a recipe's filename
+// generated from schemas/rigspec.openapi.yaml. What generation does not
+// guarantee is that the files on disk satisfy it, or that a rig's filename
 // matches the identifier inside it.
 type ShippedPublicTestSuite struct {
 	suite.Suite
 }
 
-func (s *ShippedPublicTestSuite) TestEveryShippedRecipeLoads() {
+func (s *ShippedPublicTestSuite) TestEveryShippedRigLoads() {
 	paths, err := filepath.Glob(filepath.Join("..", "..", "recipes", "*", "*.yaml"))
 	s.Require().NoError(err)
-	s.Require().NotEmpty(paths, "no recipes found to check")
+	s.Require().NotEmpty(paths, "no rigs found to check")
 
 	for _, path := range paths {
 		s.Run(filepath.Base(path), func() {
@@ -51,11 +52,33 @@ func (s *ShippedPublicTestSuite) TestEveryShippedRecipeLoads() {
 
 			defer func() { s.Require().NoError(f.Close()) }()
 
-			r, err := recipe.Load(f)
+			spec, err := rig.Load(f)
 			s.Require().NoError(err)
 
-			s.Require().Equal(r.ID+".yaml", filepath.Base(path),
-				"a recipe must be findable by name without opening it")
+			s.Require().Equal(spec.ID+".yaml", filepath.Base(path),
+				"a rig must be findable by name without opening it")
+		})
+	}
+}
+
+// TestEveryExampleLoads checks the fully-filled rigs the docs point at.
+//
+// An example that no longer parses is worse than no example: it is the first
+// thing somebody copies.
+func (s *ShippedPublicTestSuite) TestEveryExampleLoads() {
+	paths, err := filepath.Glob(filepath.Join("..", "..", "examples", "rigspec", "*.yaml"))
+	s.Require().NoError(err)
+	s.Require().NotEmpty(paths, "no examples found to check")
+
+	for _, path := range paths {
+		s.Run(filepath.Base(path), func() {
+			f, err := os.Open(path)
+			s.Require().NoError(err)
+
+			defer func() { s.Require().NoError(f.Close()) }()
+
+			_, err = rig.Load(f)
+			s.Require().NoError(err)
 		})
 	}
 }
