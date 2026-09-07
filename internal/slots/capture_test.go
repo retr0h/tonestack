@@ -95,9 +95,9 @@ func (s *CaptureTestSuite) TestDumpReportsAnUnwritablePath() {
 func (s *CaptureTestSuite) TestDumpReportsSomethingItCannotEncode() {
 	s.T().Setenv(dumpEnv, filepath.Join(s.T().TempDir(), "reply.json"))
 
-	// A device answers with maps keyed by integers, which JSON has no way to
-	// represent. Saying so beats writing a file that silently lost them.
-	s.Require().Error(dump(map[any]any{1: "one"}))
+	// Nothing guarantees what a device answers with. Something JSON cannot
+	// represent is reported rather than written as a file that lost it.
+	s.Require().Error(dump(make(chan int)))
 }
 
 func (s *CaptureTestSuite) TestDescribeReportsWhatArrived() {

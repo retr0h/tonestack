@@ -23,8 +23,11 @@ Install tools using [mise]:
 mise install
 ```
 
-- **[Go].** tonestack is written in Go. We always support the latest two major
-  Go versions, so make sure your version is recent enough.
+- **[Go] 1.27.** Pinned in `.mise.toml` and in `go.mod`, and continuous
+  integration reads it from `go.mod` so the two cannot drift apart. They did
+  once: a test asserted that a map keyed by `any` could not be encoded as JSON,
+  which was true on Go 1.26 and stopped being true on 1.27, so it passed locally
+  and failed in CI.
 - **[uv].** Python package runner. `just md-fmt` formats markdown with
   [mdformat] through `uvx`; nothing is installed into the repository.
 - **[just].** Task runner used for building, testing, formatting, and other

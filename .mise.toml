@@ -1,4 +1,7 @@
 [tools]
-go = "latest"
+# Pinned rather than latest. Continuous integration reads this same version
+# from go.mod, and a test that passes on one release and fails on another is
+# how that drift is usually discovered.
+go = "1.27"
 just = "latest"
 uv = "latest"
