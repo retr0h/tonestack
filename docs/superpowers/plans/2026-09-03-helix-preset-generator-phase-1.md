@@ -1,4 +1,4 @@
-# Helix Preset Generator Phase 1 Implementation Plan
+# Helix preset generator, phase 1 implementation plan
 
 > **Superseded, 2026-09-06.** This plan targets a three-module layout that no
 > longer exists, a `helixerr` package that has been removed, and golden-file
@@ -12,38 +12,38 @@
 > superpowers:executing-plans to implement this plan task-by-task. Steps use
 > checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build the deterministic core of `helix-core` — typed errors, the
+**Goal:** Build the deterministic core of `helix-core`: typed errors, the
 parameter value union, the catalog and rig data models, and four validation
-layers — plus a `helixctl` command that validates a rig against a catalog end to
+layers, plus a `helixctl` command that validates a rig against a catalog end to
 end.
 
 **Architecture:** Every input path converges on a `rig.Spec` that is validated
 against a `catalog.Catalog` before anything writes a file. This plan builds that
 spine bottom-up: errors, then values, then the two data models, then the
 validators that relate them, then a CLI shell that holds no logic. The preset
-writer and catalog extractor are deliberately excluded — both need real `.hlx`
-exports that do not exist yet.
+writer and catalog extractor are deliberately excluded, because both need real
+`.hlx` exports that do not exist yet.
 
 **Tech Stack:** Go 1.26, testify (suite + assert), cobra, `encoding/json`.
 
 **Spec:** `docs/superpowers/specs/2026-09-03-helix-preset-generator-design.md`
 
-## Global Constraints
+## Global constraints
 
 - **Go 1.26** declared in `go.mod`. Do not lower it. `GOTOOLCHAIN=auto` fetches
   the toolchain on machines running older Go.
 - **Coverage is gated at 100%.** `just test` fails below it. Every branch,
   including every error return, needs a test. Write the error-path test in the
   same step as the happy path.
-- **Invoke tools through mise:** `mise exec -- just test`, never a bare `just`.
+- **Invoke tools through mise.** `mise exec -- just test`, never a bare `just`.
   A bare `just` resolves to whatever is installed globally.
-- **Test file conventions:** `*_public_test.go` in the `{pkg}_test` package
-  exercising the exported surface — this is the default. `*_test.go` in the same
+- **Test file conventions.** `*_public_test.go` in the `{pkg}_test` package
+  exercising the exported surface. This is the default. `*_test.go` in the same
   package only for what the exported surface cannot reach. Suite naming:
   `*_public_test.go` → `{Name}PublicTestSuite`, `*_test.go` → `{Name}TestSuite`.
 - **Every exported identifier carries a doc comment starting with its own
   name.** Exactly one file per package carries the package comment.
-- **File naming:** `snake_case.go`, one responsibility per file, named for it.
+- **File naming.** `snake_case.go`, one responsibility per file, named for it.
 - **Take interfaces, return structs.** A validator that needs block lookup takes
   a `BlockLookup`, not a `*catalog.Catalog`.
 - **Return errors, do not log them.** No `fmt.Print*`, no `log`, no `os.Exit`
@@ -56,16 +56,16 @@ exports that do not exist yet.
   licence headers, formats, vets and lints. A task is not done until it passes.
 - **`.golangci.yml` sets `revive: enable-all-rules: true`.** That is far
   stricter than a default Go lint and will flag things the code in this plan
-  does not anticipate — magic numbers, function length, cognitive complexity,
+  does not anticipate: magic numbers, function length, cognitive complexity,
   argument counts. Expect to adjust. Fix the code where the rule has a point;
   where it does not, add a scoped `//nolint:revive // <reason>` naming the
   reason rather than loosening the config for the whole repository. Do not
-  disable rules in `.golangci.yml` — it is a **managed** file and a
+  disable rules in `.golangci.yml`. It is a **managed** file and a
   `retemplate-go` run would silently revert the change.
 
 ______________________________________________________________________
 
-## File Structure
+## File structure
 
 Created in `helix-core/`:
 
@@ -76,11 +76,11 @@ Created in `helix-core/`:
 | `pkg/catalog/param_value.go`    | `ParamValue` tagged union and its JSON codec                  |
 | `pkg/catalog/load.go`           | Reading a catalog from JSON, block lookup                     |
 | `pkg/rig/rig.go`                | Package comment; `Spec`, `SpecBlock`, `Snapshot`, `Origin`    |
-| `pkg/rig/limits.go`             | `Limits` — per-device ceilings the validators enforce         |
-| `pkg/rig/validate_structure.go` | Layer 1 — every model exists                                  |
-| `pkg/rig/validate_params.go`    | Layer 2 — keys exist, values fit type and range               |
-| `pkg/rig/validate_budget.go`    | Layer 3 — DSP cost per chip                                   |
-| `pkg/rig/validate_topology.go`  | Layer 4 — block count, positions, chip indices                |
+| `pkg/rig/limits.go`             | `Limits`, per-device ceilings the validators enforce          |
+| `pkg/rig/validate_structure.go` | Layer 1: every model exists                                   |
+| `pkg/rig/validate_params.go`    | Layer 2: keys exist, values fit type and range                |
+| `pkg/rig/validate_budget.go`    | Layer 3: DSP cost per chip                                    |
+| `pkg/rig/validate_topology.go`  | Layer 4: block count, positions, chip indices                 |
 | `pkg/source/source.go`          | The `Source` interface, `Request`, and the registry           |
 
 Created in `helixctl/`:
@@ -90,9 +90,9 @@ Created in `helixctl/`:
 | `main.go`                  | Cobra root, wiring only   |
 | `internal/cmd/validate.go` | The `validate` subcommand |
 
-Deleted: `helix-core/pkg/helixcore/helixcore.go` — a generated stub whose
-package name does not match the layout the spec describes. Go sources are
-**seeded**, so removing it is safe and no retemplate will restore it.
+Deleted: `helix-core/pkg/helixcore/helixcore.go`, a generated stub whose package
+name does not match the layout the spec describes. Go sources are **seeded**, so
+removing it is safe and no retemplate will restore it.
 
 **Not in this plan, and why.** Layer 5 (envelope validation), the synth writer,
 the catalog extractor and the text source all require real `.hlx` exports to
@@ -114,15 +114,15 @@ ______________________________________________________________________
 
 **Interfaces:**
 
-- Consumes: nothing — this is the base of the dependency graph.
+- Consumes: nothing. This is the base of the dependency graph.
 
 - Produces: `helixerr.ErrUnknownBlock`, `ErrBadParam`, `ErrOverBudget`,
   `ErrBadTopology`, `ErrVersionMismatch`, `ErrNoMatch` (all `error`);
   `helixerr.UnknownBlockError{Model string}`,
   `helixerr.BadParamError{Model, Key, Reason string}`,
   `helixerr.OverBudgetError{Chip int, Cost, Ceiling float64}`,
-  `helixerr.TopologyError{Reason string}` — each a struct with a pointer
-  receiver `Error() string` and `Unwrap() error` returning its sentinel.
+  `helixerr.TopologyError{Reason string}`, each a struct with a pointer receiver
+  `Error() string` and `Unwrap() error` returning its sentinel.
 
 - [ ] **Step 1: Add testify and remove the generated stub**
 
@@ -221,7 +221,7 @@ func TestErrorsPublicTestSuite(t *testing.T) {
 - [ ] **Step 3: Run the test to verify it fails**
 
 Run: `cd helix-core && mise exec -- go test ./pkg/helixerr/... -v` Expected:
-FAIL — package `helixerr` does not exist.
+FAIL: package `helixerr` does not exist.
 
 - [ ] **Step 4: Write the implementation**
 
@@ -510,7 +510,7 @@ func TestParamValuePublicTestSuite(t *testing.T) {
 - [ ] **Step 2: Run the test to verify it fails**
 
 Run: `cd helix-core && mise exec -- go test ./pkg/catalog/... -v` Expected: FAIL
-— package `catalog` does not exist.
+Package `catalog` does not exist.
 
 - [ ] **Step 3: Write the implementation**
 
@@ -828,7 +828,7 @@ func TestLoadPublicTestSuite(t *testing.T) {
 
 Run:
 `cd helix-core && mise exec -- go test ./pkg/catalog/... -run LoadPublic -v`
-Expected: FAIL — `catalog.Load` undefined.
+Expected: FAIL: `catalog.Load` undefined.
 
 - [ ] **Step 4: Write the types**
 
@@ -939,7 +939,7 @@ import (
 )
 
 // Load reads a catalog from JSON. It does not validate that the catalog is
-// complete or internally consistent — it reports only what it could not parse.
+// complete or internally consistent. It reports only what it could not parse.
 func Load(r io.Reader) (*Catalog, error) {
 	var c Catalog
 
@@ -1066,7 +1066,7 @@ func TestRigPublicTestSuite(t *testing.T) {
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `cd helix-core && mise exec -- go test ./pkg/rig/... -v` Expected: FAIL —
+Run: `cd helix-core && mise exec -- go test ./pkg/rig/... -v` Expected: FAIL,
 package `rig` does not exist.
 
 - [ ] **Step 3: Write the types**
@@ -1196,7 +1196,7 @@ ______________________________________________________________________
 
 - [ ] **Step 1: Write the test fake**
 
-A fake, not a mock — the contributing guide prefers a real implementation over a
+A fake, not a mock. The contributing guide prefers a real implementation over a
 fake and a fake over a mock, and a mock asserting call order would test the
 implementation rather than the behaviour.
 
@@ -1305,7 +1305,7 @@ func TestValidateStructurePublicTestSuite(t *testing.T) {
 
 Run:
 `cd helix-core && mise exec -- go test ./pkg/rig/... -run ValidateStructure -v`
-Expected: FAIL — `rig.ValidateStructure` undefined.
+Expected: FAIL: `rig.ValidateStructure` undefined.
 
 - [ ] **Step 4: Write the implementation**
 
@@ -1500,7 +1500,7 @@ func TestValidateParamsPublicTestSuite(t *testing.T) {
 
 Run:
 `cd helix-core && mise exec -- go test ./pkg/rig/... -run ValidateParams -v`
-Expected: FAIL — `rig.ValidateParams` undefined.
+Expected: FAIL: `rig.ValidateParams` undefined.
 
 - [ ] **Step 3: Write the implementation**
 
@@ -1769,7 +1769,7 @@ func TestValidateBudgetPublicTestSuite(t *testing.T) {
 
 Run:
 `cd helix-core && mise exec -- go test ./pkg/rig/... -run ValidateBudget -v`
-Expected: FAIL — `rig.ValidateBudget` undefined.
+Expected: FAIL: `rig.ValidateBudget` undefined.
 
 - [ ] **Step 3: Write the implementation**
 
@@ -2064,7 +2064,7 @@ func TestValidatePublicTestSuite(t *testing.T) {
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
-Run: `cd helix-core && mise exec -- go test ./pkg/rig/... -v` Expected: FAIL —
+Run: `cd helix-core && mise exec -- go test ./pkg/rig/... -v` Expected: FAIL,
 `rig.ValidateTopology` and `rig.Validate` undefined.
 
 - [ ] **Step 3: Write the topology implementation**
@@ -2086,7 +2086,7 @@ import (
 // too many blocks, a processor that does not exist, or positions on one
 // processor that are not the contiguous run 0..n-1.
 //
-// It needs no catalog — every question it answers is about the rig alone.
+// It needs no catalog, because every question it answers is about the rig alone.
 func ValidateTopology(s Spec, lim Limits) error {
 	if len(s.Blocks) == 0 {
 		return &helixerr.TopologyError{Reason: "rig has no blocks"}
@@ -2204,7 +2204,7 @@ Suggested subject: `feat(rig): add topology validation and composed check`
 
 ______________________________________________________________________
 
-### Task 9: The Source interface and registry
+### Task 9: the Source interface and registry
 
 **Files:**
 
@@ -2319,15 +2319,15 @@ func TestRegistryPublicTestSuite(t *testing.T) {
 - [ ] **Step 2: Run the test to verify it fails**
 
 Run: `cd helix-core && mise exec -- go test ./pkg/source/... -v` Expected: FAIL
-— package `source` does not exist.
+Package `source` does not exist.
 
 - [ ] **Step 3: Write the interface**
 
 Create `pkg/source/source.go`:
 
 ```go
-// Package source turns a request for a sound into a rig. Every input path —
-// a description, an artist name, a recording — is a Source, and a Source is
+// Package source turns a request for a sound into a rig. Every input path is
+// a Source: a description, an artist name, a recording. A Source is
 // the only place in helix-core where I/O belongs.
 package source
 
@@ -2382,7 +2382,7 @@ func NewRegistry() *Registry {
 }
 
 // Register adds s under its own name. It reports an error for a nil source, an
-// empty name, or a name already registered — silently replacing a source would
+// empty name, or a name already registered. Silently replacing a source would
 // make the resolution order depend on initialisation order.
 func (r *Registry) Register(s Source) error {
 	if s == nil {
@@ -2615,7 +2615,7 @@ func TestValidatePublicTestSuite(t *testing.T) {
 
 - [ ] **Step 4: Run the test to verify it fails**
 
-Run: `cd helixctl && mise exec -- go test ./internal/... -v` Expected: FAIL —
+Run: `cd helixctl && mise exec -- go test ./internal/... -v` Expected: FAIL,
 package `validate` does not exist.
 
 - [ ] **Step 5: Write the implementation**
@@ -2675,7 +2675,7 @@ func Run(w io.Writer, opts Options) error {
 		return err
 	}
 
-	fmt.Fprintf(w, "%s: valid — %d block(s) against %s\n",
+	fmt.Fprintf(w, "%s: valid, %d block(s) against %s\n",
 		spec.Name, len(spec.Blocks), cat.Device)
 
 	return nil
@@ -2687,7 +2687,7 @@ through its `Block` method, so `cat` passes directly.
 
 `TestReportsAMalformedRig` passes `catalog.json` as the rig. It decodes into a
 `rig.Spec` with no blocks, which `ValidateTopology` rejects as "rig has no
-blocks" — so the error arrives from validation rather than decoding. Both are
+blocks", so the error arrives from validation rather than decoding. Both are
 errors; the test asserts only that one occurs.
 
 - [ ] **Step 6: Write the cobra wiring**
@@ -2780,7 +2780,7 @@ mise exec -- go build -o helixctl .
   --rig internal/validate/testdata/rig_ok.json
 ```
 
-Expected: `Test Rig: valid — 1 block(s) against HX Stomp`
+Expected: `Test Rig: valid, 1 block(s) against HX Stomp`
 
 ```bash
 ./helixctl validate \
@@ -2816,7 +2816,7 @@ ______________________________________________________________________
 
 All five need `.hlx` files exported from the target device. Building any of them
 against assumptions would produce code that compiles, passes its own tests, and
-emits presets the hardware rejects — the most expensive kind of wrong, because
+emits presets the hardware rejects, the most expensive kind of wrong, because
 the tests would say it works.
 
 They get a second plan once exports exist.

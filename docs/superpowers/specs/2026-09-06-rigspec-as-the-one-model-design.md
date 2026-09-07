@@ -15,8 +15,8 @@ The project shipped two hand-authored schemas, and their names were backwards.
 
 `recipe.openapi.yaml` states it outright: *"A Recipe is an input to preset
 generation; a RigSpec is the output."* So the document named for the abstraction
-was the device-bound artifact, and the two sat at nearly the same level —
-RigSpec was `.hlx` with the routing stripped out, not a layer above it.
+was the device-bound artifact, and the two sat at nearly the same level. RigSpec
+was `.hlx` with the routing stripped out, not a layer above it.
 
 The cost was not cosmetic. Nobody could reason about the system out loud.
 
@@ -60,7 +60,7 @@ chain:
 character: ["mid-forward, not scooped"]
 ```
 
-The same document after compiling for a device — same schema, more fields
+The same document after compiling for a device, same schema and more fields
 present:
 
 ```yaml
@@ -78,8 +78,8 @@ An earlier draft of this design called the resolved layer a lockfile and
 proposed persisting it. That was wrong. npm needs a lockfile because resolution
 is expensive and drifts over time; ours is deterministic and takes milliseconds.
 Persisting it would buy nothing and cost two things that matter: every compile
-would dirty the file, and the diffs — which are how corrections are reviewed —
-would fill with generated noise.
+would dirty the file, and the diffs would fill with generated noise. Those diffs
+are how corrections get reviewed.
 
 Compile on demand, show it in output, never write it back. Then there is
 genuinely one artifact.
@@ -94,7 +94,7 @@ artist the primary axis makes the other three second-class.
 
 ### Sibling rigs, not a base plus deltas
 
-An artist owns several rigs — by era, by song — and they can differ at the amp,
+An artist owns several rigs, by era and by song, and they can differ at the amp,
 not merely in settings. Modelling them as deltas off a canonical rig assumes a
 shared spine that may not exist. Each rig is complete; one is marked default,
 because *"a Mike Dirnt sound"* with no qualifier has to resolve to something.
@@ -113,7 +113,7 @@ different support:
     - { kind: cited, url: "…", note: "Bass Player interview, 2004" }
     - { kind: video, url: "…", at: "1:42", note: "SVT visible on stage" }
     - { kind: audio, url: "…", at: "1:20-1:45", stem: bass, method: htdemucs,
-        measured: { mid_ratio: 0.61 }, caveat: "live — room and PA included" }
+        measured: { mid_ratio: 0.61 }, caveat: "live, room and PA included" }
   confidence: high
 ```
 
@@ -123,7 +123,7 @@ someone who knows the band.
 
 A URL does not make a claim true. It makes it *checkable*. Confidence stays
 human-set, and the tool should show the gap between a claimed confidence and the
-evidence supporting it — an LLM-sourced entry with no citations reads as
+evidence supporting it. An LLM-sourced entry with no citations reads as
 unverified regardless of what it says about itself.
 
 ### `requires` covers only what the catalog cannot see
@@ -155,9 +155,10 @@ target: { device: HX Stomp, catalog: "HX Edit 3.82" }
 ```
 
 If a RigSpec pinned a device, a Helix Floor owner could not use it and
-portability — the whole reason the shareable layer is abstract — would be lost.
-`target` says *"these values were arrived at here"*, so somebody on other
-hardware knows to re-tune rather than trust. Advisory, never gatekeeping.
+portability would be lost, and portability is the whole reason the shareable
+layer is abstract. `target` says *"these values were arrived at here"*, so
+somebody on other hardware knows to re-tune rather than trust. Advisory, never
+gatekeeping.
 
 ### `mutations` is where the human ear gets written down
 
@@ -175,14 +176,14 @@ mutations:
       higher values provide more touch dynamics & sustain", and Bias X as
       "set low for a tighter feel". Read "clunky" as looser power-amp feel,
       not more gain.
-    verdict: "closer, but muddy now — keep the feel, put the drive back"
+    verdict: "closer, but muddy now, so keep the feel and put the drive back"
 ```
 
 Four fields doing four jobs. `ask` keeps the human's words verbatim, because
 "clunky" is not a parameter and normalising it away loses the question.
 `changed` is the machine-readable delta. `reason` records the *interpretation*,
 cited, so a later session can see that the reading was wrong rather than only
-that the value was. `verdict` is what the human said after hearing it — and an
+that the value was. `verdict` is what the human said after hearing it, and an
 entry with no verdict is "not yet evaluated", which is useful state.
 
 **Mutations are memory, not deltas.** `chain` always holds the current state;
@@ -201,7 +202,7 @@ What it is for, concretely:
 3. **Learning one person's vocabulary.** Across enough rigs, `ask` → `changed` →
    `verdict` becomes a dictionary of what *this* person means by "gnarly".
 4. **Knowing when the knobs are not the problem.** Eight failed settings rounds
-   is evidence against a higher-confidence claim upstream — the amp.
+   is evidence against a higher-confidence claim upstream, usually the amp.
 
 Exclusions must be scoped to the same gear and should decay. A move that failed
 on one rig is not universally wrong.
@@ -211,11 +212,11 @@ on one rig is not universally wrong.
 `drive: 0.47` does not mean the same thing on a Helix, a Kemper, and a real SVT.
 Three options were considered:
 
-1. No settings in RigSpec — portable, but discards corpus medians, which are the
+1. No settings in RigSpec. Portable, but discards corpus medians, which are the
    difference between "an SVT" and "an SVT set the way people set one".
-2. Raw device values — accurate, not portable, defeats the premise.
-3. **A small musical vocabulary** —
-   `drive, bass, mid, treble, presence, level, feel` — accepted as approximate.
+2. Raw device values. Accurate, not portable, defeats the premise.
+3. **A small musical vocabulary.**
+   `drive, bass, mid, treble, presence, level, feel`, accepted as approximate.
 
 Option 3. RigSpec carries what a musician would say out loud. Device particulars
 (`Sag`, `Bias X`, `Ripple`, `Hum`) are *not* in RigSpec; the compiler sets them
@@ -245,20 +246,20 @@ three and four are real rather than aspirational:
 - 89% of 169 bass-amp chains contain a compressor; 63% contain drive, and drive
   sits before the amp in 89% of those.
 - Across 54 SVT instances, the median `Treble` is 0.845 where Line 6's stated
-  default is 0.68 — the factory default is measurably not what players use.
+  default is 0.68. The factory default is measurably not what players use.
 - `Bass` sits in 0.50–0.53 (consensus) while `Drive` spans 0.28–0.60 (taste).
   **The spread says how much of an opinion is worth having**, and a wide one
   should defer to a character line or the human.
 
 The Pilot's Guide holds seven `Parameter Description` tables documenting exactly
-the controls that cannot be guessed — `Master`, `Sag`, `Hum`, `Ripple Bias`,
-`Bias X` — in directional, intent-mapped language. It omits Drive, Bass, Mid and
+the controls that cannot be guessed, `Master`, `Sag`, `Hum`, `Ripple Bias` and
+`Bias X`, in directional, intent-mapped language. It omits Drive, Bass, Mid and
 Treble because those are self-evident.
 
 ## Audio analysis is a comparator, not an extractor
 
-The naive version — analyse a track, extract knob values — does not work, and it
-is the version everyone assumes will.
+The naive version, analysing a track and extracting knob values, does not work,
+and it is the version everyone assumes will.
 
 Measuring the Longview bass measures the bass, the player, the amp, the mic, the
 DI, the console EQ, the mix compressor, the master, and the encoder. Set
@@ -282,8 +283,8 @@ reasonably; absolute level, compression, and drive-versus-tape-saturation do
 not, and the system should report which is which.
 
 Sources, ranked by how much they lie: official isolated stems, then bass
-playthroughs, then live footage (best evidence for `gear` claims — the amp is
-visible), then Demucs separation of studio tracks. Spotify is a dead end: DRM
+playthroughs, then live footage (best evidence for `gear` claims, since the amp
+is visible), then Demucs separation of studio tracks. Spotify is a dead end: DRM
 prevents audio access, and its analysis API returns timbre vectors of the full
 mix.
 
@@ -303,12 +304,12 @@ depends on it.
 ## Sequencing
 
 The artist-to-gear mapping is the thinnest and most easily reproduced layer in
-the system — one search, or one LLM call. The compiler is the part almost nobody
+the system: one search, or one LLM call. The compiler is the part almost nobody
 can build. Work goes there first.
 
-1. The Pilot's Guide parameter tables — a PDF parse, and it unblocks every
+1. The Pilot's Guide parameter tables. A PDF parse, and it unblocks every
    character line.
-2. Corpus statistics — chain grammar and parameter distributions with spreads.
+2. Corpus statistics: chain grammar and parameter distributions with spreads.
 3. The RigSpec schema and the code behind it.
 4. The audio pipeline, once a generated preset is good enough to compare
    against.

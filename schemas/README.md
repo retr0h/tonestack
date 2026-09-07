@@ -7,45 +7,43 @@ How the `.hlx` format works, and how the catalog is generated, is in
 [CONTRIBUTING.md](../CONTRIBUTING.md). This file describes what is in this
 directory.
 
-| Path                    |               |                                                    |
-| ----------------------- | ------------- | -------------------------------------------------- |
-| `rigspec.schema.json`   | hand-written  | The RigSpec contract — a signal chain              |
-| `recipe.schema.json`    | hand-written  | The Recipe contract — how a sound is built         |
-| `hx-stomp.catalog.json` | **generated** | Which blocks an HX Stomp has and what each accepts |
-| `gear-map.json`         | **generated** | Which real-world gear each Line 6 model emulates   |
-| `corpus/`               | collected     | ~4,400 real presets                                |
+| Path                    |               |                                                     |
+| ----------------------- | ------------- | --------------------------------------------------- |
+| `rigspec.openapi.yaml`  | hand-written  | The RigSpec contract, the only format anybody types |
+| `hx-stomp.catalog.json` | **generated** | Which blocks an HX Stomp has and what each accepts  |
+| `gear-map.json`         | **generated** | Which real-world gear each Line 6 model emulates    |
+| `corpus/`               | collected     | ~4,400 real presets                                 |
 
-## Recipe and RigSpec are the two ends of generation
+## RigSpec is the only contract
 
 ```text
-Recipe                    gear-map + catalog             RigSpec
+RigSpec                   gear-map + catalog             .hlx
 "Ampeg SVT"          ──►  HD2_AmpSVBeastNrm        ──►   blocks, params, positions
-"mid-forward"             bass amps only, real ranges    validated, writable
+"mid-forward"             bass amps only, real ranges    what the device loads
 what a person means       what the device understands    what the file needs
 ```
 
-A **Recipe** is an input, written by a person, naming real-world gear. A
-**RigSpec** is an output, produced by the generator, naming device models.
+There used to be two contracts, one for what a person writes and one for what
+the generator produces. They were the same document at two levels of detail, so
+now there is one. A rig is sparse when somebody types it and full once it has
+been compiled or lifted from a preset.
 
-They are separate contracts because they answer different questions and change
-for different reasons: a Recipe changes when someone learns something about a
-player, a RigSpec changes when the device does. Both are versioned
-independently.
+`recipes/` is the only data here that is ours and publishable. The catalog and
+the gear map come from a licensed HX Edit installation, so we do not
+redistribute them.
 
-`recipes/` is the only data here that is genuinely ours and publishable. The
-catalog and the gear map are derived from a licensed HX Edit installation and
-are not redistributed.
+## rigspec.openapi.yaml
 
-## rigspec.schema.json
+RigSpec is this project's own invention. The Line 6 format has no equivalent. It
+stores blocks under `dsp0`/`block0` keys with no abstraction over where a chain
+came from. RigSpec exists so every input converges on one validated shape before
+anything writes a file.
 
-RigSpec is this project's own invention. The Line 6 format has no equivalent —
-it stores blocks under `dsp0`/`block0` keys and has no abstraction over where a
-chain came from. RigSpec exists so every input path converges on one validated
-shape before anything writes a file.
-
-The schema is the contract; the Go types in `pkg/rig` implement it, and
-`pkg/rig/schema_conformance_public_test.go` pins them to it. That test earns its
-keep — it caught a nil `Params` map marshalling as `null` on its first run.
+The schema is the contract in both senses. `pkg/rig/gen` is generated from it by
+`oapi-codegen`, and `pkg/rig.Validate` checks a document against the same file
+rather than against a second copy of the rules written in Go. Two copies drift:
+a constraint added to one becomes a type nothing enforces, or a check nothing
+asked for.
 
 ### Why RigSpec does not enumerate models
 
@@ -60,18 +58,13 @@ thousands of lines long. A per-device schema with the model enum inlined can be
 
 ### Generating clients
 
-The schema is the source for anything that needs to speak RigSpec:
+The schema is the source for anything that needs to speak RigSpec, including
+this project's own Go types:
 
 ```bash
-npx json-schema-to-typescript schemas/rigspec.schema.json > rigspec.d.ts
+just generate                                    # regenerates pkg/rig/gen
+npx openapi-typescript schemas/rigspec.openapi.yaml -o rigspec.d.ts
 ```
-
-Go types are hand-written rather than generated, and this was tested rather than
-assumed. `go-jsonschema` renders the `paramValue` union as `interface{}`, which
-throws away the one distinction the type exists to preserve. `oapi-codegen` does
-better — a real union with typed accessors — but names them positionally
-(`AsParamValue0`) and drops the zero-value guard. Neither is worth trading a
-tagged union for. Other languages should generate; Go is the exception.
 
 ## hx-stomp.catalog.json
 
@@ -85,14 +78,14 @@ corpus supplies which models an HX Stomp actually accepts.
 ## corpus/
 
 Real presets, used to establish device support and to see what real chains look
-like. Reference data — nothing shipped by this project redistributes it.
+like. Reference data only. Nothing this project ships redistributes it.
 
 ```text
 corpus/
   repos.txt              sources, one per line: <owner/repo><TAB><licence>
   fetch.sh               rebuilds github/ from repos.txt, idempotent
   github/SOURCES.md      per-repo attribution and licences
-  customtone/            Line 6's official library — see its SOURCES.md
+  customtone/            Line 6's official library, see its SOURCES.md
   setlists_extracted/    presets unpacked from container files
 ```
 
@@ -104,10 +97,10 @@ corpus/
 ```
 
 Add a source by appending to `repos.txt` and running `fetch.sh`. Record the
-licence accurately, including "no license file" — that record is why
-`SOURCES.md` exists.
+licence accurately, including "no license file". That record is why `SOURCES.md`
+exists.
 
-**Line 6's CustomTone library is not fetchable.** Downloads are gated behind a
-login with a registered product serial; the download control renders as a dead
+**Line 6's CustomTone library is not fetchable.** Downloads sit behind a login
+with a registered product serial, and the download control renders as a dead
 `login-modal` link for anonymous clients across every device family. See
 `corpus/customtone/`.

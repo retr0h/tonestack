@@ -2,7 +2,7 @@
 
 How to describe what somebody plays, so this project can build it.
 
-A rig is written as a **RigSpec** — the project's only hand-authored format,
+A rig is written as a **RigSpec**, the project's only hand-authored format,
 defined in [`schemas/rigspec.openapi.yaml`](../schemas/rigspec.openapi.yaml).
 One is a YAML file under `recipes/`, and it is the only data here that is ours:
 the device catalog and the gear map are derived from Line 6's own files, while
@@ -35,7 +35,7 @@ checkable later.
 Line 6 rename every model for trademark reasons and publish the mapping in their
 own manual; joining the two is what [catalog.md](catalog.md) does. Naming the
 identifier instead would tie a rig to one manufacturer, break when they rename a
-model, and stop it being read on other hardware — which is the whole reason the
+model, and stop it being read on other hardware, which is the whole reason the
 format exists.
 
 Check a name resolves before trusting it:
@@ -52,7 +52,7 @@ has, or declare the gap in `requires`.
 `chain` is ordered, and the order is what the signal does. Drive ahead of an amp
 overdrives its input; drive after it is a different sound entirely.
 
-You do not have to guess the conventional order — it is measured:
+You do not have to guess the conventional order. It is measured:
 
 ```bash
 tonestack corpus show --instrument bass
@@ -71,9 +71,8 @@ build says so rather than doing it quietly.
 settings: { drive: 0.47, bass: 0.52, mid: 0.71, treble: 0.85 }
 ```
 
-A small vocabulary — `drive`, `bass`, `mid`, `treble`, `presence`, `level`,
-`mix`, `feel` — from 0 to 1, each meaning roughly the same thing on any
-amplifier.
+A small vocabulary from 0 to 1: `drive`, `bass`, `mid`, `treble`, `presence`,
+`level`, `mix`, `feel`. Each means roughly the same thing on any amplifier.
 
 **Device controls do not belong here.** `Sag`, `Bias X`, `Ripple` and `Hum` are
 one manufacturer's knobs; the compiler sets those from catalog defaults, corpus
@@ -83,7 +82,7 @@ them would not survive being read on other hardware.
 Leaving `settings` out is fine, and often better. What happens then:
 
 1. Line 6's stated default is the floor, and is never invalid.
-2. Where the corpus shows players agreeing closely, the median replaces it — for
+2. Where the corpus shows players agreeing closely, the median replaces it. For
    an Ampeg SVT that moves `Treble` from Line 6's 0.68 to 0.845.
 3. Where players disagree, the default stands, rather than an average of
    disagreement being presented as a measurement.
@@ -140,8 +139,8 @@ requires:
 ```
 
 Only what a catalog cannot see. Whether a model exists on a device tier, or
-needs newer firmware, is already known — the catalog carries the supported
-device list and the release it came from.
+needs newer firmware, is already known, because the catalog carries the
+supported device list and the release it came from.
 
 The case nothing can know is an impulse response. A preset stores the **slot
 number**, never the audio, so a rig depending on slot 82 sounds like whoever
@@ -160,7 +159,7 @@ mutations:
       Line 6 document Sag as "lower values offer tighter responsiveness…
       higher values provide more touch dynamics & sustain". Read "clunky" as
       a looser power-amp feel rather than more gain.
-    verdict: closer, but muddy now — keep the feel, put the drive back
+    verdict: closer, but muddy now, so keep the feel and put the drive back
 ```
 
 Nothing in this project can hear. Every other input is a measurement or an
@@ -171,12 +170,12 @@ three.
 
 Four fields, four jobs:
 
-- `ask` — your words, verbatim. "Clunky" is not a parameter, and normalising it
+- `ask` is your words, verbatim. "Clunky" is not a parameter, and normalising it
   away loses the question.
-- `changed` — what moved.
-- `reason` — how the ask was interpreted, cited. If the reading was wrong, this
+- `changed` is what moved.
+- `reason` is how the ask was interpreted, cited. If the reading was wrong, this
   is the line that shows it, rather than only that the value was.
-- `verdict` — what it sounded like. Absent means not yet heard, which is useful
+- `verdict` is what it sounded like. Absent means not yet heard, which is useful
   state.
 
 Append-only, never replayed: `chain` always holds the current state.
@@ -185,7 +184,7 @@ read, and a person reads this file.
 
 ## One artist, several rigs
 
-A player's rig changes by era and by song, and two can differ at the amp — which
+A player's rig changes by era and by song, and two can differ at the amp, which
 makes them siblings, not variations. Each is a complete RigSpec with its own
 `id`; one carries `default: true`, because asking for "a Mike Dirnt sound" with
 no qualifier has to land somewhere. Use `extends` only where a rig genuinely is
@@ -206,10 +205,10 @@ visible before anyone plugs in rather than after.
 
 ## Rigs read off a device carry more
 
-Everything above describes a rig somebody writes. One lifted from a preset —
-`presets export --as rigspec` — carries three more fields, and they exist so
-that reading a preset into a rig and writing it back gives the preset it came
-from. That is asserted over every HX Stomp preset in the corpus.
+Everything above describes a rig somebody writes. One lifted from a preset by
+`presets export` carries three more fields, and they exist so that reading a
+preset into a rig and writing it back gives the preset it came from. That is
+asserted over every HX Stomp preset in the corpus.
 
 ```yaml
 - role: amp
@@ -228,7 +227,7 @@ matches both channels, so a rig carrying the name alone would rebuild into a
 different preset. A device with no entry falls back to the name, which is the
 portable behaviour and why the name is still required.
 
-`params` are device parameters under their own names — `Sag`, `Bias X` — as
+`params` are device parameters under their own names, `Sag` and `Bias X`, as
 distinct from `settings`, which is the small musical vocabulary that means
 something anywhere. They are here because somebody dialling `Sag` by ear is
 producing the one kind of knowledge nothing else can, and dropping it to stay
@@ -239,7 +238,7 @@ on top, because the block was described completely. A rig stating none is
 describing gear rather than a block, and takes Line 6's defaults.
 
 `position` is where a block sits on the device's grid, which is not always its
-order in the chain — a preset can hold `block5` whose position is 6.
+order in the chain. A preset can hold `block5` whose position is 6.
 
 ## What none of this can tell you
 
@@ -255,12 +254,12 @@ from held. That is what makes it safe to be the only thing this project
 exchanges: a rig read out of a preset rebuilds that preset exactly, with the
 original file gone.
 
-| field          | what it holds                                              |
-| -------------- | ---------------------------------------------------------- |
-| `chain`        | the gear, in order, with settings and evidence             |
-| `snapshots`    | what each footswitch recalls: name, tempo, block states    |
-| `footswitches` | what the pedal prints under each switch, and its colour    |
-| `device`       | everything else, verbatim — routing, controllers, metadata |
+| field          | what it holds                                             |
+| -------------- | --------------------------------------------------------- |
+| `chain`        | the gear, in order, with settings and evidence            |
+| `snapshots`    | what each footswitch recalls: name, tempo, block states   |
+| `footswitches` | what the pedal prints under each switch, and its colour   |
+| `device`       | everything else, verbatim: routing, controllers, metadata |
 
 `snapshots` and `footswitches` are modelled rather than kept verbatim, because
 they are musical decisions somebody made and might want to change. `device` is
@@ -275,10 +274,10 @@ it uses an untouched preset the device itself wrote.
 Three assertions over every HX Stomp preset in the corpus, all of which must
 pass:
 
-1. **A preset becomes a rig and is written back into itself** — byte for byte.
-2. **A preset becomes a rig and is built into an untouched preset** — byte for
+1. **A preset becomes a rig and is written back into itself**, byte for byte.
+2. **A preset becomes a rig and is built into an untouched preset**, byte for
    byte, which is the path a rig takes when somebody shares it.
-3. **A rig becomes a preset and is read back as a rig** — the same rig.
+3. **A rig becomes a preset and is read back as a rig**, the same rig.
 
 The third is the one that catches a field this format reads but never writes.
 Such a field survives the first two, because the preset underneath still holds
@@ -292,6 +291,6 @@ unless somebody sets it: red for an amp or a cabinet, amber for drive, green for
 delay, blue for modulation, purple for a filter, pitch block or wah, orange for
 reverb, lime for a compressor or EQ.
 
-Each is one hue at two brightnesses — bright while the block is engaged, dim
-while it is bypassed — which is why a palette covering twelve categories holds
+Each is one hue at two brightnesses, bright while the block is engaged and dim
+while it is bypassed, which is why a palette covering twelve categories holds
 twenty-four values.

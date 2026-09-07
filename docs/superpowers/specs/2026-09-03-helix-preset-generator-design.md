@@ -1,4 +1,4 @@
-# Helix Preset Generator — Phase 1 Design
+# Helix preset generator, phase 1 design
 
 > **Superseded in part, 2026-09-06.** Written when the project was three modules
 > named `helix-core` / `helix-sdk` / `helixctl`. It is now one module,
@@ -18,8 +18,8 @@ parameters you cannot name. Players who know what they want rarely know the
 model catalog, and the gap is where the product is.
 
 The eventual service: a person describes a sound on a website and downloads a
-file that loads on their Stomp. This spec covers the first phase of that — the
-same capability, driven from a command line.
+file that loads on their Stomp. This spec covers the first phase of that, same
+capability, driven from a command line.
 
 ## What ships in phase 1
 
@@ -46,26 +46,25 @@ Every input path resolves to a `rig.Spec` before anything writes bytes. A source
 performs I/O and returns a spec; nothing downstream knows which source produced
 it. Adding an input later is one new implementation of one interface.
 
-The alternative — each input path owning its own path to a file — was rejected.
-It duplicates validation and DSP budgeting per path, and those are the parts
-most likely to be wrong.
+The alternative, each input path owning its own path to a file, was rejected. It
+duplicates validation and DSP budgeting per path, and those are the parts most
+likely to be wrong.
 
 ### Rig knowledge first, audio second
 
 Considered three ways to decide what a sound *is*:
 
-1. **Knowledge-driven** — a rig is chosen from what is known about players and
+1. **Knowledge-driven.** A rig is chosen from what is known about players and
    genres; audio, when present, tunes it.
-2. **Audio-first** — measure a recording and derive a rig from the measurements
+2. **Audio-first.** Measure a recording and derive a rig from the measurements
    alone.
-3. **Hybrid** — knowledge constrains the search space, audio optimises within
-   it.
+3. **Hybrid.** Knowledge constrains the search space, audio optimises within it.
 
 Chose (1). It ships without any audio pipeline, works on the request people
 actually make ("make it sound like X"), and degrades honestly on inputs it does
 not know. (2) is the harder problem and inverting distortion and cab convolution
 is ambiguous in ways that would have dominated the schedule. (3) is the eventual
-destination and remains reachable — it is (1) plus a measurement stage, not a
+destination and remains reachable. It is (1) plus a measurement stage, not a
 rewrite.
 
 ### Generated rigs with curated overrides
@@ -74,7 +73,7 @@ Free text cannot be served by a fixed table of recipes. A curated recipe wins
 when one matches the request; otherwise Claude generates a rig, constrained by
 forced structured output to identifiers that exist in the catalog.
 
-This ships with zero authored content and lets curation become an optimisation —
+This ships with zero authored content and lets curation become an optimisation,
 author the artists worth getting exactly right, let the model handle the tail.
 Curated results are deterministic and free; generated ones cost roughly $0.05
 per request with the catalog in a cached prompt prefix.
@@ -85,7 +84,7 @@ to hand-fix a specific bad result except by tuning a prompt).
 ### Catalog derived from owned hardware
 
 There is no published schema for `.hlx`. The container is plain JSON; the
-vocabulary — model identifiers, parameter keys, ranges, DSP costs — is not
+vocabulary of model identifiers, parameter keys, ranges and DSP costs is not
 documented anywhere.
 
 The catalog is derived by diffing presets exported from hardware the author
@@ -108,19 +107,19 @@ catalog and cannot precede it.
 Go for the core, CLI and eventual service: a single static binary, small
 container images, and a type system suited to catalog validation.
 
-Phase 3's measurement work — spectral analysis, envelope detection,
-autocorrelation — is fine in Go. Source separation is not; it is a PyTorch model
-with no credible Go equivalent. It becomes a separate service on GPU nodes,
-which is the right boundary regardless of language, since nothing else in the
-system shares its scaling profile.
+Phase 3's measurement work is fine in Go: spectral analysis, envelope detection,
+autocorrelation. Source separation is not; it is a PyTorch model with no
+credible Go equivalent. It becomes a separate service on GPU nodes, which is the
+right boundary regardless of language, since nothing else in the system shares
+its scaling profile.
 
 ## Architecture
 
 Full detail in `docs/architecture.md`. In brief:
 
-- `helix-core` — catalog, rig, synth, sources, typed errors. No output, no I/O
-  outside a source, typed values at every boundary.
-- `helixctl` — a formatter over the core, holding no logic worth testing.
+- `helix-core` holds catalog, rig, synth, sources and typed errors. No output,
+  no I/O outside a source, typed values at every boundary.
+- `helixctl` is a formatter over the core, holding no logic worth testing.
 
 Five independent validation layers: structural, parametric, budget, topological,
 envelope. Separate functions, separate error types, separate tests.
@@ -138,8 +137,8 @@ decided, and is what explains to a user where their preset came from.
 
 ## Testing
 
-- Validation layers unit-tested independently — a combined test cannot say which
-  layer rejected a spec.
+- Validation layers unit-tested independently, because a combined test cannot
+  say which layer rejected a spec.
 - Synth output compared byte-for-byte against golden fixtures.
 - Round-trip property: parsing an exported preset and re-writing it reproduces
   the input, which is the strongest available check with no format
@@ -184,7 +183,7 @@ with the phase, and likely resolved by accepting user-supplied audio instead.
 
 ______________________________________________________________________
 
-## Addendum — 2026-09-06: the catalog problem is solved
+## Addendum, 2026-09-06: the catalog problem is solved
 
 This spec's Risks section names DSP budget as "the likeliest visible failure",
 on the grounds that costs "cannot be derived from preset diffing, only
@@ -203,16 +202,16 @@ What changes:
 - **The catalog is generated locally**, from a licensed HX Edit install, and is
   not shipped inside a hosted service. `helixctl catalog extract` must read the
   local app bundle, and must fail clearly on a machine without it.
-- **The corpus keeps a narrower job:** establishing which of the 681 models an
+- **The corpus keeps a narrower job.** Establishing which of the 681 models an
   HX Stomp accepts (366 confirmed), and what real presets look like.
 
 What does not change: the phase ordering, the RigSpec/catalog split, and the
 requirement that a preset be validated before it reaches anyone.
 
 One correction to this spec's testing section: it specifies golden files
-compared byte for byte. That is not achievable — re-serialising a parsed float
-does not reliably reproduce the original literal, and roughly 40% of corpus
-float values are not exactly float32-representable. Round-trip tests must
+compared byte for byte. That is not achievable, because re-serialising a parsed
+float does not reliably reproduce the original literal, and roughly 40% of
+corpus float values are not exactly float32-representable. Round-trip tests must
 compare semantically.
 
 One new defect to fix in code: `catalog.Provenance` defines `measured`,

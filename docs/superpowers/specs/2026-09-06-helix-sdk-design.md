@@ -1,10 +1,10 @@
-# helix-sdk — Design
+# helix-sdk design
 
 > **Superseded in part, 2026-09-06.** This proposes `helix-sdk` as a separate Go
 > module to keep cgo out of everything else. That reasoning was wrong: cgo is
 > determined by the import graph, not the module boundary, so a `pkg/sdk`
 > package in the single `tonestack` module costs non-importers nothing. The USB
-> protocol findings, the staging, and the API sketch all still stand — only the
+> protocol findings, the staging, and the API sketch all still stand. Only the
 > module argument is retracted.
 
 **Date:** 2026-09-06 **Status:** draft, not approved **Scope:** talk to an HX
@@ -17,7 +17,7 @@ preset, hand it over, wait for someone to import it in HX Edit and load it on
 hardware. That gap is why "the JSON validates" and "the device accepted it" have
 stayed different claims all through phase 1.
 
-An SDK closes the loop. Generate a preset, push it, read it back, compare —
+An SDK closes the loop: generate a preset, push it, read it back, compare.
 unattended.
 
 ## Feasibility
@@ -46,7 +46,7 @@ data is taken from it. `helix_usb` is MIT and may be ported with attribution.
 ### The transport
 
 ```
-bulk  OUT 0x01  /  bulk IN 0x81     control — commands and responses
+bulk  OUT 0x01  /  bulk IN 0x81     control: commands and responses
 bulk  OUT 0x02  /  bulk IN 0x82     secondary channel
 iso   OUT 0x03  /  iso  IN 0x83     audio, not used here
 ```
@@ -89,7 +89,7 @@ defer d.Close()
 info, err := d.Identify(ctx)         // model, firmware
 names, err := d.PresetNames(ctx)     // every slot's name
 p, err := d.ReadPreset(ctx, slot)    // raw .hlx bytes
-err = d.WritePreset(ctx, slot, b)    // DESTRUCTIVE — see below
+err = d.WritePreset(ctx, slot, b)    // DESTRUCTIVE, see below
 err = d.SetScribble(ctx, slot, text, colour)
 ```
 
@@ -100,12 +100,12 @@ through the same parser as any downloaded preset. One code path.
 
 Riskiest last. Each stage is independently useful.
 
-| Stage | Capability                           | Risk                    |
-| ----- | ------------------------------------ | ----------------------- |
-| A     | Enumerate, identify, report firmware | none — descriptor reads |
-| B     | Read preset names, read a preset     | none — read-only        |
-| C     | Write a preset to a slot             | overwrites user data    |
-| D     | Scribble strips, colours, LEDs       | cosmetic                |
+| Stage | Capability                           | Risk                   |
+| ----- | ------------------------------------ | ---------------------- |
+| A     | Enumerate, identify, report firmware | none, descriptor reads |
+| B     | Read preset names, read a preset     | none, read-only        |
+| C     | Write a preset to a slot             | overwrites user data   |
+| D     | Scribble strips, colours, LEDs       | cosmetic               |
 
 Stage B alone lets the corpus grow from the device itself and lets a generated
 preset be compared against what the device stores. Stage C closes the loop.
@@ -118,11 +118,11 @@ recoverable by apology.
 
 The device cannot be assumed present, so:
 
-- **Transport and protocol** are tested against recorded traffic — capture real
+- **Transport and protocol** are tested against recorded traffic. Capture real
   exchanges once, replay them in tests. No hardware in CI.
 - **A `--device` build tag** gates the tests that need real hardware. They run
   on a developer machine with a Stomp attached, never in CI.
-- **Round trip is the acceptance test:** read a preset off the device, write it
+- **Round trip is the acceptance test.** Read a preset off the device, write it
   back to a scratch slot, read it again, compare. If that holds, the transport
   and encoding are right.
 
@@ -131,15 +131,15 @@ The device cannot be assumed present, so:
 An MCP server over this SDK is the point of the exercise. `list_presets`,
 `read_preset`, `apply_preset`, `identify` as tools means an agent can verify its
 own output against hardware instead of asking a person to. That is a transport
-over the same library — the same shape as the CLI and the HTTP service, and no
+over the same library, the same shape as the CLI and the HTTP service, and no
 change below it.
 
 ## Open questions
 
 1. Does the Stomp expose the same endpoints as the Helix Floor that `helix_usb`
    was written against? The handshake may differ per model.
-2. What does MessagePack carry — the whole `.hlx` document, or a binary form
-   that must be converted?
+2. What does MessagePack carry: the whole `.hlx` document, or a binary form that
+   must be converted?
 3. Does writing a preset require a firmware-version match?
 4. Is there a documented way to trigger the device's own backup, so a full
    corpus can be pulled in one operation rather than slot by slot?
