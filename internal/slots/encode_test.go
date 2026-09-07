@@ -430,64 +430,6 @@ func (s *EncodeTestSuite) TestTypesOf() {
 	s.Require().Nil(typesOf("HD2_NoSuchThing", s.cat))
 }
 
-// TestPack covers fitting a chain onto the positions a device has free.
-func (s *EncodeTestSuite) TestPack() {
-	blank, err := wire.Blank()
-	s.Require().NoError(err)
-
-	open, err := wire.Open(blank)
-	s.Require().NoError(err)
-
-	tests := []struct {
-		name   string
-		blocks []wire.Placement
-		want   []int
-		err    string
-	}{
-		{
-			name:   "a chain out of order keeps its order and moves up",
-			blocks: []wire.Placement{{Position: 9}, {Position: 4}, {Position: 6}},
-			want:   []int{1, 2, 3},
-		},
-		{
-			name:   "a chain already where the device would put it",
-			blocks: []wire.Placement{{Position: 1}, {Position: 2}},
-			want:   []int{1, 2},
-		},
-		{
-			name:   "nothing at all",
-			blocks: nil,
-			want:   []int{},
-		},
-		{
-			name:   "more blocks than the device lays out",
-			blocks: make([]wire.Placement, len(open)+1),
-			err:    "lays out",
-		},
-	}
-
-	for _, tt := range tests {
-		s.Run(tt.name, func() {
-			err := pack(open, tt.blocks)
-
-			if tt.err != "" {
-				s.Require().ErrorContains(err, tt.err)
-
-				return
-			}
-
-			s.Require().NoError(err)
-
-			got := []int{}
-			for _, b := range tt.blocks {
-				got = append(got, b.Position)
-			}
-
-			s.Require().Equal(tt.want, got)
-		})
-	}
-}
-
 func TestEncodeTestSuite(t *testing.T) {
 	suite.Run(t, new(EncodeTestSuite))
 }

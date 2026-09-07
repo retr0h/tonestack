@@ -33,7 +33,7 @@ import (
 // ShippedPublicTestSuite checks the rigs this repository ships.
 //
 // Drift between the Go types and the contract is impossible — the types are
-// generated from schemas/rigspec.openapi.yaml. What generation does not
+// generated from resources/schemas/rigspec.openapi.yaml. What generation does not
 // guarantee is that the files on disk satisfy it, or that a rig's filename
 // matches the identifier inside it.
 type ShippedPublicTestSuite struct {
@@ -41,7 +41,7 @@ type ShippedPublicTestSuite struct {
 }
 
 func (s *ShippedPublicTestSuite) TestEveryShippedRigLoads() {
-	paths, err := filepath.Glob(filepath.Join("..", "..", "recipes", "*", "*.yaml"))
+	paths, err := filepath.Glob(filepath.Join("..", "..", "resources", "recipes", "*", "*.yaml"))
 	s.Require().NoError(err)
 	s.Require().NotEmpty(paths, "no rigs found to check")
 

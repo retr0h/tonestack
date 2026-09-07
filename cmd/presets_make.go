@@ -49,7 +49,7 @@ func init() {
 	f.StringVar(&presetsMakeOptions.RecipeID, "id", "", "recipe to build from")
 	f.StringVar(
 		&presetsMakeOptions.RecipesDir,
-		"recipes",
+		"resources/recipes",
 		"",
 		"a directory of recipes to use instead of the built-in ones",
 	)

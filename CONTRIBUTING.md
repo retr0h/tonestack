@@ -74,8 +74,9 @@ pkg/preset/          read and write a .hlx preset file
 pkg/setlist/         read and write .hls setlists and .hlb device backups
 pkg/sdk/             talk to a device over USB. The only cgo in the tree.
 pkg/sdk/wire/        the framing a device speaks. Pure Go, no hardware needed.
-schemas/             the RigSpec contract, generated catalog, preset corpus
-recipes/             curated rigs: which gear a player uses
+resources/
+  schemas/           the RigSpec contract, generated catalog, preset corpus
+  recipes/           curated rigs: which gear a player uses
 docs/                how the format, catalog and generation work
 .github/workflows/   CI
 ```
@@ -208,11 +209,15 @@ a Go program carrying a `//go:generate` directive, run by `go generate ./...`,
 which `just generate` invokes and `just ready` includes. A generator lives
 beside what it generates. Generated files are `*.gen.go` or live under `gen/`.
 
-One exception, and it is outside the build: `tools/extract_gear_map.py` reads
-the model-to-gear table out of HX Edit's manual. The manual's model-name column
-uses a subset-embedded font no Go PDF library decodes, and it runs once per Line
-6 release rather than on every build. `just gear-map` invokes it; nothing in
-`just test` or `just ready` does.
+One exception, and it is outside the build:
+`resources/schemas/extract_gear_map.py` reads the model-to-gear table out of HX
+Edit's manual. The manual's model-name column uses a subset-embedded font no Go
+PDF library decodes, and it runs once per Line 6 release rather than on every
+build. `just gear-map` invokes it; nothing in `just test` or `just ready` does.
+
+It sits beside `resources/schemas/gear-map.json` for the same reason every other
+generator sits beside its output. It writes there by a path relative to itself,
+so which directory you run it from does not matter.
 
 ### Go patterns
 

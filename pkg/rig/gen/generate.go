@@ -24,4 +24,4 @@
 // `just generate`.
 package gen
 
-//go:generate go tool github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen -config cfg.yaml ../../../schemas/rigspec.openapi.yaml
+//go:generate go tool github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen -config cfg.yaml ../../../resources/schemas/rigspec.openapi.yaml

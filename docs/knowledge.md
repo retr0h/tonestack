@@ -13,13 +13,13 @@ The goal is a system that knows *how a chain is built*. That decomposes into
 four problems with four different sources, and conflating them is why generated
 tones come out generic.
 
-| Problem                 | Source                                   | State                     |
-| ----------------------- | ---------------------------------------- | ------------------------- |
-| Who plays what          | `recipes/`, hand-written                 | thin, grows by correction |
-| Gear to model ID        | `schemas/gear-map.json`                  | 547 models                |
-| What order blocks go in | statistics over `schemas/corpus/`        | not built                 |
-| Which way a knob moves  | the Pilot's Guide parameter tables       | not built                 |
-| What values to set      | catalog defaults, corpus medians, intent | not built                 |
+| Problem                 | Source                                      | State                     |
+| ----------------------- | ------------------------------------------- | ------------------------- |
+| Who plays what          | `resources/recipes/`, hand-written          | thin, grows by correction |
+| Gear to model ID        | `resources/schemas/gear-map.json`           | 547 models                |
+| What order blocks go in | statistics over `resources/schemas/corpus/` | not built                 |
+| Which way a knob moves  | the Pilot's Guide parameter tables          | not built                 |
+| What values to set      | catalog defaults, corpus medians, intent    | not built                 |
 
 One specification covers all of it.
 [The RigSpec design record](superpowers/specs/2026-09-06-rigspec-as-the-one-model-design.md)
@@ -127,16 +127,16 @@ assumes it:
 request      "a Mike Dirnt sound"
    │
    ▼
-recipe       recipes/artists/mike-dirnt.yaml        who plays what
+recipe       resources/recipes/artists/mike-dirnt.yaml        who plays what
    │         amp: Ampeg SVT
    ▼
-gear map     schemas/gear-map.json                  gear to model
+gear map     resources/schemas/gear-map.json                  gear to model
    │         HD2_AmpSVBeastNrm
    ▼
-catalog      schemas/hx-stomp.catalog.json          what the device accepts
+catalog      resources/schemas/hx-stomp.catalog.json          what the device accepts
    │         Drive 0.0–1.0, default 0.39, DSP 28.27
    ▼
-grammar      statistics over schemas/corpus/        what order      [not built]
+grammar      statistics over resources/schemas/corpus/        what order      [not built]
    │
    ▼
 values       defaults + distributions + character   what to set     [not built]

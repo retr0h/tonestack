@@ -49,8 +49,10 @@ code. Read the one that matches the task rather than all of them:
 | Touching USB                                                                                          | [docs/protocol.md](docs/protocol.md), **including the rules that keep a device alive**                                  |
 | Changing the shape of the system                                                                      | [docs/superpowers/specs/](docs/superpowers/specs/), dated design records, superseded rather than rewritten              |
 
-The contracts themselves are in [schemas/](schemas/). `rigspec.openapi.yaml` is
-the only hand-authored format; everything else is compiled from it.
+The contracts themselves are in [resources/schemas/](resources/schemas/).
+`rigspec.openapi.yaml` is the only hand-authored format; everything else is
+compiled from it. [resources/README.md](resources/README.md) says what else is
+in that tree and which of it may be redistributed.
 
 ## Say which claim you have
 

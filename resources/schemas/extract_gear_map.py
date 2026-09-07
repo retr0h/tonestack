@@ -28,6 +28,7 @@ import collections
 import glob
 import json
 import os
+import pathlib
 import re
 import sys
 import warnings
@@ -35,7 +36,8 @@ import warnings
 warnings.filterwarnings("ignore")
 
 RESOURCES = "/Applications/Line6/HX Edit.app/Contents/Resources"
-OUT = "schemas/gear-map.json"
+# Beside this script, so it does not matter which directory you run it from.
+OUT = pathlib.Path(__file__).with_name("gear-map.json")
 # Column two of the manual's table. It is a phrase, not a word — "Mono,
 # Stereo" and "Single, Dual" both occur — so it is consumed as a whole or the
 # tail of it leaks into the gear name ("Stereo Klon Centaur").
@@ -103,8 +105,8 @@ def main() -> int:
         print(
             f"HX Edit not found at {RESOURCES}.\n"
             "This data comes from a licensed HX Edit installation and cannot be "
-            "derived any other way. Install HX Edit, or keep the committed "
-            "schemas/gear-map.json.",
+            f"derived any other way. Install HX Edit, or keep the committed "
+            f"{OUT.name}.",
             file=sys.stderr,
         )
         return 1

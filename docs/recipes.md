@@ -3,10 +3,11 @@
 How to describe what somebody plays, so this project can build it.
 
 A rig is written as a **RigSpec**, the project's only hand-authored format,
-defined in [`schemas/rigspec.openapi.yaml`](../schemas/rigspec.openapi.yaml).
-One is a YAML file under `recipes/`, and it is the only data here that is ours:
-the device catalog and the gear map are derived from Line 6's own files, while
-these are written by hand.
+defined in
+[`resources/schemas/rigspec.openapi.yaml`](../resources/schemas/rigspec.openapi.yaml).
+One is a YAML file under `resources/recipes/`, and it is the only data here that
+is ours: the device catalog and the gear map are derived from Line 6's own
+files, while these are written by hand.
 
 Every field is demonstrated on one subject in
 [`examples/rigspec/mike-dirnt.yaml`](../examples/rigspec/mike-dirnt.yaml). Read

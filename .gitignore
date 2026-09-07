@@ -5,20 +5,20 @@ dist/
 # Preset corpus — reference data, not source.
 #
 # ~67 MB of third-party presets, many from repositories carrying no licence.
-# schemas/corpus/fetch.sh rebuilds it from repos.txt, so the reproducer and the
-# attribution record are committed and the payload is not.
-schemas/corpus/**
-!schemas/corpus/fetch.sh
-!schemas/corpus/repos.txt
-!schemas/corpus/github/
-!schemas/corpus/github/SOURCES.md
-!schemas/corpus/customtone/
-!schemas/corpus/customtone/SOURCES.md
-!schemas/corpus/customtone/fetch_customtone.py
+# resources/schemas/corpus/fetch.sh rebuilds it from repos.txt, so the
+# reproducer and the attribution record are committed and the payload is not.
+resources/schemas/corpus/**
+!resources/schemas/corpus/fetch.sh
+!resources/schemas/corpus/repos.txt
+!resources/schemas/corpus/github/
+!resources/schemas/corpus/github/SOURCES.md
+!resources/schemas/corpus/customtone/
+!resources/schemas/corpus/customtone/SOURCES.md
+!resources/schemas/corpus/customtone/fetch_customtone.py
 
 # Generated from an HX Edit installation. The catalog itself is committed
 # under pkg/catalog/data/ and ships in the binary, so nobody needs HX Edit to
 # use tonestack — only to regenerate it. These are the intermediate artifacts.
 # Rebuild with `just catalog` and `just gear-map`.
-schemas/hx-stomp.catalog.json
-schemas/gear-map.json
+resources/schemas/hx-stomp.catalog.json
+resources/schemas/gear-map.json

@@ -24,7 +24,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"sort"
 
 	"github.com/retr0h/tonestack/internal/catalogview"
 	"github.com/retr0h/tonestack/internal/cli"
@@ -107,50 +106,12 @@ func documentFor(
 	}
 
 	// An unused slot a device wrote, embedded in this binary and read by a
-	// test, so neither of these can fail: it decodes, and it has a chain.
+	// test, so it cannot fail to decode.
 	out, _ := wire.Blank()
-	open, _ := wire.Open(out)
 
-	if err := pack(open, blocks); err != nil {
-		return nil, err
-	}
-
-	if err := wire.Place(out, blocks); err != nil {
+	if err := wire.PlaceInOrder(out, blocks); err != nil {
 		return nil, err
 	}
 
 	return out.Encode(), nil
-}
-
-// pack puts a chain into the grid positions a device has free.
-//
-// A preset counts its blocks from zero along a signal path and a device
-// counts positions across a grid that also holds the input, the split, the
-// join and the output. The corpus puts every `@position` between 0 and 9,
-// and a device's block positions run 1 to 8 and 11 to 18, so the two are not
-// the same number and nothing here has established what turns one into the
-// other.
-//
-// Rather than guess at that on somebody's hardware, the chain keeps its order
-// and takes the first positions the device has free. A chain is an order, and
-// the gaps a preset leaves in one carry no sound.
-func pack(
-	open []int,
-	blocks []wire.Placement,
-) error {
-	if len(blocks) > len(open) {
-		return fmt.Errorf(
-			"this chain has %d blocks and the device lays out %d positions",
-			len(blocks), len(open))
-	}
-
-	sort.SliceStable(blocks, func(i, j int) bool {
-		return blocks[i].Position < blocks[j].Position
-	})
-
-	for i := range blocks {
-		blocks[i].Position = open[i]
-	}
-
-	return nil
 }

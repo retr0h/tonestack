@@ -44,10 +44,11 @@ The `.models` files never say what real gear a model imitates.
 Line 6 rename every model for trademark reasons.
 
 The mapping exists in one place, the "Based On" column of the Pilot's Guide,
-which ships in the same folder. `tools/extract_gear_map.py` reads it, and this
-is the exception to the no-Python rule in [CONTRIBUTING.md](../CONTRIBUTING.md):
-the model-name column uses a subset-embedded font no Go PDF library decodes, and
-it runs once per Line 6 release rather than on every build.
+which ships in the same folder. `resources/schemas/extract_gear_map.py` reads
+it, sitting beside the `resources/schemas/gear-map.json` it writes. It is the
+exception to the no-Python rule in [CONTRIBUTING.md](../CONTRIBUTING.md). The
+model-name column uses a subset-embedded font no Go PDF library decodes, and it
+runs once per Line 6 release rather than on every build.
 
 Joining the two gives **547 of 665 models mapped to gear a person recognises**,
 and that is what makes a rig naming "Ampeg SVT" mean anything at all.

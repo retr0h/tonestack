@@ -1,7 +1,8 @@
 # The preset format
 
 How a Line 6 `.hlx` file is laid out. Line 6 publishes no schema, so all of this
-was established by reading real presets. See [corpus](../schemas/README.md).
+was established by reading real presets. See
+[corpus](../resources/schemas/README.md).
 
 `.hlx` files are plain JSON. Line 6 publishes no schema, so everything here was
 established by reading real presets.

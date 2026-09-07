@@ -68,13 +68,13 @@ license-check:
     fi
     echo "licence header present on every .go file"
 
-# Rebuild schemas/hx-stomp.catalog.json from a local HX Edit installation
+# Rebuild resources/schemas/hx-stomp.catalog.json from a local HX Edit installation
 catalog:
     go run . catalog generate
 
-# Rebuild schemas/gear-map.json from a local HX Edit installation
+# Rebuild resources/schemas/gear-map.json from a local HX Edit installation
 gear-map:
-    uvx --with pypdf --with fonttools python3 tools/extract_gear_map.py
+    uvx --with pypdf --with fonttools python3 resources/schemas/extract_gear_map.py
 
 # Generate code
 generate:
