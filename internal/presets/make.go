@@ -85,10 +85,7 @@ func Make(w io.Writer, opts MakeOptions) error {
 		return fmt.Errorf("the chain this recipe describes will not load: %w", err)
 	}
 
-	// preset.New refuses a parameter named like a block attribute. A resolved
-	// chain cannot contain one — the catalog excludes them — so this cannot
-	// fail here, and checking would add a branch no test can reach.
-	doc, _ := preset.New(cat.DeviceID, spec)
+	doc := build(cat.DeviceID, spec)
 
 	if err := write(opts.OutputPath, doc); err != nil {
 		return err
@@ -112,6 +109,23 @@ func openStats(path string) (*corpus.Stats, error) {
 	defer func() { _ = f.Close() }()
 
 	return corpus.Load(f)
+}
+
+// build puts a chain into a preset the device would recognise.
+//
+// Written into an untouched preset rather than assembled from nothing: a
+// device expects inputs, outputs, a split and a join around a chain, and
+// 98.6% of real presets carry them. One built without them is unlike anything
+// the hardware has ever written.
+func build(deviceID int, spec chain.Chain) *preset.Document {
+	// The blank is embedded and covered by its own test, so reading it cannot
+	// fail here. SetSpec refuses a parameter named like a block attribute,
+	// and a resolved chain cannot hold one because the catalog excludes them.
+	doc, _ := preset.Blank()
+	doc.Data.Device = deviceID
+	_ = doc.SetSpec(spec)
+
+	return doc
 }
 
 // write puts the preset on disk.

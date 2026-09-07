@@ -177,6 +177,24 @@ func (s *FidelityPublicTestSuite) TestWritingAChainKeepsItsAttributes() {
 	s.Require().Contains(got, `"@enabled": true`, "the chain decides what it models")
 }
 
+func (s *FidelityPublicTestSuite) TestTheBlankCarriesWhatADeviceExpects() {
+	// A preset built from nothing has no inputs, outputs, split or join, and
+	// 98.6% of real ones do. Generating one starts from a real empty slot
+	// rather than assembling the parts.
+	doc, err := preset.Blank()
+
+	s.Require().NoError(err)
+	s.Require().Contains(doc.Data.Tone, "dsp0")
+
+	for _, want := range []string{"inputA", "outputA", "split", "join"} {
+		s.Require().Contains(doc.Data.Tone["dsp0"], want)
+	}
+
+	c, err := doc.Spec()
+	s.Require().NoError(err)
+	s.Require().Empty(c.Blocks, "and no blocks, since it is empty")
+}
+
 func (s *FidelityPublicTestSuite) TestRefusesABlockKeyThatIsNotNumbered() {
 	doc, err := preset.Read(bytes.NewReader([]byte(
 		`{"schema":"L6Preset","version":6,"data":{"device":2162694,

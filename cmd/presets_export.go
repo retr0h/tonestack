@@ -30,11 +30,15 @@ var presetsExportOptions slots.ExportOptions
 // presetsExportCmd represents the presets export command.
 var presetsExportCmd = &cobra.Command{
 	Use:   "export",
-	Short: "Write one slot out as a preset file",
-	Long: `Pull one preset out of a setlist as a standalone .hlx.
+	Short: "Write one slot out as a rig",
+	Long: `Pull one preset out of a setlist.
 
-The result is the same kind of file this tool generates, so a preset taken off
-the device can be read, compared, and put back.`,
+A rig by default: gear a person recognises, portable to other hardware, and the
+format every other command here speaks. Compile it back with presets compile.
+
+--as hlx writes the device's own file instead, which is a faithful copy rather
+than a reading — it carries the routing and snapshots a rig models but nobody
+chooses.`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		return slots.Export(cmd.OutOrStdout(), presetsExportOptions)
@@ -58,7 +62,11 @@ func init() {
 		"which setlist, when the file is a backup holding several",
 	)
 	f.IntVar(&presetsExportOptions.Slot, "slot", 0, "which slot, from zero")
-	f.StringVar(&presetsExportOptions.OutputPath, "out", "", "where to write the preset")
+	f.StringVar(&presetsExportOptions.OutputPath, "out", "", "where to write it")
+	f.StringVar((*string)(&presetsExportOptions.As), "as", "rigspec",
+		"rigspec for a rig, hlx for the device's own file")
+	f.StringVar(&presetsExportOptions.CatalogPath, "catalog", "",
+		"a generated catalog to use instead of the built-in one")
 	_ = presetsExportCmd.MarkFlagRequired("file")
 	_ = presetsExportCmd.MarkFlagRequired("slot")
 	_ = presetsExportCmd.MarkFlagRequired("out")

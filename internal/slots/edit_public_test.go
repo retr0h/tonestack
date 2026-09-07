@@ -130,12 +130,33 @@ func (s *EditPublicTestSuite) TestEditReportsAWriterThatFails() {
 	s.Require().Error(slots.Copy(&failingWriter{}, s.opts(out)))
 }
 
-func (s *EditPublicTestSuite) TestExportWritesAPreset() {
+func (s *EditPublicTestSuite) TestExportWritesARigByDefault() {
+	// A rig is what this project speaks, and the format that reads on other
+	// hardware. The device's own file is a faithful copy, which is a
+	// different thing and has to be asked for.
+	out := filepath.Join(s.T().TempDir(), "one.yaml")
+
+	var log bytes.Buffer
+	s.Require().NoError(slots.Export(&log, slots.ExportOptions{
+		Path: fixture("setlist.hls"), Slot: 0, OutputPath: out,
+		CatalogPath: catalogPath(),
+	}))
+
+	raw, err := os.ReadFile(out) //nolint:gosec // a path this test chose
+	s.Require().NoError(err)
+	s.Require().Contains(string(raw), "schema: RigSpec")
+	s.Require().Contains(string(raw), "gear:")
+	s.Require().Contains(string(raw), "models:",
+		"a lifted rig records the exact model, since a name does not identify one")
+}
+
+func (s *EditPublicTestSuite) TestExportCanWriteTheDevicesOwnFile() {
 	out := filepath.Join(s.T().TempDir(), "one.hlx")
 
 	var log bytes.Buffer
 	s.Require().NoError(slots.Export(&log, slots.ExportOptions{
 		Path: fixture("setlist.hls"), Slot: 0, OutputPath: out,
+		As: slots.FormatPreset,
 	}))
 
 	var show bytes.Buffer
@@ -165,6 +186,7 @@ func (s *EditPublicTestSuite) TestExportReportsProblems() {
 			"a slot that is not there",
 			slots.ExportOptions{
 				Path: fixture("setlist.hls"), Slot: 99, OutputPath: dir + "/x.hlx",
+				As: slots.FormatPreset,
 			},
 			"no such slot",
 		},
@@ -172,6 +194,7 @@ func (s *EditPublicTestSuite) TestExportReportsProblems() {
 			"a destination directory that is not there",
 			slots.ExportOptions{
 				Path: fixture("setlist.hls"), OutputPath: filepath.Join(dir, "no", "x.hlx"),
+				As: slots.FormatPreset,
 			},
 			"writing",
 		},
@@ -187,10 +210,47 @@ func (s *EditPublicTestSuite) TestExportReportsProblems() {
 	}
 }
 
+func (s *EditPublicTestSuite) TestExportReportsProblemsWritingARig() {
+	dir := s.T().TempDir()
+
+	tests := []struct {
+		name    string
+		mutate  func(*slots.ExportOptions)
+		message string
+	}{
+		{
+			"a catalog that is not there",
+			func(o *slots.ExportOptions) { o.CatalogPath = fixture("nope.json") },
+			"catalog",
+		},
+		{
+			"a slot holding nothing, which is not a rig",
+			func(o *slots.ExportOptions) { o.Slot = 2 },
+			"chain holds nothing",
+		},
+	}
+
+	for _, tc := range tests {
+		s.Run(tc.name, func() {
+			o := slots.ExportOptions{
+				Path: fixture("setlist.hls"), Slot: 0,
+				OutputPath: filepath.Join(dir, "x.yaml"), CatalogPath: catalogPath(),
+			}
+			tc.mutate(&o)
+
+			err := slots.Export(&bytes.Buffer{}, o)
+
+			s.Require().Error(err)
+			s.Require().Contains(err.Error(), tc.message)
+		})
+	}
+}
+
 func (s *EditPublicTestSuite) TestExportReportsAWriterThatFails() {
 	s.Require().Error(slots.Export(&failingWriter{}, slots.ExportOptions{
 		Path:       fixture("setlist.hls"),
 		OutputPath: filepath.Join(s.T().TempDir(), "x.hlx"),
+		As:         slots.FormatPreset,
 	}))
 }
 
@@ -200,6 +260,7 @@ func (s *EditPublicTestSuite) TestImportPlacesAPreset() {
 
 	s.Require().NoError(slots.Export(&bytes.Buffer{}, slots.ExportOptions{
 		Path: fixture("setlist.hls"), Slot: 0, OutputPath: pre,
+		As: slots.FormatPreset,
 	}))
 
 	out := filepath.Join(dir, "out.hls")

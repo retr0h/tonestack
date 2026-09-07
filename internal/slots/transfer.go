@@ -26,8 +26,25 @@ import (
 	"io"
 	"os"
 
+	"github.com/retr0h/tonestack/internal/catalogview"
 	"github.com/retr0h/tonestack/internal/cli"
+	"github.com/retr0h/tonestack/internal/lift"
 	"github.com/retr0h/tonestack/pkg/preset"
+	"github.com/retr0h/tonestack/pkg/rig"
+)
+
+// Format is what an export is written as.
+type Format string
+
+// The formats an export can take.
+const (
+	// FormatRig is a RigSpec: this project's own format, and the default.
+	// Gear a person recognises, portable to other devices, and the thing
+	// every other command speaks.
+	FormatRig Format = "rigspec"
+	// FormatPreset is the device's own file. A faithful copy, carrying the
+	// routing and snapshots a rig models but a person never chooses.
+	FormatPreset Format = "hlx"
 )
 
 // ExportOptions says which slot to write out as a preset file.
@@ -37,11 +54,21 @@ type ExportOptions struct {
 	// Setlist and Slot address the preset.
 	Setlist int
 	Slot    int
-	// OutputPath is where the .hlx is written.
+	// OutputPath is where the result is written.
 	OutputPath string
+	// As is the format. Empty means a rig.
+	As Format
+	// CatalogPath is a catalog to name gear against. Empty means the one
+	// built into this binary.
+	CatalogPath string
 }
 
-// Export writes one slot out as a standalone preset file.
+// Export writes one slot out.
+//
+// A rig by default, because that is the format this project speaks and the
+// one that reads on other hardware. The device's own file is available for a
+// faithful copy, which is a different thing: it carries the routing and
+// snapshots a rig models but nobody chooses.
 func Export(w io.Writer, opts ExportOptions) error {
 	doc, err := open(opts.Path)
 	if err != nil {
@@ -61,8 +88,14 @@ func Export(w io.Writer, opts ExportOptions) error {
 
 	var buf bytes.Buffer
 
-	// A payload that decoded encodes again.
-	_ = preset.Write(&buf, out)
+	if opts.As == FormatPreset {
+		// A payload that decoded encodes again.
+		_ = preset.Write(&buf, out)
+	} else {
+		if err := writeRig(&buf, out, opts.CatalogPath); err != nil {
+			return err
+		}
+	}
 
 	if err := os.WriteFile(opts.OutputPath, buf.Bytes(), 0o600); err != nil {
 		return fmt.Errorf("writing %s: %w", opts.OutputPath, err)
@@ -73,6 +106,21 @@ func Export(w io.Writer, opts ExportOptions) error {
 		cli.Indent, cli.Success(w, "wrote "+opts.OutputPath))
 
 	return err
+}
+
+// writeRig renders a preset as a rig.
+func writeRig(buf *bytes.Buffer, doc *preset.Document, catalogPath string) error {
+	cat, err := catalogview.Open(catalogPath)
+	if err != nil {
+		return err
+	}
+
+	spec, err := lift.Lift(doc, cat)
+	if err != nil {
+		return err
+	}
+
+	return rig.Write(buf, spec)
 }
 
 // ImportOptions says which preset file to put in which slot.

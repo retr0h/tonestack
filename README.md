@@ -79,7 +79,8 @@ of the whole device — and a slot reads back as the same kind of chain:
 ```bash
 tonestack presets list   --file device.hlb                 # every slot
 tonestack presets show   --file device.hlb --slot 3        # one chain
-tonestack presets export --file device.hlb --slot 3 --out lead.hlx
+tonestack presets export  --file device.hlb --slot 3 --out lead.yaml   # to a rig
+tonestack presets compile --rig lead.yaml --out lead.hlx               # and back
 tonestack presets import --file device.hlb --preset mike.hlx --slot 7 --out edited.hlb
 tonestack presets copy   --file device.hlb --from 1 --to 2 --out edited.hlb
 tonestack presets swap   --file device.hlb --from 1 --to 2 --out edited.hlb
