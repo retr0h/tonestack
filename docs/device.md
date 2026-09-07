@@ -47,6 +47,44 @@ changes any field's byte width shifts every offset after it. The device accepts
 such a write and then reads the preset as empty. Both projects lost hardware
 sessions to exactly this.
 
+## Editing a section means splicing it
+
+Decoding a section, changing it and encoding it again does not work. Line 6
+choose an encoding per field rather than per value, and nothing recovers that
+choice from the value afterwards. Across the three captured presets a number
+that would fit a one-byte fixint is written as `uint8` 282 times and as `uint32`
+ten times, and every one of the 140 floats is a `float32` where Go's encoder
+writes `float64`.
+
+Decoding section 0 of `preset.bin` and encoding it again returns 835 bytes where
+the device wrote 588. Whole documents grow by around 40%:
+
+| section         | preset.bin  | switches.bin | empty.bin   |
+| --------------- | ----------- | ------------ | ----------- |
+| 0, blocks       | 588 → 835   | 567 → 773    | 248 → 369   |
+| 3, footswitches | 136 → 187   | 209 → 284    | 10 → 13     |
+| 10              | 1460 → 1950 | 1520 → 2061  | 1520 → 2061 |
+
+`wire.Locate` and `wire.Splice` exist because of that. A path names one value,
+`Locate` returns the bytes it occupies, and `Splice` swaps those bytes for new
+ones. Everything outside that range is copied through unread, so it survives
+whatever the device chose for it. `Document.Encode` then rebuilds the offset
+table over the new lengths.
+
+A path is a list of integers, because every map key in a preset is one. There
+are 665 across the captures and not a single string. The container decides
+whether a step reads as a map key or as an array index. A block's model number
+is `{22, i, 20, 24, 25}`, whether it is on is `{22, i, 20, 10}`, and its
+parameters are `{22, i, 20, 11, 4, j}`.
+
+A replacement keeps the width the device wrote wherever the new value still fits
+it, so swapping one parameter for another leaves the section the length it was.
+A value needing more room widens to the narrowest form that holds it.
+
+`TestSpliceRawKeepsEveryOtherByte` locates all 5,413 values in all three
+captures and writes each one back as itself, asserting the section is unchanged
+every time.
+
 **Writing a preset synthesised from nothing is the least-solved thing in the
 space, and neither project does it.** The reliable shape is to read a preset off
 the device, change it, and write it back. That is also what the corpus says from
