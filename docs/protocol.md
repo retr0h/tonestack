@@ -197,6 +197,22 @@ The `.hlx` JSON in [preset-format.md](preset-format.md) is a host-side format.
 They are different representations of the same preset, and converting between
 them loses whatever neither side models.
 
+### The offset table, read off three presets
+
+Twelve offsets, each pointing at where something starts. The first is the preset
+map itself and the last two are the end of the document; the nine between point
+at the key byte of one section, in an order that is not the order the sections
+are written in:
+
+| entry | points at                                             |
+| ----- | ----------------------------------------------------- |
+| 0     | the preset map                                        |
+| 1-9   | sections `0`, `1`, `3`, `4`, `2`, `5`, `6`, `7`, `10` |
+| 10-11 | the end of the document                               |
+
+Identical across every capture. A write recomputes them from where each section
+actually landed.
+
 **The offset table is the hazard in any write.** The device seeks with it rather
 than walking the MessagePack, so a re-encode that changes any field's byte width
 shifts every offset after it. MessagePack allows several encodings of the same
@@ -204,6 +220,17 @@ integer and the device emits wide tags where a naive encoder emits narrow ones.
 tonepush measured 91 of 103 wide tags shrinking in one preset. The device
 accepts such a write and then reads the preset as empty. Both projects lost
 hardware sessions to this before fixing it.
+
+Measured here rather than taken on trust. Decoding one of these presets and
+encoding it again with an ordinary MessagePack encoder changes its length by
++99, +135 and -25 bytes on the three captures in `pkg/sdk/wire/testdata`. Every
+offset after the first change would point at the wrong byte.
+
+`wire.Document` is the answer: it keeps every section as the bytes the device
+sent, writes the magic and the table at the widths the device used, and
+recomputes the offsets from where the sections land. A preset read and written
+back through it is the same bytes, which is asserted over all three captures.
+Changing one section moves only what follows it.
 
 The consequence for this project is larger than a bug: writing a `.hlx`
 synthesised from nothing is the least solved problem in the whole space, and
