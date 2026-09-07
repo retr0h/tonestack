@@ -225,7 +225,13 @@ answered; nothing in Line 6's files documents them.
 
 A chain entry is `{19: kind, 20: body}`. Kind `6` is a block somebody placed;
 every other kind is the device's own — an input, an output, a gap where nothing
-sits. The body holds:
+sits.
+
+**The position in that array is the block's number, and it is not its place in
+the chain.** A device lays blocks on a fixed grid and leaves gaps: a preset
+holding four blocks can have them at 5, 6, 8 and 13. Footswitch assignments
+address blocks by that number, so renumbering them to 0 through 3 breaks the
+only link between a switch and the block it works on. The body holds:
 
 | key         | holds                                         |
 | ----------- | --------------------------------------------- |

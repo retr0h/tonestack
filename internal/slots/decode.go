@@ -45,19 +45,22 @@ func chainOf(name string, got wire.DevicePreset, cat *catalog.Catalog) (chain.Ch
 
 	out := chain.Chain{Name: name, Blocks: make([]chain.Block, 0, len(got.Blocks))}
 
-	for i, b := range got.Blocks {
+	for _, b := range got.Blocks {
 		sym, ok := cat.Symbol(b.Model)
 		if !ok {
 			return chain.Chain{}, fmt.Errorf(
 				"block %d names model %d, which this catalog's table of %d does "+
 					"not reach: it was generated from a different release",
-				i, b.Model, len(cat.Symbols))
+				b.Index, b.Model, len(cat.Symbols))
 		}
 
 		out.Blocks = append(out.Blocks, chain.Block{
-			Model:   modelOf(sym.ID, cat),
-			Params:  paramsOf(sym, b.Values),
-			Pos:     i,
+			Model:  modelOf(sym.ID, cat),
+			Params: paramsOf(sym, b.Values),
+			// The device's own number, not a place in the chain. A footswitch
+			// names the block it works on by this, and renumbering would
+			// break the only link between the two.
+			Pos:     b.Index,
 			Enabled: b.Enabled,
 		})
 	}

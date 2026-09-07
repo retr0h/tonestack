@@ -56,6 +56,10 @@ func (s *PresetPublicTestSuite) TestReadsTheChainADeviceSent() {
 	s.Require().Len(got.Blocks, 6)
 
 	s.Require().Equal(261, got.Blocks[0].Model)
+
+	// Where the device put them, not where they fall in the chain: a preset
+	// leaves gaps in its layout, and footswitches address blocks by this.
+	s.Require().Equal(2, got.Blocks[0].Index)
 	s.Require().Equal(5, got.Blocks[4].Model, "the SVT normal channel")
 	s.Require().Equal(74, got.Blocks[5].Model, "the 8x10 it is paired with")
 }

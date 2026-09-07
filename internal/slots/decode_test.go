@@ -47,6 +47,21 @@ func (s *DecodeTestSuite) SetupSuite() {
 	s.Require().NoError(err)
 }
 
+func (s *DecodeTestSuite) TestKeepsTheDevicesOwnBlockNumbering() {
+	// A device lays blocks out on a grid and leaves gaps in it, so a chain of
+	// two can sit at 5 and 13. Footswitch assignments name blocks by that
+	// number, and renumbering them here would break the only link between a
+	// switch and the block it works on.
+	got, err := chainOf("x", wire.DevicePreset{Blocks: []wire.DeviceBlock{
+		{Index: 5, Model: 5},
+		{Index: 13, Model: 74},
+	}}, s.cat)
+
+	s.Require().NoError(err)
+	s.Require().Equal(5, got.Blocks[0].Pos)
+	s.Require().Equal(13, got.Blocks[1].Pos)
+}
+
 func (s *DecodeTestSuite) TestNamesWhatTheDeviceNumbered() {
 	got, err := chainOf("BAS:SVT Nrm", wire.DevicePreset{Blocks: []wire.DeviceBlock{
 		{Model: 5, Values: []any{0.27, 0.65}, Enabled: true},

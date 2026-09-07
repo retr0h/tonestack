@@ -114,6 +114,13 @@ type DeviceFootswitch struct {
 
 // DeviceBlock is one block, still named by number.
 type DeviceBlock struct {
+	// Index is where the block sits in the device's own layout.
+	//
+	// Not its place in the chain: a device lays blocks out on a fixed grid
+	// and leaves gaps in it, so a chain of four can sit at 5, 6, 8 and 13.
+	// Footswitch assignments address blocks by this number, so renumbering
+	// them would break the only link between the two.
+	Index int
 	// Model is the block's position in the device's own model table, which
 	// the catalog carries as its symbol list.
 	Model int
@@ -287,7 +294,7 @@ func blocksOf(doc map[any]any) []DeviceBlock {
 
 	out := make([]DeviceBlock, 0, len(entries))
 
-	for _, e := range entries {
+	for i, e := range entries {
 		entry, ok := e.(map[any]any)
 		if !ok {
 			continue
@@ -306,6 +313,8 @@ func blocksOf(doc map[any]any) []DeviceBlock {
 		if !ok {
 			continue
 		}
+
+		block.Index = i
 
 		out = append(out, block)
 	}
