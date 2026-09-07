@@ -254,7 +254,21 @@ only link between a switch and the block it works on. The body holds:
 | ----------- | --------------------------------------------- |
 | `24` → `25` | the model, as a number, see below             |
 | `11` → `4`  | the parameters, as a bare array with no names |
+| `12` → `4`  | the cabinet an amplifier carries with it      |
 | `10`        | whether the block is switched on              |
+
+An amplifier and its cabinet are one block to a device and two entries in a
+preset: the amplifier with a `@cab` pointing at a sibling, and the cabinet under
+that name. 304 of 721 HX Stomp presets in the corpus have one.
+
+Key `12` holds the cabinet's settings, and `3` beside them says how many the
+cabinet model has names for. Anything past that is the microphone. Which cabinet
+is not in the answer, because an amplifier names the one Line 6 voiced it with
+and the catalog carries that.
+
+A preset also records what kind of block each is, which a device leaves implied.
+Measured over the corpus with no exceptions: an amplifier alone is 1, an
+amplifier carrying a cabinet is 3, a cabinet is 2, everything else is 0.
 
 A footswitch entry is `{10: ordinal, 11: body, 16: colour}` inside the list at
 `3` → `8`. The list position is the switch, so the first group is FS1, and a

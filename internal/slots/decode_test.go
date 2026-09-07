@@ -141,6 +141,10 @@ func (s *DecodeTestSuite) TestKeepsEachValueInTheShapeItArrivedIn() {
 	s.Require().Equal(catalog.Bool(true), p["Bass"])
 	s.Require().Equal(catalog.Int(2), p["Mid"])
 	s.Require().NotContains(p, "MidFreq", "a value of no known kind is left out")
+
+	// An amp, and one carrying no cabinet of its own.
+	s.Require().Equal(catalog.Int(1), p["@type"])
+	s.Require().NotContains(p, "@cab")
 }
 
 func (s *DecodeTestSuite) TestATruncatedRunOfValues() {
@@ -150,7 +154,10 @@ func (s *DecodeTestSuite) TestATruncatedRunOfValues() {
 	}}, s.cat)
 
 	s.Require().NoError(err)
-	s.Require().Len(got.Blocks[0].Params, 1)
+
+	// The one value it sent, plus the kind of block a preset would call this.
+	s.Require().Len(got.Blocks[0].Params, 2)
+	s.Require().Equal(catalog.Float(0.27), got.Blocks[0].Params["Drive"])
 }
 
 // indexOf finds where a model sits in the device's own table.

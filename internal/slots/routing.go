@@ -53,11 +53,13 @@ var routeSelector = map[string]string{
 // device uses. The split and the join name themselves, so those come from the
 // answer.
 func routingOf(got wire.DevicePreset, cat *catalog.Catalog) *map[string]json.RawMessage {
-	if len(got.Routing) == 0 {
+	out := map[string]json.RawMessage{}
+
+	pairedCabs(out, got, cat)
+
+	if len(got.Routing) == 0 && len(out) == 0 {
 		return nil
 	}
-
-	out := map[string]json.RawMessage{}
 
 	for _, r := range got.Routing {
 		model, ok := routeModelOf(r, cat)
@@ -172,4 +174,65 @@ func deviceStateOf(got wire.DevicePreset, cat *catalog.Catalog) *riggen.DeviceSt
 	id := cat.DeviceID
 
 	return &riggen.DeviceState{Id: &id, Routing: routing}
+}
+
+// Keys a preset stores a paired cabinet under.
+const (
+	cabEnabled = "@enabled"
+	cabMic     = "@mic"
+)
+
+// pairedCabs writes the cabinets amps carry with them.
+//
+// A device stores an amp and its cabinet as one block. A preset stores the amp
+// with a `@cab` pointing at a sibling entry, and that entry here. 304 of 721
+// HX Stomp presets in the corpus have one, so a rig that dropped them would be
+// wrong about two in five.
+//
+// Which cabinet is not in the answer either: an amp names the one Line 6
+// voiced it with, and the catalog carries that.
+func pairedCabs(
+	out map[string]json.RawMessage,
+	got wire.DevicePreset,
+	cat *catalog.Catalog,
+) {
+	n := 0
+
+	for _, b := range got.Blocks {
+		if len(b.Cab) == 0 {
+			continue
+		}
+
+		sym, ok := cat.Symbol(b.Model)
+		if !ok {
+			continue
+		}
+
+		blk, ok := cat.Block(modelOf(sym.ID, cat))
+		if !ok || blk.CabLink == "" {
+			continue
+		}
+
+		fields := map[string]any{
+			routeModel: string(blk.CabLink),
+			cabEnabled: true,
+		}
+
+		for name, v := range namedValues(blk.CabLink, b.Cab, cat) {
+			fields[name] = v
+		}
+
+		// Anything past what the cabinet model has names for is the
+		// microphone, which a preset stores as an attribute rather than a
+		// parameter.
+		if len(b.Cab) > b.CabNamed && b.CabNamed > 0 {
+			fields[cabMic] = b.Cab[b.CabNamed]
+		}
+
+		// A map of values that came out of MessagePack always marshals.
+		body, _ := json.Marshal(fields)
+		out[processorKey+"."+cabKey(n)] = body
+
+		n++
+	}
 }
