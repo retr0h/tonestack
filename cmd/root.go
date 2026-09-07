@@ -45,6 +45,7 @@ device has to be attached, to describe a chain and write a preset.`,
 	// Cobra prints its own "Error: …" line. Ours is the themed one, so
 	// cobra's is silenced rather than shown alongside it.
 	SilenceErrors: true,
+	Args:          cobra.NoArgs,
 }
 
 // Execute is called by main.main(). It only needs to happen once to the
