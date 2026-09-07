@@ -39,6 +39,12 @@ inputs, outputs, split and join a device expects, which differ by model and by
 firmware. Swapping invents nothing and undoes itself when repeated.`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
+		// No file means the device itself, which is what somebody with one
+		// plugged in almost always wants.
+		if presetsSwapOptions.Path == "" {
+			return slots.SwapDevice(cmd.Context(), cmd.OutOrStdout(), presetsSwapOptions)
+		}
+
 		return slots.Swap(cmd.OutOrStdout(), presetsSwapOptions)
 	},
 }

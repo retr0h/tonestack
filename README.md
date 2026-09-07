@@ -91,7 +91,7 @@ wrote, passed with `--file`. A `.hlb` holds the whole device; a `.hls` holds one
 setlist.
 
 ```bash
-tonestack presets copy   --file device.hlb --from 01A --to 02A --out edited.hlb
+tonestack presets copy --from 01A --to 02A            # the device
 tonestack presets import --file device.hlb --preset mike.hlx --slot 07A --out edited.hlb
 ```
 

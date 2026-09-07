@@ -39,6 +39,12 @@ rather than over the one it came from. A device backup is often the only copy
 of what the hardware holds.`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
+		// No file means the device itself, which is what somebody with one
+		// plugged in almost always wants.
+		if presetsCopyOptions.Path == "" {
+			return slots.CopyDevice(cmd.Context(), cmd.OutOrStdout(), presetsCopyOptions)
+		}
+
 		return slots.Copy(cmd.OutOrStdout(), presetsCopyOptions)
 	},
 }
@@ -59,8 +65,10 @@ func editFlags(c *cobra.Command, o *slots.EditOptions) {
 	f.Var(slot.NewValue(&o.ToSlot), "to",
 		"slot to write — a label such as 31A, or a number from zero")
 	f.StringVar(&o.OutputPath, "out", "", "where to write the edited setlist")
-	_ = c.MarkFlagRequired("file")
 	_ = c.MarkFlagRequired("from")
 	_ = c.MarkFlagRequired("to")
-	_ = c.MarkFlagRequired("out")
+	// Editing a backup writes a new file, and editing a device writes the
+	// device. So a file needs somewhere to put the result and a device does
+	// not, and asking for one either way would be wrong in both directions.
+	c.MarkFlagsRequiredTogether("file", "out")
 }

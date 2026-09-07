@@ -97,6 +97,20 @@ type Bus interface {
 	Close() error
 }
 
+// Writer is a session that can put a preset on a device.
+//
+// Separate from Editor because writing is the half that can destroy
+// somebody's work, and a caller that only reads should not be handed the
+// ability to.
+type Writer interface {
+	// WritePreset puts a document into a slot, leaving its name alone.
+	WritePreset(ctx context.Context, setlist, slot int, document []byte) error
+	// WriteNamedPreset puts a document into a slot under a name.
+	WriteNamedPreset(
+		ctx context.Context, setlist, slot int, name string, document []byte,
+	) error
+}
+
 // Editor is a session with an attached device.
 //
 // What everything above this package needs from one: what it is, what it
