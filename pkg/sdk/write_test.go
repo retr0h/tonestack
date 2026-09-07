@@ -54,7 +54,7 @@ func (s *WriteTestSuite) answer(txn uint64, status int) []byte {
 	s.Require().NoError(enc.EncodeInt(103))
 	s.Require().NoError(enc.EncodeInt(int64(status)))
 
-	return sdk.Reply(sdk.ControlChannel, buf.Bytes())
+	return sdk.Reply(sdk.DataChannel, buf.Bytes())
 }
 
 // accepted then done is what a device says about a write it completed.
@@ -71,7 +71,14 @@ func (s *WriteTestSuite) SetupTest() {
 	was := *sdk.CommitBudget
 	*sdk.CommitBudget = 50 * time.Millisecond
 
-	s.T().Cleanup(func() { *sdk.CommitBudget = was })
+	// The flash settle is a real wait on hardware and dead time here.
+	flash := *sdk.FlashBudget
+	*sdk.FlashBudget = 0
+
+	s.T().Cleanup(func() {
+		*sdk.CommitBudget = was
+		*sdk.FlashBudget = flash
+	})
 }
 
 // session returns one with its channels open over a scripted device.
@@ -158,7 +165,7 @@ func (s *WriteTestSuite) TestAWriteOnAChannelNobodyOpened() {
 	err := sdk.NewTestSession(d, d).Write(context.Background(), 5, nil)
 
 	s.Require().Error(err)
-	s.Require().Contains(err.Error(), "no control channel")
+	s.Require().Contains(err.Error(), "no data channel")
 }
 
 func (s *WriteTestSuite) TestNamingWhatItWrites() {

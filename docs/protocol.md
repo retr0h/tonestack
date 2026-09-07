@@ -391,9 +391,30 @@ carrying the same transaction with status 0. A client that treats the first as
 the end races its next write against a commit still running. A device tolerates
 about a dozen of those and then stops accepting writes at all.
 
-None of this has been sent to hardware from here. It is tested against a
-scripted device, which establishes that the message is built and paced correctly
-and nothing about whether the device likes it.
+### It has been sent to hardware, and refused
+
+On 7 September 2026 both opcodes went to an HX Stomp. Neither landed. `copy`,
+which sends back the device's own bytes verbatim, was answered `error -3`, and
+the same document built here drew no reply at all. The device then stopped
+answering until it was power cycled.
+
+So the message shape above describes HX Edit's captured traffic and is not
+enough on its own. Three things differ from what tonepush's implementation
+sends, and all three are now matched here:
+
+|            | what this document described        | what tonepush sends        |
+| ---------- | ----------------------------------- | -------------------------- |
+| channel    | control                             | **data**, `0x1080/0x03ed`  |
+| arguments  | `107, 108, 109, 123, 124, 125, 110` | `107, 108, 109, 110`       |
+| afterwards | wait for the commit notification    | wait, then 750ms for flash |
+
+Keys 123, 124 and 125 are in HX Edit's traffic and not in the implementation
+whose writes land, which makes them something HX Edit says rather than something
+a device needs.
+
+None of that has been run. It is the difference between an implementation whose
+writes work and one whose writes are refused, which is better evidence than the
+guess it replaced, and it is still not a result.
 
 ## Opening a session
 

@@ -38,15 +38,14 @@ const (
 )
 
 // Argument keys a write uses beyond the ones a read does.
+//
+// HX Edit's own traffic carries three more, 123, 124 and 125, holding false,
+// false and 0. They are not sent here. tonepush's implementation omits them
+// and its writes land, so they are something HX Edit says rather than
+// something a device needs.
 const (
 	argName     = 109
 	argDocument = 110
-	// A device sends three arguments alongside every write and echoes them
-	// back unchanged. Nobody has established what they mean; every capture so
-	// far carries false, false and 0.
-	argUnknownA = 123
-	argUnknownB = 124
-	argUnknownC = 125
 )
 
 // streamChunk is how much of a message a device takes per frame.
@@ -82,9 +81,6 @@ func (s *Session) WritePreset(
 	return s.write(ctx, opWritePreset, []wire.Arg{
 		wire.Number(argSetlist, uint64(setlist)),
 		wire.Number(argSlot, uint64(slot)),
-		wire.Flag(argUnknownA, false),
-		wire.Flag(argUnknownB, false),
-		wire.Number(argUnknownC, 0),
 		wire.Blob(argDocument, document),
 	})
 }
@@ -104,9 +100,6 @@ func (s *Session) WriteNamedPreset(
 		wire.Number(argSetlist, uint64(setlist)),
 		wire.Number(argSlot, uint64(slot)),
 		wire.Text(argName, name),
-		wire.Flag(argUnknownA, false),
-		wire.Flag(argUnknownB, false),
-		wire.Number(argUnknownC, 0),
 		wire.Blob(argDocument, document),
 	})
 }
@@ -118,9 +111,9 @@ func (s *Session) write(
 	opcode uint64,
 	args []wire.Arg,
 ) error {
-	c, ok := s.chans[channelControl]
+	c, ok := s.chans[channelData]
 	if !ok {
-		return fmt.Errorf("no %s channel", channelControl)
+		return fmt.Errorf("no %s channel", channelData)
 	}
 
 	txn := c.txn
@@ -143,11 +136,30 @@ func (s *Session) write(
 
 	// Anything but "accepted" is already finished, or already refused.
 	if resp.Status != wire.StatusAccepted {
+		settle()
+
 		return nil
 	}
 
-	return s.awaitCommit(ctx, c, txn, opcode)
+	if err := s.awaitCommit(ctx, c, txn, opcode); err != nil {
+		return err
+	}
+
+	settle()
+
+	return nil
 }
+
+// settle gives a write time to reach flash before the next one starts.
+//
+// A slot write answers as soon as the device has the document, and the erase
+// and program that follow are not on the wire at all. A second write landing
+// inside that window stacks its commit on the first. tonepush waits the same
+// 750ms, and a restore writes preset after preset without it going wrong.
+func settle() { time.Sleep(flashBudget) }
+
+// flashBudget is how long that takes.
+var flashBudget = 750 * time.Millisecond
 
 // stream sends a message in the size a device takes, reading between frames
 // so it can pace the sender.

@@ -80,6 +80,9 @@ func SetDebug(on bool) func() {
 // ControlChannel is the channel calls are made on.
 const ControlChannel = "control"
 
+// DataChannel is the channel presets are written on.
+const DataChannel = channelData
+
 // FrameFor renders a frame the way a device would answer on a channel.
 func FrameFor(name string, msgType uint16, payload []byte) []byte {
 	for _, spec := range channelSpecs {
@@ -168,6 +171,10 @@ type (
 
 // StreamChunk is how much of a message a device takes per frame.
 const StreamChunk = streamChunk
+
+// FlashBudget is how long a write is given to reach flash, exported so a test
+// does not spend it.
+var FlashBudget = &flashBudget
 
 // CommitBudget is how long a device is given to finish a write, exported so a
 // test need not wait the whole of it.

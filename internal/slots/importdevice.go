@@ -109,7 +109,7 @@ func documentFor(
 	// test, so it cannot fail to decode.
 	out, _ := wire.Blank()
 
-	if err := wire.PlaceInOrder(out, blocks); err != nil {
+	if err := wire.PlaceAsWritten(out, blocks); err != nil {
 		return nil, err
 	}
 

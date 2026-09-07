@@ -68,17 +68,12 @@ tonestack recipes new \
 tonestack presets make --id mike-dirnt --out mike.hlx
 ```
 
-**Put it on the device.** Writing is live too. The destination is overwritten
-and a device has no undo:
+Then `HX Edit → Import`, and play it.
 
-```bash
-tonestack presets import --preset mike.hlx --slot 07A
-tonestack presets copy   --from 01A --to 02A
-```
-
-Every command also takes `--file` for working from an HX Edit backup with no
-device attached. [docs/device.md](docs/device.md) says what a device answers and
-what is still unknown.
+**Writing to the device does not work yet.** `presets import`, `copy` and `swap`
+build a write and send it, and the hardware refuses it. See
+[docs/device.md](docs/device.md), which records what the device answered. Use a
+backup and HX Edit's restore until that is solved.
 
 **Or just ask.** An agent runs those commands for you. The part worth doing
 yourself is listening:
