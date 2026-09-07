@@ -129,22 +129,19 @@ func (s *Session) write(
 		return err
 	}
 
-	resp, err := s.awaitReply(ctx, c, txn, opcode)
-	if err != nil {
+	if _, err := s.awaitReply(ctx, c, txn, opcode); err != nil {
 		return err
 	}
 
-	// Anything but "accepted" is already finished, or already refused.
-	if resp.Status != wire.StatusAccepted {
-		settle()
-
-		return nil
-	}
-
-	if err := s.awaitCommit(ctx, c, txn, opcode); err != nil {
-		return err
-	}
-
+	// A slot write answers and is done. The erase and program that follow do
+	// not appear on the wire at all, and there is no completion notification
+	// to wait for: a device that took the write and was then waited on
+	// answers nothing for ten seconds while the preset it just wrote sits in
+	// the slot. tonepush sends the same message as a plain request and sleeps
+	// for the flash, which is what settle is.
+	//
+	// The status is not read for this reason. Both 0 and 1 have been seen for
+	// a write that landed, and neither says anything about the erase.
 	settle()
 
 	return nil
@@ -181,50 +178,4 @@ func (s *Session) stream(ctx context.Context, c *channel, body []byte) error {
 	}
 
 	return nil
-}
-
-// awaitCommit waits for a device to report that a write finished.
-//
-// The reply to a write says only that the device took it. Finishing arrives
-// later as a notification carrying the same transaction.
-func (s *Session) awaitCommit(
-	ctx context.Context,
-	c *channel,
-	txn, opcode uint64,
-) error {
-	deadline := time.Now().Add(commitBudget)
-
-	for time.Now().Before(deadline) {
-		got := s.receive(ctx, replyReadWait)
-
-		for {
-			body, ok := message(c)
-			if !ok {
-				break
-			}
-
-			resp, err := wire.DecodeResponse(body)
-			if err != nil || resp.Txn != txn {
-				continue
-			}
-
-			if err := resp.Err(opcode); err != nil {
-				return err
-			}
-
-			if resp.Status != wire.StatusAccepted {
-				return nil
-			}
-		}
-
-		if got {
-			if err := s.send(c, wire.MsgAck, nil); err != nil {
-				return err
-			}
-		}
-	}
-
-	return fmt.Errorf(
-		"the device took opcode %d but never said it finished, within %s",
-		opcode, commitBudget)
 }

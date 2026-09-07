@@ -244,7 +244,45 @@ func (s *RPCPublicTestSuite) TestAnArgumentOfEveryKind() {
 	// into whatever follows it.
 	s.Require().Equal("Mike Dirnt\x00", args[int8(109)])
 	s.Require().Equal(false, args[int8(123)])
-	s.Require().Equal([]byte{0x01, 0x02}, args[int8(110)])
+	// Under MessagePack's string tag, which is what a device sends a preset
+	// document as and what it takes one back as.
+	s.Require().Equal("\x01\x02", args[int8(110)])
+}
+
+// TestADocumentGoesOutUnderTheTagADeviceUses is the difference between a
+// write that lands and one answered `error -3`.
+//
+// A device sends a preset document tagged str16 and takes it back under the
+// same tag. A generic encoder picks the narrowest binary tag that fits, bin16,
+// and the bytes are identical while the tag is not.
+func (s *RPCPublicTestSuite) TestADocumentGoesOutUnderTheTagADeviceUses() {
+	tests := []struct {
+		name string
+		size int
+		want byte
+	}{
+		{name: "a short one", size: 10, want: 0xaa},
+		{name: "a preset", size: 2476, want: 0xda},
+		{name: "one past what two bytes count", size: 70000, want: 0xdb},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			got := wire.EncodeRequest(wire.Request{
+				Txn: 1000, Opcode: 8,
+				Args: []wire.Arg{wire.Blob(110, make([]byte, tt.size))},
+			})
+
+			// Past the request map, the argument map and the key, whatever
+			// widths those took: the document's own tag is the first byte
+			// that is not one of them.
+			at := bytes.IndexByte(got, tt.want)
+			s.Require().Positive(at, "no %#x tag anywhere in the request", tt.want)
+
+			s.Require().NotContains(got[:at], byte(0xc5),
+				"a binary tag would be the wrong one")
+		})
+	}
 }
 
 func TestRPCPublicTestSuite(t *testing.T) {
