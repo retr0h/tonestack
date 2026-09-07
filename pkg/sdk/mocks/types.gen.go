@@ -162,6 +162,44 @@ func (mr *MockWriterMockRecorder) WritePreset(ctx, setlist, slot, document any) 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WritePreset", reflect.TypeOf((*MockWriter)(nil).WritePreset), ctx, setlist, slot, document)
 }
 
+// MockSelector is a mock of Selector interface.
+type MockSelector struct {
+	ctrl     *gomock.Controller
+	recorder *MockSelectorMockRecorder
+	isgomock struct{}
+}
+
+// MockSelectorMockRecorder is the mock recorder for MockSelector.
+type MockSelectorMockRecorder struct {
+	mock *MockSelector
+}
+
+// NewMockSelector creates a new mock instance.
+func NewMockSelector(ctrl *gomock.Controller) *MockSelector {
+	mock := &MockSelector{ctrl: ctrl}
+	mock.recorder = &MockSelectorMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockSelector) EXPECT() *MockSelectorMockRecorder {
+	return m.recorder
+}
+
+// SelectPreset mocks base method.
+func (m *MockSelector) SelectPreset(ctx context.Context, setlist, slot int) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SelectPreset", ctx, setlist, slot)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SelectPreset indicates an expected call of SelectPreset.
+func (mr *MockSelectorMockRecorder) SelectPreset(ctx, setlist, slot any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SelectPreset", reflect.TypeOf((*MockSelector)(nil).SelectPreset), ctx, setlist, slot)
+}
+
 // MockEditor is a mock of Editor interface.
 type MockEditor struct {
 	ctrl     *gomock.Controller

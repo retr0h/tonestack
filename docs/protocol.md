@@ -357,6 +357,38 @@ The table is generated into the catalog, so it ships in the binary rather than
 being read at run time. A catalog generated before this existed has none, and
 `presets show` against hardware says so rather than guessing.
 
+## Which channel each operation goes on
+
+Read out of tonepush's implementation rather than its prose, because the two
+differ and the implementation is the half whose writes land. Every preset
+operation is on the data channel; the control channel carries the session and
+the lists.
+
+| Op  | Operation             | Channel | Call     | Arguments                           |
+| --- | --------------------- | ------- | -------- | ----------------------------------- |
+| 0   | list setlists         | control | request  | none                                |
+| 1   | list presets          | control | request  | `107` setlist, `101`                |
+| 4   | read a slot           | data    | request  | `107`, `108` slot, `101`            |
+| 6   | rename a slot         | data    | command  | `107`, `108`, `109` name            |
+| 8   | write a slot          | data    | request  | `107`, `108`, `109`, `110` document |
+| 16  | empty a slot          | data    | request  | `107`, `108`                        |
+| 20  | select a preset       | data    | deferred | `107`, `108`                        |
+| 21  | write the edit buffer | data    | deferred | `110` document                      |
+| 22  | read the edit buffer  | data    | request  | none                                |
+| 23  | what is loaded        | data    | request  | none                                |
+| 71  | save the edit buffer  | data    | command  | `107`, `108`, `109`                 |
+
+Two things this table settles that reading the message shapes alone did not.
+
+**Reading a slot takes three arguments, not two.** Key `101` goes out with a
+preset listing and with a slot read alike. Without it, and on the wrong channel,
+a device answers successfully with nothing at all.
+
+**A slot write is a plain request.** Not a deferred command: the device answers
+when it has the document, and the erase and program that follow never appear on
+the wire. Waiting on a completion notification that is not coming is not the
+same as pacing, which is what the 750ms settle is for.
+
 ## Writing a preset
 
 Opcode 5 writes a document into a slot and leaves its name alone. Opcode 8

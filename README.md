@@ -70,6 +70,13 @@ tonestack presets make --id mike-dirnt --out mike.hlx
 
 Then `HX Edit → Import`, and play it.
 
+**Switch presets from here.** This loads a preset the way a footswitch does, and
+writes nothing:
+
+```bash
+tonestack presets select --slot 27B
+```
+
 **Writing to the device does not work yet.** `presets import`, `copy` and `swap`
 build a write and send it, and the hardware refuses it. See
 [docs/device.md](docs/device.md), which records what the device answered. Use a

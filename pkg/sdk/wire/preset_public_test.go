@@ -135,3 +135,62 @@ func (s *PresetPublicTestSuite) TestReadsTheCabinetAnAmplifierCarries() {
 func TestPresetPublicTestSuite(t *testing.T) {
 	suite.Run(t, new(PresetPublicTestSuite))
 }
+
+// TestDecodeLoaded covers what a device answers when asked what it is
+// playing, which is the only honest signal that a select has finished.
+func (s *PresetPublicTestSuite) TestDecodeLoaded() {
+	tests := []struct {
+		name   string
+		result any
+		want   wire.Loaded
+		err    bool
+	}{
+		{
+			name: "a device naming what it plays",
+			result: map[any]any{
+				int8(107): uint8(0),
+				int8(108): uint8(99),
+				int8(109): "Chunky Monkey",
+			},
+			want: wire.Loaded{Setlist: 0, Slot: 99, Name: "Chunky Monkey"},
+		},
+		{
+			name: "one that names no preset",
+			result: map[any]any{
+				int8(107): uint8(0),
+				int8(108): uint8(7),
+			},
+			want: wire.Loaded{Setlist: 0, Slot: 7},
+		},
+		{
+			name:   "an answer that is not a map",
+			result: "nonsense",
+			err:    true,
+		},
+		{
+			name:   "one naming no setlist",
+			result: map[any]any{int8(108): uint8(7)},
+			err:    true,
+		},
+		{
+			name:   "one naming no slot",
+			result: map[any]any{int8(107): uint8(0)},
+			err:    true,
+		},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			got, err := wire.DecodeLoaded(tt.result)
+
+			if tt.err {
+				s.Require().Error(err)
+
+				return
+			}
+
+			s.Require().NoError(err)
+			s.Require().Equal(tt.want, got)
+		})
+	}
+}

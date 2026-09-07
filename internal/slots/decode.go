@@ -78,10 +78,13 @@ func chainOf(name string, got wire.DevicePreset, cat *catalog.Catalog) (chain.Ch
 			// setting somebody chose.
 			Attrs:  micAttr(sym, b.Values),
 			Params: params,
-			// The device's own number, not a place in the chain. A footswitch
-			// names the block it works on by this, and renumbering would
-			// break the only link between the two.
-			Pos:     b.Index,
+			// A place along the path, which is what a preset counts. The
+			// device counts across a grid holding its routing too, and the
+			// two differ by wire.GridOffset. Keeping the device's number
+			// here would write a preset HX Edit does not: it puts this
+			// preset's six blocks at 1 to 6 where the device puts them at 2
+			// to 7.
+			Pos:     b.Index - wire.GridOffset,
 			Enabled: b.Enabled,
 		})
 	}

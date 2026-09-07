@@ -111,6 +111,17 @@ type Writer interface {
 	) error
 }
 
+// Selector is a session that can change which preset a device is playing.
+//
+// Separate from Writer: selecting changes what comes out of the amplifier and
+// changes nothing the device holds, where writing overwrites a slot. A caller
+// that only wants to switch presets should not be handed the ability to
+// overwrite one.
+type Selector interface {
+	// SelectPreset loads a preset, the way a footswitch does.
+	SelectPreset(ctx context.Context, setlist, slot int) error
+}
+
 // Editor is a session with an attached device.
 //
 // What everything above this package needs from one: what it is, what it

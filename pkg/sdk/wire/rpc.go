@@ -256,8 +256,16 @@ func (p Preset) Label() string {
 	return slot.Label(p.Slot)
 }
 
-// keyPresetName is where a name sits inside a listing entry.
-const keyPresetName = 109
+// Keys a device answers a preset question with.
+const (
+	// keySetlist is which setlist.
+	keySetlist = 107
+	// keyPresetIndex is the position within it, counted from zero.
+	keyPresetIndex = 108
+	// keyPresetName is where a name sits, in a listing entry and in the
+	// answer to what is loaded alike.
+	keyPresetName = 109
+)
 
 // DecodePresetList reads the reply to a list-presets call.
 //

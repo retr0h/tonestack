@@ -46,26 +46,58 @@ an explanation rather than a result.
 
 Until somebody runs it, use a backup and HX Edit's restore.
 
+## A session has to be closed
+
+Every command opens three channels and, when it is done, tells the device on
+each of them that the session is over. The message that opens a channel is the
+one that closes it: it is a session boundary and appears at both ends of the
+conversation.
+
+Leaving it out does not fail. The command works, the device answers, and the
+pedal is left believing an editor is still attached: turn the dial and the
+footswitches stop changing with the preset, because the front panel waits for an
+editor to tell it what to show. Confirmed on hardware in both directions.
+
+## Selecting a preset has to be waited for
+
+`presets select` loads a preset, which is what stepping on a footswitch does.
+Nothing is written and the slot it came from is untouched.
+
+A select is deferred. The device says it has taken the request and finishes
+afterwards, and it answers other questions while the switch is still in flight,
+so "it answered again" is not "it finished". Returning early and closing the
+session leaves the device holding a half-finished switch, and it settles that by
+wiping its edit buffer: the preset comes up with no blocks and no footswitch
+colours.
+
+Asking the device what it is playing, until it names the preset that was asked
+for, is the only honest signal. Confirmed on hardware in both directions.
+Without the wait the colours went; with it they stayed.
+
 ## Reading has a cutoff nobody has explained
 
-Reading a preset stopped working past slot index 29 during the same session, and
-a power cycle did not bring it back while HX Edit read the same device fine.
-Measured slot by slot:
+Reading a preset stopped working for the higher slots during one session, and a
+power cycle did not bring it back while HX Edit read the same device fine.
 
-| slot  | index | answer          |
-| ----- | ----- | --------------- |
-| `01A` | 0     | the document    |
-| `09A` | 24    | the document    |
-| `10A` | 27    | the document    |
-| `10B` | 28    | an empty preset |
-| `10C` | 29    | nil             |
-| `27B` | 79    | nil             |
-| `42C` | 125   | nil             |
+An earlier version of this section put the boundary at slot 29 and was wrong:
+the device it was measured on holds nothing at all between slots 28 and 77, and
+a slot holding nothing answers with nothing whichever side of a boundary it sits
+on. What is actually known is narrower.
 
-`27B` answered with its whole document earlier the same day. The preset list,
-which is a different opcode on the same channel, kept working throughout. The
-device reports success and returns nil rather than an error, so nothing here
-sees a failure to report.
+| slot  | index | holds    | answer       |
+| ----- | ----- | -------- | ------------ |
+| `01A` | 0     | a preset | the document |
+| `09A` | 24    | a preset | the document |
+| `10A` | 27    | a preset | the document |
+| `27A` | 78    | a preset | nothing      |
+| `31A` | 90    | a preset | nothing      |
+| `34A` | 99    | a preset | nothing      |
+
+Slots 0 to 27 answer and 78 upwards do not, with no preset in between to narrow
+it with. `27B` answered with its whole document earlier the same day, and the
+device still loads all of them when asked to: `presets select` on `34A` plays
+it. The preset list, a different opcode on a different channel, names them
+throughout.
 
 Unexplained. It is recorded because a sharp reproducible boundary is worth more
 than the theories that did not survive: it is not the channel, not the missing

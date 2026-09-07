@@ -59,6 +59,12 @@ func (s *CallTestSuite) reply(txn uint64, status int, result any) []byte {
 	return sdk.Reply(sdk.ControlChannel, s.answer(txn, status, result))
 }
 
+// replyOnData is the answer to a question about a preset document, which the
+// device takes on the data channel rather than the control one.
+func (s *CallTestSuite) replyOnData(txn uint64, status int, result any) []byte {
+	return sdk.Reply(sdk.DataChannel, s.answer(txn, status, result))
+}
+
 // session returns one with its channels already open, over a scripted device.
 func (s *CallTestSuite) session(d *device) *sdk.Session {
 	out := sdk.NewTestSession(d, d)
@@ -258,7 +264,7 @@ func (s *CallTestSuite) TestReadPreset() {
 		{
 			name: "one slot",
 			device: func() *device {
-				return answers(s.reply(sdk.FirstTxn, 0, "a preset"))
+				return answers(s.replyOnData(sdk.FirstTxn, 0, "a preset"))
 			},
 			want: "a preset",
 		},

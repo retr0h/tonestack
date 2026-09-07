@@ -102,7 +102,7 @@ func (s *EncodeTestSuite) TestAPresetSurvivesGoingBackToTheDevice() {
 
 			out, err := wire.Blank()
 			s.Require().NoError(err)
-			s.Require().NoError(wire.Place(out, blocks))
+			s.Require().NoError(wire.PlaceAsWritten(out, blocks))
 
 			back, err := wire.DecodePreset(out.Encode())
 			s.Require().NoError(err)

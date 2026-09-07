@@ -49,19 +49,20 @@ func (s *DecodeTestSuite) SetupSuite() {
 	s.Require().NoError(err)
 }
 
-func (s *DecodeTestSuite) TestKeepsTheDevicesOwnBlockNumbering() {
-	// A device lays blocks out on a grid and leaves gaps in it, so a chain of
-	// two can sit at 5 and 13. Footswitch assignments name blocks by that
-	// number, and renumbering them here would break the only link between a
-	// switch and the block it works on.
+func (s *DecodeTestSuite) TestCountsBlocksTheWayAPresetDoes() {
+	// A device lays blocks out on a grid holding its routing as well, so a
+	// chain of two can sit at 5 and 13 with the gaps kept. A preset counts
+	// along the path instead, and the two differ by one: slot 27B exported
+	// from HX Edit holds its six blocks at 1 to 6 where the device sent the
+	// same six at 2 to 7.
 	got, err := chainOf("x", wire.DevicePreset{Blocks: []wire.DeviceBlock{
 		{Index: 5, Model: 5},
 		{Index: 13, Model: 74},
 	}}, s.cat)
 
 	s.Require().NoError(err)
-	s.Require().Equal(5, got.Blocks[0].Pos)
-	s.Require().Equal(13, got.Blocks[1].Pos)
+	s.Require().Equal(4, got.Blocks[0].Pos)
+	s.Require().Equal(12, got.Blocks[1].Pos)
 }
 
 func (s *DecodeTestSuite) TestNamesWhatTheDeviceNumbered() {

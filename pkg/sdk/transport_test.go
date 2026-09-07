@@ -221,6 +221,39 @@ func (s *TransportTestSuite) TestClosingGivesBackWhatItTook() {
 	s.Require().NotEmpty(d.sent, "the acknowledgement is what settles the debt")
 }
 
+// TestClosingEndsTheSessionOnEveryChannel is the difference between a device
+// that goes back to being a pedal and one that does not.
+//
+// The message opening a channel closes one: it is a session boundary and
+// appears at both ends of the conversation. Without it the device goes on
+// believing an editor is attached, and its front panel stops refreshing
+// footswitches as somebody browses presets on the pedal itself.
+func (s *TransportTestSuite) TestClosingEndsTheSessionOnEveryChannel() {
+	d := answers()
+
+	session := sdk.NewTestSession(d, d)
+	session.OpenChannels()
+
+	before := len(d.sent)
+
+	session.Close()
+
+	// One acknowledgement and one boundary for each of the three channels.
+	closes := 0
+
+	for _, frame := range d.sent[before:] {
+		kind, err := sdk.MessageKind(frame)
+		s.Require().NoError(err)
+
+		if kind == wire.MsgHello {
+			closes++
+		}
+	}
+
+	s.Require().Equal(len(sdk.ChannelNames()), closes,
+		"every channel is told the session is over")
+}
+
 func (s *TransportTestSuite) TestASessionKnowsWhatAnswered() {
 	s.Require().Equal("HX Stomp", sdk.NewTestSession(nil, nil).Model().Name)
 }

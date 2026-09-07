@@ -23,6 +23,7 @@ package slots
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -49,6 +50,8 @@ type DeviceOptions struct {
 	Slot int
 	// Name is what the device calls the preset, when it is already known.
 	Name string
+	// As is the format a read is written in. Empty means a rig.
+	As Format
 	// CatalogPath is the generated catalog for the target device.
 	CatalogPath string
 }
@@ -65,7 +68,19 @@ func ShowDevice(ctx context.Context, w io.Writer, opts DeviceOptions) error {
 
 	defer s.Close()
 
-	return ShowWith(ctx, w, s, opts)
+	// Somebody who asked to look at a slot is told it holds nothing. Somebody
+	// exporting one gets the error, because there is no file to write.
+	if err := ShowWith(ctx, w, s, opts); err != nil {
+		if !errors.Is(err, ErrEmptySlot) {
+			return err
+		}
+
+		_, err := fmt.Fprintf(w, "# %s is empty\n", slotpkg.Label(opts.Slot))
+
+		return err
+	}
+
+	return nil
 }
 
 // ShowWith reads one slot off the given session.
@@ -95,6 +110,13 @@ func ShowWith(
 		return err
 	}
 
+	// A device answers an empty slot with no document at all. That is a slot
+	// holding nothing rather than a failure, and a backup has to know the
+	// difference to put a pedal back the way it was found.
+	if got == nil {
+		return fmt.Errorf("%w: %s", ErrEmptySlot, slotpkg.Label(opts.Slot))
+	}
+
 	body, ok := got.(string)
 	if !ok {
 		return describe(w, s.Model().Name, opts.Slot, got)
@@ -102,6 +124,12 @@ func ShowWith(
 
 	return writeDeviceRig(w, []byte(body), opts)
 }
+
+// ErrEmptySlot is returned for a slot holding no preset.
+//
+// Reported rather than written out: an export that answered an empty slot
+// with a file would leave somebody a preset that is not one.
+var ErrEmptySlot = errors.New("the slot holds no preset")
 
 // nameOf finds what a listing calls one slot.
 //
@@ -145,6 +173,7 @@ func ExportWith(
 	err := ShowWith(ctx, &buf, s, DeviceOptions{
 		Setlist:     opts.Setlist,
 		Slot:        opts.Slot,
+		As:          opts.As,
 		CatalogPath: opts.CatalogPath,
 	})
 	if err != nil {
