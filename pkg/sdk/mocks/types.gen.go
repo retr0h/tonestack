@@ -110,6 +110,58 @@ func (mr *MockBusMockRecorder) List(ctx any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockBus)(nil).List), ctx)
 }
 
+// MockWriter is a mock of Writer interface.
+type MockWriter struct {
+	ctrl     *gomock.Controller
+	recorder *MockWriterMockRecorder
+	isgomock struct{}
+}
+
+// MockWriterMockRecorder is the mock recorder for MockWriter.
+type MockWriterMockRecorder struct {
+	mock *MockWriter
+}
+
+// NewMockWriter creates a new mock instance.
+func NewMockWriter(ctrl *gomock.Controller) *MockWriter {
+	mock := &MockWriter{ctrl: ctrl}
+	mock.recorder = &MockWriterMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockWriter) EXPECT() *MockWriterMockRecorder {
+	return m.recorder
+}
+
+// WriteNamedPreset mocks base method.
+func (m *MockWriter) WriteNamedPreset(ctx context.Context, setlist, slot int, name string, document []byte) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "WriteNamedPreset", ctx, setlist, slot, name, document)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// WriteNamedPreset indicates an expected call of WriteNamedPreset.
+func (mr *MockWriterMockRecorder) WriteNamedPreset(ctx, setlist, slot, name, document any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WriteNamedPreset", reflect.TypeOf((*MockWriter)(nil).WriteNamedPreset), ctx, setlist, slot, name, document)
+}
+
+// WritePreset mocks base method.
+func (m *MockWriter) WritePreset(ctx context.Context, setlist, slot int, document []byte) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "WritePreset", ctx, setlist, slot, document)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// WritePreset indicates an expected call of WritePreset.
+func (mr *MockWriterMockRecorder) WritePreset(ctx, setlist, slot, document any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WritePreset", reflect.TypeOf((*MockWriter)(nil).WritePreset), ctx, setlist, slot, document)
+}
+
 // MockEditor is a mock of Editor interface.
 type MockEditor struct {
 	ctrl     *gomock.Controller

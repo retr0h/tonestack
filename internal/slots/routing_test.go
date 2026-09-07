@@ -235,7 +235,16 @@ func (s *RoutingTestSuite) TestABlockCarryingNoCabinet() {
 		},
 		{
 			"a model that names no pairing",
-			wire.DeviceBlock{Model: indexOf(s.cat, "HD2_DistTeemah"), Cab: []any{1.0}},
+			wire.DeviceBlock{
+				Model: indexOf(s.cat, "HD2_DistTeemahMono"), Cab: []any{1.0},
+			},
+		},
+		{
+			// Symbols cover every Helix; a Stomp has no second effects loop.
+			"hardware this device does not have",
+			wire.DeviceBlock{
+				Model: indexOf(s.cat, "HD2_FXLoopMono3"), Cab: []any{1.0},
+			},
 		},
 	} {
 		s.Run(tc.name, func() {

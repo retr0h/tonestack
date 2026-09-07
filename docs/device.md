@@ -15,7 +15,16 @@ tonestack presets show   --slot 31A
 tonestack presets export --slot 31A --out lead.yaml
 ```
 
-Putting a preset *onto* a device still goes through a file HX Edit wrote:
+`copy` and `swap` write to the device as well. They move a preset from one slot
+to another exactly as the device wrote it: nothing is decoded and nothing is
+rebuilt, which is what makes them the safest thing to write. A preset is seeked
+through by a table of byte offsets, and the surest way to keep those right is to
+change nothing.
+
+The destination is overwritten, and a device has no undo.
+
+Building a preset from a rig and putting it on the device still goes through a
+file HX Edit wrote:
 
 ```text
 HX Edit  ──backup──▶  device.hlb  ──▶  tonestack  ──▶  edited.hlb  ──restore──▶  HX Edit

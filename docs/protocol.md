@@ -20,6 +20,25 @@ Nothing here is copied from those projects. They are documentation this
 implementation was written against, the same way `docs/preset-format.md`
 documents a format nobody published.
 
+### Which of this came from where
+
+Worth keeping straight, because the two kinds of claim need re-checking in
+different ways. A borrowed one is re-checked by reading the source again; a
+measured one by capturing another preset.
+
+| Claim                                             | Where from                                    |
+| ------------------------------------------------- | --------------------------------------------- |
+| Framing, channels, the handshake, opcodes 1 and 4 | tonepush PROTOCOL.md, verified on an HX Stomp |
+| Write opcodes 5 and 8, chunking, deferred commit  | tonepush PROTOCOL.md, marked confirmed there  |
+| The rules that keep a device alive                | tonepush and fretwire, learned the hard way   |
+| What the twelve offsets point at                  | measured here, off three captured presets     |
+| Model numbers indexing `Helix.sym`                | measured here, confirmed against the corpus   |
+| Footswitch label, colour and block keys           | measured here, confirmed against HX Edit      |
+| The cabinet an amplifier carries, and `@type`     | measured here, confirmed against the corpus   |
+
+Captures live in `pkg/sdk/wire/testdata`. Three slots off an HX Stomp on
+firmware 3.71, which is what every measurement above was taken from.
+
 ## It is not MIDI
 
 Worth stating plainly, because it is the first place anybody looks.
