@@ -23,6 +23,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/retr0h/tonestack/internal/slots"
+	"github.com/retr0h/tonestack/pkg/slot"
 )
 
 var presetsCopyOptions slots.EditOptions
@@ -52,9 +53,11 @@ func editFlags(c *cobra.Command, o *slots.EditOptions) {
 	f := c.Flags()
 	f.StringVar(&o.Path, "file", "", "a .hls setlist or .hlb backup written by HX Edit")
 	f.IntVar(&o.FromSetlist, "from-setlist", 0, "which setlist the source is in")
-	f.IntVar(&o.FromSlot, "from", 0, "slot to read, from zero")
+	f.Var(slot.NewValue(&o.FromSlot), "from",
+		"slot to read — a label such as 31A, or a number from zero")
 	f.IntVar(&o.ToSetlist, "to-setlist", 0, "which setlist the destination is in")
-	f.IntVar(&o.ToSlot, "to", 0, "slot to write, from zero")
+	f.Var(slot.NewValue(&o.ToSlot), "to",
+		"slot to write — a label such as 31A, or a number from zero")
 	f.StringVar(&o.OutputPath, "out", "", "where to write the edited setlist")
 	_ = c.MarkFlagRequired("file")
 	_ = c.MarkFlagRequired("from")

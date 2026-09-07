@@ -26,6 +26,7 @@ import "github.com/spf13/cobra"
 var corpusCmd = &cobra.Command{
 	Use:   "corpus",
 	Short: "Work with what real presets say about a device",
+	Args:  cobra.NoArgs,
 	Long: `Measure and inspect a body of presets other people made.
 
 The catalog says what a device can do. The corpus says what people actually do

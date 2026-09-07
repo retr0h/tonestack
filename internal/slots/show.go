@@ -26,16 +26,16 @@ import (
 	"os"
 
 	"github.com/retr0h/tonestack/internal/catalogview"
-	"github.com/retr0h/tonestack/internal/cli"
-	"github.com/retr0h/tonestack/pkg/chain"
+	"github.com/retr0h/tonestack/internal/lift"
 	"github.com/retr0h/tonestack/pkg/preset"
+	"github.com/retr0h/tonestack/pkg/rig"
 )
 
 // ShowOptions says which preset to show.
 //
 // A preset comes from either a slot in a setlist or a standalone .hlx file.
-// Both decode to the same chain, which is the point: what the device holds
-// and what this tool generates are the same kind of thing.
+// Both read into the same rig, which is the point: what the device holds and
+// what this tool generates are the same kind of thing.
 type ShowOptions struct {
 	// Path is the .hls or .hlb file to read. Empty when showing a file.
 	Path string
@@ -49,9 +49,13 @@ type ShowOptions struct {
 	CatalogPath string
 }
 
-// Show prints the chain a preset describes.
+// Show writes the rig a preset describes.
+//
+// A rig, not a rendering of one. RigSpec is what this project reads, writes
+// and exchanges, so it is what looking at a preset produces — and what comes
+// out here compiles back into the preset it came from, unchanged.
 func Show(w io.Writer, opts ShowOptions) error {
-	spec, where, err := load(opts)
+	doc, err := document(opts)
 	if err != nil {
 		return err
 	}
@@ -61,59 +65,62 @@ func Show(w io.Writer, opts ShowOptions) error {
 		return err
 	}
 
-	if err := header(w, spec.Name, where); err != nil {
+	// An empty slot is not a rig: it names no gear, and a rig holds at least
+	// one thing. Saying so beats an error about a contract nobody broke.
+	if c, err := doc.Spec(); err == nil && len(c.Blocks) == 0 {
+		_, err := fmt.Fprintf(w, "# %s is empty\n", doc.Data.Meta.Name)
+
 		return err
 	}
 
-	if err := cli.Chain(w, spec, cat); err != nil {
-		return err
+	spec, err := lift.Lift(doc, cat)
+	if err != nil {
+		return fmt.Errorf("reading slot %d: %w", opts.Slot, err)
 	}
 
-	_, err = fmt.Fprintln(w)
+	if err := rig.Write(w, spec); err != nil {
+		return fmt.Errorf("writing the rig: %w", err)
+	}
 
-	return err
+	return nil
 }
 
-// load resolves the options to a chain, and to a description of where it came
-// from for the header to show.
-func load(opts ShowOptions) (chain.Chain, string, error) {
+// document resolves the options to the preset they name.
+func document(opts ShowOptions) (*preset.Document, error) {
 	if opts.File != "" {
-		spec, err := readFile(opts.File)
-
-		return spec, opts.File, err
+		return readFile(opts.File)
 	}
 
-	doc, err := open(opts.Path)
+	bundle, err := open(opts.Path)
 	if err != nil {
-		return chain.Chain{}, "", err
+		return nil, err
 	}
 
-	data, err := doc.Slot(opts.Setlist, opts.Slot)
+	data, err := bundle.Slot(opts.Setlist, opts.Slot)
 	if err != nil {
-		return chain.Chain{}, "", err
+		return nil, err
 	}
 
-	spec, err := data.Spec()
-	if err != nil {
-		return chain.Chain{}, "", fmt.Errorf("reading slot %d: %w", opts.Slot, err)
-	}
-
-	return spec, "slot " + position(opts.Slot), nil
+	return &preset.Document{
+		Schema:  preset.Schema,
+		Version: preset.Version,
+		Data:    *data,
+	}, nil
 }
 
-// readFile reads a chain out of a standalone preset.
-func readFile(path string) (chain.Chain, error) {
+// readFile reads a standalone preset.
+func readFile(path string) (*preset.Document, error) {
 	f, err := os.Open(path) //nolint:gosec // the path is the user's own file
 	if err != nil {
-		return chain.Chain{}, fmt.Errorf("opening %s: %w", path, err)
+		return nil, fmt.Errorf("opening %s: %w", path, err)
 	}
 
 	defer func() { _ = f.Close() }()
 
 	doc, err := preset.Read(f)
 	if err != nil {
-		return chain.Chain{}, fmt.Errorf("reading %s: %w", path, err)
+		return nil, fmt.Errorf("reading %s: %w", path, err)
 	}
 
-	return doc.Spec()
+	return doc, nil
 }

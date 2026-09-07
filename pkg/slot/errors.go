@@ -17,21 +17,10 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
-package cmd
 
-import "github.com/spf13/cobra"
+package slot
 
-// devicesCmd represents the devices command.
-var devicesCmd = &cobra.Command{
-	Use:   "devices",
-	Short: "Work with attached Helix hardware",
-	Args:  cobra.NoArgs,
-	Long: `Work with Line 6 Helix-family devices attached over USB.
+import "errors"
 
-Reaching a device needs libusb through cgo. A build without it can still
-describe, validate and write presets; only these commands are unavailable.`,
-}
-
-func init() {
-	rootCmd.AddCommand(devicesCmd)
-}
+// ErrBadSlot reports an address that names no slot.
+var ErrBadSlot = errors.New("not a slot")

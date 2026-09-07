@@ -148,11 +148,3 @@ func plural(n int, noun string) string {
 
 	return fmt.Sprintf("%d %ss", n, noun)
 }
-
-// header prints a title with a right-hand detail.
-func header(w io.Writer, title, detail string) error {
-	_, err := fmt.Fprintf(w, "\n%s%s  %s\n\n",
-		cli.Indent, cli.Title(w, title), cli.Mute(w, detail))
-
-	return err
-}

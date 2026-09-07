@@ -26,6 +26,8 @@ import (
 	"fmt"
 
 	"github.com/vmihailenco/msgpack/v5"
+
+	"github.com/retr0h/tonestack/pkg/slot"
 )
 
 // Map keys in a remote call. Line 6 numbers them rather than naming them.
@@ -196,7 +198,7 @@ type Preset struct {
 // A player reading this is looking at the pedal, where a bare index would
 // mean counting.
 func (p Preset) Label() string {
-	return fmt.Sprintf("%02d%c", p.Slot/3+1, rune('A'+p.Slot%3))
+	return slot.Label(p.Slot)
 }
 
 // keyPresetName is where a name sits inside a listing entry.

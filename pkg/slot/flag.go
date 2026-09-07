@@ -17,21 +17,41 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
-package cmd
 
-import "github.com/spf13/cobra"
+package slot
 
-// devicesCmd represents the devices command.
-var devicesCmd = &cobra.Command{
-	Use:   "devices",
-	Short: "Work with attached Helix hardware",
-	Args:  cobra.NoArgs,
-	Long: `Work with Line 6 Helix-family devices attached over USB.
-
-Reaching a device needs libusb through cgo. A build without it can still
-describe, validate and write presets; only these commands are unavailable.`,
+// Value adapts a slot to a command-line flag, so every command that takes a
+// slot takes the same two forms.
+//
+// It writes through to an int the options struct already holds, which keeps
+// the addressing convention here rather than in each command.
+type Value struct {
+	target *int
 }
 
-func init() {
-	rootCmd.AddCommand(devicesCmd)
+// NewValue returns a flag writing into target.
+func NewValue(target *int) *Value { return &Value{target: target} }
+
+// Set parses a label or an index.
+func (v *Value) Set(s string) error {
+	n, err := Parse(s)
+	if err != nil {
+		return err
+	}
+
+	*v.target = n
+
+	return nil
 }
+
+// String renders the slot the way the hardware labels it.
+func (v *Value) String() string {
+	if v.target == nil {
+		return ""
+	}
+
+	return Label(*v.target)
+}
+
+// Type names the flag's argument in help output.
+func (*Value) Type() string { return "slot" }

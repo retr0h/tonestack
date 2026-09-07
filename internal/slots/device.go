@@ -35,6 +35,32 @@ type DeviceOptions struct {
 	Setlist int
 	// All includes slots holding nothing.
 	All bool
+	// Slot selects a position within the setlist, for reading one preset.
+	Slot int
+}
+
+// ShowDevice reads one slot off an attached device.
+//
+// Read-only: the device hands back the preset and goes on playing whatever it
+// was. Nothing is selected, loaded or written.
+func ShowDevice(ctx context.Context, w io.Writer, opts DeviceOptions) error {
+	s, err := sdk.Open(ctx)
+	if err != nil {
+		return err
+	}
+
+	defer s.Close()
+
+	got, err := s.ReadPreset(ctx, opts.Setlist, opts.Slot)
+	if err != nil {
+		return fmt.Errorf("reading slot %d: %w", opts.Slot, err)
+	}
+
+	if err := dump(got); err != nil {
+		return err
+	}
+
+	return describe(w, s.Model().Name, opts.Slot, got)
 }
 
 // ListDevice prints what an attached device holds.
@@ -79,8 +105,10 @@ func ListDevice(ctx context.Context, w io.Writer, opts DeviceOptions) error {
 	}
 
 	return cli.Section{
-		Title:   s.Model().Name,
-		Detail:  fmt.Sprintf("%s · %d in use", plural(len(presets), "slot"), used),
+		Title:  s.Model().Name,
+		Detail: fmt.Sprintf("%s · %d in use", plural(len(presets), "slot"), used),
+		// One address, the one printed on the pedal. What the device counts
+		// underneath is its business, and --slot takes what is shown here.
 		Headers: []string{"slot", "name"},
 		Rows:    rows,
 		Empty:   "no presets",

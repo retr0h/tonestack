@@ -69,7 +69,20 @@ func Lower(
 		})
 	}
 
-	return doc.SetSpec(chain.Chain{Name: doc.Data.Meta.Name, Blocks: blocks})
+	// Before the chain, so a rig that carries routing writes its own rather
+	// than keeping whatever the preset underneath came with.
+	restore(doc, spec.Device)
+
+	// The rig names the preset, not the document underneath: compiling into
+	// an untouched preset would otherwise write out the template's own name.
+	// A lifted rig carries the label the device stored, padding and all,
+	// which is what restore has already put back.
+	name := spec.Subject.Name
+	if spec.Device != nil && spec.Device.Name != nil {
+		name = *spec.Device.Name
+	}
+
+	return doc.SetSpec(chain.Chain{Name: name, Blocks: blocks})
 }
 
 // at reads an optional integer, falling back when a rig does not state one.

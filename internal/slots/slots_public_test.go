@@ -162,10 +162,9 @@ func (s *SlotsPublicTestSuite) TestShowRendersASlot() {
 		Path: fixture("setlist.hls"), Slot: 0, CatalogPath: catalogPath(),
 	}))
 
-	s.Require().Contains(out.String(), "First")
-	s.Require().Contains(out.String(), "slot 01A")
-	s.Require().Contains(out.String(), "Ampeg SVT")
-	s.Require().Contains(out.String(), "dsp0")
+	s.Require().Contains(out.String(), "name: First")
+	s.Require().Contains(out.String(), "gear: Ampeg SVT")
+	s.Require().Contains(out.String(), "schema: RigSpec")
 }
 
 func (s *SlotsPublicTestSuite) TestShowRendersAFile() {
@@ -175,7 +174,10 @@ func (s *SlotsPublicTestSuite) TestShowRendersAFile() {
 		File: fixture("preset.hlx"), CatalogPath: catalogPath(),
 	}))
 
-	s.Require().Contains(out.String(), "preset.hlx")
+	// A rig, because a rig is what this project reads and writes. What comes
+	// out here is what compiles back into the preset it came from.
+	s.Require().Contains(out.String(), "schema: RigSpec")
+	s.Require().Contains(out.String(), "gear: Ampeg SVT")
 }
 
 func (s *SlotsPublicTestSuite) TestShowSaysWhenASlotIsEmpty() {
@@ -195,7 +197,10 @@ func (s *SlotsPublicTestSuite) TestShowMarksGearTheCatalogDoesNotKnow() {
 		Path: fixture("setlist.hls"), Slot: 3, CatalogPath: catalogPath(),
 	}))
 
-	s.Require().Contains(out.String(), "not in catalog")
+	// Gear the catalog cannot name is written as the identifier the preset
+	// carried, so the rig still rebuilds it exactly rather than dropping it.
+	s.Require().Contains(out.String(), "gear: HD2_NotInCatalog")
+	s.Require().Contains(out.String(), "HX Stomp: HD2_NotInCatalog")
 }
 
 func (s *SlotsPublicTestSuite) TestShowReportsProblems() {
@@ -254,8 +259,7 @@ func (s *SlotsPublicTestSuite) TestShowReportsAWriterThatFails() {
 		slot int
 		w    interface{ Write([]byte) (int, error) }
 	}{
-		{"on the header", 0, &failingWriter{}},
-		{"on the chain", 0, &oneGoodWrite{}},
+		{"on the rig", 0, &failingWriter{}},
 		{"on an empty slot", 2, &failingWriter{}},
 	}
 

@@ -22,9 +22,13 @@
 //
 // Both directions, because a format that only reads one way is not an
 // abstraction over anything. Lifting reads a preset into a rig; lowering
-// builds a preset back out of one. What a rig does not model — routing,
-// snapshots, the blocks a device puts either side of a chain — is carried on
-// the document being written into, which is why lowering takes one.
+// builds a preset back out of one.
+//
+// Nothing is lost either way. What a rig does not model as musical intent —
+// routing, snapshots, footswitch assignments, the metadata a preset carries —
+// is recorded verbatim under `device`, so a rig lifted from a preset rebuilds
+// that preset without the original file. A rig somebody typed carries none of
+// it and is built into an untouched preset the device itself wrote.
 package lift
 
 import (
@@ -66,6 +70,7 @@ func Lift(doc *preset.Document, cat *catalog.Catalog) (riggen.RigSpec, error) {
 		Chain:      entries,
 		Instrument: instrumentOf(c, cat),
 		Target:     &riggen.Target{Device: &device},
+		Device:     deviceState(doc),
 	}
 
 	// A rig this package produced must be one anybody else can read. Lifting

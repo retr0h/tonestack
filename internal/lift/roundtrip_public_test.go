@@ -62,6 +62,21 @@ func (s *RoundTripPublicTestSuite) TestAPresetSurvivesBecomingARigAndBack() {
 	}
 }
 
+// TestARigRebuildsAPresetOnItsOwn is the claim the format rests on.
+//
+// A rig that reaches somebody else arrives without the preset it came from,
+// so lowering into that preset proves nothing about what the rig carries.
+// Building from an untouched preset does: whatever survives came out of the
+// rig, and whatever a rig cannot say is visible here as a difference.
+func (s *RoundTripPublicTestSuite) TestARigRebuildsAPresetOnItsOwn() {
+	for _, path := range s.fixtures() {
+		s.Run(filepath.Base(path), func() {
+			s.Require().Equal(s.canonical(s.read(path)), s.canonical(s.fromNothing(path)),
+				"a rig must rebuild its preset with the original gone")
+		})
+	}
+}
+
 func (s *RoundTripPublicTestSuite) TestALiftedRigRecordsTheExactModel() {
 	// A gear name does not identify a model: 665 of them share 469 names, and
 	// "Ampeg SVT" matches both channels. Without the identifier a rig rebuilds
@@ -112,7 +127,8 @@ func (s *RoundTripPublicTestSuite) TestTheWholeCorpusSurvivesIt() {
 			continue
 		}
 
-		if s.canonical(raw) == s.canonical(s.roundTrip(path)) {
+		if s.canonical(raw) == s.canonical(s.roundTrip(path)) &&
+			s.canonical(raw) == s.canonical(s.fromNothing(path)) {
 			same++
 
 			continue
@@ -128,8 +144,8 @@ func (s *RoundTripPublicTestSuite) TestTheWholeCorpusSurvivesIt() {
 	s.T().Logf("round-tripped %d presets for this device, skipped %d others",
 		same+differ, skipped)
 	s.Require().Zero(differ,
-		"every preset must survive becoming a rig and being written back; "+
-			"first failures: %v", failed)
+		"every preset must survive becoming a rig and being written back, "+
+			"both into itself and into nothing; first failures: %v", failed)
 	s.Require().Positive(same)
 }
 
@@ -142,18 +158,37 @@ func (s *RoundTripPublicTestSuite) TestTheWholeCorpusSurvivesIt() {
 func (s *RoundTripPublicTestSuite) roundTrip(path string) []byte {
 	raw := s.read(path)
 
-	doc, err := preset.Read(bytes.NewReader(raw))
-	s.Require().NoError(err)
-
-	spec, err := lift.Lift(doc, s.cat)
-	s.Require().NoError(err)
-
 	back, err := preset.Read(bytes.NewReader(raw))
 	s.Require().NoError(err)
-	s.Require().NoError(lift.Lower(back, spec, s.cat))
+
+	return s.through(raw, back)
+}
+
+// fromNothing is the path a shared rig takes: read a preset, keep only the
+// rig, and build a preset out of it with the original gone.
+//
+// This is the claim that matters. Lowering into the preset a rig came from
+// proves little — routing and snapshots survive because nobody removed them.
+// A rig that reaches somebody else arrives on its own.
+func (s *RoundTripPublicTestSuite) fromNothing(path string) []byte {
+	blank, err := preset.Blank()
+	s.Require().NoError(err)
+
+	return s.through(s.read(path), blank)
+}
+
+// through lifts raw to a rig and lowers that rig into doc.
+func (s *RoundTripPublicTestSuite) through(raw []byte, doc *preset.Document) []byte {
+	from, err := preset.Read(bytes.NewReader(raw))
+	s.Require().NoError(err)
+
+	spec, err := lift.Lift(from, s.cat)
+	s.Require().NoError(err)
+
+	s.Require().NoError(lift.Lower(doc, spec, s.cat))
 
 	var out bytes.Buffer
-	s.Require().NoError(preset.Write(&out, back))
+	s.Require().NoError(preset.Write(&out, doc))
 
 	return out.Bytes()
 }

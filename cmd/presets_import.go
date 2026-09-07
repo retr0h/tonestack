@@ -23,6 +23,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/retr0h/tonestack/internal/slots"
+	"github.com/retr0h/tonestack/pkg/slot"
 )
 
 var presetsImportOptions slots.ImportOptions
@@ -59,7 +60,11 @@ func init() {
 		0,
 		"which setlist, when the file is a backup holding several",
 	)
-	f.IntVar(&presetsImportOptions.Slot, "slot", 0, "which slot, from zero")
+	f.Var(
+		slot.NewValue(&presetsImportOptions.Slot),
+		"slot",
+		"which slot — a label the pedal shows such as 31A, or a number from zero",
+	)
 	f.StringVar(&presetsImportOptions.OutputPath, "out", "", "where to write the edited setlist")
 	_ = presetsImportCmd.MarkFlagRequired("preset")
 	_ = presetsImportCmd.MarkFlagRequired("preset")

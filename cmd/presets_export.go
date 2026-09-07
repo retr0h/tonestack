@@ -23,6 +23,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/retr0h/tonestack/internal/slots"
+	"github.com/retr0h/tonestack/pkg/slot"
 )
 
 var presetsExportOptions slots.ExportOptions
@@ -61,7 +62,11 @@ func init() {
 		0,
 		"which setlist, when the file is a backup holding several",
 	)
-	f.IntVar(&presetsExportOptions.Slot, "slot", 0, "which slot, from zero")
+	f.Var(
+		slot.NewValue(&presetsExportOptions.Slot),
+		"slot",
+		"which slot — a label the pedal shows such as 31A, or a number from zero",
+	)
 	f.StringVar(&presetsExportOptions.OutputPath, "out", "", "where to write it")
 	f.StringVar((*string)(&presetsExportOptions.As), "as", "rigspec",
 		"rigspec for a rig, hlx for the device's own file")
