@@ -37,6 +37,9 @@ import "encoding/json"
 type Options struct {
 	// ResourcesDir is HX Edit's Contents/Resources directory.
 	ResourcesDir string
+	// SourceName names the application the models came from. The version is
+	// read from the bundle and appended to it.
+	SourceName string
 	// GearMapPath is schemas/gear-map.json.
 	GearMapPath string
 	// DeviceID is the integer a preset for the target device carries in
@@ -46,6 +49,8 @@ type Options struct {
 	DeviceName string
 	// SchemaVersion is the preset schema version to record.
 	SchemaVersion int
+	// OutputPath is where the catalog is written.
+	OutputPath string
 }
 
 // wireModel is one entry in a Line 6 .models file.
@@ -56,6 +61,7 @@ type Options struct {
 type wireModel struct {
 	SymbolicID string       `json:"symbolicID"`
 	Name       string       `json:"name"`
+	CabLink    string       `json:"cablink"`
 	Load       *float64     `json:"load"`
 	LoadStereo *float64     `json:"load_stereo"`
 	Stereo     *bool        `json:"stereo"`

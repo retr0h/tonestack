@@ -40,7 +40,21 @@ const (
 	CategoryReverb Category = "reverb"
 	CategoryEQ     Category = "eq"
 	CategoryMod    Category = "mod"
-	CategoryOther  Category = "other"
+	// CategoryGate is a noise gate. Dynamics, but not a compressor: counting
+	// the two together overstates how often players compress.
+	CategoryGate Category = "gate"
+	// CategoryWah is a wah or auto-wah.
+	CategoryWah Category = "wah"
+	// CategoryPitch is pitch shifting, harmony and synthesis.
+	CategoryPitch Category = "pitch"
+	// CategoryFilter is a filter or envelope follower.
+	CategoryFilter Category = "filter"
+	// CategoryUtility is plumbing rather than tone — volume, gain, sends,
+	// loopers, the input and output blocks. Nobody chooses one for how it
+	// sounds, so they are excluded from anything measuring what a chain is
+	// made of.
+	CategoryUtility Category = "utility"
+	CategoryOther   Category = "other"
 )
 
 // Provenance records how a catalog entry came to be known, and how far it can
@@ -113,20 +127,34 @@ type Block struct {
 	BasedOn string `json:"based_on,omitempty"`
 	// Subcategory is Line 6's own grouping — "Guitar", "Bass". It decides
 	// which half of the catalog a request is allowed to draw from.
-	Subcategory string           `json:"subcategory,omitempty"`
-	Params      map[string]Param `json:"params"`
-	Stereo      bool             `json:"stereo"`
-	DSP         DSPCost          `json:"dsp"`
-	Prov        Provenance       `json:"prov"`
+	Subcategory string `json:"subcategory,omitempty"`
+	// CabLink is the cabinet Line 6 pairs with this amp by default. Empty for
+	// anything that is not an amp.
+	//
+	// A recipe that names no cabinet gets this one, which is a better answer
+	// than picking arbitrarily: it is the pairing the model was voiced with.
+	CabLink ModelID          `json:"cablink,omitempty"`
+	Params  map[string]Param `json:"params"`
+	Stereo  bool             `json:"stereo"`
+	DSP     DSPCost          `json:"dsp"`
+	Prov    Provenance       `json:"prov"`
 }
 
-// Catalog is every block known for one device at one firmware version.
+// Catalog is every block one device supports, as of one release of the
+// software it was generated from.
 type Catalog struct {
-	Device        string            `json:"device"`
-	DeviceID      int               `json:"device_id"`
-	SchemaVersion int               `json:"schema_version"`
-	ModelData     int               `json:"modeldata_version"`
-	Blocks        map[ModelID]Block `json:"blocks"`
+	Device        string `json:"device"`
+	DeviceID      int    `json:"device_id"`
+	SchemaVersion int    `json:"schema_version"`
+	// Source names the release this was generated from, such as
+	// "HX Edit 3.82".
+	//
+	// A catalog is only true of the models that release knew about. A device
+	// running older firmware may not have all of them, and a newer release
+	// may add more, so a catalog that cannot say where it came from cannot be
+	// checked against anything.
+	Source string            `json:"source"`
+	Blocks map[ModelID]Block `json:"blocks"`
 }
 
 // ParamType names the kind a ParamValue holds.

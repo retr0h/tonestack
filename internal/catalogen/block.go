@@ -34,6 +34,7 @@ func block(m wireModel, family string, gear gearEntry) catalog.Block {
 		Category:    category(family),
 		BasedOn:     gear.BasedOn,
 		Subcategory: gear.Subcategory,
+		CabLink:     catalog.ModelID(m.CabLink),
 		Params:      make(map[string]catalog.Param, len(m.Params)),
 		Prov:        catalog.ProvOfficial,
 	}
@@ -153,8 +154,10 @@ func category(family string) catalog.Category {
 		return catalog.CategoryCab
 	case "distortion":
 		return catalog.CategoryDrive
-	case "compressor", "gate":
+	case "compressor":
 		return catalog.CategoryComp
+	case "gate":
+		return catalog.CategoryGate
 	case "delay":
 		return catalog.CategoryDelay
 	case "reverb":
@@ -163,6 +166,14 @@ func category(family string) catalog.Category {
 		return catalog.CategoryEQ
 	case "modulation":
 		return catalog.CategoryMod
+	case "wah":
+		return catalog.CategoryWah
+	case "pitch-synth":
+		return catalog.CategoryPitch
+	case "filter":
+		return catalog.CategoryFilter
+	case "volumepan", "sendreturn", "io", "fixed", "looper":
+		return catalog.CategoryUtility
 	default:
 		return catalog.CategoryOther
 	}

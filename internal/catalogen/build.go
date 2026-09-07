@@ -33,6 +33,25 @@ import (
 // ErrNoResources reports that HX Edit's model definitions were not found.
 var ErrNoResources = errors.New("hx edit resources not found")
 
+// defaultSchemaVersion is the preset schema version a catalog records when a
+// caller does not name one.
+const defaultSchemaVersion = 6
+
+// defaultSourceName names the application a catalog is generated from. The
+// version is read from its bundle and appended.
+const defaultSourceName = "HX Edit"
+
+// sourceName describes where a catalog's models came from, as a release
+// somebody could go and check.
+func sourceName(opts Options) string {
+	v := appVersion(opts.ResourcesDir)
+	if v == "" {
+		return ""
+	}
+
+	return opts.SourceName + " " + v
+}
+
 // valueTypes as Line 6 records them. A bool's bounds are false and true, and a
 // string's are empty, so neither carries a usable range.
 const (
@@ -66,6 +85,7 @@ func Build(opts Options) (*catalog.Catalog, error) {
 		Device:        opts.DeviceName,
 		DeviceID:      opts.DeviceID,
 		SchemaVersion: opts.SchemaVersion,
+		Source:        sourceName(opts),
 		Blocks:        make(map[catalog.ModelID]catalog.Block),
 	}
 

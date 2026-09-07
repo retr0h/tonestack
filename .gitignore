@@ -16,7 +16,9 @@ schemas/corpus/**
 !schemas/corpus/customtone/SOURCES.md
 !schemas/corpus/customtone/fetch_customtone.py
 
-# Generated from a licensed HX Edit installation. Line 6's data; ours to use
-# locally, not to redistribute. Rebuild with `just catalog` and `just gear-map`.
+# Generated from an HX Edit installation. The catalog itself is committed
+# under pkg/catalog/data/ and ships in the binary, so nobody needs HX Edit to
+# use tonestack — only to regenerate it. These are the intermediate artifacts.
+# Rebuild with `just catalog` and `just gear-map`.
 schemas/hx-stomp.catalog.json
 schemas/gear-map.json

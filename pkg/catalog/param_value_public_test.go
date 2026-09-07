@@ -189,6 +189,27 @@ func (s *ParamValuePublicTestSuite) TestUnmarshalRejectsMalformedInput() {
 	}
 }
 
+func (s *ParamValuePublicTestSuite) TestString() {
+	tests := []struct {
+		name string
+		val  catalog.ParamValue
+		want string
+	}{
+		{"a float", catalog.Float(0.5), "0.5"},
+		{"a whole float", catalog.Float(1), "1.0"},
+		{"an integer", catalog.Int(82), "82"},
+		{"a boolean", catalog.Bool(true), "true"},
+		{"an enumerated string", catalog.Enum("Fast"), "Fast"},
+		{"a value with no kind", catalog.ParamValue{}, ""},
+	}
+
+	for _, tc := range tests {
+		s.Run(tc.name, func() {
+			s.Require().Equal(tc.want, tc.val.String())
+		})
+	}
+}
+
 func TestParamValuePublicTestSuite(t *testing.T) {
 	suite.Run(t, new(ParamValuePublicTestSuite))
 }

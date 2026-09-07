@@ -54,7 +54,6 @@ func (s *LoadPublicTestSuite) TestLoadReadsDeviceIdentity() {
 	s.Require().Equal("HX Stomp", c.Device)
 	s.Require().Equal(2162689, c.DeviceID)
 	s.Require().Equal(6, c.SchemaVersion)
-	s.Require().Equal(30, c.ModelData)
 }
 
 func (s *LoadPublicTestSuite) TestLoadReadsBlockAndParams() {
