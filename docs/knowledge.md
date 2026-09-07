@@ -15,23 +15,24 @@ tones come out generic.
 
 | Problem                 | Source                                   | State                     |
 | ----------------------- | ---------------------------------------- | ------------------------- |
-| Who plays what          | `recipes/` — hand-written                | thin, grows by correction |
+| Who plays what          | `recipes/`, hand-written                 | thin, grows by correction |
 | Gear to model ID        | `schemas/gear-map.json`                  | 547 models                |
 | What order blocks go in | statistics over `schemas/corpus/`        | not built                 |
 | Which way a knob moves  | the Pilot's Guide parameter tables       | not built                 |
 | What values to set      | catalog defaults, corpus medians, intent | not built                 |
 
-The model for all of this — one specification, and what it holds — is
-[the RigSpec design record](superpowers/specs/2026-09-06-rigspec-as-the-one-model-design.md).
+One specification covers all of it.
+[The RigSpec design record](superpowers/specs/2026-09-06-rigspec-as-the-one-model-design.md)
+says what it holds.
 
 ## 1. Who plays what
 
 Cultural knowledge. It is not in any preset and cannot be derived from one.
 
-A language model is genuinely good at this for well-known players and will
-confabulate for obscure ones — **and cannot reliably tell which it is doing.**
-That is the largest correctness risk in the product, and it is why every recipe
-carries `provenance`. See [recipes.md](recipes.md).
+A language model is good at this for well-known players and confabulates for
+obscure ones. It cannot tell which it is doing. That is the largest correctness
+risk in the product, and it is why every rig carries evidence per claim. See
+[recipes.md](recipes.md).
 
 ## 2. Gear to model identifier
 
@@ -40,8 +41,8 @@ Line 6 renames every model for trademark reasons. An Ampeg SVT ships as
 `HD2_AmpBrit2204`. None of that is inferable from the identifier.
 
 Knowing a player uses an SVT is worthless on its own. The mapping is what makes
-artist knowledge actionable, and it comes from joining two files that both ship
-inside HX Edit — see [catalog.md](catalog.md).
+artist knowledge usable, and it comes from joining two files that both ship
+inside HX Edit. See [catalog.md](catalog.md).
 
 ## 3. What order blocks go in
 
@@ -69,11 +70,11 @@ of authority:
 2. **Corpus distributions.** The median `Drive` across every preset using this
    model beats a guess, and the spread says how much it varies in practice.
    Across 54 SVT instances the median `Treble` is 0.845 where Line 6's stated
-   default is 0.68 — the factory default is measurably not what players use.
+   default is 0.68. The factory default is measurably not what players use.
    `Bass` sits in 0.50–0.53 and `Drive` spans 0.28–0.60, so the spread also says
    how much of an opinion is worth having.
-3. **Intent.** A recipe's `character` lines — "mid-forward, not scooped", "grit
-   only on hard attack" — become directional moves against the catalog's real
+3. **Intent.** A rig's `character` lines, "mid-forward, not scooped" or "grit
+   only on hard attack", become directional moves against the catalog's real
    ranges. Which direction is not guesswork either: the Pilot's Guide documents
    the controls that cannot be inferred, in the same language a recipe uses. Of
    `Sag` it says *"lower values offer tighter responsiveness … higher values
@@ -111,8 +112,8 @@ of corpus data changes that. **The evaluator is a person.** The architecture
 assumes it:
 
 - **The correction loop must be cheap.** Generate, push to the device, listen,
-  fix one line of a recipe, never hear that mistake again. This is why
-  [`pkg/sdk`](device.md) matters more than more corpus — it removes a manual HX
+  fix one line of a rig, never hear that mistake again. This is why
+  [`pkg/sdk`](device.md) matters more than more corpus. It removes a manual HX
   Edit import from every iteration.
 - **Decisions must be inspectable.** A generated rig should record why each
   block was chosen and how confident that choice was, so a wrong amp is visible

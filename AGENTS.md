@@ -29,21 +29,25 @@ treating the failure as real.
 conventions, testing and the licence header every file carries. It applies to
 agents exactly as it applies to people, and none of it is repeated here.
 
+Two of its rules are easy to skip and worth naming: run `just ready` before
+committing, and put every markdown change through the unslop skill first. See
+[Prose](CONTRIBUTING.md#prose).
+
 ## Finding your way around the domain
 
 [docs/](docs/) covers what the code is *for*, which is not derivable from the
 code. Read the one that matches the task rather than all of them:
 
-| Task                                                                                                   | Read                                                                                                                      |
-| ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
-| **Somebody asks for help doing something** — build a rig for a player, read a device, correct a preset | [docs/workflows.md](docs/workflows.md) — the step-by-step, linking onward to whichever reference it needs                 |
-| Understanding why any of this is shaped as it is                                                       | [docs/knowledge.md](docs/knowledge.md) — how a request becomes a signal chain, and which of the four problems is unsolved |
-| Writing or changing a rig                                                                              | [docs/recipes.md](docs/recipes.md), with [examples/rigspec/mike-dirnt.yaml](examples/rigspec/mike-dirnt.yaml) beside it   |
-| Anything touching models, parameters or DSP cost                                                       | [docs/catalog.md](docs/catalog.md)                                                                                        |
-| Reading or writing a `.hlx`                                                                            | [docs/preset-format.md](docs/preset-format.md)                                                                            |
-| Reading or editing what a device holds                                                                 | [docs/device.md](docs/device.md)                                                                                          |
-| Touching USB                                                                                           | [docs/protocol.md](docs/protocol.md) — **including the rules that keep a device alive**                                   |
-| Changing the shape of the system                                                                       | [docs/superpowers/specs/](docs/superpowers/specs/) — dated design records, superseded rather than rewritten               |
+| Task                                                                                                  | Read                                                                                                                    |
+| ----------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| **Somebody asks for help doing something**: build a rig for a player, read a device, correct a preset | [docs/workflows.md](docs/workflows.md), the step-by-step, linking onward to whichever reference it needs                |
+| Understanding why any of this is shaped as it is                                                      | [docs/knowledge.md](docs/knowledge.md), how a request becomes a signal chain and which of the four problems is unsolved |
+| Writing or changing a rig                                                                             | [docs/recipes.md](docs/recipes.md), with [examples/rigspec/mike-dirnt.yaml](examples/rigspec/mike-dirnt.yaml) beside it |
+| Anything touching models, parameters or DSP cost                                                      | [docs/catalog.md](docs/catalog.md)                                                                                      |
+| Reading or writing a `.hlx`                                                                           | [docs/preset-format.md](docs/preset-format.md)                                                                          |
+| Reading or editing what a device holds                                                                | [docs/device.md](docs/device.md)                                                                                        |
+| Touching USB                                                                                          | [docs/protocol.md](docs/protocol.md), **including the rules that keep a device alive**                                  |
+| Changing the shape of the system                                                                      | [docs/superpowers/specs/](docs/superpowers/specs/), dated design records, superseded rather than rewritten              |
 
 The contracts themselves are in [schemas/](schemas/). `rigspec.openapi.yaml` is
 the only hand-authored format; everything else is compiled from it.
@@ -73,9 +77,9 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 `.swamp-template.json`, which records what the last run wrote and the hash of
 each file, and decides per file:
 
-- **unchanged since generated** — replaced with the current template's version
-- **edited here** — left alone, and named in the output
-- **absent** — written
+- A file **unchanged since generated** gets the current template's version.
+- A file **edited here** is left alone, and named in the output.
+- A file that is **absent** gets written.
 
 Keep `.swamp-template.json` in the repository. Without it every file looks
 edited, and a retemplate can only skip.
@@ -83,11 +87,11 @@ edited, and a retemplate can only skip.
 ### When a file is reported as an orphan
 
 An orphan is a file an earlier template generated, this one no longer generates,
-and nobody has edited — an `internal/cli/` left behind when the entry point
-moved to `cmd/`. It is reported, never deleted:
+and nobody has edited. An `internal/cli/` left behind when the entry point moved
+to `cmd/` is one. It gets reported, never deleted:
 
 ```
-orphan internal/cli/cli.go — generated by an earlier template, no longer
+orphan internal/cli/cli.go: generated by an earlier template, no longer
        part of this one, and unchanged since. Safe to delete.
 ```
 
@@ -102,7 +106,7 @@ If one of them has been edited, the others are held rather than written, and the
 output says so:
 
 ```
-HOLD cmd/root.go — the entrypoint files this project already has came from an
+HOLD cmd/root.go: the entrypoint files this project already has came from an
      earlier template.
 ```
 

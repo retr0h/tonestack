@@ -11,7 +11,7 @@ implemented in `pkg/sdk`.
 | Source                                                                         | What it gives                                                                                                                                            |
 | ------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [tonepush](https://github.com/crmne/tonepush) (Rust, MIT)                      | [PROTOCOL.md](https://github.com/crmne/tonepush/blob/main/PROTOCOL.md), 1071 lines, every claim marked confirmed, inferred or open. The definitive text. |
-| [fretwire](https://github.com/john-baxter-dev/fretwire) (Rust, MIT/Apache-2.0) | Independent corroboration, and the widest device coverage — HX Stomp, Helix Floor and POD Go all verified.                                               |
+| [fretwire](https://github.com/john-baxter-dev/fretwire) (Rust, MIT/Apache-2.0) | Independent corroboration, and the widest device coverage: HX Stomp, Helix Floor and POD Go all verified.                                                |
 | [openhx](https://github.com/allansomensi/openhx) (Rust, MIT)                   | A clean sequential spec, captured off an HX Stomp XL.                                                                                                    |
 | [helix_usb](https://github.com/kempline/helix_usb) (Python)                    | The earliest effort. Found the three-channel structure. Read-only.                                                                                       |
 | `sound/usb/format.c` in the Linux kernel                                       | The authoritative product ID table.                                                                                                                      |
@@ -27,7 +27,7 @@ Worth stating plainly, because it is the first place anybody looks.
 Line 6's Helix product manager: *"Helix doesn't really do SysEx."* Their
 knowledge base: *"Does Helix pass SysEx data via MIDI Thru? No. We actively
 filter out SysEx data through Helix."* The official MIDI documentation has no
-SysEx section at all — program change, control change and clock, nothing more.
+SysEx section at all: program change, control change and clock, nothing more.
 
 The one thing MIDI answers is a Universal Identity Request, which returns the
 model and firmware revision and no preset data whatsoever.
@@ -84,9 +84,9 @@ frame.
 │ ┌─ payload ───────────────────────────────────────────────────────┐ │
 │ │ [0..2) seq, u16 BIG-endian    [2..4) type, u16 BIG-endian        │ │  channel
 │ │ [4..8) ack, u32 little-endian                                   │ │
-│ │ ┌─ stream bytes — one message may straddle frames ────────────┐ │ │
+│ │ ┌─ stream bytes, one message may straddle frames ─────────────┐ │ │
 │ │ │ [0..2) originator, u16 LE: 1 host, 0 device                 │ │ │  envelope
-│ │ │ [2..4) service id, u16 LE — GARBAGE on some device replies  │ │ │
+│ │ │ [2..4) service id, u16 LE, GARBAGE on some device replies   │ │ │
 │ │ │ [4..8) body length, u32 LE                                  │ │ │
 │ │ │ [8..]  MessagePack body                                     │ │ │
 │ └─└─────────────────────────────────────────────────────────────┘─┘ │
@@ -100,7 +100,7 @@ are small, because the high bytes are zero either way.
 
 Host frames always carry originator 1 and device frames always 0, with no
 exceptions, which makes it the cheapest check that a stream is still aligned.
-The *service* field beside it must be ignored on device replies — the same reply
+The *service* field beside it must be ignored on device replies. The same reply
 arrives carrying different values in different sessions, because it is
 uninitialised memory.
 
@@ -122,7 +122,7 @@ Three conversations, each with its own counters:
 | events  | `0x1002`    | `0x03f0`  | 4         | unsolicited notifications  |
 | data    | `0x1080`    | `0x03ed`  | 6         | the current preset, params |
 
-`seq` advances on **every** frame the host sends on that channel —
+`seq` advances on **every** frame the host sends on that channel,
 acknowledgements and keep-alives included. It starts at 0 for the opening frame
 and then jumps to **2, not 1**; the device stops answering a client that sends
 1\.
@@ -145,11 +145,11 @@ Transaction identifiers start at 1000 per channel and increment.
 
 Status, under key 103:
 
-| Value | Meaning                                                                                         |
-| ----- | ----------------------------------------------------------------------------------------------- |
-| `0`   | done                                                                                            |
-| `1`   | **accepted — the operation completes later**, matched by transaction id in a later notification |
-| `255` | refused, with `{111: negative error code}` in the result                                        |
+| Value | Meaning                                                                                            |
+| ----- | -------------------------------------------------------------------------------------------------- |
+| `0`   | done                                                                                               |
+| `1`   | **accepted, and the operation completes later**, matched by transaction id in a later notification |
+| `255` | refused, with `{111: negative error code}` in the result                                           |
 
 A client that reads any non-zero status as failure decides every deferred
 operation failed. Status `1` is not an error, and it is also not validation:
@@ -200,7 +200,7 @@ them loses whatever neither side models.
 **The offset table is the hazard in any write.** The device seeks with it rather
 than walking the MessagePack, so a re-encode that changes any field's byte width
 shifts every offset after it. MessagePack allows several encodings of the same
-integer and the device emits wide tags where a naive encoder emits narrow ones —
+integer and the device emits wide tags where a naive encoder emits narrow ones.
 tonepush measured 91 of 103 wide tags shrinking in one preset. The device
 accepts such a write and then reads the preset as empty. Both projects lost
 hardware sessions to this before fixing it.
@@ -208,7 +208,7 @@ hardware sessions to this before fixing it.
 The consequence for this project is larger than a bug: writing a `.hlx`
 synthesised from nothing is the least solved problem in the whole space, and
 neither project does it. The reliable shape is **read a preset off the device,
-mutate it, write it back** — which is also what
+mutate it, write it back**, which is also what
 [the RigSpec design record](superpowers/specs/2026-09-06-rigspec-as-the-one-model-design.md)
 concluded from a different direction, and what the corpus said when it showed
 98.6% of real presets carrying routing that a generated one has none of.
@@ -222,11 +222,11 @@ answered; nothing in Line 6's files documents them.
 | ---- | --------------------------------------------------------------- |
 | `0`  | the tone: `22` is the chain, as a fixed-length array of entries |
 | `3`  | footswitches: `8` is a list of switches, in order               |
-| `7`  | metadata — the firmware version the preset was written by       |
+| `7`  | metadata: the firmware version the preset was written by        |
 | `10` | snapshots: `10` is the list of them                             |
 
 A chain entry is `{19: kind, 20: body}`. Kind `6` is a block somebody placed;
-every other kind is the device's own — an input, an output, a gap where nothing
+every other kind is the device's own: an input, an output, a gap where nothing
 sits.
 
 **The position in that array is the block's number, and it is not its place in
@@ -237,12 +237,12 @@ only link between a switch and the block it works on. The body holds:
 
 | key         | holds                                         |
 | ----------- | --------------------------------------------- |
-| `24` → `25` | the model, as a number — see below            |
+| `24` → `25` | the model, as a number, see below             |
 | `11` → `4`  | the parameters, as a bare array with no names |
 | `10`        | whether the block is switched on              |
 
 A footswitch entry is `{10: ordinal, 11: body, 16: colour}` inside the list at
-`3` → `8`. The list position is the switch — the first group is FS1 — and a
+`3` → `8`. The list position is the switch, so the first group is FS1, and a
 switch can carry more than one entry when it toggles several blocks.
 
 `16` is the colour somebody chose, as a position in the device's own list, and
@@ -251,13 +251,13 @@ against hardware: a switch set to Green in HX Edit reports `6` and one set to
 Violet reports `9`.
 
 The body's `5` is the label the pedal prints. Its `6` is *not* the switch colour
-— it is the block's own, the same for every block of that kind, which is why it
+It is the block's own, the same for every block of that kind, which is why it
 stays put when somebody changes a light. That is a trap worth naming: `6`
 correlates with the colour so strongly on untouched presets that it reads as
 correct until somebody sets one.
 
 The names for those positions come from `HelixControls.json`, under
-`footswitchLED`, and are generated into the catalog rather than written down — a
+`footswitchLED`, and are generated into the catalog rather than written down. A
 firmware that adds a colour would otherwise be reported under the wrong name.
 
 A snapshot carries `4` as its name, `5` as its tempo and `12` as its colour.
@@ -265,7 +265,7 @@ A snapshot carries `4` as its name, `5` as its tempo and `12` as its colour.
 ## Model numbers are an index into HX Edit's own table
 
 A block names its model with a number, and that number is a position in
-`Helix.sym` — a plain JSON file in HX Edit's resources listing **833** symbols,
+`Helix.sym`, a plain JSON file in HX Edit's resources listing **833** symbols,
 each with its parameters **in the order the device sends their values**.
 
 That file is what makes a preset off the hardware readable: without it a block
@@ -274,7 +274,7 @@ is a number and its settings are an unlabelled array.
 833 is larger than the 681 models in Line 6's `.models` files because the table
 holds a mono and a stereo entry for the same model. Trimming that suffix joins
 813 of them to a catalog block; the remaining 20 are hardware an HX Stomp does
-not have — a second effects loop, the flow inputs of a bigger Helix — and keep
+not have, a second effects loop or the flow inputs of a bigger Helix, and keep
 their own name so a rig still rebuilds them exactly.
 
 The table is generated into the catalog, so it ships in the binary rather than
@@ -330,7 +330,7 @@ reply     {102: txn, 103: 0, 104: [ {index: {109: name, …}}, … ]}
 The `101: 2` inside the arguments is a selector whose meaning is not known. It
 is sent because HX Edit sends it.
 
-Argument order is **not sorted** — 107 precedes 101 — and integers go out in the
+Argument order is **not sorted**, 107 precedes 101, and integers go out in the
 narrowest unsigned form that holds them, so 1000 is a three-byte `uint16` and 2
 is a single byte. Both are what HX Edit emits, and matching it keeps a call
 byte-identical to one the device is known to accept.
@@ -371,5 +371,5 @@ the unit stays powered and keeps its session across a replug.
 Model names, parameter ranges and artwork are Line 6's, shipped inside HX Edit
 as `HelixModelDefs.bin` and `HX_ModelCatalog.json`. Both reference projects read
 them from the user's own installation at run time and refuse to redistribute
-them. This project generates its catalog the same way — see
+them. This project generates its catalog the same way. See
 [catalog.md](catalog.md).

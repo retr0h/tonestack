@@ -1,4 +1,4 @@
-# Helix preset corpus — GitHub sources
+# Helix preset corpus: GitHub sources
 
 Collected 2778 preset/setlist files from 32 public GitHub repositories. Files
 were shallow-cloned, filtered to JSON documents whose top-level `schema` starts
@@ -10,7 +10,7 @@ containers; decoding them yields a further 3792 embedded presets (excluding
 empty slots).
 
 Everything here is redistributed from public repositories for format
-reverse-engineering. Repos marked "no license file" carry no explicit grant —
+reverse-engineering. Repos marked "no license file" carry no explicit grant, so
 attribution below is the record of origin.
 
 | Repository                         | URL                                                 | License         | Files | + presets inside setlists | Devices                                                                                                                                                                                   |
@@ -39,7 +39,7 @@ attribution below is the record of origin.
 | `crmne/tonepush`                   | https://github.com/crmne/tonepush                   | MIT             | 3     | 116                       | 2162694 (HX Stomp)=1                                                                                                                                                                      |
 | `lmeadors/helix-catalog`           | https://github.com/lmeadors/helix-catalog           | no license file | 3     |                           | 2162689 (Helix Floor / Rack)=2, 2162692 (Helix LT)=1                                                                                                                                      |
 | `agarat/openpodgo`                 | https://github.com/agarat/openpodgo                 | MIT             | 2     |                           | 2162695 (POD Go (variant A))=2                                                                                                                                                            |
-| `johnsherlock/HelixSetlistEditor`  | https://github.com/johnsherlock/HelixSetlistEditor  | no license file | 2     | 105                       | —                                                                                                                                                                                         |
+| `johnsherlock/HelixSetlistEditor`  | https://github.com/johnsherlock/HelixSetlistEditor  | no license file | 2     | 105                       | none                                                                                                                                                                                      |
 | `sheax0r/helixgen-core`            | https://github.com/sheax0r/helixgen-core            | MIT             | 2     |                           | 2162689 (Helix Floor / Rack)=2                                                                                                                                                            |
 | `MrCitron/helaix`                  | https://github.com/MrCitron/helaix                  | MIT             | 1     |                           | 2162689 (Helix Floor / Rack)=1                                                                                                                                                            |
 | `bb-joelle/helix-preset-generator` | https://github.com/bb-joelle/helix-preset-generator | no license file | 1     |                           | 2162944 (Helix Native)=1                                                                                                                                                                  |
@@ -56,7 +56,7 @@ attribution below is the record of origin.
 | `.thrl6p` | 235   | Yamaha THR-II preset                                                                  |
 | `.pgp`    | 167   | POD Go preset                                                                         |
 | `.hls`    | 35    | Helix setlist (compressed bundle of 128 preset slots)                                 |
-| `.fav`    | 14    | Model-favorites list (`L6ModelFavorite`) — enumerates model IDs, kept for the catalog |
+| `.fav`    | 14    | Model-favorites list (`L6ModelFavorite`), enumerating model IDs, kept for the catalog |
 | `.json`   | 6     | Preset stored with a .json extension                                                  |
 | `.catl6p` | 4     | Line 6 Catalyst preset                                                                |
 | `.pgs`    | 2     | POD Go setlist (compressed)                                                           |
@@ -99,5 +99,5 @@ Already gathered elsewhere and deliberately skipped:
 `PhaseDog/HelixNativePresets`.
 
 `john-baxter-dev/fretwire` (Rust HX editor) and `dbagchee/helix-preset-viewer`
-contain no preset files but do embed model-ID tables in source — worth mining
+contain no preset files but do embed model-ID tables in source, worth mining
 separately.

@@ -31,9 +31,9 @@ tonestack catalog list --search ampeg
 tonestack catalog list --subcategory bass --category amp
 ```
 
-Names are real-world gear — "Ampeg SVT", "Klon Centaur" — never model
-identifiers. [catalog.md](catalog.md) explains where that mapping comes from and
-why it exists.
+Names are real-world gear. "Ampeg SVT", "Klon Centaur", never model identifiers.
+[catalog.md](catalog.md) explains where that mapping comes from and why it
+exists.
 
 ### 2. Find out what else belongs in the chain
 
@@ -43,9 +43,9 @@ tonestack corpus show --instrument bass
 
 This is measured over 4,324 real presets, not asserted. It says a bass chain
 holds a compressor 88% of the time and that drive sits ahead of the amp in 88%
-of the chains that have one. You do not have to act on it — the build fills in
-what is near-universal and says so — but it tells you what a complete chain for
-that instrument looks like.
+of the chains that have one. You do not have to act on it, since the build fills
+in what is near-universal and says so, but it tells you what a complete chain
+for that instrument looks like.
 
 ### 3. Write it
 
@@ -65,7 +65,7 @@ shows all of them on one subject.
 
 **Be honest about where the gear came from.** `source: llm` means a model
 asserted it and nobody checked. That is reliable for well-known players,
-unreliable for obscure ones, and the model cannot tell which it is doing — which
+unreliable for obscure ones, and the model cannot tell which it is doing. That
 makes it the largest correctness risk here. Say `confidence: low` and let the
 tool display it as unverified.
 
@@ -86,7 +86,7 @@ that the rig did not ask for:
 
   dsp0  █████████░░░░░░░░░░░░░░░  39.6%
 
-  added LA Studio Comp — almost every chain has one (88% of chains)
+  added LA Studio Comp: almost every chain has one (88% of chains)
 ```
 
 Read it before you plug anything in. A wrong amp is a bad miss that nothing
@@ -102,7 +102,7 @@ See [below](#get-it-onto-the-device).
 tonestack presets list
 ```
 
-That reads the attached device over USB. **Quit HX Edit first** — it claims the
+That reads the attached device over USB. **Quit HX Edit first.** It claims the
 editor interface exclusively and nothing else can talk to the device while it
 runs.
 
@@ -118,8 +118,8 @@ tonestack presets show   --slot 31A
 tonestack presets export --slot 31A --out lead.yaml
 ```
 
-A slot is addressed the way the pedal labels it — `01A` through `42C` — and a
-bare number works too, for scripts.
+A slot is addressed the way the pedal labels it, `01A` through `42C`. A bare
+number works too, for scripts.
 
 Every reading command also takes `--file`, for a backup HX Edit wrote when no
 device is attached:
@@ -129,7 +129,7 @@ tonestack presets list --file device.hlb
 tonestack presets show --file device.hlb --slot 31A
 ```
 
-Putting a preset *onto* a device is the part that is not live — see
+Putting a preset *onto* a device is the part that is not live. See
 [Get it onto the device](#get-it-onto-the-device).
 
 One thing a live read cannot carry: the routing and controller assignments a
@@ -149,18 +149,17 @@ tonestack presets compile --rig slot3.yaml --out slot3.hlx
 ```
 
 Out and back. A preset read into a rig and compiled again is the preset it came
-from — asserted over every HX Stomp preset in the corpus, so it is a measurement
-rather than a claim.
+from. That is asserted over every HX Stomp preset in the corpus, so it is a
+measurement rather than a claim.
 
 Two things make that work, and both matter if you hand-edit a rig in between.
 
-`slot3.yaml` is a rig — the same format `recipes new` writes, and the same one
-`presets make` reads. A lifted rig records `models: { HX Stomp: HD2_... }` — the
-exact model each piece of gear resolved to. **665 models share only 469 names**,
-and "Ampeg SVT" matches both channels, so a rig carrying the name alone would
-rebuild into a different preset. Delete that line and compiling falls back to
-resolving the name, which is right for a rig you wrote and wrong for one you
-lifted.
+`slot3.yaml` is a rig, the same format `recipes new` writes and `presets make`
+reads. A lifted rig records `models: { HX Stomp: HD2_... }`, the exact model
+each piece of gear resolved to. **665 models share only 469 names**, and "Ampeg
+SVT" matches both channels, so a rig carrying the name alone would rebuild into
+a different preset. Delete that line and compiling falls back to resolving the
+name, which is right for a rig you wrote and wrong for one you lifted.
 
 Compiling writes the chain into an untouched preset the device itself wrote, so
 the result carries the inputs, outputs, split and join a device expects. 98.6%
@@ -168,7 +167,7 @@ of real presets have them and one assembled from nothing has none. `--template`
 uses a particular preset as that base instead.
 
 For a faithful copy rather than a reading, `--as hlx` writes the device's own
-file — which also carries the routing and snapshots a rig models but nobody
+file, which also carries the routing and snapshots a rig models but nobody
 chooses.
 
 ## Get it onto the device
@@ -199,7 +198,7 @@ input is a measurement or an assertion; you are the only thing that can say
 whether it sounds right.
 
 1. Play it.
-2. Say what is wrong in your own words — "too clunky", "the drive is muddy".
+2. Say what is wrong in your own words. "Too clunky", "the drive is muddy".
 3. Change the rig.
 4. **Record what you asked for, what changed, and what you thought of it.**
 
@@ -216,7 +215,7 @@ mutations:
       Line 6 document Sag as "lower values offer tighter responsiveness…
       higher values provide more touch dynamics & sustain". Read "clunky" as
       a looser power-amp feel rather than more gain.
-    verdict: closer, but muddy now — keep the feel, put the drive back
+    verdict: closer, but muddy now, so keep the feel and put the drive back
 ```
 
 `reason` is where an agent records its *interpretation*, cited. If it read
@@ -224,7 +223,7 @@ mutations:
 wrong rather than only the value.
 
 If several rounds of settings changes all come back negative, stop turning
-knobs. Repeated failure at that layer is evidence against something higher up —
+knobs. Repeated failure at that layer is evidence against something higher up,
 usually the amp.
 
 ## Add evidence from a recording
@@ -264,8 +263,8 @@ tonestack devices list
 ```
 
 The first two are what the device *can* do; the third is what people *do* with
-it. They answer different questions and neither substitutes for the other — Line
-6 state a default Treble of 0.68 for an Ampeg SVT, and the median across every
+it. They answer different questions and neither substitutes for the other. Line
+6 state a default Treble of 0.68 for an Ampeg SVT; the median across every
 measured use is 0.845. Both are facts.
 
 On `corpus show --model`, the **spread** is the useful column. A parameter

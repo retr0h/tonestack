@@ -42,8 +42,11 @@ marketplace:
 /plugin install commit-commands@claude-plugins-official
 ```
 
-- **commit-commands.** provides `/commit` and `/commit-push-pr` slash commands
-  that follow the project's commit conventions automatically.
+- **commit-commands.** Provides `/commit` and `/commit-push-pr` slash commands
+  that follow the project's commit conventions.
+
+Install the [unslop] skill as well. Every markdown change here goes through it,
+so working without it means the next person runs it over your text.
 
 ## Setup
 
@@ -58,12 +61,12 @@ just deps
 
 ```text
 main.go              a single call into cmd
-cmd/                 cobra wiring — flags to behaviour, no logic
+cmd/                 cobra wiring: flags to behaviour, no logic
 internal/            implementation, not importable
 internal/cli/        the shared visual language: theme, table, detail, help
 internal/resolve/    a rig and a catalog become a chain
 internal/lift/       a preset becomes a rig, and a rig becomes a preset
-pkg/rig/             RigSpec — the one authored format — and its validation
+pkg/rig/             RigSpec, the one authored format, and its validation
 pkg/chain/           a resolved chain. An internal struct, not a format.
 pkg/catalog/         what a device can do: blocks, parameters, DSP costs
 pkg/corpus/          what real presets say about a device, measured
@@ -72,26 +75,30 @@ pkg/setlist/         read and write .hls setlists and .hlb device backups
 pkg/sdk/             talk to a device over USB. The only cgo in the tree.
 pkg/sdk/wire/        the framing a device speaks. Pure Go, no hardware needed.
 schemas/             the RigSpec contract, generated catalog, preset corpus
-recipes/             curated rigs — which gear a player uses
+recipes/             curated rigs: which gear a player uses
 docs/                how the format, catalog and generation work
 .github/workflows/   CI
 ```
 
 ## How the system works
 
-The domain — turning a request into a signal chain, the preset format, the
-device — is documented in [docs/](docs/), not here:
+The domain lives in [docs/](docs/), not here. That covers turning a request into
+a signal chain, the preset format, and the device:
 
-- [docs/workflows.md](docs/workflows.md) — what to do, in order, for the common
-  tasks
-- [docs/knowledge.md](docs/knowledge.md) — how a request becomes a signal chain
-- [docs/recipes.md](docs/recipes.md) — writing a rig, and the worked example
-  beside it
-- [docs/catalog.md](docs/catalog.md) — what a device can do and where that comes
-  from
-- [docs/preset-format.md](docs/preset-format.md) — how a `.hlx` file is laid out
-- [docs/device.md](docs/device.md) — reading and editing what a device holds
-- [docs/protocol.md](docs/protocol.md) — the USB protocol a device speaks
+- [docs/workflows.md](docs/workflows.md) says what to do, in order, for the
+  common tasks
+- [docs/knowledge.md](docs/knowledge.md) covers how a request becomes a signal
+  chain
+- [docs/recipes.md](docs/recipes.md) covers writing a rig, and the worked
+  example beside it
+- [docs/catalog.md](docs/catalog.md) covers what a device can do and where that
+  comes from
+- [docs/preset-format.md](docs/preset-format.md) covers how a `.hlx` file is
+  laid out
+- [docs/device.md](docs/device.md) covers reading and editing what a device
+  holds
+- [docs/protocol.md](docs/protocol.md) documents the USB protocol a device
+  speaks
 
 Keep that split. A fact about the domain belongs in `docs/`; a fact about
 working on the project belongs here.
@@ -114,13 +121,28 @@ formatting.
 
 ### Documentation
 
-Markdown files are formatted with [mdformat] through `uvx`. This style is
-enforced by CI.
+Markdown files are formatted with [mdformat] through `uvx`. CI enforces it.
 
 ```bash
 just md-fmt-check   # Check formatting
 just md-fmt         # Auto-fix formatting
 ```
+
+### Prose
+
+mdformat handles layout. It has no opinion about the words, and the words are
+where writing gives itself away as machine-generated.
+
+Every markdown change here goes through the [unslop] skill before it is
+committed, new files and edits alike. Run it while writing rather than as a
+final polish, so nobody has to unpick the patterns later. If your session does
+not have the skill, read the rules from that link and apply them by hand.
+
+The tells are invisible from the inside, which is why this is a rule and not a
+preference. The largest one here was the em dash. There were 242, and each stood
+in for a decision the sentence had not made about whether the clause was a new
+sentence, a parenthetical, or a list. One slopped paragraph is unremarkable. A
+repository of them reads as though nobody was home.
 
 ## Code standards
 
@@ -170,9 +192,10 @@ There is no shared errors package. `catalog` owns `ErrBadParam` because
 Each error is a sentinel plus a struct carrying the detail, so callers match
 with `errors.Is` and reach the detail with `errors.As`.
 
-**Omit the receiver name when unused** — `func (*OverBudgetError) Unwrap()`.
-`revive`'s `unused-receiver` says rename it to `_`; `receiver-naming` says never
-use `_`. Omitting is the only form satisfying both.
+**Omit the receiver name when unused**, as in
+`func (*OverBudgetError) Unwrap()`. `revive`'s `unused-receiver` says rename it
+to `_`; `receiver-naming` says never use `_`. Omitting is the only form
+satisfying both.
 
 ### Generated code
 
@@ -272,7 +295,7 @@ The target is declared in `.github/codecov.yml` and in this repository's
 `justfile`. Change both together.
 
 It is 99 rather than 100 because of one file. `pkg/sdk/usb.go` is every call
-this project makes into libusb — one expression per method — and there is no way
+this project makes into libusb, one expression per method, and there is no way
 to reach it without a device on the bus. Everything it forwards to is behind an
 interface and covered: finding a device, choosing between two, claiming an
 interface, waiting on a busy one, framing, sequence numbers, acknowledgements,
@@ -297,7 +320,7 @@ Reading a `.hlx` and writing it back reproduces the file exactly, and there is a
 test over the whole corpus asserting it. A change that breaks that is a change
 that silently rewrites somebody's preset.
 
-An earlier version of this section claimed the opposite — that floats could not
+An earlier version of this section claimed the opposite, that floats could not
 survive a round trip, because 30% of corpus values are not exactly
 float32-representable. That is true of float32 and irrelevant here: values are
 parsed to float64, where `0.707` survives exactly.
@@ -308,7 +331,7 @@ later:
 - **Do not use `omitempty` on a field that can legitimately be empty.** It drops
   an explicit `""`, which is a different document from one with the field
   absent. Use a pointer, or keep the field raw.
-- **Keep what is not modelled.** Presets carry fields nobody documented — song,
+- **Keep what is not modelled.** Presets carry fields nobody documented: song,
   band, author, an appVersion spelled two ways. `DataMeta` holds the name and
   preserves the rest verbatim.
 - **Keep the form a value arrived in.** `device_version` appears as a number, as
@@ -368,7 +391,7 @@ Try to write meaningful commit messages and avoid having too many commits on a
 PR. Most PRs should likely have a single commit (although for bigger PRs it may
 be reasonable to split it in a few). Git squash and rebase is your friend!
 
-## Submitting a PR
+## Submitting a pull request
 
 - **Describe your changes.** Say what changed and why. A reviewer should not
   have to read the diff to learn the reason for it.
@@ -408,4 +431,5 @@ If you have questions, open a [Discussion] on GitHub.
 [just]: https://just.systems
 [mdformat]: https://pypi.org/project/mdformat/
 [mise]: https://mise.jdx.dev
+[unslop]: https://github.com/cursor/plugins/blob/main/pstack/skills/unslop/SKILL.md
 [uv]: https://docs.astral.sh/uv/

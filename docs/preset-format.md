@@ -1,7 +1,7 @@
 # The preset format
 
 How a Line 6 `.hlx` file is laid out. Line 6 publishes no schema, so all of this
-was established by reading real presets — see [corpus](../schemas/README.md).
+was established by reading real presets. See [corpus](../schemas/README.md).
 
 `.hlx` files are plain JSON. Line 6 publishes no schema, so everything here was
 established by reading real presets.
@@ -22,7 +22,7 @@ established by reading real presets.
 - `controller` entries carry a parameter's true `@min` and `@max` when someone
   assigned a controller to it.
 - **Values are not normalised.** They mix floats, ints and bools, and some are
-  in display units — `Threshold` is `-70.0` dB. A third-party project claims
+  in display units, so `Threshold` is `-70.0` dB. A third-party project claims
   everything is a normalised 0.0–1.0 float; the corpus disproves it. This is why
   `ParamValue` is a tagged union rather than `map[string]any`.
 - `@model` is usually a symbolic ID (`HD2_AmpUSDoubleNrm`), but 13 models in the
@@ -51,9 +51,9 @@ schema:
 | `L6PresetBundle` | `.hlb`    | `{setlists: [{meta, presets}]}` | 8 × 128 slots |
 
 Each entry is a preset's `data` object with no `schema` or `version` of its own
-— wrap it in `{"schema":"L6Preset","version":6,"data":<entry>}`. Entries whose
-`tone` has no `dsp*` key are empty slots, and a device-written setlist always
-holds all 128 of them, most untouched.
+by wrapping it in `{"schema":"L6Preset","version":6,"data":<entry>}`. Entries
+whose `tone` has no `dsp*` key are empty slots, and a device-written setlist
+always holds all 128 of them, most untouched.
 
 `compression.crc32` and `compression.decompressed_size` describe the inflated
 payload and must be recomputed on write. A stale checksum is rejected by
@@ -87,13 +87,13 @@ it silently was not, and each is a rule for anything added later.
 `data.device` names the hardware; a preset for one device will not load on
 another.
 
-| ID                | Device                                   |
-| ----------------- | ---------------------------------------- |
-| 2162689           | Helix Floor / Rack                       |
-| 2162690           | Helix, second hardware variant           |
-| 2162692           | Helix LT                                 |
-| 2162693           | HX Effects                               |
-| **2162694**       | **HX Stomp** — what this project targets |
-| 2162695 / 2162696 | POD Go                                   |
-| 2162699           | HX Stomp XL                              |
-| 2162944           | Helix Native                             |
+| ID                | Device                                  |
+| ----------------- | --------------------------------------- |
+| 2162689           | Helix Floor / Rack                      |
+| 2162690           | Helix, second hardware variant          |
+| 2162692           | Helix LT                                |
+| 2162693           | HX Effects                              |
+| **2162694**       | **HX Stomp**, what this project targets |
+| 2162695 / 2162696 | POD Go                                  |
+| 2162699           | HX Stomp XL                             |
+| 2162944           | Helix Native                            |

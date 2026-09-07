@@ -2,7 +2,7 @@
 
 What a device can do, and where that knowledge comes from.
 
-The catalog is generated. Never hand-edit it — change the generator, or the data
+The catalog is generated. Never hand-edit it. Change the generator, or the data
 it reads, and run `just catalog`.
 
 ## It ships in the binary
@@ -21,7 +21,7 @@ Neither half is enough alone, and the join is what makes a rig buildable.
 
 ### What a model is, from HX Edit's own data
 
-`/Applications/Line6/HX Edit.app/Contents/Resources/*.models` — 19 files holding
+`/Applications/Line6/HX Edit.app/Contents/Resources/*.models` holds 19 files of
 681 models between them, as plain JSON. Each carries a `symbolicID`, a `name`, a
 DSP `load`, a `cablink` naming the cabinet Line 6 voiced the amp with, and every
 parameter's `min`, `max`, `default` and value type.
@@ -43,7 +43,7 @@ The `.models` files never say what real gear a model imitates.
 `HD2_AmpSVBeastNrm` does not mention Ampeg anywhere, and that is deliberate:
 Line 6 rename every model for trademark reasons.
 
-The mapping exists in one place — the "Based On" column of the Pilot's Guide,
+The mapping exists in one place, the "Based On" column of the Pilot's Guide,
 which ships in the same folder. `tools/extract_gear_map.py` reads it, and this
 is the exception to the no-Python rule in [CONTRIBUTING.md](../CONTRIBUTING.md):
 the model-name column uses a subset-embedded font no Go PDF library decodes, and
@@ -82,7 +82,7 @@ same words for a block's role, so one resolves to the other without translation.
 | `utility`                      | `volumepan`, `sendreturn`, `io`, `fixed`, `looper` |
 | `other`                        | anything else                                      |
 
-`utility` is plumbing — volume, gain, a send, a looper. Nobody chooses one for
+`utility` is plumbing: volume, gain, a send, a looper. Nobody chooses one for
 how it sounds, so it is excluded from anything measuring what a chain is made
 of, while still being nameable in a rig because a real chain contains them.
 
@@ -98,7 +98,7 @@ Each block and each DSP cost carries a `prov`:
 | ---------- | ------------------------------------------------------------------------------ |
 | `official` | Line 6 stated it                                                               |
 | `observed` | inferred from presets, so the bounds are only what the corpus happened to hold |
-| `assumed`  | neither — a guess                                                              |
+| `assumed`  | neither, so a guess                                                            |
 
 This is not decoration. A chain is never filled with a block whose DSP cost is
 `assumed`: budgeting a rig on a guess produces one that validation refuses a
@@ -112,7 +112,7 @@ tonestack catalog list --category amp --subcategory bass
 tonestack catalog show --model HD2_AmpSVBeastNrm
 ```
 
-What the device can do is a different question from what people do with it — see
+What the device can do is a different question from what people do with it. See
 [corpus statistics](knowledge.md). Line 6 state a default Treble of 0.68 for an
 Ampeg SVT; the median across every measured use is 0.845. Both are facts, and
 the catalog only knows the first.
