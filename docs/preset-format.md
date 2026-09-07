@@ -63,6 +63,25 @@ A `.hlb` is what HX Edit writes when it backs a device up, which makes it the
 only file stating everything the hardware currently holds. That is what
 [device.md](device.md) builds on.
 
+## Nothing may be dropped on a rewrite
+
+A preset read and written back is byte-for-byte the preset that was read, and a
+test asserts it over the whole corpus. Making that true meant fixing four ways
+it silently was not, and each is a rule for anything added later.
+
+- **A field that can legitimately be empty must not be `omitempty`.** An
+  explicit `""` is a different document from a missing field.
+- **Whatever is not modelled is kept.** Presets carry `song`, `band`, `author`,
+  `tnid`, and an `appVersion` spelled two ways. Metadata holds the name and
+  preserves the rest verbatim; a block holds the attributes it models and
+  preserves the others.
+- **A value keeps the form it arrived in.** `device_version` appears as a
+  number, as `"0"` and as `"0.00"`. Parsing and reprinting turns the last into
+  the second.
+- **A block's key and its `@position` are independent.** `block5` can carry
+  `@position: 6`. Deriving either from the other moves blocks around a preset
+  nobody asked to change.
+
 ## Device identifiers
 
 `data.device` names the hardware; a preset for one device will not load on

@@ -48,8 +48,28 @@ components:
       description: >
         What a piece of gear does in a chain. The same vocabulary the catalog
         groups blocks by, so a role resolves without translation.
+
+
+        `utility` is plumbing — volume, gain, a send, a looper. Nobody chooses
+        one for how it sounds, and a chain still contains them, so a rig that
+        could not name one could not describe a real preset.
       enum:
-        [amp, cab, drive, comp, gate, eq, mod, delay, reverb, wah, pitch, filter]
+        [
+          amp,
+          cab,
+          drive,
+          comp,
+          gate,
+          eq,
+          mod,
+          delay,
+          reverb,
+          wah,
+          pitch,
+          filter,
+          utility,
+          other,
+        ]
       x-enum-varnames:
         [
           RoleAmp,
@@ -64,6 +84,8 @@ components:
           RoleWah,
           RolePitch,
           RoleFilter,
+          RoleUtility,
+          RoleOther,
         ]
 
     EvidenceKind:
@@ -204,11 +226,61 @@ components:
             survive being read on other hardware.
         settings:
           $ref: "#/components/schemas/Settings"
+        models:
+          type: object
+          additionalProperties: { type: string }
+          description: >
+            The exact model this resolved to, keyed by device.
+
+
+            Gear names do not identify a model on their own: 665 models share
+            469 names, and "Ampeg SVT" matches both channels. A rig lifted
+            from a preset records what was actually there so it rebuilds
+            exactly; one written by hand carries none, and the gear name is
+            resolved against the catalog instead.
+
+
+            Reading a rig on a device it has no entry for falls back to the
+            name, which is the portable behaviour and the reason the name is
+            still required.
+        params:
+          type: object
+          additionalProperties: true
+          description: >
+            Device parameters by their own name — Sag, Bias X, Ripple.
+
+
+            Values are numbers, booleans or enumerated strings, because a
+            device mixes all three within one block and a switch is not a
+            number. Narrowing them to numbers turns every switch off.
+
+
+            Distinct from settings, which is the small musical vocabulary that
+            means something on any amplifier. These mean something on one, and
+            they are here because somebody dialling Sag by ear is producing the
+            one kind of knowledge nothing else can produce. Dropping it to stay
+            portable would throw away exactly what is worth keeping.
         evidence:
           type: array
           items: { $ref: "#/components/schemas/Evidence" }
         confidence:
           $ref: "#/components/schemas/Confidence"
+        position:
+          type: integer
+          description: >
+            Where the block sits on its path, when that is not simply its
+            order in the chain.
+
+
+            A device lays blocks out on a fixed grid and a preset may leave
+            gaps in it, so position carries information the array order does
+            not. A rig written by hand omits this and is laid out in order.
+        path:
+          type: integer
+          description: >
+            Which signal path the block is on, for devices that have more
+            than one. Omitted means the first, which is the only one an HX
+            Stomp has.
         enabled:
           type: boolean
           default: true

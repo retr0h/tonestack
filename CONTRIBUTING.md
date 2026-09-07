@@ -272,12 +272,29 @@ test says something failed without saying which layer, and which layer is the
 only useful part. `Validate` composes them in the order giving the most
 actionable first failure.
 
-### Numbers cannot be compared byte for byte
+### A preset must survive being read and written
 
-Re-serialising a parsed float does not reliably reproduce the original literal:
-roughly 60% of corpus float values are exactly float32-representable and the
-rest are not. Round-trip tests compare **semantically** — parse both sides and
-compare values. Golden-file byte comparison fails for reasons that are not bugs.
+Reading a `.hlx` and writing it back reproduces the file exactly, and there is a
+test over the whole corpus asserting it. A change that breaks that is a change
+that silently rewrites somebody's preset.
+
+An earlier version of this section claimed the opposite — that floats could not
+survive a round trip, because 30% of corpus values are not exactly
+float32-representable. That is true of float32 and irrelevant here: values are
+parsed to float64, where `0.707` survives exactly.
+
+Making it hold needed three things, and each is a rule for any field added
+later:
+
+- **Do not use `omitempty` on a field that can legitimately be empty.** It drops
+  an explicit `""`, which is a different document from one with the field
+  absent. Use a pointer, or keep the field raw.
+- **Keep what is not modelled.** Presets carry fields nobody documented — song,
+  band, author, an appVersion spelled two ways. `DataMeta` holds the name and
+  preserves the rest verbatim.
+- **Keep the form a value arrived in.** `device_version` appears as a number, as
+  `"0"` and as `"0.00"`. Parsing and reprinting turns the last into the second,
+  which is a change nobody asked for.
 
 ### Test file conventions
 

@@ -57,12 +57,16 @@ const (
 // Opcodes this package uses.
 const (
 	opListPresets = 1
+	// opReadPreset reads a slot without loading it: the device hands back
+	// the document and goes on playing whatever it was.
+	opReadPreset = 4
 )
 
 // Argument keys for those opcodes.
 const (
 	argSetlist  = 107
 	argListKind = 101
+	argSlot     = 108
 )
 
 // listKind is what HX Edit always sends alongside a setlist. Its meaning is

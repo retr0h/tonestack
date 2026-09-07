@@ -213,3 +213,19 @@ func (s *Session) Presets(ctx context.Context, setlist int) ([]wire.Preset, erro
 
 	return wire.DecodePresetList(resp.Result)
 }
+
+// ReadPreset fetches one slot without loading it.
+//
+// The device answers with its own document and goes on playing whatever it
+// was. Nothing is selected and nothing is written.
+func (s *Session) ReadPreset(ctx context.Context, setlist, slot int) (any, error) {
+	resp, err := s.Call(ctx, "control", opReadPreset, []wire.Arg{
+		{Key: argSetlist, Value: uint64(setlist)},
+		{Key: argSlot, Value: uint64(slot)},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return resp.Result, nil
+}

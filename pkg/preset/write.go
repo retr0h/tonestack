@@ -104,14 +104,30 @@ func isBlockKey(k string) bool {
 // attributes alongside parameters, each parameter in its own kind.
 func encodeBlock(b chain.Block) (json.RawMessage, error) {
 	fields := map[string]any{
-		attrModel:    string(b.Model),
-		attrPosition: b.Pos,
-		attrEnabled:  b.Enabled,
+		attrModel:   string(b.Model),
+		attrEnabled: b.Enabled,
+	}
+
+	// Position is an attribute rather than the block's key, so it is only
+	// derived from the key when a chain carried none — which is the case for
+	// a chain this tool built rather than read.
+	if _, ok := b.Attrs[attrPosition]; !ok {
+		fields[attrPosition] = b.Pos
 	}
 
 	for k, v := range b.Params {
 		if _, taken := fields[k]; taken {
 			return nil, fmt.Errorf("parameter %q collides with an attribute", k)
+		}
+
+		fields[k] = v
+	}
+
+	// Attributes the chain carried but has no opinion about, put back as
+	// they arrived.
+	for k, v := range b.Attrs {
+		if _, taken := fields[k]; taken {
+			continue
 		}
 
 		fields[k] = v

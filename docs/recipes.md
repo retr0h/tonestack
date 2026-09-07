@@ -204,6 +204,43 @@ The build reports every block it chose, what real gear each emulates, what it
 costs, and anything it added the rig did not ask for. A wrong amp should be
 visible before anyone plugs in rather than after.
 
+## Rigs read off a device carry more
+
+Everything above describes a rig somebody writes. One lifted from a preset —
+`presets export --as rigspec` — carries three more fields, and they exist so
+that reading a preset into a rig and writing it back gives the preset it came
+from. That is asserted over every HX Stomp preset in the corpus.
+
+```yaml
+- role: amp
+  gear: Ampeg SVT® (bright channel)
+  models: { HX Stomp: HD2_AmpSVBeastBrt }
+  position: 1
+  params:
+    Drive: 0.53
+    Sag: 0.5
+    "@type": 7
+```
+
+`models` records what the gear actually resolved to, keyed by device. This is
+not belt and braces: **665 models share only 469 names**, and "Ampeg SVT"
+matches both channels, so a rig carrying the name alone would rebuild into a
+different preset. A device with no entry falls back to the name, which is the
+portable behaviour and why the name is still required.
+
+`params` are device parameters under their own names — `Sag`, `Bias X` — as
+distinct from `settings`, which is the small musical vocabulary that means
+something anywhere. They are here because somebody dialling `Sag` by ear is
+producing the one kind of knowledge nothing else can, and dropping it to stay
+portable would throw away exactly what is worth keeping.
+
+**A rig stating parameters means exactly those.** No catalog defaults are added
+on top, because the block was described completely. A rig stating none is
+describing gear rather than a block, and takes Line 6's defaults.
+
+`position` is where a block sits on the device's grid, which is not always its
+order in the chain — a preset can hold `block5` whose position is 6.
+
 ## What none of this can tell you
 
 Whether it sounds right. That is a person with the preset loaded, and the answer

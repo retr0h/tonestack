@@ -137,18 +137,20 @@ func (e RigSpecSchema) Valid() bool {
 
 // Defines values for Role.
 const (
-	RoleAmp    Role = "amp"
-	RoleCab    Role = "cab"
-	RoleComp   Role = "comp"
-	RoleDelay  Role = "delay"
-	RoleDrive  Role = "drive"
-	RoleEQ     Role = "eq"
-	RoleFilter Role = "filter"
-	RoleGate   Role = "gate"
-	RoleMod    Role = "mod"
-	RolePitch  Role = "pitch"
-	RoleReverb Role = "reverb"
-	RoleWah    Role = "wah"
+	RoleAmp     Role = "amp"
+	RoleCab     Role = "cab"
+	RoleComp    Role = "comp"
+	RoleDelay   Role = "delay"
+	RoleDrive   Role = "drive"
+	RoleEQ      Role = "eq"
+	RoleFilter  Role = "filter"
+	RoleGate    Role = "gate"
+	RoleMod     Role = "mod"
+	RoleOther   Role = "other"
+	RolePitch   Role = "pitch"
+	RoleReverb  Role = "reverb"
+	RoleUtility Role = "utility"
+	RoleWah     Role = "wah"
 )
 
 // Valid indicates whether the value is a known member of the Role enum.
@@ -172,9 +174,13 @@ func (e Role) Valid() bool {
 		return true
 	case RoleMod:
 		return true
+	case RoleOther:
+		return true
 	case RolePitch:
 		return true
 	case RoleReverb:
+		return true
+	case RoleUtility:
 		return true
 	case RoleWah:
 		return true
@@ -197,7 +203,31 @@ type ChainEntry struct {
 	// Gear Real-world gear, as a person would say it — "Ampeg SVT", "Klon Centaur". Never a device model identifier: those are one manufacturer's internal names, they change, and they do not survive being read on other hardware.
 	Gear string `json:"gear"`
 
+	// Models The exact model this resolved to, keyed by device.
+	//
+	// Gear names do not identify a model on their own: 665 models share 469 names, and "Ampeg SVT" matches both channels. A rig lifted from a preset records what was actually there so it rebuilds exactly; one written by hand carries none, and the gear name is resolved against the catalog instead.
+	//
+	// Reading a rig on a device it has no entry for falls back to the name, which is the portable behaviour and the reason the name is still required.
+	Models *map[string]string `json:"models,omitempty"`
+
+	// Params Device parameters by their own name — Sag, Bias X, Ripple.
+	//
+	// Values are numbers, booleans or enumerated strings, because a device mixes all three within one block and a switch is not a number. Narrowing them to numbers turns every switch off.
+	//
+	// Distinct from settings, which is the small musical vocabulary that means something on any amplifier. These mean something on one, and they are here because somebody dialling Sag by ear is producing the one kind of knowledge nothing else can produce. Dropping it to stay portable would throw away exactly what is worth keeping.
+	Params *map[string]interface{} `json:"params,omitempty"`
+
+	// Path Which signal path the block is on, for devices that have more than one. Omitted means the first, which is the only one an HX Stomp has.
+	Path *int `json:"path,omitempty"`
+
+	// Position Where the block sits on its path, when that is not simply its order in the chain.
+	//
+	// A device lays blocks out on a fixed grid and a preset may leave gaps in it, so position carries information the array order does not. A rig written by hand omits this and is laid out in order.
+	Position *int `json:"position,omitempty"`
+
 	// Role What a piece of gear does in a chain. The same vocabulary the catalog groups blocks by, so a role resolves without translation.
+	//
+	// `utility` is plumbing — volume, gain, a send, a looper. Nobody chooses one for how it sounds, and a chain still contains them, so a rig that could not name one could not describe a real preset.
 	Role Role `json:"role"`
 
 	// Settings How the gear is set, in musical terms, from 0 to 1.
@@ -338,6 +368,8 @@ type RigSpec struct {
 type RigSpecSchema string
 
 // Role What a piece of gear does in a chain. The same vocabulary the catalog groups blocks by, so a role resolves without translation.
+//
+// `utility` is plumbing — volume, gain, a send, a looper. Nobody chooses one for how it sounds, and a chain still contains them, so a rig that could not name one could not describe a real preset.
 type Role string
 
 // Settings How the gear is set, in musical terms, from 0 to 1.

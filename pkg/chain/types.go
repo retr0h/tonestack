@@ -32,7 +32,11 @@
 // [RigSpec]: https://github.com/retr0h/tonestack/blob/main/schemas/rigspec.openapi.yaml
 package chain
 
-import "github.com/retr0h/tonestack/pkg/catalog"
+import (
+	"encoding/json"
+
+	"github.com/retr0h/tonestack/pkg/catalog"
+)
 
 // Params are parameter values keyed by the device's own parameter key.
 type Params map[string]catalog.ParamValue
@@ -53,6 +57,9 @@ type Block struct {
 	// Enabled says whether the block is doing anything. A bypassed block
 	// still occupies its position and still costs DSP.
 	Enabled bool
+	// Attrs holds the device attributes a chain has no opinion about, kept
+	// so a preset written back out is the one that was read.
+	Attrs map[string]json.RawMessage
 }
 
 // Snapshot is one set of parameter overrides a device can switch between
