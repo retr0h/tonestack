@@ -28,8 +28,8 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/retr0h/tonestack/pkg/catalog"
+	"github.com/retr0h/tonestack/pkg/chain"
 	"github.com/retr0h/tonestack/pkg/preset"
-	"github.com/retr0h/tonestack/pkg/rig"
 )
 
 type EdgePublicTestSuite struct {
@@ -115,7 +115,7 @@ func (s *EdgePublicTestSuite) TestDeviceVersionRejectsAValueOfNeitherKind() {
 }
 
 func (s *EdgePublicTestSuite) TestWriteReportsAFailingWriter() {
-	d, err := preset.New(2162694, rig.Spec{})
+	d, err := preset.New(2162694, chain.Chain{})
 	s.Require().NoError(err)
 
 	s.Require().Error(preset.Write(&failingWriter{}, d))
@@ -124,9 +124,9 @@ func (s *EdgePublicTestSuite) TestWriteReportsAFailingWriter() {
 func (s *EdgePublicTestSuite) TestSetSpecOnADocumentWithNoTone() {
 	d := &preset.Document{Schema: "L6Preset"}
 
-	s.Require().NoError(d.SetSpec(rig.Spec{
+	s.Require().NoError(d.SetSpec(chain.Chain{
 		Name:   "New",
-		Blocks: []rig.SpecBlock{{Model: "HD2_AmpX", Pos: 0, Enabled: true}},
+		Blocks: []chain.Block{{Model: "HD2_AmpX", Pos: 0, Enabled: true}},
 	}))
 
 	spec, err := d.Spec()
@@ -140,8 +140,8 @@ func (s *EdgePublicTestSuite) TestSetSpecKeepsNonBlockEntries() {
 			`"block0":{"@model":"Old","@position":0},"split":{"@model":"HD2_Split"}}}}}`)
 	s.Require().NoError(err)
 
-	s.Require().NoError(d.SetSpec(rig.Spec{
-		Blocks: []rig.SpecBlock{{Model: "New", Pos: 0, Enabled: true}},
+	s.Require().NoError(d.SetSpec(chain.Chain{
+		Blocks: []chain.Block{{Model: "New", Pos: 0, Enabled: true}},
 	}))
 
 	var buf bytes.Buffer
@@ -153,8 +153,8 @@ func (s *EdgePublicTestSuite) TestSetSpecKeepsNonBlockEntries() {
 func (s *EdgePublicTestSuite) TestEncodingRejectsAZeroParamValue() {
 	var zero catalog.ParamValue
 
-	_, err := preset.New(2162694, rig.Spec{
-		Blocks: []rig.SpecBlock{{Model: "X", Params: map[string]catalog.ParamValue{"Gain": zero}}},
+	_, err := preset.New(2162694, chain.Chain{
+		Blocks: []chain.Block{{Model: "X", Params: map[string]catalog.ParamValue{"Gain": zero}}},
 	})
 
 	s.Require().Error(err, "a value with no kind must not be written")

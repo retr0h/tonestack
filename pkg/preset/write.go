@@ -25,7 +25,7 @@ import (
 	"io"
 	"strconv"
 
-	"github.com/retr0h/tonestack/pkg/rig"
+	"github.com/retr0h/tonestack/pkg/chain"
 )
 
 // Write encodes a preset file.
@@ -46,14 +46,14 @@ func Write(w io.Writer, d *Document) error {
 // assignments are left as they were, because a chain says nothing about them
 // and discarding what the device wrote would produce a preset that loads
 // differently for reasons nobody asked for.
-func (d *Document) SetSpec(spec rig.Spec) error {
+func (d *Document) SetSpec(spec chain.Chain) error {
 	d.Data.Meta.Name = spec.Name
 
 	if d.Data.Tone == nil {
 		d.Data.Tone = map[string]Tone{}
 	}
 
-	byProcessor := map[int][]rig.SpecBlock{}
+	byProcessor := map[int][]chain.Block{}
 	for _, b := range spec.Blocks {
 		byProcessor[b.DSP] = append(byProcessor[b.DSP], b)
 	}
@@ -102,7 +102,7 @@ func isBlockKey(k string) bool {
 
 // encodeBlock renders one block as the device writes it: @-prefixed
 // attributes alongside parameters, each parameter in its own kind.
-func encodeBlock(b rig.SpecBlock) (json.RawMessage, error) {
+func encodeBlock(b chain.Block) (json.RawMessage, error) {
 	fields := map[string]any{
 		attrModel:    string(b.Model),
 		attrPosition: b.Pos,
@@ -126,7 +126,7 @@ func encodeBlock(b rig.SpecBlock) (json.RawMessage, error) {
 }
 
 // New returns a document for a device, carrying spec.
-func New(deviceID int, spec rig.Spec) (*Document, error) {
+func New(deviceID int, spec chain.Chain) (*Document, error) {
 	d := &Document{
 		Schema:  Schema,
 		Version: Version,

@@ -1,0 +1,12 @@
+{
+  "schema": "L6Setlist",
+  "version": 2,
+  "meta": {},
+  "encoding": "Base64",
+  "compression": {
+    "type": "zlib",
+    "crc32": 3430711477,
+    "decompressed_size": 10
+  },
+  "encoded_data": "eJyrVsjLL1HIKs7PAwAUFgPH"
+}

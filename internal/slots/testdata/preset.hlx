@@ -1,0 +1,46 @@
+{
+  "schema": "L6Preset",
+  "version": 6,
+  "meta": { "original": 0, "pbn": 0, "premium": 0 },
+  "data": {
+    "device": 2162694,
+    "device_version": 57737216,
+    "meta": { "name": "Test Preset", "application": "HX Edit" },
+    "tone": {
+      "dsp0": {
+        "inputA": { "@model": "HD2_AppDSPFlow1Input" },
+        "block0": {
+          "@model": "HD2_CompressorLAStudioComp",
+          "@position": 0,
+          "@enabled": true,
+          "@path": 0,
+          "@stereo": false,
+          "@type": 0,
+          "Gain": 0.68,
+          "Mix": 1.0,
+          "Type": true,
+          "Level": 0.0
+        },
+        "block1": {
+          "@model": "HD2_AmpSVBeastNrm",
+          "@position": 1,
+          "@enabled": true,
+          "Drive": 0.53,
+          "Bass": 0.6,
+          "Taps": 2
+        },
+        "outputA": { "@model": "HD2_AppDSPFlowOutput" }
+      },
+      "dsp1": {
+        "block0": {
+          "@model": "HD2_ReverbSpring",
+          "@position": 0,
+          "@enabled": false,
+          "Decay": 0.4
+        }
+      },
+      "controller": {},
+      "snapshot0": { "name": "Snap 1" }
+    }
+  }
+}
