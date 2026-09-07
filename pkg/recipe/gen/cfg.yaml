@@ -1,7 +1,0 @@
----
-package: gen
-output: recipe.gen.go
-generate:
-  models: true
-output-options:
-  skip-prune: true

@@ -1,10 +1,19 @@
+schema: RigSpec
+version: 2
 id: minimal
-kind: genre
-name: Minimal
-instrument_type: guitar
 aliases: [spare, bare]
-rig:
-  amp: Fender Twin Reverb
-provenance:
-  source: curated
-  confidence: high
+
+subject:
+  kind: genre
+  name: Minimal
+
+instrument: guitar
+
+chain:
+  - role: amp
+    gear: Fender Twin Reverb
+    evidence:
+      - { kind: cited, note: "Fender publish the model" }
+    confidence: high
+
+confidence: high

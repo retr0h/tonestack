@@ -1,10 +1,16 @@
+schema: RigSpec
+version: 2
 id: test-player
-kind: artist
-name: Test Player
-instrument_type: bass
-rig:
-  amp: Ampeg SVT
-  cab: Ampeg SVT 410HLF
-provenance:
-  source: llm
-  confidence: medium
+
+subject: { kind: artist, name: Test Player }
+instrument: bass
+
+chain:
+  - role: amp
+    gear: Ampeg SVT
+    evidence: [{ kind: llm }]
+  - role: cab
+    gear: Ampeg SVT 410HLF
+    evidence: [{ kind: llm }]
+
+confidence: medium

@@ -1,60 +1,66 @@
 # Mike Dirnt — Green Day
 #
-# Recipes name real-world gear, never Line 6 model IDs. "Ampeg SVT" resolves to
-# HD2_AmpSVBeastNrm through schemas/gear-map.json, so this file stays readable,
-# stays correct when Line 6 renames something, and works for any Helix device.
+# A rig names real-world gear, never Line 6 model identifiers. "Ampeg SVT"
+# resolves through the gear map, so this file stays readable, stays correct
+# when Line 6 rename something, and works for any Helix device.
+#
+# See docs/recipes.md, and examples/rigspec/mike-dirnt.yaml for a version with
+# every field filled in.
 
+schema: RigSpec
+version: 2
 id: mike-dirnt
-kind: artist
-name: Mike Dirnt
-band: Green Day
-instrument_type: bass
+aliases: [green-day, dirnt]
 
-# The stable layer. This is career-long and rarely wrong once confirmed.
-rig:
-  instrument: Fender Precision Bass
-  amp: Ampeg SVT
-  cab: Ampeg 8x10
-  pedals: []
-  technique: pick, near the bridge
+subject:
+  kind: artist
+  name: Mike Dirnt
+  band: Green Day
+  era: Dookie through American Idiot
 
-# How it should sound, in words a person would use. The generator turns these
-# into parameter moves against the catalog's real ranges.
+instrument: bass
+default: true
+
+# The signal path, in order. Order is what the signal does: a compressor ahead
+# of the amp squeezes what the amp is fed, one after it levels what comes out.
+chain:
+  - role: amp
+    gear: Ampeg SVT
+    evidence:
+      - kind: llm
+        note: >-
+          Model knowledge, not a cited source. Not confirmed against a rig
+          rundown or an interview.
+      - kind: video
+        url: https://www.youtube.com/watch?v=NDjtguZG6iw
+        note: a listening reference, not a citation
+        caveat: >-
+          nothing has measured this, and nobody has confirmed what is in the
+          signal path on it
+    confidence: medium
+
+  - role: cab
+    gear: Ampeg 8x10
+    evidence:
+      - { kind: llm }
+    confidence: medium
+
+# How it should sound, in the words a person would use. Describe the result,
+# not the control.
 character:
   - mid-forward, not scooped
   - minimal drive, grit only on hard attack
   - tight low end, short decay
   - pick attack audible
 
-# Per-song or per-era departures from the stable layer. Only the settings move;
-# the gear does not.
-variants:
-  - id: longview
-    name: Longview
-    character:
-      - fingers rather than pick
-      - rounder, more low-mid
-      - cleaner — the part carries the song
+technique: pick, near the bridge
 
-provenance:
-  source: llm
-  confidence: medium
-  url: https://www.youtube.com/watch?v=NDjtguZG6iw
-  notes: >
-    Gear identification is from model knowledge, not a cited source, and has
-    not been confirmed against a rig rundown or an interview. Treat the amp and
-    instrument as likely, the character notes as a starting point, and correct
-    them from what you hear.
+confidence: medium
 
-
-    The URL is a listening reference, not a citation: nothing has measured it,
-    and nobody has confirmed what is in the signal path on it. It is here so
-    the next round has something to compare against.
-
-
-    Played fingered rather than with a pick. That is a real tonal difference —
-    a pick puts high-frequency attack into every note that fingers do not — so
-    a rig tuned from picked playing reads duller under fingers, and the
-    compensation belongs in the amp and the compressor. There is nowhere in
-    this schema version to say so; RigSpec v2 carries it as
-    `target.technique`.
+target:
+  device: HX Stomp
+  # Played fingered rather than with a pick. A pick puts high-frequency attack
+  # into every note that fingers do not, so a rig tuned from picked playing
+  # reads duller under fingers — the compensation belongs in the amp and the
+  # compressor.
+  technique: fingerstyle

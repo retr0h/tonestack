@@ -29,7 +29,7 @@ import (
 	"github.com/retr0h/tonestack/internal/resolve"
 	"github.com/retr0h/tonestack/pkg/catalog"
 	"github.com/retr0h/tonestack/pkg/chain"
-	recipegen "github.com/retr0h/tonestack/pkg/recipe/gen"
+	riggen "github.com/retr0h/tonestack/pkg/rig/gen"
 )
 
 type ResolvePublicTestSuite struct {
@@ -48,25 +48,37 @@ func (s *ResolvePublicTestSuite) SetupSuite() {
 	s.Require().NoError(err)
 }
 
-// recipe returns a bass recipe naming amp, with optional cab and pedals.
-func recipe(amp string, cab string, pedals ...string) *recipegen.Recipe {
-	r := &recipegen.Recipe{
-		ID:             "test",
-		Kind:           recipegen.KindArtist,
-		Name:           "Test Player",
-		InstrumentType: recipegen.InstrumentBass,
-		Rig:            recipegen.Rig{Amp: amp},
+// recipe returns a bass rig naming amp, with optional cab and pedals.
+//
+// Pedals are written ahead of the amp because that is where the tests mean
+// them to be: a chain is ordered by what the signal does, and nothing
+// downstream reorders it.
+//
+// They carry the `other` role rather than a guess, because these fixtures do
+// not say what the pedals are and stating a role they do not have would test
+// the wrong thing.
+func recipe(amp string, cab string, pedals ...string) riggen.RigSpec {
+	spec := riggen.RigSpec{
+		Schema:     riggen.RigSpecSchemaRigSpec,
+		ID:         "test",
+		Subject:    riggen.Subject{Kind: riggen.KindArtist, Name: "Test Player"},
+		Instrument: riggen.InstrumentBass,
 	}
+
+	for _, p := range pedals {
+		spec.Chain = append(spec.Chain,
+			riggen.ChainEntry{Role: riggen.RoleOther, Gear: p})
+	}
+
+	spec.Chain = append(spec.Chain,
+		riggen.ChainEntry{Role: riggen.RoleAmp, Gear: amp})
 
 	if cab != "" {
-		r.Rig.Cab = &cab
+		spec.Chain = append(spec.Chain,
+			riggen.ChainEntry{Role: riggen.RoleCab, Gear: cab})
 	}
 
-	if len(pedals) > 0 {
-		r.Rig.Pedals = &pedals
-	}
-
-	return r
+	return spec
 }
 
 func (s *ResolvePublicTestSuite) TestResolvesGearToModels() {
@@ -118,7 +130,7 @@ func (s *ResolvePublicTestSuite) TestKeepsARequestInsideItsInstrument() {
 	s.Require().Contains(err.Error(), "bass amps")
 }
 
-func (s *ResolvePublicTestSuite) TestOrdersPedalsBeforeTheAmp() {
+func (s *ResolvePublicTestSuite) TestKeepsTheChainInTheOrderItWasWritten() {
 	spec, _, err := resolve.Resolve(recipe("Ampeg SVT", "", "Klon Centaur"), s.cat, nil)
 
 	s.Require().NoError(err)
@@ -142,6 +154,27 @@ func (s *ResolvePublicTestSuite) TestFallsBackToTheAmpsOwnCabinet() {
 
 	s.Require().NoError(err)
 	s.Require().Equal(catalog.ModelID("HD2_Cab8x10SVBeast"), spec.Blocks[1].Model)
+}
+
+func (s *ResolvePublicTestSuite) TestReportsACabinetWithNothingToFallBackTo() {
+	// A cabinet miss is only recoverable because the amplifier names the one
+	// it was voiced with. An amplifier that names none leaves nothing to
+	// substitute, so the miss has to be reported.
+	_, _, err := resolve.Resolve(
+		recipe("Cabless Bass Head", "Some Cabinet Nobody Models"), s.cat, nil)
+
+	s.Require().ErrorIs(err, resolve.ErrNoSuchGear)
+	s.Require().Contains(err.Error(), "Some Cabinet Nobody Models")
+}
+
+func (s *ResolvePublicTestSuite) TestNamesTheCabinetItSubstituted() {
+	_, added, err := resolve.Resolve(
+		recipe("Ampeg SVT", "Some Cabinet Nobody Models"), s.cat, nil)
+
+	s.Require().NoError(err)
+	s.Require().NotEmpty(added, "a substitution is a choice made for somebody")
+	s.Require().Contains(added[0].Reason, "Some Cabinet Nobody Models")
+	s.Require().Zero(added[0].Share, "a substitution is not a measurement")
 }
 
 func (s *ResolvePublicTestSuite) TestAnAmpWithNoPairedCabinet() {

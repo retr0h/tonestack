@@ -31,101 +31,125 @@
 package resolve
 
 import (
+	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/retr0h/tonestack/pkg/catalog"
 	"github.com/retr0h/tonestack/pkg/chain"
 	"github.com/retr0h/tonestack/pkg/corpus"
-	recipegen "github.com/retr0h/tonestack/pkg/recipe/gen"
+	riggen "github.com/retr0h/tonestack/pkg/rig/gen"
 )
 
-// Resolve turns a recipe into a chain for the device the catalog describes.
+// Resolve turns a rig into a chain for the device the catalog describes.
+//
+// A rig is already an ordered chain of roles, so this walks it rather than
+// reasoning about what an amplifier is: the ordering decision was made by
+// whoever wrote the rig, and second-guessing it here would silently move
+// somebody's pedals.
+//
+// What a rig does not say, the corpus fills — but only where a kind of block
+// is near-universal, and never quietly. See fill.
 func Resolve(
-	rec *recipegen.Recipe,
+	spec riggen.RigSpec,
 	cat *catalog.Catalog,
 	stats *corpus.Stats,
 ) (chain.Chain, []Added, error) {
-	instrument := string(rec.InstrumentType)
+	instrument := string(spec.Instrument)
 
-	amp, err := findGear(cat, rec.Rig.Amp, catalog.CategoryAmp, instrument)
-	if err != nil {
-		return chain.Chain{}, nil, err
+	blocks := make([]catalog.Block, 0, len(spec.Chain)+1)
+
+	// A cabinet is the one miss worth recovering from: Line 6 do not describe
+	// every cabinet in terms of real gear, and an amplifier already names the
+	// one it was voiced with. Every other role fails, because substituting an
+	// amplifier is not a detail.
+	var (
+		missed    string
+		missedErr error
+	)
+
+	for _, entry := range spec.Chain {
+		b, err := findGear(cat, entry.Gear, categoryFor(entry.Role), instrument)
+		if err != nil {
+			if entry.Role != riggen.RoleCab || !errors.Is(err, ErrNoSuchGear) {
+				return chain.Chain{}, nil, err
+			}
+
+			missed, missedErr = entry.Gear, err
+
+			continue
+		}
+
+		blocks = append(blocks, b)
 	}
 
-	blocks := make([]catalog.Block, 0, 4)
+	sub := []Added(nil)
 
-	pedals, err := findPedals(cat, rec)
-	if err != nil {
-		return chain.Chain{}, nil, err
-	}
+	// A rig naming an amplifier and no cabinet gets the one Line 6 voiced it
+	// with, which is a better answer than picking arbitrarily.
+	if cab := impliedCab(cat, blocks); cab != nil {
+		if missed != "" {
+			sub = append(sub, Added{
+				Block: *cab,
+				Reason: fmt.Sprintf(
+					"nothing emulates %q — used the amp's own pairing", missed),
+			})
+		}
 
-	// Pedals reach the amp, the amp reaches the cabinet. That order is the
-	// grammar of every guitar rig and is not a preference.
-	blocks = append(blocks, pedals...)
-	blocks = append(blocks, amp)
-
-	if cab := findCab(cat, rec, amp); cab != nil {
 		blocks = append(blocks, *cab)
+	} else if missed != "" {
+		// Nothing to fall back to, so the rig named a cabinet that cannot be
+		// built and saying so is the only honest answer.
+		return chain.Chain{}, nil, missedErr
 	}
 
 	blocks, added := fill(blocks, cat, stats, instrument)
 
-	return spec(rec, blocks, stats), added, nil
+	return specFor(spec, blocks, stats), append(sub, added...), nil
 }
 
-// findPedals resolves each pedal the recipe names, in signal order.
-func findPedals(cat *catalog.Catalog, rec *recipegen.Recipe) ([]catalog.Block, error) {
-	if rec.Rig.Pedals == nil {
-		return nil, nil
-	}
-
-	out := make([]catalog.Block, 0, len(*rec.Rig.Pedals))
-
-	for _, name := range *rec.Rig.Pedals {
-		// A pedal is not tagged by instrument, so the whole catalog is
-		// eligible and any category will do — a recipe naming a delay is
-		// naming a delay.
-		b, err := findGear(cat, name, "", "")
-		if err != nil {
-			return nil, err
-		}
-
-		out = append(out, b)
-	}
-
-	return out, nil
-}
-
-// findCab resolves the cabinet, preferring what the recipe names.
+// categoryFor maps a rig's role onto the catalog's own grouping.
 //
-// A recipe that names none gets the pairing Line 6 ships with the amp, which
-// is a better answer than picking arbitrarily: it is what the model was voiced
-// with.
-func findCab(
-	cat *catalog.Catalog,
-	rec *recipegen.Recipe,
-	amp catalog.Block,
-) *catalog.Block {
-	// Cabinets are not tagged by instrument the way amps are — Line 6 groups
-	// them by routing — so the whole catalog is eligible.
-	if rec.Rig.Cab != nil && *rec.Rig.Cab != "" {
-		if b, err := findGear(cat, *rec.Rig.Cab, catalog.CategoryCab, ""); err == nil {
-			return &b
+// They are deliberately the same words, so this is a conversion rather than a
+// translation. A rig that says `delay` and names an amplifier is describing
+// something the device cannot do, and failing to find it is the right answer.
+//
+// `other` is the exception, because the two vocabularies mean different things
+// by it. In a rig it means the author did not say what the gear does; in the
+// catalog it is Line 6's residual bucket. Reading the first as the second
+// would search a handful of blocks for gear that is almost certainly filed
+// somewhere else, so an unnamed role searches everything.
+func categoryFor(role riggen.Role) catalog.Category {
+	if role == "" || role == riggen.RoleOther {
+		return ""
+	}
+
+	return catalog.Category(role)
+}
+
+// impliedCab returns the cabinet an amplifier names, when the chain has none.
+//
+// Line 6 state a cablink for most amps: the cabinet the model was voiced
+// with. A chain that ended up without a cabinet is better served by that than
+// by whatever the catalog happens to list first.
+func impliedCab(cat *catalog.Catalog, blocks []catalog.Block) *catalog.Block {
+	for _, b := range blocks {
+		if b.Category == catalog.CategoryCab {
+			return nil
+		}
+	}
+
+	for _, b := range blocks {
+		if b.Category != catalog.CategoryAmp || b.CabLink == "" {
+			continue
 		}
 
-		// A cabinet the catalog does not name is not a reason to refuse to
-		// build. Line 6 does not describe every cabinet in terms of real
-		// gear, and the amp's own pairing is a better answer than nothing.
+		if cab, ok := cat.Block(b.CabLink); ok {
+			return &cab
+		}
 	}
 
-	b, ok := cat.Block(amp.CabLink)
-	if !ok {
-		// An amp with no stated pairing, or one naming a cabinet this device
-		// does not have. A chain without a cabinet is still a chain.
-		return nil
-	}
-
-	return &b
+	return nil
 }
 
 // findGear returns the block emulating the named gear.
@@ -222,14 +246,14 @@ func kindOf(c catalog.Category) string {
 	return string(c)
 }
 
-// spec lays blocks out as a chain the device can represent.
-func spec(
-	rec *recipegen.Recipe,
+// specFor lays blocks out as a chain the device can represent.
+func specFor(
+	spec riggen.RigSpec,
 	blocks []catalog.Block,
 	stats *corpus.Stats,
 ) chain.Chain {
 	out := chain.Chain{
-		Name:   rec.Name,
+		Name:   spec.Subject.Name,
 		Blocks: make([]chain.Block, 0, len(blocks)),
 	}
 

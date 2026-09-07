@@ -208,12 +208,15 @@ func explain(w io.Writer, added []resolve.Added) error {
 	}
 
 	for _, a := range added {
-		_, err := fmt.Fprintf(w, "%s%s %s\n",
-			cli.Indent,
-			cli.Mute(w, "added"),
-			fmt.Sprintf("%s — %s (%.0f%% of chains)",
-				a.Block.Name, a.Reason, a.Share*100),
-		)
+		// A block drawn from the corpus can say how common it is. One
+		// substituted for gear no model emulates cannot, and appending "0% of
+		// chains" to it would read as a measurement.
+		line := fmt.Sprintf("%s — %s", a.Block.Name, a.Reason)
+		if a.Share > 0 {
+			line += fmt.Sprintf(" (%.0f%% of chains)", a.Share*100)
+		}
+
+		_, err := fmt.Fprintf(w, "%s%s %s\n", cli.Indent, cli.Mute(w, "added"), line)
 		if err != nil {
 			return err
 		}

@@ -143,11 +143,18 @@ func match(c *catalog.Catalog, f Filter) []catalog.Block {
 
 // mentions reports whether a block's name or real-world gear contains term.
 func mentions(b catalog.Block, term string) bool {
-	term = strings.ToLower(term)
+	// The same rule the resolver uses, so browsing for gear predicts whether
+	// a rig naming it will build. Two matchers meant a search could find gear
+	// that then failed to resolve, which is the worst way to learn the
+	// difference.
+	if b.Matches(term) {
+		return true
+	}
 
-	return strings.Contains(strings.ToLower(b.Name), term) ||
-		strings.Contains(strings.ToLower(b.BasedOn), term) ||
-		strings.Contains(strings.ToLower(string(b.ID)), term)
+	// A model identifier is not gear, and nobody should write one in a rig.
+	// It is still the fastest way to look one up when reading a preset.
+	return strings.Contains(
+		strings.ToLower(string(b.ID)), strings.ToLower(term))
 }
 
 // Show writes one block's parameters to w.

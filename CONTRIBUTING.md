@@ -57,15 +57,19 @@ just deps
 main.go              a single call into cmd
 cmd/                 cobra wiring — flags to behaviour, no logic
 internal/            implementation, not importable
-internal/tui/        the shared visual language: palette, table, chain view
+internal/cli/        the shared visual language: theme, table, detail, help
+internal/resolve/    a rig and a catalog become a chain
+internal/lift/       a preset becomes a rig, and a rig becomes a preset
+pkg/rig/             RigSpec — the one authored format — and its validation
+pkg/chain/           a resolved chain. An internal struct, not a format.
 pkg/catalog/         what a device can do: blocks, parameters, DSP costs
-pkg/rig/             Spec — a signal chain — and its validation layers
+pkg/corpus/          what real presets say about a device, measured
 pkg/preset/          read and write a .hlx preset file
 pkg/setlist/         read and write .hls setlists and .hlb device backups
 pkg/sdk/             talk to a device over USB. The only cgo in the tree.
 pkg/sdk/wire/        the framing a device speaks. Pure Go, no hardware needed.
-schemas/             RigSpec and Recipe contracts, generated catalog, corpus
-recipes/             curated knowledge — which gear a player uses
+schemas/             the RigSpec contract, generated catalog, preset corpus
+recipes/             curated rigs — which gear a player uses
 docs/                how the format, catalog and generation work
 .github/workflows/   CI
 ```
