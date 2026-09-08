@@ -22,6 +22,7 @@ package recipes_test
 import (
 	"bytes"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -29,6 +30,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/retr0h/tonestack/internal/recipes"
+	riggen "github.com/retr0h/tonestack/pkg/rig/gen"
 )
 
 type RecipesPublicTestSuite struct {
@@ -38,157 +40,300 @@ type RecipesPublicTestSuite struct {
 func (s *RecipesPublicTestSuite) good() string  { return "testdata-good" }
 func (s *RecipesPublicTestSuite) mixed() string { return "testdata" }
 
-func (s *RecipesPublicTestSuite) TestLoadReadsEveryRecipe() {
-	all, err := recipes.Load(s.good())
+// TestLoad reads a directory of recipes.
+func (s *RecipesPublicTestSuite) TestLoad() {
+	locked := s.T().TempDir()
+	s.Require().NoError(os.MkdirAll(filepath.Join(locked, "artists"), 0o750))
 
-	s.Require().NoError(err)
-	s.Require().Len(all, 3)
-	s.Require().Equal("mike-dirnt", all[0].ID, "sorted by identifier")
-	s.Require().Equal("mike-dirnt-longview", all[1].ID)
-	s.Require().Equal("minimal", all[2].ID)
-}
-
-func (s *RecipesPublicTestSuite) TestLoadStopsOnAnInvalidRecipe() {
-	// A half-read knowledge base is worse than a complaint about the file to
-	// fix, so one bad recipe fails the whole load.
-	_, err := recipes.Load(s.mixed())
-
-	s.Require().Error(err)
-	s.Require().Contains(err.Error(), "broken.yaml")
-}
-
-func (s *RecipesPublicTestSuite) TestLoadOnAnEmptyDirectory() {
-	all, err := recipes.Load(s.T().TempDir())
-
-	s.Require().NoError(err)
-	s.Require().Empty(all)
-}
-
-func (s *RecipesPublicTestSuite) TestFindByIdentifier() {
-	r, err := recipes.Find(s.good(), "mike-dirnt")
-
-	s.Require().NoError(err)
-	s.Require().Equal("Mike Dirnt", r.Subject.Name)
-}
-
-func (s *RecipesPublicTestSuite) TestFindIsCaseInsensitive() {
-	_, err := recipes.Find(s.good(), "MIKE-DIRNT")
-
-	s.Require().NoError(err)
-}
-
-func (s *RecipesPublicTestSuite) TestFindByAlias() {
-	r, err := recipes.Find(s.good(), "spare")
-
-	s.Require().NoError(err)
-	s.Require().Equal("minimal", r.ID)
-}
-
-func (s *RecipesPublicTestSuite) TestShowOmitsWhatIsNotThere() {
-	var out bytes.Buffer
-
-	s.Require().NoError(recipes.Show(&out, s.good(), "minimal"))
-
-	got := out.String()
-	s.Require().NotContains(got, "character", "nothing to say about how it sounds")
-	s.Require().NotContains(got, "variants")
-	s.Require().NotContains(got, "band")
-	s.Require().NotContains(got, "unverified", "a curated recipe is confirmed")
-}
-
-func (s *RecipesPublicTestSuite) TestLoadReportsAnUnreadableFile() {
-	dir := s.T().TempDir()
-	sub := filepath.Join(dir, "artists")
-	s.Require().NoError(os.MkdirAll(sub, 0o750))
-
-	path := filepath.Join(sub, "locked.yaml")
+	path := filepath.Join(locked, "artists", "locked.yaml")
 	s.Require().NoError(os.WriteFile(path, []byte("id: locked"), 0o600))
 	s.Require().NoError(os.Chmod(path, 0o000))
 
-	_, err := recipes.Load(dir)
+	tests := []struct {
+		name  string
+		dir   string
+		ids   []string
+		empty bool
+		err   string
+	}{
+		{
+			name: "every recipe in the directory, sorted",
+			dir:  s.good(),
+			ids:  []string{"mike-dirnt", "mike-dirnt-longview", "minimal"},
+		},
+		{
+			// A half-read knowledge base is worse than a complaint about the
+			// file to fix, so one bad recipe fails the whole load.
+			name: "one that will not parse stops the load",
+			dir:  s.mixed(),
+			err:  "broken.yaml",
+		},
+		{
+			name: "one that cannot be opened",
+			dir:  locked,
+			err:  "opening",
+		},
+		{
+			name:  "a directory holding none",
+			dir:   s.T().TempDir(),
+			empty: true,
+		},
+		{
+			// No directory is the case for anyone running an installed
+			// binary rather than working in a checkout.
+			name: "no directory falls back to the built-in recipes",
+			dir:  "",
+		},
+	}
 
-	s.Require().Error(err)
-	s.Require().Contains(err.Error(), "opening")
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			all, err := recipes.Load(tt.dir)
+
+			if tt.err != "" {
+				s.Require().Error(err)
+				s.Require().Contains(err.Error(), tt.err)
+
+				return
+			}
+
+			s.Require().NoError(err)
+
+			if tt.empty {
+				s.Require().Empty(all)
+
+				return
+			}
+
+			if tt.ids == nil {
+				s.Require().NotEmpty(all, "recipes ship in the binary")
+
+				return
+			}
+
+			s.Require().Equal(tt.ids, ids(all))
+		})
+	}
 }
 
-func (s *RecipesPublicTestSuite) TestFindReportsAnUnknownIdentifier() {
-	_, err := recipes.Find(s.good(), "nobody")
+// TestFind looks one recipe up.
+func (s *RecipesPublicTestSuite) TestFind() {
+	tests := []struct {
+		name string
+		dir  string
+		id   string
+		want string
+		errs []string
+	}{
+		{
+			name: "by identifier",
+			dir:  s.good(),
+			id:   "mike-dirnt",
+			want: "mike-dirnt",
+		},
+		{
+			name: "whatever case somebody typed",
+			dir:  s.good(),
+			id:   "MIKE-DIRNT",
+			want: "mike-dirnt",
+		},
+		{
+			name: "by an alias the recipe claims",
+			dir:  s.good(),
+			id:   "spare",
+			want: "minimal",
+		},
+		{
+			name: "one nobody wrote",
+			dir:  s.good(),
+			id:   "nobody",
+			errs: []string{"recipes list"},
+		},
+		{
+			name: "a directory that will not load",
+			dir:  s.mixed(),
+			id:   "mike-dirnt",
+			errs: []string{"broken.yaml"},
+		},
+	}
 
-	s.Require().ErrorIs(err, recipes.ErrNotFound)
-	s.Require().Contains(err.Error(), "recipes list")
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			got, err := recipes.Find(tt.dir, tt.id)
+
+			if tt.errs != nil {
+				s.Require().Error(err)
+
+				for _, want := range tt.errs {
+					s.Require().Contains(err.Error(), want)
+				}
+
+				return
+			}
+
+			s.Require().NoError(err)
+			s.Require().Equal(tt.want, got.ID)
+		})
+	}
 }
 
-func (s *RecipesPublicTestSuite) TestFindPropagatesALoadFailure() {
-	_, err := recipes.Find(s.mixed(), "mike-dirnt")
+// TestList writes out what is on the shelf.
+func (s *RecipesPublicTestSuite) TestList() {
+	tests := []struct {
+		name     string
+		dir      string
+		to       io.Writer
+		contains []string
+		err      bool
+	}{
+		{
+			name:     "one line per recipe",
+			dir:      s.good(),
+			contains: []string{"mike-dirnt", "Ampeg SVT", "llm"},
+		},
+		{
+			name:     "a shelf with nothing on it",
+			dir:      s.T().TempDir(),
+			contains: []string{"no recipes here"},
+		},
+		{
+			name: "a directory that will not load",
+			dir:  s.mixed(),
+			err:  true,
+		},
+		{
+			name: "nowhere to write it",
+			dir:  s.good(),
+			to:   &failingWriter{},
+			err:  true,
+		},
+		{
+			name: "nowhere to write the empty case either",
+			dir:  s.T().TempDir(),
+			to:   &failingWriter{},
+			err:  true,
+		},
+	}
 
-	s.Require().Error(err)
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			var buf bytes.Buffer
+
+			to := tt.to
+			if to == nil {
+				to = &buf
+			}
+
+			err := recipes.List(to, tt.dir)
+
+			if tt.err {
+				s.Require().Error(err)
+
+				return
+			}
+
+			s.Require().NoError(err)
+
+			for _, want := range tt.contains {
+				s.Require().Contains(buf.String(), want)
+			}
+		})
+	}
 }
 
-func (s *RecipesPublicTestSuite) TestListNamesEachRecipe() {
-	var out bytes.Buffer
+// TestShow writes out one recipe.
+func (s *RecipesPublicTestSuite) TestShow() {
+	tests := []struct {
+		name     string
+		dir      string
+		id       string
+		to       io.Writer
+		contains []string
+		absent   []string
+		err      bool
+	}{
+		{
+			name: "everything a person wrote",
+			dir:  s.good(),
+			id:   "mike-dirnt",
+			contains: []string{
+				"Mike Dirnt", "Green Day", "Dookie through American Idiot",
+				"pick, near the bridge", "mid-forward", "Longview",
+				// An llm-sourced recipe must say nobody confirmed it.
+				"unverified",
+			},
+		},
+		{
+			name: "nothing about what nobody wrote",
+			dir:  s.good(),
+			id:   "minimal",
+			absent: []string{
+				"character", "variants", "band",
+				// A curated recipe is confirmed.
+				"unverified",
+			},
+		},
+		{
+			// Saying nothing about how far to trust a rig is not a claim
+			// that it can be trusted.
+			name:     "an unstated confidence reads as low",
+			dir:      s.good(),
+			id:       "mike-dirnt-longview",
+			contains: []string{"low confidence"},
+		},
+		{
+			name: "a recipe nobody wrote",
+			dir:  s.good(),
+			id:   "nobody",
+			err:  true,
+		},
+		{
+			name: "a directory that will not load",
+			dir:  s.mixed(),
+			id:   "mike-dirnt",
+			err:  true,
+		},
+		{
+			name: "nowhere to write it",
+			dir:  s.good(),
+			id:   "mike-dirnt",
+			to:   &failingWriter{},
+			err:  true,
+		},
+	}
 
-	s.Require().NoError(recipes.List(&out, s.good()))
-	s.Require().Contains(out.String(), "mike-dirnt")
-	s.Require().Contains(out.String(), "Ampeg SVT")
-	s.Require().Contains(out.String(), "llm")
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			var buf bytes.Buffer
+
+			to := tt.to
+			if to == nil {
+				to = &buf
+			}
+
+			err := recipes.Show(to, tt.dir, tt.id)
+
+			if tt.err {
+				s.Require().Error(err)
+
+				return
+			}
+
+			s.Require().NoError(err)
+
+			for _, want := range tt.contains {
+				s.Require().Contains(buf.String(), want)
+			}
+
+			for _, gone := range tt.absent {
+				s.Require().NotContains(buf.String(), gone)
+			}
+		})
+	}
 }
 
-func (s *RecipesPublicTestSuite) TestListSaysSoWhenThereAreNone() {
-	var out bytes.Buffer
-	dir := s.T().TempDir()
-
-	s.Require().NoError(recipes.List(&out, dir))
-	s.Require().Contains(out.String(), "no recipes here")
-}
-
-func (s *RecipesPublicTestSuite) TestListPropagatesALoadFailure() {
-	s.Require().Error(recipes.List(&bytes.Buffer{}, s.mixed()))
-}
-
-func (s *RecipesPublicTestSuite) TestListReportsAFailingWriter() {
-	s.Require().Error(recipes.List(&failingWriter{}, s.good()))
-	s.Require().Error(recipes.List(&failingWriter{}, s.T().TempDir()))
-}
-
-func (s *RecipesPublicTestSuite) TestShowRendersEverythingAPersonWrote() {
-	var out bytes.Buffer
-
-	s.Require().NoError(recipes.Show(&out, s.good(), "mike-dirnt"))
-
-	got := out.String()
-	s.Require().Contains(got, "Mike Dirnt")
-	s.Require().Contains(got, "Green Day")
-	s.Require().Contains(got, "Dookie through American Idiot")
-	s.Require().Contains(got, "pick, near the bridge")
-	s.Require().Contains(got, "mid-forward")
-	s.Require().Contains(got, "Longview")
-	s.Require().Contains(got, "unverified",
-		"an llm-sourced recipe must say nobody confirmed it")
-}
-
-func (s *RecipesPublicTestSuite) TestShowPropagatesALoadFailure() {
-	s.Require().Error(recipes.Show(&bytes.Buffer{}, s.mixed(), "mike-dirnt"))
-}
-
-func (s *RecipesPublicTestSuite) TestShowTreatsAnUnstatedConfidenceAsLow() {
-	// Saying nothing about how far to trust a rig is not a claim that it can
-	// be trusted.
-	var out bytes.Buffer
-
-	s.Require().NoError(recipes.Show(&out, s.good(), "mike-dirnt-longview"))
-	s.Require().Contains(out.String(), "low confidence")
-}
-
-func (s *RecipesPublicTestSuite) TestShowReportsAnUnknownRecipe() {
-	s.Require().ErrorIs(
-		recipes.Show(&bytes.Buffer{}, s.good(), "nobody"), recipes.ErrNotFound)
-}
-
-func (s *RecipesPublicTestSuite) TestShowReportsAFailingWriter() {
-	s.Require().Error(recipes.Show(&failingWriter{}, s.good(), "mike-dirnt"))
-}
-
-func (s *RecipesPublicTestSuite) TestNotFoundErrorNamesWhatWasAsked() {
+// TestNotFoundError covers what somebody reads when the recipe is not there.
+func (s *RecipesPublicTestSuite) TestNotFoundError() {
 	err := &recipes.NotFoundError{ID: "flea", Known: 3}
 
 	s.Require().Contains(err.Error(), "flea")
@@ -196,23 +341,25 @@ func (s *RecipesPublicTestSuite) TestNotFoundErrorNamesWhatWasAsked() {
 	s.Require().ErrorIs(err, recipes.ErrNotFound)
 }
 
+// TestDefaultDirIsWhereRecipesLive keeps the fallback pointing at something.
 func (s *RecipesPublicTestSuite) TestDefaultDirIsWhereRecipesLive() {
 	s.Require().Equal("resources/recipes", recipes.DefaultDir)
 	s.Require().DirExists(filepath.Join("..", "..", recipes.DefaultDir))
 }
 
+// ids names what a load returned, in order.
+func ids(all []riggen.RigSpec) []string {
+	out := make([]string, 0, len(all))
+	for _, r := range all {
+		out = append(out, r.ID)
+	}
+
+	return out
+}
+
 type failingWriter struct{}
 
 func (*failingWriter) Write([]byte) (int, error) { return 0, errors.New("boom") }
-
-func (s *RecipesPublicTestSuite) TestLoadFallsBackToTheBuiltInRecipes() {
-	// No directory is the case for anyone running an installed binary rather
-	// than working in a checkout.
-	all, err := recipes.Load("")
-
-	s.Require().NoError(err)
-	s.Require().NotEmpty(all, "recipes ship in the binary")
-}
 
 func TestRecipesPublicTestSuite(t *testing.T) {
 	suite.Run(t, new(RecipesPublicTestSuite))
