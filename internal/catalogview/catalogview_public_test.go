@@ -22,6 +22,7 @@ package catalogview_test
 import (
 	"bytes"
 	"errors"
+	"io"
 	"path/filepath"
 	"testing"
 
@@ -38,142 +39,309 @@ func (s *CatalogViewPublicTestSuite) path() string {
 	return filepath.Join("testdata", "catalog.json")
 }
 
-func (s *CatalogViewPublicTestSuite) TestOpenReadsACatalog() {
-	c, err := catalogview.Open(s.path())
+// TestOpen reads a catalog off disk, or the one built into the binary.
+func (s *CatalogViewPublicTestSuite) TestOpen() {
+	tests := []struct {
+		name   string
+		path   string
+		device string
+		blocks int
+		err    bool
+		says   string
+	}{
+		{
+			name:   "a catalog somebody generated",
+			path:   s.path(),
+			device: "HX Stomp",
+			blocks: 2,
+		},
+		{
+			// No path is the case for anyone who has not generated their
+			// own, which is everyone who installed a binary.
+			name: "no path falls back to the built-in one",
+			path: "",
+		},
+		{
+			name: "a file that is not there",
+			path: filepath.Join("testdata", "nope.json"),
+			err:  true,
+			says: "opening catalog",
+		},
+		{
+			name: "one that is not a catalog",
+			path: filepath.Join("testdata", "bad.json"),
+			err:  true,
+		},
+	}
 
-	s.Require().NoError(err)
-	s.Require().Equal("HX Stomp", c.Device)
-	s.Require().Len(c.Blocks, 2)
-}
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			got, err := catalogview.Open(tt.path)
 
-func (s *CatalogViewPublicTestSuite) TestOpenReportsAMissingFile() {
-	_, err := catalogview.Open("testdata/nope.json")
+			if tt.err {
+				s.Require().Error(err)
 
-	s.Require().Error(err)
-	s.Require().Contains(err.Error(), "opening catalog")
-}
+				if tt.says != "" {
+					s.Require().Contains(err.Error(), tt.says)
+				}
 
-func (s *CatalogViewPublicTestSuite) TestOpenReportsAMalformedFile() {
-	_, err := catalogview.Open(filepath.Join("testdata", "bad.json"))
+				return
+			}
 
-	s.Require().Error(err)
-}
+			s.Require().NoError(err)
 
-func (s *CatalogViewPublicTestSuite) TestListShowsEveryBlock() {
-	var out bytes.Buffer
+			if tt.device != "" {
+				s.Require().Equal(tt.device, got.Device)
+				s.Require().Len(got.Blocks, tt.blocks)
 
-	s.Require().NoError(catalogview.List(&out, s.path(), catalogview.Filter{}))
-	s.Require().Contains(out.String(), "HD2_AmpTestBass")
-	s.Require().Contains(out.String(), "HD2_DriveTest")
-	s.Require().Contains(out.String(), "2 of 2 blocks")
-}
+				return
+			}
 
-func (s *CatalogViewPublicTestSuite) TestListFiltersByCategory() {
-	var out bytes.Buffer
-
-	s.Require().NoError(catalogview.List(&out, s.path(),
-		catalogview.Filter{Category: "amp"}))
-	s.Require().Contains(out.String(), "HD2_AmpTestBass")
-	s.Require().NotContains(out.String(), "HD2_DriveTest")
-	s.Require().Contains(out.String(), "1 of 2 blocks")
-}
-
-func (s *CatalogViewPublicTestSuite) TestListFiltersBySubcategory() {
-	var out bytes.Buffer
-
-	// This is the filter that makes a bass request draw from bass amps.
-	s.Require().NoError(catalogview.List(&out, s.path(),
-		catalogview.Filter{Subcategory: "bass"}))
-	s.Require().Contains(out.String(), "HD2_AmpTestBass")
-	s.Require().NotContains(out.String(), "HD2_DriveTest")
-}
-
-func (s *CatalogViewPublicTestSuite) TestListSearchesNameGearAndIdentifier() {
-	for _, term := range []string{"Test Bass", "ampeg", "SVBeast", "hd2_amptestbass"} {
-		var out bytes.Buffer
-
-		s.Require().NoError(catalogview.List(&out, s.path(),
-			catalogview.Filter{Search: term}))
-
-		if term == "SVBeast" {
-			s.Require().Contains(out.String(), "no blocks match")
-
-			continue
-		}
-
-		s.Require().Contains(out.String(), "HD2_AmpTestBass", "searching %q", term)
+			s.Require().NotEmpty(got.Blocks)
+			s.Require().NotEmpty(got.Source)
+		})
 	}
 }
 
-func (s *CatalogViewPublicTestSuite) TestListSaysSoWhenNothingMatches() {
-	var out bytes.Buffer
+// TestList writes out the blocks a filter selects.
+func (s *CatalogViewPublicTestSuite) TestList() {
+	tests := []struct {
+		name     string
+		path     string
+		filter   catalogview.Filter
+		to       io.Writer
+		contains []string
+		absent   []string
+		err      bool
+	}{
+		{
+			name:     "every block, with a count",
+			path:     s.path(),
+			contains: []string{"HD2_AmpTestBass", "HD2_DriveTest", "2 of 2 blocks"},
+		},
+		{
+			name:     "narrowed to a category",
+			path:     s.path(),
+			filter:   catalogview.Filter{Category: "amp"},
+			contains: []string{"HD2_AmpTestBass", "1 of 2 blocks"},
+			absent:   []string{"HD2_DriveTest"},
+		},
+		{
+			// This is the filter that makes a bass request draw from bass
+			// amps.
+			name:     "narrowed to a subcategory",
+			path:     s.path(),
+			filter:   catalogview.Filter{Subcategory: "bass"},
+			contains: []string{"HD2_AmpTestBass"},
+			absent:   []string{"HD2_DriveTest"},
+		},
+		{
+			name:     "searched by the name a person would use",
+			path:     s.path(),
+			filter:   catalogview.Filter{Search: "Test Bass"},
+			contains: []string{"HD2_AmpTestBass"},
+		},
+		{
+			name:     "searched by the gear it emulates",
+			path:     s.path(),
+			filter:   catalogview.Filter{Search: "ampeg"},
+			contains: []string{"HD2_AmpTestBass"},
+		},
+		{
+			name:     "searched by identifier, whatever case",
+			path:     s.path(),
+			filter:   catalogview.Filter{Search: "hd2_amptestbass"},
+			contains: []string{"HD2_AmpTestBass"},
+		},
+		{
+			// A device's own name for a model is not what the catalog
+			// searches, so this finds nothing rather than everything.
+			name:     "searched by a name only the device uses",
+			path:     s.path(),
+			filter:   catalogview.Filter{Search: "SVBeast"},
+			contains: []string{"no blocks match"},
+		},
+		{
+			name:     "a filter nothing matches",
+			path:     s.path(),
+			filter:   catalogview.Filter{Category: "looper"},
+			contains: []string{"no blocks match"},
+		},
+		{
+			// A catalog is only true of the release it came from, so it says
+			// which.
+			name:     "the release it came from",
+			path:     "",
+			filter:   catalogview.Filter{Search: "klon"},
+			contains: []string{"HX Edit"},
+		},
+		{
+			name:     "one that cannot name its source",
+			path:     s.path(),
+			contains: []string{"source unknown"},
+		},
+		{
+			name: "a catalog that will not open",
+			path: filepath.Join("testdata", "nope.json"),
+			err:  true,
+		},
+		{
+			name: "nowhere to write it",
+			path: s.path(),
+			to:   &failingWriter{},
+			err:  true,
+		},
+		{
+			name:   "nowhere to write the empty case either",
+			path:   s.path(),
+			filter: catalogview.Filter{Category: "looper"},
+			to:     &failingWriter{},
+			err:    true,
+		},
+	}
 
-	s.Require().NoError(catalogview.List(&out, s.path(),
-		catalogview.Filter{Category: "looper"}))
-	s.Require().Contains(out.String(), "no blocks match")
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			var buf bytes.Buffer
+
+			to := tt.to
+			if to == nil {
+				to = &buf
+			}
+
+			err := catalogview.List(to, tt.path, tt.filter)
+
+			if tt.err {
+				s.Require().Error(err)
+
+				return
+			}
+
+			s.Require().NoError(err)
+
+			for _, want := range tt.contains {
+				s.Require().Contains(buf.String(), want)
+			}
+
+			for _, gone := range tt.absent {
+				s.Require().NotContains(buf.String(), gone)
+			}
+		})
+	}
 }
 
-func (s *CatalogViewPublicTestSuite) TestListPropagatesAnUnreadableCatalog() {
-	s.Require().Error(catalogview.List(&bytes.Buffer{}, "nope.json", catalogview.Filter{}))
+// TestShow writes out one block and everything it accepts.
+func (s *CatalogViewPublicTestSuite) TestShow() {
+	tests := []struct {
+		name     string
+		path     string
+		id       string
+		to       io.Writer
+		contains []string
+		absent   []string
+		err      bool
+	}{
+		{
+			name: "a block, its costs and its parameters",
+			path: s.path(),
+			id:   "HD2_AmpTestBass",
+			contains: []string{
+				"Ampeg SVT (normal channel)", "amp (Bass)",
+				"26.67 mono", "40.10 stereo",
+				"Drive", "0..1", "0.53",
+				// A bool has no range.
+				"Bright", "—",
+			},
+		},
+		{
+			name:   "one with no stereo cost does not claim one",
+			path:   s.path(),
+			id:     "HD2_DriveTest",
+			absent: []string{"stereo"},
+		},
+		{
+			// A DSP cost that was inferred must not read as Line 6's own
+			// figure.
+			name:     "a figure nobody stated is marked",
+			path:     filepath.Join("testdata", "assumed.json"),
+			id:       "HD2_Guessed",
+			contains: []string{"assumed"},
+		},
+		{
+			name: "a block the catalog does not carry",
+			path: s.path(),
+			id:   "HD2_Nope",
+			err:  true,
+		},
+		{
+			name: "a catalog that will not open",
+			path: filepath.Join("testdata", "nope.json"),
+			id:   "x",
+			err:  true,
+		},
+		{
+			name: "nowhere to write it",
+			path: s.path(),
+			id:   "HD2_AmpTestBass",
+			to:   &failingWriter{},
+			err:  true,
+		},
+		{
+			// The parameters are a second write, so a writer that survives
+			// the first still has to be reported.
+			name: "nowhere to write the parameters",
+			path: s.path(),
+			id:   "HD2_AmpTestBass",
+			to:   &failAfter{n: 1},
+			err:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			var buf bytes.Buffer
+
+			to := tt.to
+			if to == nil {
+				to = &buf
+			}
+
+			err := catalogview.Show(to, tt.path, tt.id)
+
+			if tt.err {
+				s.Require().Error(err)
+
+				return
+			}
+
+			s.Require().NoError(err)
+
+			for _, want := range tt.contains {
+				s.Require().Contains(buf.String(), want)
+			}
+
+			for _, gone := range tt.absent {
+				s.Require().NotContains(buf.String(), gone)
+			}
+		})
+	}
 }
 
-func (s *CatalogViewPublicTestSuite) TestListReportsAFailingWriter() {
-	s.Require().Error(catalogview.List(&failingWriter{}, s.path(), catalogview.Filter{}))
-	s.Require().Error(catalogview.List(&failingWriter{}, s.path(),
-		catalogview.Filter{Category: "looper"}))
-}
-
-func (s *CatalogViewPublicTestSuite) TestShowRendersParametersWithRanges() {
-	var out bytes.Buffer
-
-	s.Require().NoError(catalogview.Show(&out, s.path(), "HD2_AmpTestBass"))
-
-	got := out.String()
-	s.Require().Contains(got, "Ampeg SVT (normal channel)")
-	s.Require().Contains(got, "amp (Bass)")
-	s.Require().Contains(got, "26.67 mono")
-	s.Require().Contains(got, "40.10 stereo")
-	s.Require().Contains(got, "Drive")
-	s.Require().Contains(got, "0..1")
-	s.Require().Contains(got, "0.53")
-	s.Require().Contains(got, "Bright")
-	s.Require().Contains(got, "—", "a bool has no range")
-}
-
-func (s *CatalogViewPublicTestSuite) TestShowOmitsAbsentDetail() {
-	var out bytes.Buffer
-
-	s.Require().NoError(catalogview.Show(&out, s.path(), "HD2_DriveTest"))
-	s.Require().NotContains(out.String(), "stereo",
-		"a block with no stereo cost should not claim one")
-}
-
-func (s *CatalogViewPublicTestSuite) TestShowReportsAnUnknownBlock() {
-	err := catalogview.Show(&bytes.Buffer{}, s.path(), "HD2_Nope")
-
-	s.Require().ErrorIs(err, catalogview.ErrNotFound)
-	s.Require().Contains(err.Error(), "catalog list")
-}
-
-func (s *CatalogViewPublicTestSuite) TestShowPropagatesAnUnreadableCatalog() {
-	s.Require().Error(catalogview.Show(&bytes.Buffer{}, "nope.json", "x"))
-}
-
-func (s *CatalogViewPublicTestSuite) TestShowReportsAFailingWriter() {
-	s.Require().Error(catalogview.Show(&failingWriter{}, s.path(), "HD2_AmpTestBass"))
-	s.Require().Error(catalogview.Show(&failAfter{n: 1}, s.path(), "HD2_AmpTestBass"))
-}
-
-func (s *CatalogViewPublicTestSuite) TestNotFoundErrorNamesWhatWasAsked() {
+// TestNotFoundError covers what somebody reads when the block is not there.
+func (s *CatalogViewPublicTestSuite) TestNotFoundError() {
 	err := &catalogview.NotFoundError{ID: "HD2_Nope", Known: 665}
 
 	s.Require().Contains(err.Error(), "HD2_Nope")
 	s.Require().Contains(err.Error(), "665")
+	s.Require().Contains(err.Error(), "catalog list")
 	s.Require().ErrorIs(err, catalogview.ErrNotFound)
 }
 
+// TestDefaultPathIsWhereTheCatalogLives keeps the fallback pointing at the
+// generated file rather than wherever it used to be.
 func (s *CatalogViewPublicTestSuite) TestDefaultPathIsWhereTheCatalogLives() {
-	s.Require().Equal("resources/schemas/hx-stomp.catalog.json", catalogview.DefaultPath)
+	s.Require().Equal(
+		"resources/schemas/hx-stomp.catalog.json", catalogview.DefaultPath)
 }
 
 type failingWriter struct{}
@@ -191,45 +359,6 @@ func (f *failAfter) Write(p []byte) (int, error) {
 	f.n--
 
 	return len(p), nil
-}
-
-func (s *CatalogViewPublicTestSuite) TestOpenFallsBackToTheBuiltInCatalog() {
-	// No path is the case for anyone who has not generated their own, which
-	// is everyone who installed a binary.
-	c, err := catalogview.Open("")
-
-	s.Require().NoError(err)
-	s.Require().NotEmpty(c.Blocks)
-	s.Require().NotEmpty(c.Source)
-}
-
-func (s *CatalogViewPublicTestSuite) TestListNamesWhereTheCatalogCameFrom() {
-	var out bytes.Buffer
-
-	s.Require().NoError(catalogview.List(&out, "", catalogview.Filter{
-		Search: "klon",
-	}))
-
-	s.Require().Contains(out.String(), "HX Edit",
-		"a catalog is only true of the release it came from, so it says which")
-}
-
-func (s *CatalogViewPublicTestSuite) TestListFlagsACatalogThatCannotNameItsSource() {
-	var out bytes.Buffer
-
-	s.Require().NoError(catalogview.List(&out, s.path(), catalogview.Filter{}))
-
-	s.Require().Contains(out.String(), "source unknown")
-}
-
-func (s *CatalogViewPublicTestSuite) TestShowMarksAFigureNobodyStated() {
-	var out bytes.Buffer
-
-	s.Require().NoError(catalogview.Show(
-		&out, filepath.Join("testdata", "assumed.json"), "HD2_Guessed"))
-
-	s.Require().Contains(out.String(), "assumed",
-		"a DSP cost that was inferred must not read as Line 6's own figure")
 }
 
 func TestCatalogViewPublicTestSuite(t *testing.T) {
