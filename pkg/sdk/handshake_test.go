@@ -33,13 +33,13 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk/wire"
 )
 
-// CallTestSuite covers making a request and matching the answer to it.
-type CallTestSuite struct {
+// HandshakeTestSuite covers making a request and matching the answer to it.
+type HandshakeTestSuite struct {
 	suite.Suite
 }
 
 // answer encodes what a device replies to one transaction.
-func (s *CallTestSuite) answer(txn uint64, status int, result any) []byte {
+func (s *HandshakeTestSuite) answer(txn uint64, status int, result any) []byte {
 	var buf bytes.Buffer
 
 	enc := msgpack.NewEncoder(&buf)
@@ -55,25 +55,25 @@ func (s *CallTestSuite) answer(txn uint64, status int, result any) []byte {
 }
 
 // reply frames an answer the way the device sends it.
-func (s *CallTestSuite) reply(txn uint64, status int, result any) []byte {
+func (s *HandshakeTestSuite) reply(txn uint64, status int, result any) []byte {
 	return sdk.Reply(sdk.ControlChannel, s.answer(txn, status, result))
 }
 
 // replyOnData is the answer to a question about a preset document, which the
 // device takes on the data channel rather than the control one.
-func (s *CallTestSuite) replyOnData(txn uint64, status int, result any) []byte {
+func (s *HandshakeTestSuite) replyOnData(txn uint64, status int, result any) []byte {
 	return sdk.Reply(sdk.DataChannel, s.answer(txn, status, result))
 }
 
 // session returns one with its channels already open, over a scripted device.
-func (s *CallTestSuite) session(d *device) *sdk.Session {
+func (s *HandshakeTestSuite) session(d *device) *sdk.Session {
 	out := sdk.NewTestSession(d, d)
 	out.OpenChannels()
 
 	return out
 }
 
-func (s *CallTestSuite) TestCall() {
+func (s *HandshakeTestSuite) TestCall() {
 	tests := []struct {
 		name      string
 		channel   string
@@ -208,7 +208,7 @@ func (s *CallTestSuite) TestCall() {
 	}
 }
 
-func (s *CallTestSuite) TestPresets() {
+func (s *HandshakeTestSuite) TestPresets() {
 	tests := []struct {
 		name   string
 		device func() *device
@@ -254,7 +254,7 @@ func (s *CallTestSuite) TestPresets() {
 	}
 }
 
-func (s *CallTestSuite) TestReadPreset() {
+func (s *HandshakeTestSuite) TestReadPreset() {
 	tests := []struct {
 		name   string
 		device func() *device
@@ -291,6 +291,6 @@ func (s *CallTestSuite) TestReadPreset() {
 	}
 }
 
-func TestCallTestSuite(t *testing.T) {
-	suite.Run(t, new(CallTestSuite))
+func TestHandshakeTestSuite(t *testing.T) {
+	suite.Run(t, new(HandshakeTestSuite))
 }

@@ -32,111 +32,112 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk/wire"
 )
 
-// TransportTestSuite exercises the protocol against a scripted device.
+// TransportTestSuite covers reading and writing frames.
 //
-// Everything a session does apart from finding and claiming hardware is here:
-// framing, sequence numbers, acknowledgements, opening a channel and making a
-// call. None of it needs a device, and all of it is what breaks one when it is
-// wrong.
+// Framing, sequence numbers and acknowledgements: none of it needs a device,
+// and all of it is what breaks one when it is wrong.
 type TransportTestSuite struct {
 	suite.Suite
 }
 
-// device is a scripted answer to whatever is written to it.
-type device struct {
-	// replies are handed back one read at a time.
-	replies [][]byte
-	// sent is everything the session wrote.
-	sent [][]byte
-	// writeErr fails every write.
-	writeErr error
-	// readErr fails every read.
-	readErr error
-}
-
-func (d *device) Write(p []byte) (int, error) {
-	if d.writeErr != nil {
-		return 0, d.writeErr
+// TestDrain reads until the device genuinely has nothing left.
+func (s *TransportTestSuite) TestDrain() {
+	tests := []struct {
+		name   string
+		device func() *device
+		opened bool
+	}{
+		{
+			name:   "a device with nothing to say",
+			device: func() *device { return answers() },
+		},
+		{
+			// A read that fails is treated as the device having nothing to
+			// say, because that is what a timeout looks like and a timeout
+			// is the ordinary case. The cost is that a genuine bus failure
+			// surfaces later, as a call with no reply, rather than here.
+			name:   "a bus that will not answer",
+			device: func() *device { return &device{readErr: errors.New("boom")} },
+		},
+		{
+			name:   "one at the end of its input",
+			device: func() *device { return &device{readErr: io.EOF} },
+		},
+		{
+			// A drain that saw traffic starts counting quiet reads again,
+			// and what it consumed is not replayed into a later reply.
+			name: "one with something to say",
+			device: func() *device {
+				return answers(sdk.FrameFor("control", wire.MsgData, []byte("noise")))
+			},
+			opened: true,
+		},
 	}
 
-	d.sent = append(d.sent, append([]byte(nil), p...))
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			d := tt.device()
+			session := sdk.NewTestSession(d, d)
 
-	return len(p), nil
-}
+			if tt.opened {
+				session.OpenChannels()
+			}
 
-func (d *device) ReadContext(_ context.Context, p []byte) (int, error) {
-	if d.readErr != nil {
-		return 0, d.readErr
-	}
+			session.Drain(context.Background())
 
-	if len(d.replies) == 0 {
-		// A device with nothing to say answers with nothing, which is how a
-		// drain knows it has finished.
-		return 0, nil
-	}
-
-	reply := d.replies[0]
-	d.replies = d.replies[1:]
-
-	return copy(p, reply), nil
-}
-
-// answers scripts a device to reply with each of the given frames in turn.
-func answers(frames ...[]byte) *device { return &device{replies: frames} }
-
-func (s *TransportTestSuite) TestADrainFinishesWhenTheDeviceGoesQuiet() {
-	d := answers()
-
-	sdk.NewTestSession(d, d).Drain(context.Background())
-}
-
-func (s *TransportTestSuite) TestABusThatWillNotAnswerReadsAsQuiet() {
-	// A read that fails is treated as the device having nothing to say,
-	// because that is what a timeout looks like and a timeout is ordinary.
-	// The cost is that a genuine bus failure surfaces later, as a call with
-	// no reply, rather than here.
-	for _, boom := range []error{errors.New("boom"), io.EOF} {
-		d := &device{readErr: boom}
-
-		sdk.NewTestSession(d, d).Drain(context.Background())
+			s.Require().Empty(d.replies, "everything the device had was read")
+		})
 	}
 }
 
-func (s *TransportTestSuite) TestADrainConsumesWhatArrives() {
-	// A drain that saw traffic starts counting quiet reads again, and what
-	// it consumed is not replayed into a later reply.
-	d := answers(sdk.FrameFor("control", wire.MsgData, []byte("noise")))
-
-	session := sdk.NewTestSession(d, d)
-	session.OpenChannels()
-	session.Drain(context.Background())
-
-	s.Require().Empty(d.replies, "everything the device had was read")
-}
-
-func (s *TransportTestSuite) TestAFrameForNoChannelAnybodyOpened() {
-	// The device sends notifications unasked, and one on a channel this
-	// session never opened is not anybody's business.
-	d := answers(sdk.FrameFor("events", wire.MsgData, []byte("noise")))
-
-	s.Require().False(sdk.NewTestSession(d, d).Receive(context.Background()),
-		"nothing arrived that anybody is waiting for")
-}
-
-func (s *TransportTestSuite) TestAPartialFrameEndsTheTransfer() {
-	// A frame cut short at the end of a transfer is the transfer ending, not
-	// corruption.
+// TestReceive takes one transfer off the bus.
+func (s *TransportTestSuite) TestReceive() {
 	full := sdk.FrameFor("control", wire.MsgData, []byte("noise"))
-	d := answers(full[:6])
 
-	session := sdk.NewTestSession(d, d)
-	session.OpenChannels()
+	tests := []struct {
+		name   string
+		frames [][]byte
+		opened bool
+		want   bool
+	}{
+		{
+			name:   "a frame on a channel somebody opened",
+			frames: [][]byte{full},
+			opened: true,
+			want:   true,
+		},
+		{
+			// The device sends notifications unasked, and one on a channel
+			// this session never opened is not anybody's business.
+			name:   "one on a channel nobody opened",
+			frames: [][]byte{sdk.FrameFor("events", wire.MsgData, []byte("noise"))},
+		},
+		{
+			// A frame cut short at the end of a transfer is the transfer
+			// ending, not corruption.
+			name:   "one cut short at the end of a transfer",
+			frames: [][]byte{full[:6]},
+			opened: true,
+		},
+	}
 
-	s.Require().False(session.Receive(context.Background()))
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			d := answers(tt.frames...)
+			session := sdk.NewTestSession(d, d)
+
+			if tt.opened {
+				session.OpenChannels()
+			}
+
+			s.Require().Equal(tt.want, session.Receive(context.Background()))
+		})
+	}
 }
 
+// TestTheWireTrace is how both directions were read off a device in the
+// first place, and the thing that found the tag a write goes out under.
 func (s *TransportTestSuite) TestTheWireTrace() {
-	// How both directions were read off a device in the first place.
 	defer sdk.SetDebug(true)()
 
 	d := answers(sdk.FrameFor("control", wire.MsgData, []byte("noise")))
@@ -147,150 +148,6 @@ func (s *TransportTestSuite) TestTheWireTrace() {
 
 	// Both directions: what was asked as well as what came back.
 	_, _ = session.Call(context.Background(), sdk.ControlChannel, 1, nil)
-}
-
-func (s *TransportTestSuite) TestAHandshakeOpensEveryChannel() {
-	// Three channels, and the control channel twice — it serves two services
-	// and the first is closed before the second is opened. Multiplexing them
-	// onto one open channel silently breaks every channel.
-	d := answers(
-		sdk.FrameFor("control", wire.MsgHello, nil),
-		sdk.FrameFor("control", wire.MsgAck, nil),
-		sdk.FrameFor("control", wire.MsgHello, nil),
-		sdk.FrameFor("events", wire.MsgHello, nil),
-		sdk.FrameFor("data", wire.MsgHello, nil),
-	)
-
-	err := sdk.NewTestSession(d, d).Handshake(context.Background())
-
-	s.Require().NoError(err)
-	s.Require().NotEmpty(d.sent, "a handshake is what the session says first")
-}
-
-func (s *TransportTestSuite) TestAHandshakeReportsABusItCannotWriteTo() {
-	d := &device{writeErr: errors.New("boom")}
-
-	s.Require().Error(sdk.NewTestSession(d, d).Handshake(context.Background()))
-}
-
-func (s *TransportTestSuite) TestAHandshakeReportsAChannelItCannotClose() {
-	// The control channel serves two services, so the first is closed before
-	// the second is opened. A device that stops listening partway through
-	// leaves it half open, and saying so beats carrying on.
-	d := answers()
-	out := &sdk.FailAfter{Sender: d, OK: 1, Err: errors.New("boom")}
-
-	s.Require().Error(sdk.NewTestSession(out, d).Handshake(context.Background()))
-}
-
-func (s *TransportTestSuite) TestAHandshakeReportsAServiceItCannotOpen() {
-	d := answers()
-	out := &sdk.FailAfter{Sender: d, OK: 3, Err: errors.New("boom")}
-
-	s.Require().Error(sdk.NewTestSession(out, d).Handshake(context.Background()))
-}
-
-func (s *TransportTestSuite) TestAHandshakeCarriesOnThroughSilence() {
-	// A device that answers nothing is not an error here: opening a channel
-	// writes and moves on, and what goes wrong shows up at the first call.
-	d := &device{readErr: errors.New("boom")}
-
-	s.Require().NoError(sdk.NewTestSession(d, d).Handshake(context.Background()))
-}
-
-func (s *TransportTestSuite) TestClosingGivesBackWhatItTook() {
-	// What the device sent is drained and acknowledged first: dropping the
-	// interface with bytes unacknowledged carries a debt into later sessions,
-	// until an otherwise innocent write stops the device.
-	d := answers(sdk.FrameFor("control", wire.MsgData, []byte("noise")))
-
-	var given []string
-
-	session := sdk.NewTestSession(d, d)
-	session.OpenChannels()
-	session.OnDone(func() { given = append(given, "interface") })
-	session.Holding(
-		func() error { given = append(given, "device"); return nil },
-		func() error { given = append(given, "library"); return nil },
-	)
-
-	session.Close()
-
-	// In the order they were taken.
-	s.Require().Equal([]string{"interface", "device", "library"}, given)
-	s.Require().NotEmpty(d.sent, "the acknowledgement is what settles the debt")
-}
-
-// TestClosingEndsTheSessionOnEveryChannel is the difference between a device
-// that goes back to being a pedal and one that does not.
-//
-// The message opening a channel closes one: it is a session boundary and
-// appears at both ends of the conversation. Without it the device goes on
-// believing an editor is attached, and its front panel stops refreshing
-// footswitches as somebody browses presets on the pedal itself.
-func (s *TransportTestSuite) TestClosingEndsTheSessionOnEveryChannel() {
-	d := answers()
-
-	session := sdk.NewTestSession(d, d)
-	session.OpenChannels()
-
-	before := len(d.sent)
-
-	session.Close()
-
-	// One acknowledgement and one boundary for each of the three channels.
-	closes := 0
-
-	for _, frame := range d.sent[before:] {
-		kind, err := sdk.MessageKind(frame)
-		s.Require().NoError(err)
-
-		if kind == wire.MsgHello {
-			closes++
-		}
-	}
-
-	s.Require().Equal(len(sdk.ChannelNames()), closes,
-		"every channel is told the session is over")
-}
-
-func (s *TransportTestSuite) TestASessionKnowsWhatAnswered() {
-	s.Require().Equal("HX Stomp", sdk.NewTestSession(nil, nil).Model().Name)
-}
-
-func (s *TransportTestSuite) TestClosingASessionThatNeverOpened() {
-	// Nothing was taken, so there is nothing to give back.
-	sdk.NewTestSession(nil, nil).Close()
-}
-
-func (s *TransportTestSuite) TestWaitingOnABusyInterface() {
-	// Cleanup after a previous session races the next claim, so an interface
-	// that is busy is worth waiting on rather than reporting.
-	tries := 0
-
-	s.Require().NoError(sdk.Retry(func() error {
-		tries++
-		if tries < 2 {
-			return errors.New("busy")
-		}
-
-		return nil
-	}))
-
-	s.Require().Equal(2, tries)
-}
-
-func (s *TransportTestSuite) TestAnInterfaceThatNeverComesFree() {
-	tries := 0
-
-	err := sdk.Retry(func() error {
-		tries++
-
-		return errors.New("busy")
-	})
-
-	s.Require().Error(err)
-	s.Require().Equal(sdk.ClaimAttempts, tries, "patience runs out")
 }
 
 func TestTransportTestSuite(t *testing.T) {
