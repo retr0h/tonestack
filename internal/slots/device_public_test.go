@@ -124,6 +124,34 @@ func (s *DevicePublicTestSuite) TestListsEmptySlotsWhenAsked() {
 	s.Require().Contains(got, "empty")
 }
 
+// TestListingReportsACatalogItCannotOpen covers naming gear against a
+// catalog that is not there.
+func (s *DevicePublicTestSuite) TestListingReportsACatalogItCannotOpen() {
+	s.dev.EXPECT().Presets(gomock.Any(), 0).Return(s.listing(), nil)
+
+	s.Require().Error(slots.ListWith(context.Background(), &bytes.Buffer{},
+		s.dev, slots.DeviceOptions{CatalogPath: "nowhere.json"}))
+}
+
+// TestListingSurvivesAModelTheCatalogCannotName keeps a catalog generated
+// from another release from hiding every slot behind it.
+func (s *DevicePublicTestSuite) TestListingSurvivesAModelTheCatalogCannotName() {
+	s.dev.EXPECT().Presets(gomock.Any(), 0).Return(s.listing(), nil)
+	s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 0).Return(s.answer("preset.bin"), nil)
+	s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 24).Return(s.answer("switches.bin"), nil)
+	s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 79).Return(s.answer("empty.bin"), nil)
+
+	var out bytes.Buffer
+
+	s.Require().NoError(slots.ListWith(context.Background(), &out, s.dev,
+		slots.DeviceOptions{
+			All:         true,
+			CatalogPath: filepath.Join("testdata", "unnamed.catalog.json"),
+		}))
+
+	s.Require().Contains(out.String(), "0 in use")
+}
+
 // TestListingReportsASlotItCannotRead covers a device that answers the
 // listing and then refuses one of the slots in it.
 func (s *DevicePublicTestSuite) TestListingReportsASlotItCannotRead() {

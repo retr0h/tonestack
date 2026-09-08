@@ -156,6 +156,34 @@ func (s *SelectTestSuite) TestReportsAnAnswerNobodyExpects() {
 	s.Require().ErrorContains(err, "unexpected status 7")
 }
 
+// TestReadsTheDocumentBeingPlayed covers the edit buffer, which is what a
+// device is making a sound with rather than what it has stored.
+func (s *SelectTestSuite) TestReadsTheDocumentBeingPlayed() {
+	var buf bytes.Buffer
+
+	enc := msgpack.NewEncoder(&buf)
+	s.Require().NoError(enc.EncodeMapLen(3))
+	s.Require().NoError(enc.EncodeInt(102))
+	s.Require().NoError(enc.EncodeUint(sdk.FirstTxn))
+	s.Require().NoError(enc.EncodeInt(103))
+	s.Require().NoError(enc.EncodeInt(0))
+	s.Require().NoError(enc.EncodeInt(104))
+	s.Require().NoError(enc.EncodeString("a preset"))
+
+	got, err := s.session(answers(sdk.Reply(sdk.DataChannel, buf.Bytes()))).
+		ReadCurrent(context.Background())
+
+	s.Require().NoError(err)
+	s.Require().Equal("a preset", got)
+}
+
+// TestReportsADeviceThatWillNotSayWhatItPlays covers silence.
+func (s *SelectTestSuite) TestReportsADeviceThatWillNotSayWhatItPlays() {
+	_, err := s.session(answers()).ReadCurrent(context.Background())
+
+	s.Require().Error(err)
+}
+
 func (s *SelectTestSuite) TestReadsWhatTheDeviceIsPlaying() {
 	d := answers(s.playing(sdk.FirstTxn, 0, 99))
 
