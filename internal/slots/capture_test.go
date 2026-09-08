@@ -23,6 +23,7 @@ package slots
 import (
 	"bytes"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -42,87 +43,156 @@ type CaptureTestSuite struct {
 	suite.Suite
 }
 
-func (s *CaptureTestSuite) TestDumpWritesNothingUnasked() {
-	s.T().Setenv(dumpEnv, "")
-
-	s.Require().NoError(dump(map[any]any{"a": 1}))
-}
-
-func (s *CaptureTestSuite) TestDumpKeepsWhatTheDeviceSaid() {
-	path := filepath.Join(s.T().TempDir(), "reply.json")
-	s.T().Setenv(dumpEnv, path)
-
-	s.Require().NoError(dump(map[string]any{"name": "Longview"}))
-
-	body, err := os.ReadFile(path) //nolint:gosec // a path this test wrote
-	s.Require().NoError(err)
-	s.Require().Contains(string(body), "Longview")
-}
-
-func (s *CaptureTestSuite) TestDumpKeepsAPresetVerbatim() {
-	// A preset comes back as an opaque run of bytes that MessagePack's string
-	// type carries, and it is not valid UTF-8. Encoding it as JSON would
-	// replace every byte above 0x7f, which destroys the offsets and model
-	// numbers the capture exists to study.
-	path := filepath.Join(s.T().TempDir(), "preset.bin")
-	s.T().Setenv(dumpEnv, path)
-
-	raw := "\xa9l6-helix\x00\xda\x000\xff\xfe"
-	s.Require().NoError(dump(raw))
-
-	body, err := os.ReadFile(path) //nolint:gosec // a path this test wrote
-	s.Require().NoError(err)
-	s.Require().Equal(raw, string(body))
-}
-
-func (s *CaptureTestSuite) TestDumpKeepsBytesVerbatim() {
-	path := filepath.Join(s.T().TempDir(), "preset.bin")
-	s.T().Setenv(dumpEnv, path)
-
-	s.Require().NoError(dump([]byte{0xa9, 0x00, 0xff}))
-
-	body, err := os.ReadFile(path) //nolint:gosec // a path this test wrote
-	s.Require().NoError(err)
-	s.Require().Equal([]byte{0xa9, 0x00, 0xff}, body)
-}
-
-func (s *CaptureTestSuite) TestDumpReportsAnUnwritablePath() {
-	s.T().Setenv(dumpEnv, filepath.Join(s.T().TempDir(), "no", "such", "dir.json"))
-
-	s.Require().Error(dump(map[string]any{}))
-}
-
-func (s *CaptureTestSuite) TestDumpReportsSomethingItCannotEncode() {
-	s.T().Setenv(dumpEnv, filepath.Join(s.T().TempDir(), "reply.json"))
-
-	// Nothing guarantees what a device answers with. Something JSON cannot
-	// represent is reported rather than written as a file that lost it.
-	s.Require().Error(dump(make(chan int)))
-}
-
-func (s *CaptureTestSuite) TestDescribeReportsWhatArrived() {
-	for _, tc := range []struct {
-		name string
-		got  any
-		want string
+// TestDump keeps a device's answer where somebody can read it.
+func (s *CaptureTestSuite) TestDump() {
+	tests := []struct {
+		name  string
+		got   any
+		file  string
+		want  string
+		bytes []byte
+		err   bool
 	}{
-		{"a document", map[any]any{1: "a", 2: "b"}, "map with 2 keys"},
-		{"a blob", []byte{1, 2, 3}, "3 bytes"},
-		{"a preset, which arrives as opaque bytes", "l6-helix\x00\xff", "10 bytes"},
-		{"something else entirely", 42, "int"},
-	} {
-		s.Run(tc.name, func() {
-			var out bytes.Buffer
+		{
+			name: "nothing at all when nobody asked",
+			got:  map[any]any{"a": 1},
+		},
+		{
+			name: "a decoded answer, as JSON",
+			got:  map[string]any{"name": "Longview"},
+			file: "reply.json",
+			want: "Longview",
+		},
+		{
+			// A preset comes back as an opaque run of bytes that
+			// MessagePack's string type carries, and it is not valid UTF-8.
+			// Encoding it as JSON would replace every byte above 0x7f, which
+			// destroys the offsets and model numbers the capture exists to
+			// study.
+			name: "a preset, verbatim",
+			got:  "\xa9l6-helix\x00\xda\x000\xff\xfe",
+			file: "preset.bin",
+			want: "\xa9l6-helix\x00\xda\x000\xff\xfe",
+		},
+		{
+			name:  "bytes, verbatim",
+			got:   []byte{0xa9, 0x00, 0xff},
+			file:  "preset.bin",
+			bytes: []byte{0xa9, 0x00, 0xff},
+		},
+		{
+			name: "somewhere it cannot write",
+			got:  map[string]any{},
+			file: filepath.Join("no", "such", "dir.json"),
+			err:  true,
+		},
+		{
+			// Nothing guarantees what a device answers with. Something JSON
+			// cannot represent is reported rather than written as a file
+			// that lost it.
+			name: "something JSON cannot hold",
+			got:  make(chan int),
+			file: "reply.json",
+			err:  true,
+		},
+	}
 
-			s.Require().NoError(describe(&out, "HX Stomp", 3, tc.got))
-			s.Require().Contains(out.String(), tc.want)
-			s.Require().Contains(out.String(), "slot 02A")
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			var path string
+
+			if tt.file != "" {
+				path = filepath.Join(s.T().TempDir(), tt.file)
+			}
+
+			s.T().Setenv(dumpEnv, path)
+
+			err := dump(tt.got)
+
+			if tt.err {
+				s.Require().Error(err)
+
+				return
+			}
+
+			s.Require().NoError(err)
+
+			if path == "" {
+				return
+			}
+
+			body, readErr := os.ReadFile(path) //nolint:gosec // a path this test wrote
+			s.Require().NoError(readErr)
+
+			if tt.bytes != nil {
+				s.Require().Equal(tt.bytes, body)
+
+				return
+			}
+
+			s.Require().Contains(string(body), tt.want)
 		})
 	}
 }
 
-func (s *CaptureTestSuite) TestDescribeReportsAFailingWriter() {
-	s.Require().Error(describe(&brokenWriter{}, "HX Stomp", 0, nil))
+// TestDescribe says what arrived when nothing here can decode it.
+func (s *CaptureTestSuite) TestDescribe() {
+	tests := []struct {
+		name string
+		got  any
+		to   io.Writer
+		want string
+		err  bool
+	}{
+		{
+			name: "a document",
+			got:  map[any]any{1: "a", 2: "b"},
+			want: "map with 2 keys",
+		},
+		{
+			name: "a blob",
+			got:  []byte{1, 2, 3},
+			want: "3 bytes",
+		},
+		{
+			name: "a preset, which arrives as opaque bytes",
+			got:  "l6-helix\x00\xff",
+			want: "10 bytes",
+		},
+		{
+			name: "something else entirely",
+			got:  42,
+			want: "int",
+		},
+		{
+			name: "nowhere to say it",
+			to:   &brokenWriter{},
+			err:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			var buf bytes.Buffer
+
+			to := tt.to
+			if to == nil {
+				to = &buf
+			}
+
+			err := describe(to, "HX Stomp", 3, tt.got)
+
+			if tt.err {
+				s.Require().Error(err)
+
+				return
+			}
+
+			s.Require().NoError(err)
+			s.Require().Contains(buf.String(), tt.want)
+			s.Require().Contains(buf.String(), "slot 02A")
+		})
+	}
 }
 
 func TestCaptureTestSuite(t *testing.T) {
