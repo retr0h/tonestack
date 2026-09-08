@@ -413,6 +413,53 @@ components:
           type: string
           description: When, so a run of corrections can be read in order.
 
+    Controller:
+      type: object
+      description: >
+        One parameter something moves: an expression pedal, or a footswitch
+        set to sweep a knob rather than switch a block.
+
+
+        A rig records these because they are decisions somebody made about
+        how they play, not device state. Nothing else in a rig says that the
+        pedal under your foot is on the amp's drive rather than its volume.
+      properties:
+        controller:
+          type: integer
+          minimum: 0
+          description: >
+            Which controller, as the device numbers them. The expression
+            pedal reads 2 on an HX Stomp.
+        block:
+          type: integer
+          description: >
+            Which block it works on, counted along the signal path the way
+            the chain counts its entries.
+        parameter:
+          type: string
+          description: >
+            The parameter it moves, by the name the catalog gives it —
+            "Pedal", "Drive", "Mix".
+
+
+            A device names nothing: it stores the parameter's place in the
+            model's own order, and only the catalog turns that into a word.
+            A rig carrying the number would be unreadable and would break the
+            moment a firmware release reordered anything.
+        min:
+          type: number
+          description: What the parameter reads with the controller at rest.
+        max:
+          type: number
+          description: What it reads with the controller all the way over.
+        no_snapshot:
+          type: boolean
+          description: >
+            Whether snapshots leave this assignment alone. Omitted means they
+            do not.
+      required: [controller, block, parameter]
+      additionalProperties: false
+
     Footswitch:
       type: object
       description: >
@@ -752,5 +799,15 @@ components:
 
             Read and written both ways: a preset stores them per block, and a
             rig carrying them rebuilds that exactly.
+        controllers:
+          type: array
+          items: { $ref: "#/components/schemas/Controller" }
+          description: >
+            The parameters an expression pedal or a footswitch moves.
+
+
+            Which knob your foot is on is a decision about how you play, made
+            once and used every time. A preset stores it against a parameter
+            number nobody can read; a rig names the parameter.
         device:
           $ref: "#/components/schemas/DeviceState"

@@ -101,6 +101,44 @@ const (
 	keySnapValid  = 0
 )
 
+// Keys a controller assignment sits under.
+//
+// Section 4 is an array of ten, one per controller, each holding the
+// assignments made to it. Established against slot 27B of an HX Stomp read
+// side by side with the same slot exported from HX Edit, which describes the
+// one assignment it carries as
+//
+//	"controller": {"dsp0": {"block0": {"Pedal": {
+//	  "@min": 0, "@max": 1, "@controller": 2, "@snapshot_disable": false}}}}
+//
+// and the device sends as
+//
+//	[2][0] = {0: 0, 1: {0: 2, 1: 4, 2: 0, 3: 1, 4: 0, 5: 2,
+//	                    6: {28: 0, 29: 0, 41: false}, 7: 0}}
+//
+// Five values line up with five fields the file names, which is what makes
+// them more than a guess. Key 5 repeats the controller the array is already
+// indexed by and is not read. Keys 1, 4 and 7, and 28 and 29 inside key 6,
+// are not understood.
+const (
+	// keyCtrlParam is which parameter, by its place in the model's own
+	// parameter order.
+	keyCtrlParam = 0
+	// keyCtrlBody holds everything else about the assignment.
+	keyCtrlBody = 1
+	// keyCtrlBlock is the block, by the position the device lays it out at.
+	keyCtrlBlock = 0
+	// keyCtrlMin and keyCtrlMax are the ends of the controller's travel.
+	keyCtrlMin = 2
+	keyCtrlMax = 3
+	// keyCtrlFlags holds the switches, of which one is understood.
+	keyCtrlFlags = 6
+	// keyCtrlNoSnapshot is whether snapshots leave this assignment alone.
+	keyCtrlNoSnapshot = 41
+	// keyControllers is the section itself.
+	keyControllers = 4
+)
+
 // DevicePreset is one preset as the hardware describes it.
 type DevicePreset struct {
 	// Blocks are the chain, in the order the device laid them out.
@@ -115,6 +153,27 @@ type DevicePreset struct {
 	// Read from the same array as the blocks, because that is where the
 	// device puts them.
 	Routing []DeviceRouting
+	// Controllers are the parameters something moves: an expression pedal,
+	// or a footswitch set to sweep rather than to toggle.
+	Controllers []DeviceController
+}
+
+// DeviceController is one parameter something moves.
+type DeviceController struct {
+	// Controller is which one, as the device numbers them. The expression
+	// pedal on the captured preset is 2.
+	Controller int
+	// Block is the block it works on, by the position the device lays it out
+	// at, which is what a footswitch assignment uses too.
+	Block int
+	// Param is which parameter, by its place in the model's own parameter
+	// order — the same order the block's values arrive in.
+	Param int
+	// Min and Max are the ends of its travel.
+	Min float64
+	Max float64
+	// NoSnapshot is whether snapshots leave this assignment alone.
+	NoSnapshot bool
 }
 
 // DeviceRouting is one entry either side of a chain.
@@ -243,7 +302,84 @@ func DecodePreset(body []byte) (DevicePreset, error) {
 		Snapshots:    snapshotsOf(doc),
 		Footswitches: footswitchesOf(doc),
 		Routing:      routingOf(doc),
+		Controllers:  controllersOf(doc),
 	}, nil
+}
+
+// controllersOf reads the parameters something moves.
+//
+// The section is an array of ten, one per controller, and the index is the
+// controller. Most are nil on any real preset: one expression pedal assigned
+// to one parameter leaves the other nine holding nothing.
+func controllersOf(doc map[any]any) []DeviceController {
+	section, ok := doc[int8(keyControllers)].([]any)
+	if !ok {
+		return nil
+	}
+
+	out := []DeviceController(nil)
+
+	for number, row := range section {
+		made, ok := row.([]any)
+		if !ok {
+			continue
+		}
+
+		for _, one := range made {
+			if got, ok := controllerOf(number, one); ok {
+				out = append(out, got)
+			}
+		}
+	}
+
+	return out
+}
+
+// mustFloat reads one end of a controller's travel, which a device writes as
+// a fraction or, when it is whole, as a whole number.
+func mustFloat(v any) float64 {
+	f, _ := asFloat(v)
+
+	return f
+}
+
+// controllerOf reads one assignment.
+func controllerOf(number int, entry any) (DeviceController, bool) {
+	fields, ok := entry.(map[any]any)
+	if !ok {
+		return DeviceController{}, false
+	}
+
+	param, ok := asUint(fields[int8(keyCtrlParam)])
+	if !ok {
+		return DeviceController{}, false
+	}
+
+	body, ok := fields[int8(keyCtrlBody)].(map[any]any)
+	if !ok {
+		return DeviceController{}, false
+	}
+
+	block, ok := asUint(body[int8(keyCtrlBlock)])
+	if !ok {
+		return DeviceController{}, false
+	}
+
+	out := DeviceController{
+		Controller: number,
+		Block:      int(block),
+		Param:      int(param),
+		// asFloat reaches every integer width too, and a device writes a
+		// whole end of the travel as a whole number: 1.0 arrives as 1.
+		Min: mustFloat(body[int8(keyCtrlMin)]),
+		Max: mustFloat(body[int8(keyCtrlMax)]),
+	}
+
+	if flags, ok := body[int8(keyCtrlFlags)].(map[any]any); ok {
+		out.NoSnapshot, _ = flags[int8(keyCtrlNoSnapshot)].(bool)
+	}
+
+	return out, true
 }
 
 // routingOf reads what the device wraps the chain in.
