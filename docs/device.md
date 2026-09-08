@@ -72,35 +72,28 @@ Asking the device what it is playing, until it names the preset that was asked
 for, is the only honest signal. Confirmed on hardware in both directions.
 Without the wait the colours went; with it they stayed.
 
-## Reading has a cutoff nobody has explained
+## A named slot can still be empty
 
-Reading a preset stopped working for the higher slots during one session, and a
-power cycle did not bring it back while HX Edit read the same device fine.
+A device names every slot. An untouched one is called `New Preset`, and a slot
+somebody named and then emptied keeps its name. So a name says nothing about
+whether anything is in it, and the two states look identical in a listing that
+reads only names.
 
-An earlier version of this section put the boundary at slot 29 and was wrong:
-the device it was measured on holds nothing at all between slots 28 and 77, and
-a slot holding nothing answers with nothing whichever side of a boundary it sits
-on. What is actually known is narrower.
+`presets list` reads each named slot and reports what it holds:
 
-| slot  | index | holds    | answer       |
-| ----- | ----- | -------- | ------------ |
-| `01A` | 0     | a preset | the document |
-| `09A` | 24    | a preset | the document |
-| `10A` | 27    | a preset | the document |
-| `27A` | 78    | a preset | nothing      |
-| `31A` | 90    | a preset | nothing      |
-| `34A` | 99    | a preset | nothing      |
+```text
+01A   Chunky Monkey    amp → cab
+27B   BAS:SVT Nrm      empty
+42C   New Preset       empty
+```
 
-Slots 0 to 27 answer and 78 upwards do not, with no preset in between to narrow
-it with. `27B` answered with its whole document earlier the same day, and the
-device still loads all of them when asked to: `presets select` on `34A` plays
-it. The preset list, a different opcode on a different channel, names them
-throughout.
+`42C` is untouched. `27B` has a name and no blocks. Only the second one is
+surprising, and it is the state that cost a day: a listing counting names called
+it "in use", every read of it correctly answered "nothing", and the gap between
+those two looked like a bug in reading.
 
-Unexplained. It is recorded because a sharp reproducible boundary is worth more
-than the theories that did not survive: it is not the channel, not the missing
-`101: 2` argument that opcode 4 is documented to take, and not a session
-bootstrap.
+The cost is one read per named slot, about one and a half seconds for a device
+holding thirty of them. `--all` shows the untouched slots as well.
 
 ## Working from a file
 

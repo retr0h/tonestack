@@ -74,11 +74,17 @@ func (s *DevicePublicTestSuite) listing() []wire.Preset {
 		{Slot: 0, Name: "Chunky Monkey"},
 		{Slot: 1, Name: "New Preset"},
 		{Slot: 24, Name: "B15 Eras"},
+		{Slot: 79, Name: "BAS:SVT Nrm"},
 	}
 }
 
 func (s *DevicePublicTestSuite) TestListsWhatADeviceHolds() {
+	// Every named slot is read, because a name says nothing about whether
+	// anything is in it.
 	s.dev.EXPECT().Presets(gomock.Any(), 0).Return(s.listing(), nil)
+	s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 0).Return(s.answer("preset.bin"), nil)
+	s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 24).Return(s.answer("switches.bin"), nil)
+	s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 79).Return(s.answer("empty.bin"), nil)
 
 	var out bytes.Buffer
 	s.Require().NoError(
@@ -88,20 +94,60 @@ func (s *DevicePublicTestSuite) TestListsWhatADeviceHolds() {
 	s.Require().Contains(got, "01A")
 	s.Require().Contains(got, "Chunky Monkey")
 	s.Require().Contains(got, "09A")
+	s.Require().Contains(got, "amp", "the chain each slot holds")
 
-	// A device names an untouched slot rather than leaving it blank, so what
-	// counts as empty is the name it was shipped with.
+	// A slot nobody has named holds nothing.
 	s.Require().NotContains(got, "New Preset")
+
+	// And one that is named can still hold nothing, which is the state a
+	// name alone cannot tell you about.
+	s.Require().NotContains(got, "BAS:SVT Nrm")
+	s.Require().Contains(got, "2 in use")
 }
 
 func (s *DevicePublicTestSuite) TestListsEmptySlotsWhenAsked() {
 	s.dev.EXPECT().Presets(gomock.Any(), 0).Return(s.listing(), nil)
+	s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 0).Return(s.answer("preset.bin"), nil)
+	s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 24).Return(s.answer("switches.bin"), nil)
+	s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 79).Return(s.answer("empty.bin"), nil)
 
 	var out bytes.Buffer
 	s.Require().NoError(slots.ListWith(
 		context.Background(), &out, s.dev, slots.DeviceOptions{All: true}))
 
-	s.Require().Contains(out.String(), "New Preset")
+	got := out.String()
+
+	// Two kinds of empty, and the difference is worth seeing: one nobody has
+	// touched, and one somebody named and then emptied.
+	s.Require().Contains(got, "New Preset")
+	s.Require().Contains(got, "BAS:SVT Nrm")
+	s.Require().Contains(got, "empty")
+}
+
+// TestListingReportsASlotItCannotRead covers a device that answers the
+// listing and then refuses one of the slots in it.
+func (s *DevicePublicTestSuite) TestListingReportsASlotItCannotRead() {
+	s.dev.EXPECT().Presets(gomock.Any(), 0).Return(s.listing(), nil)
+	s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 0).
+		Return(nil, errors.New("no answer"))
+
+	s.Require().ErrorContains(slots.ListWith(context.Background(),
+		&bytes.Buffer{}, s.dev, slots.DeviceOptions{}), "no answer")
+}
+
+// TestListingSurvivesAPresetItCannotDecode keeps one unreadable slot from
+// hiding the hundred that read.
+func (s *DevicePublicTestSuite) TestListingSurvivesAPresetItCannotDecode() {
+	s.dev.EXPECT().Presets(gomock.Any(), 0).Return(s.listing(), nil)
+	s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 0).Return("not a preset", nil)
+	s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 24).Return(42, nil)
+	s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 79).Return(s.answer("empty.bin"), nil)
+
+	var out bytes.Buffer
+	s.Require().NoError(slots.ListWith(context.Background(), &out, s.dev,
+		slots.DeviceOptions{All: true}))
+
+	s.Require().Contains(out.String(), "0 in use")
 }
 
 func (s *DevicePublicTestSuite) TestReportsAListingItCannotGet() {
@@ -392,8 +438,14 @@ func (s *DevicePublicTestSuite) TestTheCommandsThatFindTheirOwnDevice() {
 	out := filepath.Join(s.T().TempDir(), "rig.yaml")
 
 	s.dev.EXPECT().Presets(gomock.Any(), 0).Return(s.listing(), nil).Times(3)
+	// Twice for the two that read one slot, and once more for the listing,
+	// which reads every named slot to say which of them hold anything.
 	s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 0).
-		Return(s.answer("preset.bin"), nil).Times(2)
+		Return(s.answer("preset.bin"), nil).Times(3)
+	s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 24).
+		Return(s.answer("switches.bin"), nil)
+	s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 79).
+		Return(s.answer("empty.bin"), nil)
 	s.dev.EXPECT().Close().Times(3)
 
 	defer s.stand(s.dev, nil)()
