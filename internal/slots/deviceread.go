@@ -87,8 +87,84 @@ func writeDeviceRig(w io.Writer, body []byte, opts DeviceOptions) error {
 	spec.Device = deviceStateOf(got, cat)
 	spec.Snapshots = snapshotsOf(got)
 	spec.Footswitches = footswitchesOf(got, cat)
+	spec.Controllers = controllersOf(got, cat)
 
 	return writeRigTo(w, spec)
+}
+
+// controllersOf carries what an expression pedal or a footswitch moves.
+//
+// A device stores the parameter as a number, its place in the model's own
+// order, and stores the block by the position it lays it out at. Neither
+// reads, so the catalog turns the first into a name and the grid offset turns
+// the second into a place along the path.
+//
+// An assignment naming a model or a parameter this catalog cannot reach is
+// dropped rather than written with a number in place of a name. A rig that
+// said `parameter: 4` would be unreadable and would mean something different
+// after the next firmware release.
+func controllersOf(
+	got wire.DevicePreset,
+	cat *catalog.Catalog,
+) *[]riggen.Controller {
+	if len(got.Controllers) == 0 {
+		return nil
+	}
+
+	out := make([]riggen.Controller, 0, len(got.Controllers))
+
+	for _, c := range got.Controllers {
+		name, ok := paramNameOf(got, cat, c.Block, c.Param)
+		if !ok {
+			continue
+		}
+
+		lo, hi := float32(c.Min), float32(c.Max)
+		one := riggen.Controller{
+			Controller: c.Controller,
+			Block:      c.Block - wire.GridOffset,
+			Parameter:  name,
+			Min:        &lo,
+			Max:        &hi,
+		}
+
+		if c.NoSnapshot {
+			one.NoSnapshot = &c.NoSnapshot
+		}
+
+		out = append(out, one)
+	}
+
+	if len(out) == 0 {
+		return nil
+	}
+
+	return &out
+}
+
+// paramNameOf names one parameter of one block.
+//
+// The block is found by the position the device laid it out at, because that
+// is how a controller assignment addresses it.
+func paramNameOf(
+	got wire.DevicePreset,
+	cat *catalog.Catalog,
+	at, param int,
+) (string, bool) {
+	for _, b := range got.Blocks {
+		if b.Index != at {
+			continue
+		}
+
+		sym, ok := cat.Symbol(b.Model)
+		if !ok || param < 0 || param >= len(sym.Params) {
+			return "", false
+		}
+
+		return sym.Params[param], true
+	}
+
+	return "", false
 }
 
 // deviceDocument builds the preset a device's answer describes.

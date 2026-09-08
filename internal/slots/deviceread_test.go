@@ -28,6 +28,11 @@ import (
 
 	"github.com/stretchr/testify/suite"
 	"github.com/vmihailenco/msgpack/v5"
+
+	"github.com/retr0h/tonestack/internal/catalogview"
+	"github.com/retr0h/tonestack/pkg/catalog"
+	riggen "github.com/retr0h/tonestack/pkg/rig/gen"
+	"github.com/retr0h/tonestack/pkg/sdk/wire"
 )
 
 // DeviceReadTestSuite reads what an HX Stomp actually answered.
@@ -37,6 +42,15 @@ import (
 // a real answer rather than by a device being plugged in.
 type DeviceReadTestSuite struct {
 	suite.Suite
+
+	cat *catalog.Catalog
+}
+
+func (s *DeviceReadTestSuite) SetupSuite() {
+	cat, err := catalogview.Open("")
+	s.Require().NoError(err)
+
+	s.cat = cat
 }
 
 func (s *DeviceReadTestSuite) capture() []byte { return s.answerFrom("preset.bin") }
@@ -115,8 +129,13 @@ func (s *DeviceReadTestSuite) TestADeviceAnswerBecomesARig() {
 	s.Require().Contains(got, "'@model': HD2_AppDSPFlowSplitY")
 	s.Require().Contains(got, "dsp0.join")
 
-	// Controller assignments are not decoded, so nothing claims them.
-	s.Require().NotContains(got, "controller")
+	// What the expression pedal moves, named rather than numbered. The device
+	// stores parameter 0 of the block at grid position 2, and only the
+	// catalog turns that into the volume block's Pedal.
+	s.Require().Contains(got, "controllers:")
+	s.Require().Contains(got, "controller: 2")
+	s.Require().Contains(got, "parameter: Pedal")
+	s.Require().Contains(got, "block: 1")
 }
 
 func (s *DeviceReadTestSuite) TestAnAmpCarryingItsOwnCabinet() {
@@ -229,4 +248,91 @@ func (s *DeviceReadTestSuite) TestARigReadOffTheDeviceRebuildsItsRouting() {
 
 func TestDeviceReadTestSuite(t *testing.T) {
 	suite.Run(t, new(DeviceReadTestSuite))
+}
+
+// TestControllersOf covers naming what a controller moves, and the cases
+// where it cannot be named.
+func (s *DeviceReadTestSuite) TestControllersOf() {
+	// The block at grid position 2 in the captured preset is a volume pedal,
+	// whose parameters are Pedal and VolumeTaper in that order.
+	block := wire.DeviceBlock{Index: 2, Model: 261}
+
+	tests := []struct {
+		name  string
+		got   wire.DevicePreset
+		want  *[]riggen.Controller
+		named string
+	}{
+		{
+			name: "an expression pedal on a parameter",
+			got: wire.DevicePreset{
+				Blocks: []wire.DeviceBlock{block},
+				Controllers: []wire.DeviceController{
+					{Controller: 2, Block: 2, Param: 0, Min: 0, Max: 1},
+				},
+			},
+			named: "Pedal",
+		},
+		{
+			name: "one snapshots leave alone",
+			got: wire.DevicePreset{
+				Blocks: []wire.DeviceBlock{block},
+				Controllers: []wire.DeviceController{
+					{Controller: 2, Block: 2, Param: 1, NoSnapshot: true},
+				},
+			},
+			named: "VolumeTaper",
+		},
+		{
+			name: "a preset assigning none",
+			got:  wire.DevicePreset{Blocks: []wire.DeviceBlock{block}},
+		},
+		{
+			name: "one naming a block the chain does not hold",
+			got: wire.DevicePreset{
+				Blocks: []wire.DeviceBlock{block},
+				Controllers: []wire.DeviceController{
+					{Controller: 2, Block: 9, Param: 0},
+				},
+			},
+		},
+		{
+			name: "one naming a parameter past what the model has",
+			got: wire.DevicePreset{
+				Blocks: []wire.DeviceBlock{block},
+				Controllers: []wire.DeviceController{
+					{Controller: 2, Block: 2, Param: 40},
+				},
+			},
+		},
+		{
+			name: "one on a model this catalog cannot name",
+			got: wire.DevicePreset{
+				Blocks: []wire.DeviceBlock{{Index: 2, Model: 999999}},
+				Controllers: []wire.DeviceController{
+					{Controller: 2, Block: 2, Param: 0},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			got := controllersOf(tt.got, s.cat)
+
+			if tt.named == "" {
+				s.Require().Nil(got, "nothing that cannot be named is written")
+
+				return
+			}
+
+			s.Require().NotNil(got)
+			s.Require().Len(*got, 1)
+			s.Require().Equal(tt.named, (*got)[0].Parameter)
+
+			// A grid position is not a place along the path, and a rig counts
+			// the way the chain does.
+			s.Require().Equal(1, (*got)[0].Block)
+		})
+	}
 }

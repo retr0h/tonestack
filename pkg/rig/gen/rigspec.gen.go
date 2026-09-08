@@ -254,6 +254,31 @@ type Change struct {
 // Confidence How far a claim should be trusted. Set by a person, not derived. A claim asserting high confidence with no evidence behind it is worth showing as unverified whatever it says about itself.
 type Confidence string
 
+// Controller One parameter something moves: an expression pedal, or a footswitch set to sweep a knob rather than switch a block.
+//
+// A rig records these because they are decisions somebody made about how they play, not device state. Nothing else in a rig says that the pedal under your foot is on the amp's drive rather than its volume.
+type Controller struct {
+	// Block Which block it works on, counted along the signal path the way the chain counts its entries.
+	Block int `json:"block"`
+
+	// Controller Which controller, as the device numbers them. The expression pedal reads 2 on an HX Stomp.
+	Controller int `json:"controller"`
+
+	// Max What it reads with the controller all the way over.
+	Max *float32 `json:"max,omitempty"`
+
+	// Min What the parameter reads with the controller at rest.
+	Min *float32 `json:"min,omitempty"`
+
+	// NoSnapshot Whether snapshots leave this assignment alone. Omitted means they do not.
+	NoSnapshot *bool `json:"no_snapshot,omitempty"`
+
+	// Parameter The parameter it moves, by the name the catalog gives it — "Pedal", "Drive", "Mix".
+	//
+	// A device names nothing: it stores the parameter's place in the model's own order, and only the catalog turns that into a word. A rig carrying the number would be unreadable and would break the moment a firmware release reordered anything.
+	Parameter string `json:"parameter"`
+}
+
 // DeviceState Everything a preset carries that this format does not model as musical intent, kept exactly as the device wrote it.
 //
 // A rig describes a sound, so it models gear, settings and why they were chosen. A preset also carries footswitch assignments, snapshot names, the blocks a device puts either side of a chain, and metadata nobody documented. None of that is intent, and all of it is somebody's work.
@@ -424,6 +449,11 @@ type RigSpec struct {
 
 	// Confidence How far a claim should be trusted. Set by a person, not derived. A claim asserting high confidence with no evidence behind it is worth showing as unverified whatever it says about itself.
 	Confidence *Confidence `json:"confidence,omitempty"`
+
+	// Controllers The parameters an expression pedal or a footswitch moves.
+	//
+	// Which knob your foot is on is a decision about how you play, made once and used every time. A preset stores it against a parameter number nobody can read; a rig names the parameter.
+	Controllers *[]Controller `json:"controllers,omitempty"`
 
 	// Default Whether this is the rig a bare request resolves to. A player owns several — by era, by song — and asking for "a Mike Dirnt sound" with no qualifier has to land somewhere.
 	Default *bool `json:"default,omitempty"`

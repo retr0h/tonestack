@@ -72,6 +72,48 @@ Asking the device what it is playing, until it names the preset that was asked
 for, is the only honest signal. Confirmed on hardware in both directions.
 Without the wait the colours went; with it they stayed.
 
+## What an expression pedal moves
+
+Section 4 is an array of ten, one per controller, each holding the assignments
+made to it. Most are empty on any real preset: one pedal on one parameter leaves
+the other nine holding nothing.
+
+Slot 27B read off an HX Stomp beside the same slot exported from HX Edit settled
+the layout. The file describes its one assignment as
+
+```json
+"controller": {"dsp0": {"block0": {"Pedal": {
+  "@min": 0, "@max": 1, "@controller": 2, "@snapshot_disable": false}}}}
+```
+
+and the device sends
+
+```text
+[2][0] = {0: 0, 1: {0: 2, 1: 4, 2: 0, 3: 1, 4: 0, 5: 2,
+                    6: {28: 0, 29: 0, 41: false}, 7: 0}}
+```
+
+| where           | what it is                                           |
+| --------------- | ---------------------------------------------------- |
+| the array index | the controller. The expression pedal is 2            |
+| `0`             | the parameter, by its place in the model's own order |
+| `1.0`           | the block, by the grid position it sits at           |
+| `1.2` and `1.3` | the ends of the travel                               |
+| `1.5`           | the controller again                                 |
+| `1.6.41`        | whether snapshots leave it alone                     |
+
+Five values line up with five fields the file names, which is what makes them
+more than a guess. Keys `1`, `4` and `7`, and `28` and `29` inside `6`, are read
+and not understood.
+
+A rig names the parameter rather than numbering it. A device stores parameter 0
+of the block at grid position 2; only the catalog turns that into the volume
+block's `Pedal`, and a rig carrying the number would be unreadable and would
+mean something different after a firmware release reordered anything.
+
+An assignment naming a model or a parameter the catalog cannot reach is dropped
+rather than written with a number where a name belongs.
+
 ## A named slot can still be empty
 
 A device names every slot. An untouched one is called `New Preset`, and a slot
