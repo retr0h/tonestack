@@ -58,21 +58,108 @@ func stomp() sdk.Descriptor {
 	return sdk.Descriptor{Vendor: 0x0e41, Product: 0x4246, Bus: 2, Address: 1}
 }
 
-func (s *DiscoverPublicTestSuite) TestModelForFindsAKnownProduct() {
-	m, ok := sdk.ModelFor(0x4246)
+// TestModelFor names a device by the product it reports on the bus.
+func (s *DiscoverPublicTestSuite) TestModelFor() {
+	tests := []struct {
+		name     string
+		product  uint16
+		model    string
+		deviceID int
+	}{
+		{
+			name:     "a product the table carries",
+			product:  0x4246,
+			model:    "HX Stomp",
+			deviceID: 2162694,
+		},
+		{
+			// A Line 6 device this table has never seen is still on the bus,
+			// it just cannot be named or written for.
+			name:    "one it does not",
+			product: 0xFFFF,
+		},
+	}
 
-	s.Require().True(ok)
-	s.Require().Equal("HX Stomp", m.Name)
-	s.Require().Equal(2162694, m.DeviceID)
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			got, ok := sdk.ModelFor(tt.product)
+
+			if tt.model == "" {
+				s.Require().False(ok)
+
+				return
+			}
+
+			s.Require().True(ok)
+			s.Require().Equal(tt.model, got.Name)
+			s.Require().Equal(tt.deviceID, got.DeviceID)
+		})
+	}
 }
 
-func (s *DiscoverPublicTestSuite) TestModelForReportsFalseForUnknown() {
-	_, ok := sdk.ModelFor(0xFFFF)
+// TestDevices names every Helix on the bus and ignores everything else.
+func (s *DiscoverPublicTestSuite) TestDevices() {
+	boom := errors.New("bus unavailable")
 
-	s.Require().False(ok)
+	tests := []struct {
+		name   string
+		descs  []sdk.Descriptor
+		fails  error
+		models []string
+	}{
+		{
+			name:   "one this table can name",
+			descs:  []sdk.Descriptor{stomp()},
+			models: []string{"HX Stomp"},
+		},
+		{
+			name: "another vendor's device alongside it",
+			descs: []sdk.Descriptor{
+				{Vendor: 0x05ac, Product: 0x1234},
+				stomp(),
+			},
+			models: []string{"HX Stomp"},
+		},
+		{
+			// Line 6 make more than this table knows about.
+			name:   "a Line 6 product nothing recognises",
+			descs:  []sdk.Descriptor{{Vendor: sdk.VendorID, Product: 0xBEEF}},
+			models: []string{},
+		},
+		{
+			name:   "an empty bus",
+			models: []string{},
+		},
+		{
+			name:  "a bus that cannot be looked at",
+			fails: boom,
+		},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			got, err := sdk.Devices(context.Background(),
+				s.lister(tt.descs, tt.fails))
+
+			if tt.fails != nil {
+				s.Require().ErrorIs(err, tt.fails)
+
+				return
+			}
+
+			s.Require().NoError(err)
+			s.Require().Equal(tt.models, names(got))
+		})
+	}
 }
 
-func (s *DiscoverPublicTestSuite) TestDevicesNamesARecognisedDevice() {
+// TestDevicesCarriesWhatTheBusSaid covers the detail beside the name, which
+// is one device rather than a set of cases.
+//
+// Two identifier systems: a device answers to a USB product on the bus and is
+// named by a different number inside a preset. Both are needed and neither
+// derives from the other.
+func (s *DiscoverPublicTestSuite) TestDevicesCarriesWhatTheBusSaid() {
 	got, err := sdk.Devices(context.Background(),
 		s.lister([]sdk.Descriptor{stomp()}, nil))
 
@@ -83,70 +170,68 @@ func (s *DiscoverPublicTestSuite) TestDevicesNamesARecognisedDevice() {
 	s.Require().Equal(2, got[0].Descriptor.Bus)
 }
 
-func (s *DiscoverPublicTestSuite) TestDevicesIgnoresOtherVendors() {
-	got, err := sdk.Devices(context.Background(), s.lister([]sdk.Descriptor{
-		{Vendor: 0x05ac, Product: 0x1234},
-		stomp(),
-	}, nil))
-
-	s.Require().NoError(err)
-	s.Require().Len(got, 1)
-	s.Require().Equal("HX Stomp", got[0].Model)
-}
-
-func (s *DiscoverPublicTestSuite) TestDevicesIgnoresUnrecognisedLine6Products() {
-	got, err := sdk.Devices(context.Background(), s.lister([]sdk.Descriptor{
-		{Vendor: sdk.VendorID, Product: 0xBEEF},
-	}, nil))
-
-	s.Require().NoError(err)
-	s.Require().Empty(got)
-}
-
-func (s *DiscoverPublicTestSuite) TestDevicesReturnsEmptyForAnEmptyBus() {
-	got, err := sdk.Devices(context.Background(), s.lister(nil, nil))
-
-	s.Require().NoError(err)
-	s.Require().Empty(got)
-}
-
-func (s *DiscoverPublicTestSuite) TestDevicesPropagatesListerFailure() {
-	boom := errors.New("bus unavailable")
-
-	_, err := sdk.Devices(context.Background(), s.lister(nil, boom))
-
-	s.Require().ErrorIs(err, boom)
-}
-
-func (s *DiscoverPublicTestSuite) TestFirstReturnsTheOnlyDevice() {
-	got, err := sdk.First(context.Background(),
-		s.lister([]sdk.Descriptor{stomp()}, nil))
-
-	s.Require().NoError(err)
-	s.Require().Equal("HX Stomp", got.Model)
-}
-
-func (s *DiscoverPublicTestSuite) TestFirstPrefersBusOrderWhenSeveralAttached() {
+// TestFirst picks one when a person did not say which.
+func (s *DiscoverPublicTestSuite) TestFirst() {
 	xl := sdk.Descriptor{Vendor: sdk.VendorID, Product: 0x4253, Bus: 1, Address: 4}
 
-	got, err := sdk.First(context.Background(),
-		s.lister([]sdk.Descriptor{xl, stomp()}, nil))
+	tests := []struct {
+		name  string
+		descs []sdk.Descriptor
+		fails error
+		model string
+		is    error
+	}{
+		{
+			name:  "the only one attached",
+			descs: []sdk.Descriptor{stomp()},
+			model: "HX Stomp",
+		},
+		{
+			// Bus order rather than the order the bus happened to answer in,
+			// so two runs with the same hardware pick the same device.
+			name:  "the earliest on the bus when several are",
+			descs: []sdk.Descriptor{xl, stomp()},
+			model: "HX Stomp XL",
+		},
+		{
+			name: "an empty bus",
+			is:   sdk.ErrNoDevice,
+		},
+		{
+			name:  "a bus that cannot be looked at",
+			fails: errors.New("bus unavailable"),
+		},
+	}
 
-	s.Require().NoError(err)
-	s.Require().Equal("HX Stomp XL", got.Model)
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			got, err := sdk.First(context.Background(),
+				s.lister(tt.descs, tt.fails))
+
+			if tt.model == "" {
+				s.Require().Error(err)
+
+				if tt.is != nil {
+					s.Require().ErrorIs(err, tt.is)
+				}
+
+				return
+			}
+
+			s.Require().NoError(err)
+			s.Require().Equal(tt.model, got.Model)
+		})
+	}
 }
 
-func (s *DiscoverPublicTestSuite) TestFirstReportsNoDeviceOnAnEmptyBus() {
-	_, err := sdk.First(context.Background(), s.lister(nil, nil))
+// names is what a discovery answered with, in order.
+func names(found []sdk.Device) []string {
+	out := make([]string, 0, len(found))
+	for _, d := range found {
+		out = append(out, d.Model)
+	}
 
-	s.Require().ErrorIs(err, sdk.ErrNoDevice)
-}
-
-func (s *DiscoverPublicTestSuite) TestFirstPropagatesListerFailure() {
-	_, err := sdk.First(context.Background(),
-		s.lister(nil, errors.New("bus unavailable")))
-
-	s.Require().Error(err)
+	return out
 }
 
 func TestDiscoverPublicTestSuite(t *testing.T) {
