@@ -43,211 +43,268 @@ func (s *BuildTestSuite) opts() Options {
 	}
 }
 
-func (s *BuildTestSuite) TestBuildRecordsDeviceIdentity() {
-	c, err := Build(s.opts())
+// TestBuild turns a licensed HX Edit installation into a catalog.
+//
+// Every row builds from the same fixture and asks one thing of the result,
+// because the arrange and act are identical and only the question changes.
+func (s *BuildTestSuite) TestBuild() {
+	tests := []struct {
+		name  string
+		check func(*catalog.Catalog)
+	}{
+		{
+			name: "the device it was generated for",
+			check: func(c *catalog.Catalog) {
+				s.Require().Equal("HX Stomp", c.Device)
+				s.Require().Equal(2162694, c.DeviceID)
+				s.Require().Equal(6, c.SchemaVersion)
+			},
+		},
+		{
+			name: "a model listing only another device is left out",
+			check: func(c *catalog.Catalog) {
+				_, ok := c.Block("HD2_AmpOtherDevice")
+				s.Require().False(ok)
+			},
+		},
+		{
+			name: "one listing no devices at all is universal",
+			check: func(c *catalog.Catalog) {
+				_, ok := c.Block("HD2_AmpUniversal")
+				s.Require().True(ok)
+			},
+		},
+		{
+			name: "the gear map names what a model emulates",
+			check: func(c *catalog.Catalog) {
+				b, ok := c.Block("HD2_AmpTestBass")
+				s.Require().True(ok)
+				s.Require().Equal("Ampeg SVT® (normal channel)", b.BasedOn)
+				s.Require().Equal("Bass", b.Subcategory)
+			},
+		},
+		{
+			name: "a cost Line 6 states is carried and trusted",
+			check: func(c *catalog.Catalog) {
+				b, _ := c.Block("HD2_AmpTestBass")
+				s.Require().InDelta(26.67, b.DSP.Mono, 1e-9)
+				s.Require().InDelta(40.1, b.DSP.Stereo, 1e-9)
+				s.Require().Equal(catalog.ProvOfficial, b.DSP.Prov)
+				s.Require().True(b.DSP.Prov.Trusted())
+			},
+		},
+		{
+			name: "one nobody stated is marked assumed and not trusted",
+			check: func(c *catalog.Catalog) {
+				b, _ := c.Block("HD2_AmpUniversal")
+				s.Require().Equal(catalog.ProvAssumed, b.DSP.Prov)
+				s.Require().False(b.DSP.Prov.Trusted(),
+					"a block with no stated cost must not reach a user")
+			},
+		},
+		{
+			name: "a float parameter, with its range and default",
+			check: func(c *catalog.Catalog) {
+				b, _ := c.Block("HD2_AmpTestBass")
+				p := b.Params["Drive"]
 
-	s.Require().NoError(err)
-	s.Require().Equal("HX Stomp", c.Device)
-	s.Require().Equal(2162694, c.DeviceID)
-	s.Require().Equal(6, c.SchemaVersion)
-}
+				s.Require().Equal(catalog.ParamFloat, p.Type)
+				s.Require().InDelta(1.0, p.Max, 1e-9)
 
-func (s *BuildTestSuite) TestBuildExcludesModelsTheDeviceLacks() {
-	c, err := Build(s.opts())
+				got, ok := p.Default.Float()
+				s.Require().True(ok)
+				s.Require().InDelta(0.53, got, 1e-9)
+			},
+		},
+		{
+			name: "a whole-numbered one",
+			check: func(c *catalog.Catalog) {
+				b, _ := c.Block("HD2_AmpTestBass")
+				p := b.Params["Taps"]
 
-	s.Require().NoError(err)
-	_, ok := c.Block("HD2_AmpOtherDevice")
-	s.Require().False(ok, "a model listing only another device must be excluded")
-}
+				s.Require().Equal(catalog.ParamInt, p.Type)
+				s.Require().InDelta(3, p.Max, 1e-9)
 
-func (s *BuildTestSuite) TestBuildTreatsAnEmptyDeviceListAsUniversal() {
-	c, err := Build(s.opts())
+				got, ok := p.Default.Int()
+				s.Require().True(ok)
+				s.Require().Equal(int64(1), got)
+			},
+		},
+		{
+			name: "a switch",
+			check: func(c *catalog.Catalog) {
+				b, _ := c.Block("HD2_AmpTestBass")
+				p := b.Params["Bright"]
 
-	s.Require().NoError(err)
-	_, ok := c.Block("HD2_AmpUniversal")
-	s.Require().True(ok)
-}
+				s.Require().Equal(catalog.ParamBool, p.Type)
 
-func (s *BuildTestSuite) TestBuildJoinsTheGearMap() {
-	c, err := Build(s.opts())
-	s.Require().NoError(err)
+				got, ok := p.Default.Bool()
+				s.Require().True(ok)
+				s.Require().True(got)
+			},
+		},
+		{
+			name: "one chosen from a list",
+			check: func(c *catalog.Catalog) {
+				b, _ := c.Block("HD2_AmpTestBass")
+				p := b.Params["Topology"]
 
-	b, ok := c.Block("HD2_AmpTestBass")
-	s.Require().True(ok)
-	s.Require().Equal("Ampeg SVT® (normal channel)", b.BasedOn)
-	s.Require().Equal("Bass", b.Subcategory)
-}
+				s.Require().Equal(catalog.ParamEnum, p.Type)
 
-func (s *BuildTestSuite) TestBuildCarriesOfficialDSPCost() {
-	c, _ := Build(s.opts())
-	b, _ := c.Block("HD2_AmpTestBass")
+				_, ok := p.Default.Enum()
+				s.Require().True(ok)
+			},
+		},
+		{
+			name: "neither a switch nor a list has a range",
+			check: func(c *catalog.Catalog) {
+				b, _ := c.Block("HD2_AmpTestBass")
 
-	s.Require().InDelta(26.67, b.DSP.Mono, 1e-9)
-	s.Require().InDelta(40.1, b.DSP.Stereo, 1e-9)
-	s.Require().Equal(catalog.ProvOfficial, b.DSP.Prov)
-	s.Require().True(b.DSP.Prov.Trusted())
-}
+				s.Require().Zero(b.Params["Bright"].Max, "false/true is not a range")
+				s.Require().Zero(b.Params["Topology"].Max, "empty strings are not a range")
+			},
+		},
+		{
+			// Regression: Line 6 lists block attributes alongside knobs.
+			// Carrying @enabled or @bypassvolume as parameters puts a value
+			// we chose where the device owns one, and writes it into every
+			// generated preset.
+			name: "an @-prefixed entry is an attribute, not a knob",
+			check: func(c *catalog.Catalog) {
+				b, ok := c.Block("HD2_AmpTestBass")
+				s.Require().True(ok)
 
-func (s *BuildTestSuite) TestBuildMarksAMissingDSPCostAssumed() {
-	c, _ := Build(s.opts())
-	b, _ := c.Block("HD2_AmpUniversal")
+				for key := range b.Params {
+					s.Require().NotContains(key, "@",
+						"attribute %q became a parameter", key)
+				}
+			},
+		},
+	}
 
-	s.Require().Equal(catalog.ProvAssumed, b.DSP.Prov)
-	s.Require().False(b.DSP.Prov.Trusted(),
-		"a block with no stated cost must not reach a user")
-}
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			got, err := Build(s.opts())
 
-func (s *BuildTestSuite) TestBuildDecodesEveryParameterKind() {
-	c, _ := Build(s.opts())
-	b, _ := c.Block("HD2_AmpTestBass")
-
-	f := b.Params["Drive"]
-	s.Require().Equal(catalog.ParamFloat, f.Type)
-	s.Require().InDelta(1.0, f.Max, 1e-9)
-	fv, ok := f.Default.Float()
-	s.Require().True(ok)
-	s.Require().InDelta(0.53, fv, 1e-9)
-
-	i := b.Params["Taps"]
-	s.Require().Equal(catalog.ParamInt, i.Type)
-	s.Require().InDelta(3, i.Max, 1e-9)
-	iv, ok := i.Default.Int()
-	s.Require().True(ok)
-	s.Require().Equal(int64(1), iv)
-
-	bl := b.Params["Bright"]
-	s.Require().Equal(catalog.ParamBool, bl.Type)
-	bv, ok := bl.Default.Bool()
-	s.Require().True(ok)
-	s.Require().True(bv)
-
-	e := b.Params["Topology"]
-	s.Require().Equal(catalog.ParamEnum, e.Type)
-	_, ok = e.Default.Enum()
-	s.Require().True(ok)
-}
-
-func (s *BuildTestSuite) TestBuildLeavesBoolAndStringWithoutARange() {
-	c, _ := Build(s.opts())
-	b, _ := c.Block("HD2_AmpTestBass")
-
-	s.Require().Zero(b.Params["Bright"].Max, "false/true is not a range")
-	s.Require().Zero(b.Params["Topology"].Max, "empty strings are not a range")
-}
-
-func (s *BuildTestSuite) TestBuildTreatsAtPrefixedEntriesAsAttributes() {
-	// Regression: Line 6 lists block attributes alongside knobs. Carrying
-	// @enabled or @bypassvolume as parameters puts a value we chose where the
-	// device owns one, and writes it into every generated preset.
-	c, err := Build(s.opts())
-	s.Require().NoError(err)
-
-	b, ok := c.Block("HD2_AmpTestBass")
-	s.Require().True(ok)
-
-	for key := range b.Params {
-		s.Require().NotContains(key, "@", "attribute %q became a parameter", key)
+			s.Require().NoError(err)
+			tt.check(got)
+		})
 	}
 }
 
-func (s *BuildTestSuite) TestBuildReportsAMissingResourcesDir() {
-	o := s.opts()
-	o.ResourcesDir = "testdata/does-not-exist"
+// TestBuildWithoutAGearMap covers the half of the sources that is optional.
+//
+// The catalog is usable without it: the models supply every value, and the
+// map only says what real gear each one emulates.
+func (s *BuildTestSuite) TestBuildWithoutAGearMap() {
+	tests := []struct {
+		name string
+		path string
+	}{
+		{name: "a path to no file", path: filepath.Join("testdata", "no-such-map.json")},
+		{name: "no path at all", path: ""},
+	}
 
-	_, err := Build(o)
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			o := s.opts()
+			o.GearMapPath = tt.path
 
-	s.Require().ErrorIs(err, ErrNoResources)
+			got, err := Build(o)
+
+			s.Require().NoError(err)
+
+			b, ok := got.Block("HD2_AmpTestBass")
+			s.Require().True(ok)
+			s.Require().Empty(b.BasedOn, "usable, just unable to name gear")
+		})
+	}
 }
 
-func (s *BuildTestSuite) TestBuildReportsADeviceNoModelSupports() {
-	// A directory holding only models that name another device. The default
-	// fixture also holds a model listing no devices at all, which is treated
-	// as universal and would always be included.
-	o := s.opts()
-	o.ResourcesDir = filepath.Join("testdata", "otheronly")
+// TestBuildReportsWhatItCannotRead covers the sources going missing or
+// arriving malformed.
+func (s *BuildTestSuite) TestBuildReportsWhatItCannotRead() {
+	unreadable := s.T().TempDir()
+	path := filepath.Join(unreadable, "amp.models")
+	s.Require().NoError(os.WriteFile(path, []byte("[]"), 0o600))
+	s.Require().NoError(os.Chmod(path, 0o000))
 
-	_, err := Build(o)
+	tests := []struct {
+		name      string
+		resources string
+		gearMap   string
+		is        error
+		says      string
+	}{
+		{
+			name:      "a resources directory that is not there",
+			resources: filepath.Join("testdata", "does-not-exist"),
+			is:        ErrNoResources,
+		},
+		{
+			// A directory holding only models that name another device. The
+			// default fixture also holds one listing no devices at all,
+			// which is universal and would always be included.
+			name:      "a directory where no model supports this device",
+			resources: filepath.Join("testdata", "otheronly"),
+			is:        ErrNoResources,
+		},
+		{
+			// filepath.Glob rejects an unterminated character class.
+			name:      "a directory name no pattern can match",
+			resources: filepath.Join("testdata", "["),
+		},
+		{
+			name:      "model definitions that will not decode",
+			resources: filepath.Join("testdata", "malformed"),
+			says:      "decoding",
+		},
+		{
+			name:      "a model file that cannot be read",
+			resources: unreadable,
+			says:      "reading",
+		},
+		{
+			name:    "a gear map that will not decode",
+			gearMap: filepath.Join("testdata", "badmap.json"),
+			says:    "gear map",
+		},
+		{
+			// A directory is not ErrNotExist, so it is a real read failure
+			// rather than an absent map.
+			name:    "a gear map that is a directory",
+			gearMap: "testdata",
+			says:    "gear map",
+		},
+	}
 
-	s.Require().ErrorIs(err, ErrNoResources)
-}
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			o := s.opts()
 
-func (s *BuildTestSuite) TestBuildToleratesAMissingGearMap() {
-	o := s.opts()
-	o.GearMapPath = "testdata/no-such-map.json"
+			if tt.resources != "" {
+				o.ResourcesDir = tt.resources
+			}
 
-	c, err := Build(o)
+			if tt.gearMap != "" {
+				o.GearMapPath = tt.gearMap
+			}
 
-	s.Require().NoError(err)
-	b, _ := c.Block("HD2_AmpTestBass")
-	s.Require().Empty(b.BasedOn, "usable without the map, just unable to name gear")
-}
+			_, err := Build(o)
 
-func (s *BuildTestSuite) TestBuildAcceptsAnEmptyGearMapPath() {
-	o := s.opts()
-	o.GearMapPath = ""
+			s.Require().Error(err)
 
-	_, err := Build(o)
+			if tt.is != nil {
+				s.Require().ErrorIs(err, tt.is)
+			}
 
-	s.Require().NoError(err)
+			if tt.says != "" {
+				s.Require().Contains(err.Error(), tt.says)
+			}
+		})
+	}
 }
 
 func TestBuildTestSuite(t *testing.T) {
 	suite.Run(t, new(BuildTestSuite))
-}
-
-func (s *BuildTestSuite) TestBuildReportsMalformedModelDefinitions() {
-	o := s.opts()
-	o.ResourcesDir = filepath.Join("testdata", "malformed")
-
-	_, err := Build(o)
-
-	s.Require().Error(err)
-	s.Require().Contains(err.Error(), "decoding")
-}
-
-func (s *BuildTestSuite) TestBuildReportsAMalformedGearMap() {
-	o := s.opts()
-	o.GearMapPath = filepath.Join("testdata", "badmap.json")
-
-	_, err := Build(o)
-
-	s.Require().Error(err)
-	s.Require().Contains(err.Error(), "gear map")
-}
-
-func (s *BuildTestSuite) TestBuildReportsABadResourcesPattern() {
-	// filepath.Glob rejects an unterminated character class.
-	o := s.opts()
-	o.ResourcesDir = "testdata/["
-
-	_, err := Build(o)
-
-	s.Require().Error(err)
-}
-
-func (s *BuildTestSuite) TestBuildReportsAnUnreadableModelFile() {
-	dir := s.T().TempDir()
-	path := filepath.Join(dir, "amp.models")
-	s.Require().NoError(os.WriteFile(path, []byte("[]"), 0o600))
-	s.Require().NoError(os.Chmod(path, 0o000))
-
-	o := s.opts()
-	o.ResourcesDir = dir
-
-	_, err := Build(o)
-
-	s.Require().Error(err)
-	s.Require().Contains(err.Error(), "reading")
-}
-
-func (s *BuildTestSuite) TestBuildReportsAnUnreadableGearMap() {
-	// A directory is not ErrNotExist, so it is a real read failure rather
-	// than an absent map.
-	o := s.opts()
-	o.GearMapPath = "testdata"
-
-	_, err := Build(o)
-
-	s.Require().Error(err)
-	s.Require().Contains(err.Error(), "gear map")
 }
