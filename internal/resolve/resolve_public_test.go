@@ -81,93 +81,145 @@ func recipe(amp string, cab string, pedals ...string) riggen.RigSpec {
 	return spec
 }
 
-func (s *ResolvePublicTestSuite) TestResolvesGearToModels() {
-	spec, _, err := resolve.Resolve(recipe("Ampeg SVT", ""), s.cat, nil)
+// TestResolve turns gear a person names into models a device has.
+//
+// "Ampeg SVT" names neither the normal nor the bright channel, so which of
+// the two comes back is arbitrary. It is pinned here because a row wants a
+// value, and TestResolveIsDeterministic is what guards that it stays put.
+func (s *ResolvePublicTestSuite) TestResolve() {
+	tests := []struct {
+		name   string
+		spec   riggen.RigSpec
+		models []catalog.ModelID
+		err    string
+	}{
+		{
+			name:   "an amp brings the cabinet it was voiced with",
+			spec:   recipe("Ampeg SVT", ""),
+			models: []catalog.ModelID{"HD2_AmpSVBeastBrt", "HD2_Cab8x10SVBeast"},
+		},
+		{
+			name: "the chain keeps the order it was written in",
+			spec: recipe("Ampeg SVT", "", "Klon Centaur"),
+			models: []catalog.ModelID{
+				"HD2_DistMinotaur",
+				"HD2_AmpSVBeastBrt",
+				"HD2_Cab8x10SVBeast",
+			},
+		},
+		{
+			// Two pedals, descriptions of equal length. The identifier
+			// decides, so the answer does not depend on map iteration order.
+			name:   "the identifier breaks a tie",
+			spec:   recipe("Ampeg SVT", "", "Tied Pedal"),
+			models: []catalog.ModelID{"HD2_TieA", "HD2_AmpSVBeastBrt", "HD2_Cab8x10SVBeast"},
+		},
+		{
+			// "Fuzz Face" matches both the Fuzz Face and the Fuzz Face
+			// Germanium Reissue. The shorter description is the closer answer.
+			name:   "the closer description wins",
+			spec:   recipe("Ampeg SVT", "", "Fuzz Face"),
+			models: []catalog.ModelID{"HD2_Short", "HD2_AmpSVBeastBrt", "HD2_Cab8x10SVBeast"},
+		},
+		{
+			name:   "a cabinet the recipe names beats the amp's own",
+			spec:   recipe("Ampeg SVT", "Ampeg SVT 410HLF"),
+			models: []catalog.ModelID{"HD2_AmpSVBeastBrt", "HD2_CabNamed"},
+		},
+		{
+			// Line 6 does not describe every cabinet in terms of real gear,
+			// so one it cannot name is not a reason to refuse to build.
+			name:   "a cabinet nobody models falls back to the amp's",
+			spec:   recipe("Ampeg SVT", "Some Cabinet Nobody Models"),
+			models: []catalog.ModelID{"HD2_AmpSVBeastBrt", "HD2_Cab8x10SVBeast"},
+		},
+		{
+			name:   "a partial name reaching the other channel",
+			spec:   recipe("Ampeg SVT (bright", ""),
+			models: []catalog.ModelID{"HD2_AmpSVBeastBrt", "HD2_Cab8x10SVBeast"},
+		},
+		{
+			name:   "an amp that names none at all",
+			spec:   recipe("Cabless Bass Head", ""),
+			models: []catalog.ModelID{"HD2_AmpNoCab"},
+		},
+		{
+			name:   "an amp naming a cabinet this device lacks",
+			spec:   recipe("Dangling Bass Head", ""),
+			models: []catalog.ModelID{"HD2_AmpDanglingCab"},
+		},
+		{
+			// A bass request must not reach a guitar amp, however well the
+			// name matches.
+			name: "a request stays inside its instrument",
+			spec: recipe("Marshall JCM-800", ""),
+			err:  "bass amps",
+		},
+		{
+			// A cabinet miss is only recoverable because the amplifier names
+			// the one it was voiced with. One that names none leaves nothing
+			// to substitute.
+			name: "a cabinet miss with nothing to fall back to",
+			spec: recipe("Cabless Bass Head", "Some Cabinet Nobody Models"),
+			err:  "Some Cabinet Nobody Models",
+		},
+		{
+			name: "gear no model emulates",
+			spec: recipe("Orange Rockerverb", ""),
+			err:  "Orange Rockerverb",
+		},
+		{
+			name: "a pedal no model emulates",
+			spec: recipe("Ampeg SVT", "", "Nonexistent Fuzz"),
+			err:  "Nonexistent Fuzz",
+		},
+		{
+			// A user IR block carries a slot index, not audio. Generating one
+			// would point at whatever happened to be loaded in that slot.
+			name: "a block needing the owner's own impulse response",
+			spec: recipe("Slotted Cab", ""),
+			err:  "Slotted Cab",
+		},
+	}
 
-	s.Require().NoError(err)
-	s.Require().Equal("Test Player", spec.Name)
-	s.Require().Len(spec.Blocks, 2, "an amp and the cabinet it is paired with")
-	s.Require().Contains(string(spec.Blocks[0].Model), "SVBeast")
-	s.Require().Equal(catalog.ModelID("HD2_Cab8x10SVBeast"), spec.Blocks[1].Model)
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			got, _, err := resolve.Resolve(tt.spec, s.cat, nil)
+
+			if tt.err != "" {
+				s.Require().ErrorIs(err, resolve.ErrNoSuchGear)
+				s.Require().Contains(err.Error(), tt.err)
+
+				return
+			}
+
+			s.Require().NoError(err)
+			s.Require().Equal("Test Player", got.Name)
+			s.Require().Equal(tt.models, models(got))
+		})
+	}
 }
 
-func (s *ResolvePublicTestSuite) TestAnAmbiguousRequestResolvesTheSameEveryTime() {
-	// "Ampeg SVT" names neither the normal nor the bright channel. Whichever
-	// is chosen, it must not change because the catalog was regenerated.
+// TestResolveIsDeterministic is a property rather than a case.
+//
+// "Ampeg SVT" names neither the normal nor the bright channel. Whichever is
+// chosen, it must not change because the catalog was regenerated or because
+// a map iterated in a different order.
+func (s *ResolvePublicTestSuite) TestResolveIsDeterministic() {
 	first, _, err := resolve.Resolve(recipe("Ampeg SVT", ""), s.cat, nil)
 	s.Require().NoError(err)
 
 	for range 20 {
 		again, _, err := resolve.Resolve(recipe("Ampeg SVT", ""), s.cat, nil)
+
 		s.Require().NoError(err)
-		s.Require().Equal(first.Blocks[0].Model, again.Blocks[0].Model)
+		s.Require().Equal(models(first), models(again))
 	}
 }
 
-func (s *ResolvePublicTestSuite) TestTheIdentifierBreaksATie() {
-	// Two pedals, descriptions of equal length. The identifier decides, so the
-	// answer does not depend on map iteration order.
-	spec, _, err := resolve.Resolve(recipe("Ampeg SVT", "", "Tied Pedal"), s.cat, nil)
-
-	s.Require().NoError(err)
-	s.Require().Equal(catalog.ModelID("HD2_TieA"), spec.Blocks[0].Model)
-}
-
-func (s *ResolvePublicTestSuite) TestTheCloserDescriptionWins() {
-	// "Fuzz Face" matches both the Fuzz Face and the Fuzz Face Germanium
-	// Reissue. The shorter description is the closer answer.
-	spec, _, err := resolve.Resolve(recipe("Ampeg SVT", "", "Fuzz Face"), s.cat, nil)
-
-	s.Require().NoError(err)
-	s.Require().Equal(catalog.ModelID("HD2_Short"), spec.Blocks[0].Model)
-}
-
-func (s *ResolvePublicTestSuite) TestKeepsARequestInsideItsInstrument() {
-	// A bass request must not reach a guitar amp, however well the name matches.
-	_, _, err := resolve.Resolve(recipe("Marshall JCM-800", ""), s.cat, nil)
-
-	s.Require().ErrorIs(err, resolve.ErrNoSuchGear)
-	s.Require().Contains(err.Error(), "bass amps")
-}
-
-func (s *ResolvePublicTestSuite) TestKeepsTheChainInTheOrderItWasWritten() {
-	spec, _, err := resolve.Resolve(recipe("Ampeg SVT", "", "Klon Centaur"), s.cat, nil)
-
-	s.Require().NoError(err)
-	s.Require().Len(spec.Blocks, 3)
-	s.Require().Equal(catalog.ModelID("HD2_DistMinotaur"), spec.Blocks[0].Model)
-	s.Require().Contains(string(spec.Blocks[1].Model), "SVBeast")
-	s.Require().Equal(catalog.ModelID("HD2_Cab8x10SVBeast"), spec.Blocks[2].Model)
-}
-
-func (s *ResolvePublicTestSuite) TestPrefersACabinetTheRecipeNames() {
-	spec, _, err := resolve.Resolve(recipe("Ampeg SVT", "Ampeg SVT 410HLF"), s.cat, nil)
-
-	s.Require().NoError(err)
-	s.Require().Equal(catalog.ModelID("HD2_CabNamed"), spec.Blocks[1].Model)
-}
-
-func (s *ResolvePublicTestSuite) TestFallsBackToTheAmpsOwnCabinet() {
-	// Line 6 does not describe every cabinet in terms of real gear, so a
-	// cabinet it cannot name is not a reason to refuse to build.
-	spec, _, err := resolve.Resolve(recipe("Ampeg SVT", "Some Cabinet Nobody Models"), s.cat, nil)
-
-	s.Require().NoError(err)
-	s.Require().Equal(catalog.ModelID("HD2_Cab8x10SVBeast"), spec.Blocks[1].Model)
-}
-
-func (s *ResolvePublicTestSuite) TestReportsACabinetWithNothingToFallBackTo() {
-	// A cabinet miss is only recoverable because the amplifier names the one
-	// it was voiced with. An amplifier that names none leaves nothing to
-	// substitute, so the miss has to be reported.
-	_, _, err := resolve.Resolve(
-		recipe("Cabless Bass Head", "Some Cabinet Nobody Models"), s.cat, nil)
-
-	s.Require().ErrorIs(err, resolve.ErrNoSuchGear)
-	s.Require().Contains(err.Error(), "Some Cabinet Nobody Models")
-}
-
-func (s *ResolvePublicTestSuite) TestNamesTheCabinetItSubstituted() {
+// TestResolveNamesWhatItChoseForYou covers the second return, which is what
+// a person is told about decisions made on their behalf.
+func (s *ResolvePublicTestSuite) TestResolveNamesWhatItChoseForYou() {
 	_, added, err := resolve.Resolve(
 		recipe("Ampeg SVT", "Some Cabinet Nobody Models"), s.cat, nil)
 
@@ -177,149 +229,132 @@ func (s *ResolvePublicTestSuite) TestNamesTheCabinetItSubstituted() {
 	s.Require().Zero(added[0].Share, "a substitution is not a measurement")
 }
 
-func (s *ResolvePublicTestSuite) TestAnAmpWithNoPairedCabinet() {
-	spec, _, err := resolve.Resolve(recipe("Ampeg SVT (bright", ""), s.cat, nil)
+// TestResolveSetsParameters covers the values a block starts at.
+func (s *ResolvePublicTestSuite) TestResolveSetsParameters() {
+	tests := []struct {
+		name  string
+		spec  riggen.RigSpec
+		check func(chain.Block)
+	}{
+		{
+			name: "every parameter starts at what Line 6 states",
+			spec: recipe("Ampeg SVT", ""),
+			check: func(b chain.Block) {
+				blk, ok := s.cat.Block(b.Model)
+				s.Require().True(ok)
 
-	s.Require().NoError(err)
-	s.Require().NotEmpty(spec.Blocks)
-}
+				want, ok := blk.Params["Drive"].Default.Float()
+				s.Require().True(ok)
 
-func (s *ResolvePublicTestSuite) TestAnAmpThatNamesNoCabinet() {
-	spec, _, err := resolve.Resolve(recipe("Cabless Bass Head", ""), s.cat, nil)
+				got, ok := b.Params["Drive"].Float()
+				s.Require().True(ok)
+				s.Require().InDelta(want, got, 1e-9)
+			},
+		},
+		{
+			// A value with no kind produces a preset the device rejects.
+			name: "a parameter with no stated default is skipped",
+			spec: recipe("Ampeg SVT", "", "Nothing Real"),
+			check: func(b chain.Block) {
+				s.Require().Empty(b.Params)
+			},
+		},
+	}
 
-	s.Require().NoError(err)
-	s.Require().Len(spec.Blocks, 1, "a chain without a cabinet is still a chain")
-}
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			got, _, err := resolve.Resolve(tt.spec, s.cat, nil)
 
-func (s *ResolvePublicTestSuite) TestAnAmpNamingACabinetThisDeviceLacks() {
-	spec, _, err := resolve.Resolve(recipe("Dangling Bass Head", ""), s.cat, nil)
+			s.Require().NoError(err)
+			s.Require().NotEmpty(got.Blocks)
 
-	s.Require().NoError(err)
-	s.Require().Len(spec.Blocks, 1)
-}
-
-func (s *ResolvePublicTestSuite) TestABlockNeedingTheOwnersOwnIRIsNeverChosen() {
-	// A user IR block carries a slot index, not audio. Generating one would
-	// point at whatever happened to be loaded in that slot, so the resolver
-	// must not reach for it even when the name matches.
-	_, _, err := resolve.Resolve(recipe("Slotted Cab", ""), s.cat, nil)
-
-	s.Require().Error(err)
-}
-
-func (s *ResolvePublicTestSuite) TestFitLeavesOverflowAloneOnASingleChipDevice() {
-	// Regression: overflow was moved to dsp1 unconditionally. An HX Stomp has
-	// one signal path — no preset in a corpus of 714 has a second — so a
-	// block put there produces a file the device cannot load. A chain that
-	// does not fit must stay put and be rejected by validation instead.
-	spec, _, err := resolve.Resolve(recipe("Ampeg SVT", "", "Wide Thing"), s.cat, nil)
-	s.Require().NoError(err)
-
-	fitted := resolve.Fit(spec, s.cat, oneChip(80.0))
-
-	for _, b := range fitted.Blocks {
-		s.Require().Zero(b.DSP,
-			"a device with one signal path has nowhere to put overflow")
+			tt.check(got.Blocks[0])
+		})
 	}
 }
 
-func (s *ResolvePublicTestSuite) TestFitChargesAStereoBlockItsStereoCost() {
-	spec, _, err := resolve.Resolve(recipe("Ampeg SVT", "", "Wide Thing"), s.cat, nil)
-	s.Require().NoError(err)
-
-	// 50 stereo + 26.67 + 7.2 overflows 80; 5 mono + the rest would not.
-	fitted := resolve.Fit(spec, s.cat, twoChips(80.0))
-
-	var second int
-
-	for _, b := range fitted.Blocks {
-		if b.DSP == 1 {
-			second++
-		}
+// TestFit places a chain across the processors a device has.
+func (s *ResolvePublicTestSuite) TestFit() {
+	tests := []struct {
+		name    string
+		spec    riggen.RigSpec
+		limits  chain.Limits
+		spilled bool
+	}{
+		{
+			name:   "a small chain stays on the first processor",
+			spec:   recipe("Ampeg SVT", ""),
+			limits: twoChips(95.0),
+		},
+		{
+			// 60 + 60 + 26.67 + 7.2 cannot fit under 95 on one chip.
+			name:    "overflow moves to the second",
+			spec:    recipe("Ampeg SVT", "", "Heavy Thing", "Heavy Thing"),
+			limits:  twoChips(95.0),
+			spilled: true,
+		},
+		{
+			// 50 stereo + 26.67 + 7.2 overflows 80; 5 mono and the rest
+			// would not, so this is the stereo figure being charged.
+			name:    "a stereo block costs its stereo figure",
+			spec:    recipe("Ampeg SVT", "", "Wide Thing"),
+			limits:  twoChips(80.0),
+			spilled: true,
+		},
+		{
+			// Regression: overflow was moved to dsp1 unconditionally. An HX
+			// Stomp has one signal path — no preset in a corpus of 714 has a
+			// second — so a block put there produces a file the device cannot
+			// load. A chain that does not fit stays put and is rejected by
+			// validation instead.
+			name:   "a device with one path has nowhere to put overflow",
+			spec:   recipe("Ampeg SVT", "", "Wide Thing"),
+			limits: oneChip(80.0),
+		},
 	}
 
-	s.Require().Positive(second, "a stereo block costs its stereo figure")
-}
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			spec, _, err := resolve.Resolve(tt.spec, s.cat, nil)
+			s.Require().NoError(err)
 
-func (s *ResolvePublicTestSuite) TestReportsGearNoModelEmulates() {
-	_, _, err := resolve.Resolve(recipe("Orange Rockerverb", ""), s.cat, nil)
+			fitted := resolve.Fit(spec, s.cat, tt.limits)
 
-	s.Require().ErrorIs(err, resolve.ErrNoSuchGear)
-	s.Require().Contains(err.Error(), "Orange Rockerverb")
-}
+			var second int
 
-func (s *ResolvePublicTestSuite) TestReportsAPedalNoModelEmulates() {
-	_, _, err := resolve.Resolve(recipe("Ampeg SVT", "", "Nonexistent Fuzz"), s.cat, nil)
+			for _, b := range fitted.Blocks {
+				if b.DSP == 1 {
+					second++
+				}
+			}
 
-	s.Require().ErrorIs(err, resolve.ErrNoSuchGear)
-	s.Require().Contains(err.Error(), "Nonexistent Fuzz")
-}
+			if tt.spilled {
+				s.Require().Positive(second, "something must move")
 
-func (s *ResolvePublicTestSuite) TestSetsEveryParameterToItsStatedDefault() {
-	spec, _, err := resolve.Resolve(recipe("Ampeg SVT", ""), s.cat, nil)
-	s.Require().NoError(err)
+				return
+			}
 
-	amp := spec.Blocks[0]
-	blk, ok := s.cat.Block(amp.Model)
-	s.Require().True(ok)
-
-	want, ok := blk.Params["Drive"].Default.Float()
-	s.Require().True(ok)
-
-	got, ok := amp.Params["Drive"].Float()
-	s.Require().True(ok)
-	s.Require().InDelta(want, got, 1e-9,
-		"every parameter starts at what Line 6 states")
-}
-
-func (s *ResolvePublicTestSuite) TestSkipsAParameterWithNoStatedDefault() {
-	// A value with no kind produces a preset the device rejects.
-	spec, _, err := resolve.Resolve(recipe("Ampeg SVT", "", "Nothing Real"), s.cat, nil)
-
-	s.Require().NoError(err)
-	s.Require().Empty(spec.Blocks[0].Params)
-}
-
-func (s *ResolvePublicTestSuite) TestFitKeepsASmallChainOnOneProcessor() {
-	spec, _, _ := resolve.Resolve(recipe("Ampeg SVT", ""), s.cat, nil)
-
-	fitted := resolve.Fit(spec, s.cat, twoChips(95.0))
-
-	for _, b := range fitted.Blocks {
-		s.Require().Equal(0, b.DSP)
+			s.Require().Zero(second, "nothing should have moved")
+		})
 	}
 }
 
-func (s *ResolvePublicTestSuite) TestFitMovesOverflowToTheSecondProcessor() {
-	spec, _, _ := resolve.Resolve(recipe("Ampeg SVT", "", "Heavy Thing", "Heavy Thing"), s.cat, nil)
-
-	// 60 + 60 + 26.67 + 7.2 cannot fit under 95 on one chip.
-	fitted := resolve.Fit(spec, s.cat, twoChips(95.0))
-
-	var second int
-
-	for _, b := range fitted.Blocks {
-		if b.DSP == 1 {
-			second++
-		}
-	}
-
-	s.Require().Positive(second, "something must move to the second processor")
-}
-
+// TestFitNumbersEachProcessorFromZero is a property of the whole result
+// rather than of any one chain.
 func (s *ResolvePublicTestSuite) TestFitNumbersEachProcessorFromZero() {
-	spec, _, _ := resolve.Resolve(recipe("Ampeg SVT", "", "Heavy Thing", "Heavy Thing"), s.cat, nil)
-
-	fitted := resolve.Fit(spec, s.cat, twoChips(95.0))
+	spec, _, err := resolve.Resolve(
+		recipe("Ampeg SVT", "", "Heavy Thing", "Heavy Thing"), s.cat, nil)
+	s.Require().NoError(err)
 
 	seen := map[int]map[int]bool{}
 
-	for _, b := range fitted.Blocks {
+	for _, b := range resolve.Fit(spec, s.cat, twoChips(95.0)).Blocks {
 		if seen[b.DSP] == nil {
 			seen[b.DSP] = map[int]bool{}
 		}
 
-		s.Require().False(seen[b.DSP][b.Pos], "position %d used twice on chip %d", b.Pos, b.DSP)
+		s.Require().False(seen[b.DSP][b.Pos],
+			"position %d used twice on chip %d", b.Pos, b.DSP)
 		seen[b.DSP][b.Pos] = true
 	}
 
@@ -330,22 +365,53 @@ func (s *ResolvePublicTestSuite) TestFitNumbersEachProcessorFromZero() {
 	}
 }
 
+// TestFitIgnoresABlockTheCatalogLacks keeps a catalog from another release
+// from dropping blocks on the floor.
 func (s *ResolvePublicTestSuite) TestFitIgnoresABlockTheCatalogLacks() {
-	spec, _, _ := resolve.Resolve(recipe("Ampeg SVT", ""), s.cat, nil)
+	spec, _, err := resolve.Resolve(recipe("Ampeg SVT", ""), s.cat, nil)
+	s.Require().NoError(err)
+
 	spec.Blocks[0].Model = "HD2_NotInThisCatalog"
 
-	fitted := resolve.Fit(spec, s.cat, twoChips(95.0))
-
-	s.Require().Len(fitted.Blocks, len(spec.Blocks))
+	s.Require().Len(
+		resolve.Fit(spec, s.cat, twoChips(95.0)).Blocks, len(spec.Blocks))
 }
 
-func (s *ResolvePublicTestSuite) TestNoSuchGearErrorReadsWell() {
-	withInstrument := &resolve.NoSuchGearError{Gear: "Orange", Kind: "amp", Instrument: "bass"}
-	s.Require().Contains(withInstrument.Error(), "bass amps")
+// TestNoSuchGearError covers what somebody reads when nothing matched.
+func (s *ResolvePublicTestSuite) TestNoSuchGearError() {
+	tests := []struct {
+		name string
+		err  *resolve.NoSuchGearError
+		want string
+	}{
+		{
+			name: "a miss inside one instrument's half of the catalog",
+			err:  &resolve.NoSuchGearError{Gear: "Orange", Kind: "amp", Instrument: "bass"},
+			want: "bass amps",
+		},
+		{
+			name: "one with nowhere left to look",
+			err:  &resolve.NoSuchGearError{Gear: "Orange", Kind: "block"},
+			want: "this device's catalog",
+		},
+	}
 
-	anywhere := &resolve.NoSuchGearError{Gear: "Orange", Kind: "block"}
-	s.Require().Contains(anywhere.Error(), "this device's catalog")
-	s.Require().ErrorIs(anywhere, resolve.ErrNoSuchGear)
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			s.Require().Contains(tt.err.Error(), tt.want)
+			s.Require().ErrorIs(tt.err, resolve.ErrNoSuchGear)
+		})
+	}
+}
+
+// models names what a chain resolved to, in order.
+func models(c chain.Chain) []catalog.ModelID {
+	out := make([]catalog.ModelID, 0, len(c.Blocks))
+	for _, b := range c.Blocks {
+		out = append(out, b.Model)
+	}
+
+	return out
 }
 
 func TestResolvePublicTestSuite(t *testing.T) {
