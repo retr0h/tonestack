@@ -89,11 +89,94 @@ func (s *WriteTestSuite) session(d *device) *sdk.Session {
 	return out
 }
 
+// TestWritePreset puts a document into a slot.
+//
+// Both statuses have been seen on hardware for a write that landed, so
+// neither is read: the erase and program that follow never reach the wire.
+func (s *WriteTestSuite) TestWritePreset() {
+	tests := []struct {
+		name   string
+		device func() *device
+		is     error
+		says   string
+	}{
+		{
+			name:   "a device that takes it and gets on with the erase",
+			device: func() *device { return answers(s.answer(sdk.FirstTxn, 1)) },
+		},
+		{
+			// Nothing says a device must defer. One that answers done is
+			// done.
+			name:   "one that says it finished",
+			device: func() *device { return answers(s.answer(sdk.FirstTxn, 0)) },
+		},
+		{
+			// A device sends notifications unasked while a write commits.
+			// One that will not decode, and one carrying another
+			// transaction, are both somebody else's business.
+			name: "one talking about something else at the same time",
+			device: func() *device {
+				return answers(
+					s.answer(sdk.FirstTxn, 1),
+					sdk.Reply(sdk.ControlChannel, []byte{0xc1}),
+					s.answer(sdk.FirstTxn+7, 0),
+					s.answer(sdk.FirstTxn, 0),
+				)
+			},
+		},
+		{
+			// What a wrongly tagged document drew: the device answers, and
+			// what it answers is no.
+			name:   "one that refuses it",
+			device: func() *device { return answers(s.answer(sdk.FirstTxn, 255)) },
+			is:     wire.ErrRefused,
+		},
+		{
+			// Saying nothing at all is a different thing from answering and
+			// getting on with the erase.
+			name:   "one that never answers",
+			device: func() *device { return answers() },
+			says:   "no reply",
+		},
+		{
+			name:   "a bus that cannot be written to",
+			device: func() *device { return &device{writeErr: errors.New("boom")} },
+			says:   "boom",
+		},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			err := s.session(tt.device()).WritePreset(
+				context.Background(), 0, 3, []byte{0x01})
+
+			if tt.is == nil && tt.says == "" {
+				s.Require().NoError(err)
+
+				return
+			}
+
+			s.Require().Error(err)
+
+			if tt.is != nil {
+				s.Require().ErrorIs(err, tt.is)
+			}
+
+			if tt.says != "" {
+				s.Require().Contains(err.Error(), tt.says)
+			}
+		})
+	}
+}
+
+// TestAMessageGoesOutInPiecesADeviceCanPace is a property of the transfer
+// rather than a case of the call.
+//
+// A device takes 256 bytes of stream data per frame and paces the sender with
+// acknowledgements. Sending a whole preset at once fills its receive window
+// and stalls the endpoint, and the interface will not be claimed again until
+// the device is power cycled.
 func (s *WriteTestSuite) TestAMessageGoesOutInPiecesADeviceCanPace() {
-	// A device takes 256 bytes of stream data per frame and paces the sender
-	// with acknowledgements. Sending a whole preset at once fills its receive
-	// window and stalls the endpoint, and the interface will not be claimed
-	// again until the device is power cycled.
 	d := s.completes()
 
 	err := s.session(d).WritePreset(
@@ -112,28 +195,11 @@ func (s *WriteTestSuite) TestAMessageGoesOutInPiecesADeviceCanPace() {
 	}
 }
 
-func (s *WriteTestSuite) TestAWriteIsDoneWhenItIsAnswered() {
-	// Measured on hardware. A device answers a slot write and that is the
-	// end of it: the erase and program that follow never appear on the wire,
-	// and waiting for a completion notification waits for something that is
-	// not coming while the preset already sits in the slot.
-	//
-	// Both statuses have been seen for a write that landed, so neither is
-	// read.
-	for _, status := range []int{0, 1} {
-		d := answers(s.answer(sdk.FirstTxn, status))
-
-		s.Require().NoError(s.session(d).WritePreset(
-			context.Background(), 0, 3, []byte{0x01}),
-			"a device answering %d has written the slot", status)
-	}
-}
-
 // TestAWriteIsPacedForTheFlash covers the wait that is real.
 //
 // Nothing on the wire says when the erase and program finish, so a second
-// write landing on top of the first stacks its commit. The pause is the only
-// thing keeping them apart.
+// write landing on the first stacks its commit. The pause is the only thing
+// keeping them apart.
 func (s *WriteTestSuite) TestAWriteIsPacedForTheFlash() {
 	was := *sdk.FlashBudget
 	*sdk.FlashBudget = 40 * time.Millisecond
@@ -148,83 +214,27 @@ func (s *WriteTestSuite) TestAWriteIsPacedForTheFlash() {
 	s.Require().GreaterOrEqual(time.Since(started), 40*time.Millisecond)
 }
 
-func (s *WriteTestSuite) TestAWriteThatFinishesImmediately() {
-	// Nothing says a device must defer. One that answers `done` is done.
-	d := answers(s.answer(sdk.FirstTxn, 0))
-
-	s.Require().NoError(s.session(d).WritePreset(
-		context.Background(), 0, 3, []byte{0x01}))
-}
-
-func (s *WriteTestSuite) TestReportsAWriteADeviceNeverAnswers() {
-	// A device that says nothing at all is a different thing from one that
-	// answers and gets on with the erase.
-	err := s.session(answers()).WritePreset(
-		context.Background(), 0, 3, []byte{0x01})
-
-	s.Require().Error(err)
-}
-
-func (s *WriteTestSuite) TestReportsAWriteTheDeviceRefuses() {
-	d := answers(s.answer(sdk.FirstTxn, 255))
-
-	err := s.session(d).WritePreset(context.Background(), 0, 3, []byte{0x01})
-
-	s.Require().ErrorIs(err, wire.ErrRefused)
-}
-
-func (s *WriteTestSuite) TestReportsABusItCannotWriteTo() {
-	err := s.session(&device{writeErr: errors.New("boom")}).WritePreset(
-		context.Background(), 0, 3, []byte{0x01})
-
-	s.Require().Error(err)
-}
-
-func (s *WriteTestSuite) TestAWriteOnAChannelNobodyOpened() {
-	d := s.completes()
-
-	err := sdk.NewTestSession(d, d).Write(context.Background(), 5, nil)
-
-	s.Require().Error(err)
-	s.Require().Contains(err.Error(), "no data channel")
-}
-
-func (s *WriteTestSuite) TestNamingWhatItWrites() {
-	// A paste or an import carries the name; editing a preset in place leaves
-	// whatever the slot was called.
+// TestWriteNamedPreset carries the name the slot takes.
+//
+// A paste or an import carries one; editing a preset in place leaves whatever
+// the slot was called.
+func (s *WriteTestSuite) TestWriteNamedPreset() {
 	d := s.completes()
 
 	s.Require().NoError(s.session(d).WriteNamedPreset(
 		context.Background(), 0, 3, "Mike Dirnt", []byte{0x01}))
 
-	joined := bytes.Join(d.sent, nil)
-	s.Require().Contains(string(joined), "Mike Dirnt\x00",
+	s.Require().Contains(string(bytes.Join(d.sent, nil)), "Mike Dirnt\x00",
 		"a device reads an unterminated name as running into what follows")
 }
 
-func (s *WriteTestSuite) TestACommitBesideAnswersMeantForSomebodyElse() {
-	// A device sends notifications unasked while a write is committing. One
-	// that will not decode, and one carrying another transaction, are both
-	// somebody else's business.
-	d := answers(
-		s.answer(sdk.FirstTxn, 1),
-		sdk.Reply(sdk.ControlChannel, []byte{0xc1}),
-		s.answer(sdk.FirstTxn+7, 0),
-		s.answer(sdk.FirstTxn, 0),
-	)
+// TestAWriteOnAChannelNobodyOpened covers a session that never handshook.
+func (s *WriteTestSuite) TestAWriteOnAChannelNobodyOpened() {
+	d := s.completes()
 
-	s.Require().NoError(s.session(d).WritePreset(
-		context.Background(), 0, 3, []byte{0x01}))
-}
+	err := sdk.NewTestSession(d, d).Write(context.Background(), 5, nil)
 
-func (s *WriteTestSuite) TestADeviceThatRefusesTheWrite() {
-	// What a wrongly tagged document used to draw: the device answers, and
-	// what it answers is no.
-	d := answers(s.answer(sdk.FirstTxn, 255))
-
-	err := s.session(d).WritePreset(context.Background(), 0, 3, []byte{0x01})
-
-	s.Require().ErrorIs(err, wire.ErrRefused)
+	s.Require().ErrorContains(err, "no data channel")
 }
 
 func TestWriteTestSuite(t *testing.T) {
