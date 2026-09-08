@@ -28,7 +28,10 @@ import (
 	"io"
 	"os"
 
+	"github.com/retr0h/tonestack/internal/catalogview"
 	"github.com/retr0h/tonestack/internal/cli"
+	"github.com/retr0h/tonestack/pkg/catalog"
+	"github.com/retr0h/tonestack/pkg/chain"
 	"github.com/retr0h/tonestack/pkg/sdk"
 	"github.com/retr0h/tonestack/pkg/sdk/wire"
 	slotpkg "github.com/retr0h/tonestack/pkg/slot"
@@ -217,20 +220,41 @@ func ListWith(
 		return fmt.Errorf("listing presets: %w", err)
 	}
 
+	cat, err := catalogview.Open(opts.CatalogPath)
+	if err != nil {
+		return err
+	}
+
 	rows := make([][]string, 0, len(presets))
 
 	var used int
 
 	for _, p := range presets {
-		// A device names an untouched slot rather than leaving it blank, so
-		// what counts as empty is the name it was shipped with.
-		if p.Name == "New Preset" {
+		// A slot is always named, so a name says nothing about whether
+		// anything is in it. An untouched one keeps the name it shipped
+		// with; a named one can still hold no blocks at all, and only
+		// reading it says which.
+		blank := p.Name == untouched
+
+		chain := ""
+
+		if !blank {
+			blocks, err := chainAt(ctx, s, cat, opts.Setlist, p.Slot)
+			if err != nil {
+				return err
+			}
+
+			blank = len(blocks) == 0
+			chain = flow(w, blocks, cat)
+		}
+
+		if blank {
 			if !opts.All {
 				continue
 			}
 
 			rows = append(rows, []string{
-				cli.Mute(w, p.Label()), cli.Mute(w, p.Name),
+				cli.Mute(w, p.Label()), cli.Mute(w, p.Name), cli.Mute(w, "empty"),
 			})
 
 			continue
@@ -238,7 +262,7 @@ func ListWith(
 
 		used++
 
-		rows = append(rows, []string{cli.Accent(w, p.Label()), p.Name})
+		rows = append(rows, []string{cli.Accent(w, p.Label()), p.Name, chain})
 	}
 
 	return cli.Section{
@@ -246,8 +270,45 @@ func ListWith(
 		Detail: fmt.Sprintf("%s · %d in use", plural(len(presets), "slot"), used),
 		// One address, the one printed on the pedal. What the device counts
 		// underneath is its business, and --slot takes what is shown here.
-		Headers: []string{"slot", "name"},
+		Headers: []string{"slot", "name", "chain"},
 		Rows:    rows,
 		Empty:   "no presets",
 	}.Render(w)
+}
+
+// untouched is what a device calls a slot nobody has named.
+const untouched = "New Preset"
+
+// chainAt reads one slot and returns the blocks it holds.
+//
+// A slot that will not decode is reported as holding nothing rather than
+// failing the listing around it: one unreadable preset should not hide the
+// hundred that read.
+func chainAt(
+	ctx context.Context,
+	s sdk.Editor,
+	cat *catalog.Catalog,
+	setlist, slot int,
+) ([]chain.Block, error) {
+	got, err := s.ReadPreset(ctx, setlist, slot)
+	if err != nil {
+		return nil, fmt.Errorf("reading slot %s: %w", slotpkg.Label(slot), err)
+	}
+
+	body, ok := got.(string)
+	if !ok {
+		return nil, nil
+	}
+
+	preset, err := wire.DecodePreset([]byte(body))
+	if err != nil {
+		return nil, nil
+	}
+
+	c, err := chainOf("", preset, cat)
+	if err != nil {
+		return nil, nil
+	}
+
+	return c.Blocks, nil
 }
