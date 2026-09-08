@@ -132,113 +132,160 @@ func foreign() *fakeHandle {
 	return &fakeHandle{desc: sdk.Descriptor{Vendor: 0x1234, Product: 0x5678}}
 }
 
-func (s *DiscoverBusTestSuite) TestOpensTheFirstDeviceItRecognises() {
-	d := answers(
-		sdk.FrameFor("control", wire.MsgHello, nil),
-		sdk.FrameFor("control", wire.MsgAck, nil),
-	)
-	dev := helix(d)
-	b := &fakeBus{devices: []sdk.TestHandle{foreign(), dev}}
-
-	session, err := sdk.OpenOver(context.Background(), b)
-
-	s.Require().NoError(err)
-	s.Require().Equal("HX Stomp", session.Model().Name)
-
-	// Claimed, released, and claimed again, which is what HX Edit does: the
-	// device carries channel state across connections and the release is what
-	// clears it.
-	s.Require().Equal(2, dev.claims)
-	s.Require().Equal(1, dev.released)
-}
-
-func (s *DiscoverBusTestSuite) TestClosesEveryDeviceItDoesNotUse() {
-	// A device held by a process that is not using it is a device nothing
-	// else can claim.
-	first, second := helix(answers()), helix(answers())
-	b := &fakeBus{devices: []sdk.TestHandle{first, second}}
-
-	_, err := sdk.OpenOver(context.Background(), b)
-
-	s.Require().NoError(err)
-	s.Require().False(first.closed)
-	s.Require().True(second.closed, "the one nobody used is given back")
-}
-
-func (s *DiscoverBusTestSuite) TestReportsNothingAttached() {
-	b := &fakeBus{devices: []sdk.TestHandle{foreign()}}
-
-	_, err := sdk.OpenOver(context.Background(), b)
-
-	s.Require().ErrorIs(err, sdk.ErrNoDevice)
-	s.Require().True(b.closed, "a bus nobody is using is given back")
-}
-
-func (s *DiscoverBusTestSuite) TestReportsABusItCannotLookAt() {
-	b := &fakeBus{err: errors.New("boom")}
-
-	_, err := sdk.OpenOver(context.Background(), b)
-
-	s.Require().Error(err)
-	s.Require().Contains(err.Error(), "looking for a device")
-}
-
-func (s *DiscoverBusTestSuite) TestADeviceFoundDespiteAComplaint() {
-	// Enumerating can fail partway and still have found something. What it
-	// found is worth using.
-	b := &fakeBus{devices: []sdk.TestHandle{helix(answers())}, err: errors.New("boom")}
-
-	_, err := sdk.OpenOver(context.Background(), b)
-
-	s.Require().NoError(err)
-}
-
-func (s *DiscoverBusTestSuite) TestReportsAnInterfaceItCannotClaim() {
-	dev := helix(answers())
-	dev.claimErr = errors.New("busy")
-
-	_, err := sdk.OpenOver(context.Background(),
-		&fakeBus{devices: []sdk.TestHandle{dev}})
-
-	s.Require().Error(err)
-	s.Require().Contains(err.Error(), "is HX Edit running?")
-}
-
-func (s *DiscoverBusTestSuite) TestReportsASecondClaimItCannotMake() {
-	dev := helix(answers())
-	dev.claimErr, dev.failClaim = errors.New("busy"), 1
-
-	_, err := sdk.OpenOver(context.Background(),
-		&fakeBus{devices: []sdk.TestHandle{dev}})
-
-	s.Require().Error(err)
-}
-
-func (s *DiscoverBusTestSuite) TestReportsAnEndpointItCannotOpen() {
-	for _, tc := range []struct {
+// TestOpenOver finds a device on a bus, claims it and hands back a session.
+func (s *DiscoverBusTestSuite) TestOpenOver() {
+	tests := []struct {
 		name string
-		set  func(*fakeHandle)
-		want string
+		bus  func() *fakeBus
+		err  bool
+		says string
+		is   error
 	}{
-		{"outgoing", func(h *fakeHandle) { h.outErr = errors.New("boom") }, "outgoing"},
-		{"incoming", func(h *fakeHandle) { h.inErr = errors.New("boom") }, "incoming"},
-	} {
-		s.Run(tc.name, func() {
-			dev := helix(answers())
-			tc.set(dev)
+		{
+			name: "a bus with one this package recognises",
+			bus: func() *fakeBus {
+				return &fakeBus{devices: []sdk.TestHandle{foreign(), helix(answers())}}
+			},
+		},
+		{
+			// Enumerating can fail partway and still have found something.
+			// What it found is worth using.
+			name: "one that complained and found something anyway",
+			bus: func() *fakeBus {
+				return &fakeBus{
+					devices: []sdk.TestHandle{helix(answers())},
+					err:     errors.New("boom"),
+				}
+			},
+		},
+		{
+			name: "a bus with nothing on it but somebody else's device",
+			bus: func() *fakeBus {
+				return &fakeBus{devices: []sdk.TestHandle{foreign()}}
+			},
+			err: true,
+			is:  sdk.ErrNoDevice,
+		},
+		{
+			name: "one that cannot be looked at at all",
+			bus:  func() *fakeBus { return &fakeBus{err: errors.New("boom")} },
+			err:  true,
+			says: "looking for a device",
+		},
+		{
+			name: "an interface something else is holding",
+			bus: func() *fakeBus {
+				dev := helix(answers())
+				dev.claimErr = errors.New("busy")
 
-			_, err := sdk.OpenOver(context.Background(),
-				&fakeBus{devices: []sdk.TestHandle{dev}})
+				return &fakeBus{devices: []sdk.TestHandle{dev}}
+			},
+			err:  true,
+			says: "is HX Edit running?",
+		},
+		{
+			// The interface is claimed twice, and the second can fail where
+			// the first did not.
+			name: "one that comes free and then does not",
+			bus: func() *fakeBus {
+				dev := helix(answers())
+				dev.claimErr, dev.failClaim = errors.New("busy"), 1
+
+				return &fakeBus{devices: []sdk.TestHandle{dev}}
+			},
+			err: true,
+		},
+		{
+			name: "an outgoing endpoint that will not open",
+			bus: func() *fakeBus {
+				dev := helix(answers())
+				dev.outErr = errors.New("boom")
+
+				return &fakeBus{devices: []sdk.TestHandle{dev}}
+			},
+			err:  true,
+			says: "outgoing",
+		},
+		{
+			name: "an incoming one",
+			bus: func() *fakeBus {
+				dev := helix(answers())
+				dev.inErr = errors.New("boom")
+
+				return &fakeBus{devices: []sdk.TestHandle{dev}}
+			},
+			err:  true,
+			says: "incoming",
+		},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			got, err := sdk.OpenOver(context.Background(), tt.bus())
+
+			if !tt.err {
+				s.Require().NoError(err)
+				s.Require().Equal("HX Stomp", got.Model().Name)
+
+				return
+			}
 
 			s.Require().Error(err)
-			s.Require().Contains(err.Error(), tc.want)
+
+			if tt.is != nil {
+				s.Require().ErrorIs(err, tt.is)
+			}
+
+			if tt.says != "" {
+				s.Require().Contains(err.Error(), tt.says)
+			}
 		})
 	}
 }
 
-func (s *DiscoverBusTestSuite) TestReportsAHandshakeThatFails() {
-	// A device that stops listening partway through opening its channels
-	// leaves the session half built, and what was taken is given back.
+// TestOpenOverClaimsTwice is what HX Edit does, and what the device needs.
+//
+// The device carries channel state across connections, and the release
+// between the two claims is what clears it.
+func (s *DiscoverBusTestSuite) TestOpenOverClaimsTwice() {
+	dev := helix(answers(
+		sdk.FrameFor("control", wire.MsgHello, nil),
+		sdk.FrameFor("control", wire.MsgAck, nil),
+	))
+
+	_, err := sdk.OpenOver(context.Background(),
+		&fakeBus{devices: []sdk.TestHandle{dev}})
+
+	s.Require().NoError(err)
+	s.Require().Equal(2, dev.claims)
+	s.Require().Equal(1, dev.released)
+}
+
+// TestOpenOverGivesBackWhatItDoesNotUse covers every device it looked at and
+// did not want. One held by a process that is not using it is a device
+// nothing else can claim.
+func (s *DiscoverBusTestSuite) TestOpenOverGivesBackWhatItDoesNotUse() {
+	first, second := helix(answers()), helix(answers())
+
+	_, err := sdk.OpenOver(context.Background(),
+		&fakeBus{devices: []sdk.TestHandle{first, second}})
+
+	s.Require().NoError(err)
+	s.Require().False(first.closed)
+	s.Require().True(second.closed, "the one nobody used is given back")
+
+	// And a bus nobody is using at all.
+	empty := &fakeBus{devices: []sdk.TestHandle{foreign()}}
+
+	_, err = sdk.OpenOver(context.Background(), empty)
+
+	s.Require().Error(err)
+	s.Require().True(empty.closed)
+}
+
+// TestOpenOverGivesBackAHalfBuiltSession covers a device that stops listening
+// partway through opening its channels.
+func (s *DiscoverBusTestSuite) TestOpenOverGivesBackAHalfBuiltSession() {
 	d := answers()
 	d.writeErr = errors.New("boom")
 
@@ -254,8 +301,9 @@ func (s *DiscoverBusTestSuite) TestReportsAHandshakeThatFails() {
 	s.Require().Equal(2, dev.released, "the interface is given back")
 }
 
+// TestOpenFindsItsOwnBus covers the one line in this package that reaches
+// hardware.
 func (s *DiscoverBusTestSuite) TestOpenFindsItsOwnBus() {
-	// The one line in this package that reaches hardware.
 	restore := *sdk.NewBus
 	defer func() { *sdk.NewBus = restore }()
 
@@ -263,10 +311,10 @@ func (s *DiscoverBusTestSuite) TestOpenFindsItsOwnBus() {
 		return &fakeBus{devices: []sdk.TestHandle{helix(answers())}}
 	}
 
-	session, err := sdk.Open(context.Background())
+	got, err := sdk.Open(context.Background())
 
 	s.Require().NoError(err)
-	s.Require().NotNil(session)
+	s.Require().NotNil(got)
 }
 
 func TestDiscoverBusTestSuite(t *testing.T) {
