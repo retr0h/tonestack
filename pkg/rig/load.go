@@ -21,6 +21,7 @@
 package rig
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -40,14 +41,30 @@ func Load(r io.Reader) (gen.RigSpec, error) {
 		return gen.RigSpec{}, fmt.Errorf("reading rig: %w", err)
 	}
 
-	var spec gen.RigSpec
-	if err := yaml.Unmarshal(raw, &spec); err != nil {
+	// The file as it was written, checked before anything decodes it.
+	//
+	// Decoding drops whatever the generated types have no field for, so a rig
+	// checked after decoding is checked with its own mistakes already
+	// removed: `tecnique:` for `technique:` would be dropped on the way in,
+	// the rig would pass, and the line somebody wrote would be gone with
+	// nothing said.
+	body, err := yaml.YAMLToJSON(raw)
+	if err != nil {
 		return gen.RigSpec{}, fmt.Errorf("decoding rig: %w", err)
 	}
 
-	if err := Validate(spec); err != nil {
+	// What YAMLToJSON produced is JSON, so reading it back cannot fail.
+	var document any
+	_ = json.Unmarshal(body, &document)
+
+	if err := against(document); err != nil {
 		return gen.RigSpec{}, err
 	}
+
+	// The document has passed the contract these types were generated from,
+	// so it decodes into them.
+	var spec gen.RigSpec
+	_ = json.Unmarshal(body, &spec)
 
 	return spec, nil
 }
