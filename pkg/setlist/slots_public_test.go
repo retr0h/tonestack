@@ -88,6 +88,18 @@ func (s *SlotsPublicTestSuite) TestCopy() {
 			for i, want := range tt.want {
 				s.Require().Equal(want, doc.Setlists[0].Slots[i].Meta.Name)
 			}
+
+			if len(tt.want) < 2 {
+				return
+			}
+
+			// A struct copy would leave the two slots sharing their tone, so
+			// the next edit to the destination would rewrite the source too.
+			before := len(doc.Setlists[0].Slots[tt.from].Tone)
+			doc.Setlists[0].Slots[tt.to].Tone["dsp9"] = preset.Tone{}
+
+			s.Require().Len(doc.Setlists[0].Slots[tt.from].Tone, before,
+				"the source shares nothing with the copy")
 		})
 	}
 }

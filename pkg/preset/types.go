@@ -24,6 +24,7 @@
 package preset
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"strconv"
@@ -187,7 +188,9 @@ func (f *FlexInt) UnmarshalJSON(b []byte) error {
 	}
 
 	if s == "" {
-		f.Raw = b
+		// Cloned: encoding/json lends the buffer and reuses it, and what is
+		// kept here is written back out verbatim.
+		f.Raw = bytes.Clone(b)
 
 		return nil
 	}
@@ -200,7 +203,7 @@ func (f *FlexInt) UnmarshalJSON(b []byte) error {
 	}
 
 	f.Value = int(v)
-	f.Raw = b
+	f.Raw = bytes.Clone(b)
 
 	return nil
 }

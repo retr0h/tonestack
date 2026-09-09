@@ -79,7 +79,11 @@ func decodePayload(env envelope) ([]byte, error) {
 	}
 	defer func() { _ = zr.Close() }()
 
-	raw, err := io.ReadAll(zr)
+	// Bounded by what the file says it holds, plus one byte so an overrun is
+	// still visible to the size check below. A stream that decides for itself
+	// how much memory to take is one somebody else wrote.
+	raw, err := io.ReadAll(
+		io.LimitReader(zr, int64(env.Compression.DecompressedSize)+1))
 	if err != nil {
 		return nil, fmt.Errorf("decompressing payload: %w", err)
 	}

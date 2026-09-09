@@ -23,7 +23,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -118,7 +118,19 @@ func sortedProcessors(t map[string]Tone) []string {
 		}
 	}
 
-	sort.Strings(keys)
+	// By the number rather than by the name: sorting the strings puts dsp10
+	// ahead of dsp2, which no device has yet and the comment above promises
+	// not to do.
+	slices.SortFunc(keys, func(a, b string) int {
+		x, errA := processorIndex(a)
+		y, errB := processorIndex(b)
+
+		if errA != nil || errB != nil {
+			return strings.Compare(a, b)
+		}
+
+		return x - y
+	})
 
 	return keys
 }
@@ -161,7 +173,17 @@ func readBlocks(t Tone) ([]Block, error) {
 		out = append(out, b)
 	}
 
-	sort.Slice(out, func(i, j int) bool { return out[i].Position < out[j].Position })
+	// By position, then by the key the preset gave it. Two blocks can share a
+	// position — a hand-written preset that states none puts them all at
+	// zero — and an order that depends on which way a map ranged is one this
+	// package's round-trip guarantee cannot hold.
+	slices.SortFunc(out, func(a, b Block) int {
+		if a.Position != b.Position {
+			return a.Position - b.Position
+		}
+
+		return a.Slot - b.Slot
+	})
 
 	return out, nil
 }
