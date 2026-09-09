@@ -6,7 +6,9 @@ Every field a rig may carry, and what it may say. Generated from
 [the contract](../resources/schemas/rigspec.openapi.yaml), so it cannot drift
 from what the code actually enforces.
 
-A field marked `*` is required. Every field is in one of four buckets:
+A field marked `*` is required. A field that holds another object has
+no grammar of its own and shows `—`; the question moves to that
+object's table. Every other field is in one of four buckets:
 
 | grammar | means |
 | --- | --- |
@@ -28,7 +30,7 @@ A rig, complete. Sparse when hand-written; the same document carries settings an
 | `aliases` | list of string | shaped | `\S` |
 | `chain *` | list of ChainEntry | — | [ChainEntry](#chainentry) |
 | `character` | list of string | shaped | `\S` |
-| `confidence` | Confidence | closed | `low`, `medium`, `high` |
+| `confidence` | string | closed | `low`, `medium`, `high` |
 | `controllers` | list of Controller | — | [Controller](#controller) |
 | `default` | boolean | — | `true` or `false` |
 | `device` | DeviceState | — | [DeviceState](#devicestate) |
@@ -36,7 +38,7 @@ A rig, complete. Sparse when hand-written; the same document carries settings an
 | `extends` | string | open | — |
 | `footswitches` | list of Footswitch | — | [Footswitch](#footswitch) |
 | `id *` | string | shaped | `^[a-z0-9]+(-[a-z0-9]+)*$` |
-| `instrument *` | Instrument | closed | `guitar`, `bass` |
+| `instrument *` | string | closed | `guitar`, `bass` |
 | `mutations` | list of Mutation | — | [Mutation](#mutation) |
 | `requires` | list of Requirement | — | [Requirement](#requirement) |
 | `schema *` | string | closed | `RigSpec` |
@@ -52,16 +54,16 @@ One piece of gear, in signal order.
 
 | field | holds | grammar | allowed |
 | --- | --- | --- | --- |
-| `confidence` | Confidence | closed | `low`, `medium`, `high` |
+| `confidence` | string | closed | `low`, `medium`, `high` |
 | `enabled` | boolean | — | `true` or `false` |
 | `evidence` | list of Evidence | — | [Evidence](#evidence) |
 | `gear *` | string | looked up | the gear the catalog maps a model to |
-| `models` | map of string | — | — |
+| `models` | map of string | open | — |
 | `params` | object | — | — |
 | `path` | integer | — | — |
 | `position` | integer | — | — |
-| `role *` | Role | closed | `amp`, `cab`, `drive`, `comp`, `gate`, `eq`, `mod`, `delay`, `reverb`, `wah`, `pitch`, `filter`, `utility`, `other` |
-| `settings` | Settings | — | [Settings](#settings) |
+| `role *` | string | closed | `amp`, `cab`, `drive`, `comp`, `gate`, `eq`, `mod`, `delay`, `reverb`, `wah`, `pitch`, `filter`, `utility`, `other` |
+| `settings` | map of number | shaped | `0` to `1` |
 
 ## Change
 
@@ -95,10 +97,10 @@ Everything a preset carries that this format does not model as musical intent, k
 | `file` | object | — | — |
 | `format` | integer | — | — |
 | `id` | integer | — | — |
-| `meta` | map of any | — | — |
+| `meta` | map of any | open | — |
 | `name` | string | open | — |
-| `routing` | map of any | — | — |
-| `tone` | map of any | — | — |
+| `routing` | map of any | open | — |
+| `tone` | map of any | open | — |
 | `version` | any | open | — |
 
 ## Evidence
@@ -109,7 +111,7 @@ Why one claim is believed. Attached per claim rather than per document, because 
 | --- | --- | --- | --- |
 | `at` | string | shaped | `^\d{1,2}:\d{2}(:\d{2})?(-\d{1,2}:\d{2}(:\d{2})?)?$` |
 | `caveat` | string | open | — |
-| `kind *` | EvidenceKind | closed | `llm`, `cited`, `video`, `audio`, `corpus`, `measured`, `user` |
+| `kind *` | string | closed | `llm`, `cited`, `video`, `audio`, `corpus`, `measured`, `user` |
 | `measured` | map of number | — | — |
 | `note` | string | open | — |
 | `url` | string | shaped | `^https?://\S+$` |
@@ -129,7 +131,7 @@ One thing a switch on the pedal does.
 | `momentary` | boolean | — | `true` or `false` |
 | `path` | integer | — | — |
 | `primary` | boolean | — | `true` or `false` |
-| `rest` | map of any | — | — |
+| `rest` | map of any | open | — |
 | `switch` | integer | shaped | `1` or more |
 
 ## Mutation
@@ -167,7 +169,7 @@ One snapshot: a set of block states a footswitch recalls.
 | `name` | string | open | — |
 | `named` | boolean | — | `true` or `false` |
 | `pedal` | integer | — | — |
-| `rest` | map of any | — | — |
+| `rest` | map of any | open | — |
 | `tempo` | number | — | — |
 | `valid` | boolean | — | `true` or `false` |
 
@@ -179,7 +181,7 @@ Who or what this rig belongs to.
 | --- | --- | --- | --- |
 | `band` | string | open | — |
 | `era` | string | open | — |
-| `kind *` | Kind | closed | `artist`, `band`, `song`, `genre`, `sound` |
+| `kind *` | string | closed | `artist`, `band`, `song`, `genre`, `sound` |
 | `name *` | string | shaped | `\S` |
 
 ## Target

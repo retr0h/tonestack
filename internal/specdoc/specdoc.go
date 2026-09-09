@@ -36,42 +36,38 @@ import (
 	"github.com/getkin/kin-openapi/openapi3"
 )
 
-// Bucket is how a field's values are constrained.
+// bucket is how a field's values are constrained.
 //
 // Every field is in one of these, and saying which is most of what a reader
 // needs: a closed set can be listed, a looked-up one cannot be listed here at
 // all, and an open one is prose nothing checks.
-type Bucket string
+type bucket string
 
-// The four buckets, in the order the page explains them.
+// The buckets, in the order the page explains them.
 const (
-	// Closed is an enumeration in the contract.
-	Closed Bucket = "closed"
-	// LookedUp is checked against the catalog in hand.
-	LookedUp Bucket = "looked up"
-	// Shaped is checked against a pattern.
-	Shaped Bucket = "shaped"
-	// Open is prose, and nothing parses it.
-	Open Bucket = "open"
+	// closed is an enumeration in the contract.
+	closed bucket = "closed"
+	// lookedUp is checked against the catalog in hand.
+	lookedup bucket = "looked up"
+	// shaped is checked against a pattern.
+	shaped bucket = "shaped"
+	// open is prose, and nothing parses it.
+	open bucket = "open"
 )
 
-// Field is one field of one object, as the page shows it.
-type Field struct {
-	// Object is the schema it belongs to, e.g. "RigSpec".
-	Object string
-	// Name is the field, e.g. "technique".
-	Name string
-	// Type is what it holds, e.g. "string" or "list of ChainEntry".
-	Type string
-	// Bucket is how its values are constrained.
-	Bucket Bucket
-	// Allowed is the enumeration, the pattern, or where the values come
+// field is one field of one object, as the page shows it.
+type field struct {
+	// name is the field, e.g. "technique".
+	name string
+	// held is what it holds, e.g. "string" or "list of ChainEntry".
+	held string
+	// bucket is how its values are constrained.
+	bucket bucket
+	// allowed is the enumeration, the pattern, or where the values come
 	// from. Empty for an open field.
-	Allowed string
-	// Required says the object cannot be written without it.
-	Required bool
-	// About is the first sentence of the contract's own description.
-	About string
+	allowed string
+	// required says the object cannot be written without it.
+	required bool
 }
 
 // Render writes the contract out as markdown.
@@ -92,7 +88,7 @@ func Render(schema []byte) ([]byte, error) {
 	for _, name := range objects(doc.Components.Schemas) {
 		s := doc.Components.Schemas[name].Value
 
-		fields := fieldsOf(name, s)
+		fields := fieldsOf(s)
 
 		fmt.Fprintf(&out, "\n## %s\n\n", name)
 
@@ -104,13 +100,13 @@ func Render(schema []byte) ([]byte, error) {
 		fmt.Fprintln(&out, "| --- | --- | --- | --- |")
 
 		for _, f := range fields {
-			name := f.Name
-			if f.Required {
+			name := f.name
+			if f.required {
 				name += " *"
 			}
 
 			fmt.Fprintf(&out, "| `%s` | %s | %s | %s |\n",
-				name, f.Type, cell(string(f.Bucket)), cell(f.Allowed))
+				name, f.held, cell(string(f.bucket)), cell(f.allowed))
 		}
 	}
 
@@ -146,7 +142,7 @@ func objects(all openapi3.Schemas) []string {
 }
 
 // fieldsOf reads one object's fields, in the order the contract lists them.
-func fieldsOf(object string, s *openapi3.Schema) []Field {
+func fieldsOf(s *openapi3.Schema) []field {
 	required := make(map[string]bool, len(s.Required))
 	for _, name := range s.Required {
 		required[name] = true
@@ -159,19 +155,17 @@ func fieldsOf(object string, s *openapi3.Schema) []Field {
 
 	sort.Strings(names)
 
-	out := make([]Field, 0, len(names))
+	out := make([]field, 0, len(names))
 
 	for _, name := range names {
-		bucket, allowed := grammarOf(s.Properties[name])
+		held, allowed := grammarOf(s.Properties[name])
 
-		out = append(out, Field{
-			Object:   object,
-			Name:     name,
-			Type:     typeOf(s.Properties[name]),
-			Bucket:   bucket,
-			Allowed:  allowed,
-			Required: required[name],
-			About:    first(s.Properties[name].Value.Description),
+		out = append(out, field{
+			name:     name,
+			held:     typeOf(s.Properties[name]),
+			bucket:   held,
+			allowed:  allowed,
+			required: required[name],
 		})
 	}
 
@@ -183,25 +177,31 @@ func fieldsOf(object string, s *openapi3.Schema) []Field {
 // A field that holds another object is in no bucket: the question moves to
 // that object's own table, and the cell points at it. Only the fields
 // somebody types a value into have a grammar.
-func grammarOf(ref *openapi3.SchemaRef) (Bucket, string) {
+func grammarOf(ref *openapi3.SchemaRef) (bucket, string) {
 	s := ref.Value
 
 	if len(s.Enum) > 0 {
-		return Closed, list(s.Enum)
+		return closed, list(s.Enum)
 	}
 
-	// A reference either names a vocabulary used more than once, or another
-	// object with a table of its own.
+	// A reference either names a vocabulary used more than once, another
+	// object with a table of its own, or a shape with neither — Settings is
+	// a map of numbers and has no fields to tabulate, so linking to a
+	// section nobody emits would point at nothing.
 	if ref.Ref != "" {
-		return "", link(refName(ref.Ref))
+		if len(s.Properties) > 0 {
+			return "", link(refName(ref.Ref))
+		}
+
+		return grammarOf(&openapi3.SchemaRef{Value: s})
 	}
 
 	if where, ok := s.Extensions["x-lookup"].(string); ok {
-		return LookedUp, where
+		return lookedup, where
 	}
 
 	if s.Pattern != "" {
-		return Shaped, "`" + s.Pattern + "`"
+		return shaped, "`" + s.Pattern + "`"
 	}
 
 	if s.Type.Is("array") && s.Items != nil {
@@ -214,15 +214,17 @@ func grammarOf(ref *openapi3.SchemaRef) (Bucket, string) {
 	case s.Type.Is("integer"), s.Type.Is("number"):
 		// A number nobody bounded has no grammar to state.
 		if held := bounds(s); held != "" {
-			return Shaped, held
+			return shaped, held
 		}
 
 		return "", ""
+	case s.Type.Is("object") && s.AdditionalProperties.Schema != nil:
+		return grammarOf(s.AdditionalProperties.Schema)
 	case s.Type.Is("object"):
 		return "", ""
 	}
 
-	return Open, ""
+	return open, ""
 }
 
 // bounds renders the range a number is held to.
@@ -246,7 +248,10 @@ func link(name string) string {
 
 // typeOf names what a field holds, in words rather than in JSON Schema's.
 func typeOf(ref *openapi3.SchemaRef) string {
-	if ref.Ref != "" {
+	// Named only when the name leads somewhere. A reference to something
+	// with no fields to tabulate is described instead, since the reader
+	// cannot go and look it up.
+	if ref.Ref != "" && len(ref.Value.Properties) > 0 {
 		return refName(ref.Ref)
 	}
 

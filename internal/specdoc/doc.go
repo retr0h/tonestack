@@ -37,7 +37,9 @@ Every field a rig may carry, and what it may say. Generated from
 [the contract](../resources/schemas/rigspec.openapi.yaml), so it cannot drift
 from what the code actually enforces.
 
-A field marked ` + "`*`" + ` is required. Every field is in one of four buckets:
+A field marked ` + "`*`" + ` is required. A field that holds another object has
+no grammar of its own and shows ` + "`—`" + `; the question moves to that
+object's table. Every other field is in one of four buckets:
 
 | grammar | means |
 | --- | --- |
