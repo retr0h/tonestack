@@ -161,7 +161,7 @@ func (s *CompilePublicTestSuite) TestCompile() {
 		{
 			name:    "a rig naming gear this device does not model",
 			rig:     "unknown gear",
-			errText: "nothing on this device is",
+			errText: "emulates \"Nonesuch 900\"",
 		},
 		{
 			name:     "a template that is not there",

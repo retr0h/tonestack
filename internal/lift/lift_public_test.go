@@ -274,7 +274,7 @@ func (s *LiftPublicTestSuite) TestLower() {
 		{
 			name:    "gear nothing on this device models",
 			spec:    rigOf("nope", "Nonesuch 900", riggen.InstrumentGuitar, nil),
-			errText: "nothing on this device is",
+			errText: "emulates \"Nonesuch 900\"",
 		},
 		{
 			// A rig describing gear rather than a block gets Line 6's own
@@ -400,6 +400,41 @@ func (s *LiftPublicTestSuite) TestLower() {
 			}
 		})
 	}
+}
+
+// TestLowerPicksTheSameModelEveryTime is a property of the resolver rather
+// than a case of the call.
+//
+// Lowering used to range a map and take the first name that matched, so one
+// rig became a different preset each run: six compiles of this one named an
+// amplifier, a preamp, the bright channel and twice a cabinet. A rig lifted
+// off a device was unaffected, because it carries the model identifier, which
+// is why nothing caught it.
+func (s *LiftPublicTestSuite) TestLowerPicksTheSameModelEveryTime() {
+	spec := rigOf("stable", "Ampeg SVT", riggen.InstrumentBass, nil)
+
+	var first catalog.ModelID
+
+	for range 20 {
+		doc, err := preset.Blank()
+		s.Require().NoError(err)
+		s.Require().NoError(lift.Lower(doc, spec, s.cat))
+
+		c, err := doc.Spec()
+		s.Require().NoError(err)
+		s.Require().NotEmpty(c.Blocks)
+
+		if first == "" {
+			first = c.Blocks[0].Model
+		}
+
+		s.Require().Equal(first, c.Blocks[0].Model, "the same rig, a different model")
+	}
+
+	// And an amplifier, because the role is half the question.
+	b, ok := s.cat.Block(first)
+	s.Require().True(ok)
+	s.Require().Equal(catalog.CategoryAmp, b.Category)
 }
 
 func TestLiftPublicTestSuite(t *testing.T) {

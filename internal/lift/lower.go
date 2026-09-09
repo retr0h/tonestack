@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/retr0h/tonestack/internal/resolve"
 	"github.com/retr0h/tonestack/pkg/catalog"
 	"github.com/retr0h/tonestack/pkg/chain"
 	"github.com/retr0h/tonestack/pkg/preset"
@@ -54,7 +55,7 @@ func Lower(
 	blocks := make([]chain.Block, 0, len(spec.Chain))
 
 	for i, entry := range spec.Chain {
-		model, err := modelFor(entry, cat)
+		model, err := modelFor(entry, cat, string(spec.Instrument))
 		if err != nil {
 			return fmt.Errorf("chain entry %d: %w", i, err)
 		}
@@ -115,6 +116,7 @@ func at(v *int, fallback int) int {
 func modelFor(
 	entry riggen.ChainEntry,
 	cat *catalog.Catalog,
+	instrument string,
 ) (catalog.ModelID, error) {
 	if entry.Models != nil {
 		if id, ok := (*entry.Models)[cat.Device]; ok {
@@ -127,13 +129,12 @@ func modelFor(
 		}
 	}
 
-	for id, b := range cat.Blocks {
-		if b.Matches(entry.Gear) {
-			return id, nil
-		}
+	b, err := resolve.Gear(cat, entry.Gear, entry.Role, instrument)
+	if err != nil {
+		return "", err
 	}
 
-	return "", fmt.Errorf("nothing on this device is %q", entry.Gear)
+	return b.ID, nil
 }
 
 // paramsFor decides what every knob on a block is set to.

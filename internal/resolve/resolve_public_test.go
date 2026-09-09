@@ -205,6 +205,74 @@ func (s *ResolvePublicTestSuite) TestResolve() {
 // "Ampeg SVT" names neither the normal nor the bright channel. Whichever is
 // chosen, it must not change because the catalog was regenerated or because
 // a map iterated in a different order.
+// TestGear resolves one name, the way both halves of this project now do.
+//
+// Lowering a rig into a preset used to answer this question itself, with a map
+// range that took whatever matched first. Two resolvers cannot both be right
+// about which Ampeg SVT is meant, and the one that ignored the role would
+// answer with a cabinet.
+func (s *ResolvePublicTestSuite) TestGear() {
+	tests := []struct {
+		name       string
+		gear       string
+		role       riggen.Role
+		instrument string
+		want       catalog.ModelID
+		err        error
+	}{
+		{
+			name:       "an amplifier by name",
+			gear:       "Ampeg SVT (normal",
+			role:       riggen.RoleAmp,
+			instrument: "bass",
+			want:       "HD2_AmpSVBeastNrm",
+		},
+		{
+			// The role is half the question: this catalog holds a cabinet
+			// whose name matches an amplifier's, and asking for one must not
+			// answer with the other.
+			name:       "a cabinet by the name it shares",
+			gear:       "Ampeg SVT",
+			role:       riggen.RoleCab,
+			instrument: "bass",
+			want:       "HD2_Cab8x10SVBeast",
+		},
+		{
+			name:       "gear for the other instrument",
+			gear:       "Guitar Only",
+			role:       riggen.RoleAmp,
+			instrument: "bass",
+			err:        resolve.ErrNoSuchGear,
+		},
+		{
+			name:       "gear nothing emulates",
+			gear:       "Nonesuch 900",
+			role:       riggen.RoleAmp,
+			instrument: "bass",
+			err:        resolve.ErrNoSuchGear,
+		},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			// Twice, because the answer used to depend on which way a map
+			// ranged.
+			for range 2 {
+				got, err := resolve.Gear(s.cat, tt.gear, tt.role, tt.instrument)
+
+				if tt.err != nil {
+					s.Require().ErrorIs(err, tt.err)
+
+					continue
+				}
+
+				s.Require().NoError(err)
+				s.Require().Equal(tt.want, got.ID)
+			}
+		})
+	}
+}
+
 func (s *ResolvePublicTestSuite) TestResolveIsDeterministic() {
 	first, _, err := resolve.Resolve(recipe("Ampeg SVT", ""), s.cat, nil)
 	s.Require().NoError(err)
