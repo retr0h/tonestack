@@ -22,6 +22,7 @@ package resolve
 import (
 	"errors"
 	"fmt"
+	"strings"
 )
 
 // ErrNoSuchGear reports gear no model on this device emulates.
@@ -49,3 +50,71 @@ func (e *NoSuchGearError) Error() string {
 
 // Unwrap returns ErrNoSuchGear so callers can match with errors.Is.
 func (*NoSuchGearError) Unwrap() error { return ErrNoSuchGear }
+
+// ErrNoSuchValue reports a rig naming something this device does not have.
+//
+// Distinct from gear, which every rig names and most catalogs can supply. This
+// is a colour, a parameter or a device name: valid strings, and valid values
+// only against the catalog in hand.
+var ErrNoSuchValue = errors.New("this device has no such value")
+
+// NoSuchValueError names the field, what it said, and what was available.
+type NoSuchValueError struct {
+	// Field is where it was said, e.g. "footswitches[0].led".
+	Field string
+	// Value is what the rig named.
+	Value string
+	// Near is what the device has, or the closest of it.
+	Near []string
+	// Whole says Near is everything there is rather than a shortlist, which
+	// is a different sentence: a device has twelve colours and the whole list
+	// is the answer, where nine parameter names are a guess at the one meant.
+	Whole bool
+}
+
+// Error implements the error interface.
+func (e *NoSuchValueError) Error() string {
+	msg := fmt.Sprintf("%s: this device has no %q", e.Field, e.Value)
+
+	switch {
+	case len(e.Near) == 0:
+	case e.Whole:
+		msg += "\n  it has: " + strings.Join(e.Near, ", ")
+	default:
+		msg += "\n  did you mean: " + strings.Join(e.Near, ", ")
+	}
+
+	return msg
+}
+
+// Unwrap returns ErrNoSuchValue so callers can match with errors.Is.
+func (*NoSuchValueError) Unwrap() error { return ErrNoSuchValue }
+
+// ErrNoSuchBlock reports a rig pointing at a block its own chain does not
+// have.
+var ErrNoSuchBlock = errors.New("the chain has no such block")
+
+// NoSuchBlockError names the field, the position it asked for, and how many
+// blocks there are.
+type NoSuchBlockError struct {
+	// Field is where it was said, e.g. "controllers[0].block".
+	Field string
+	// Block is the position along the path the rig named.
+	Block int
+	// Have is how many blocks the chain holds.
+	Have int
+}
+
+// Error implements the error interface.
+func (e *NoSuchBlockError) Error() string {
+	blocks := "blocks"
+	if e.Have == 1 {
+		blocks = "block"
+	}
+
+	return fmt.Sprintf("%s: no block sits at position %d, and the chain holds %d %s",
+		e.Field, e.Block, e.Have, blocks)
+}
+
+// Unwrap returns ErrNoSuchBlock so callers can match with errors.Is.
+func (*NoSuchBlockError) Unwrap() error { return ErrNoSuchBlock }

@@ -39,13 +39,21 @@ type ResolvePublicTestSuite struct {
 }
 
 func (s *ResolvePublicTestSuite) SetupSuite() {
+	s.cat = loadCatalog(&s.Suite)
+}
+
+// loadCatalog reads the fixture catalog every suite in this package builds
+// against.
+func loadCatalog(s *suite.Suite) *catalog.Catalog {
 	f, err := os.Open(filepath.Join("testdata", "catalog.json"))
 	s.Require().NoError(err)
 
 	defer func() { s.Require().NoError(f.Close()) }()
 
-	s.cat, err = catalog.Load(f)
+	cat, err := catalog.Load(f)
 	s.Require().NoError(err)
+
+	return cat
 }
 
 // recipe returns a bass rig naming amp, with optional cab and pedals.
@@ -211,6 +219,21 @@ func (s *ResolvePublicTestSuite) TestResolve() {
 // range that took whatever matched first. Two resolvers cannot both be right
 // about which Ampeg SVT is meant, and the one that ignored the role would
 // answer with a cabinet.
+// TestResolveChecksWhatTheRigClaims covers the check reaching the caller.
+//
+// Resolve builds the chain and then asks whether this catalog can supply what
+// the rig says beside it, so a recipe naming another device's hardware fails
+// here rather than at the pedal.
+func (s *ResolvePublicTestSuite) TestResolveChecksWhatTheRigClaims() {
+	spec := recipe("Ampeg SVT (normal", "")
+	device := "Kemper Profiler"
+	spec.Target = &riggen.Target{Device: &device}
+
+	_, _, err := resolve.Resolve(spec, s.cat, nil)
+
+	s.Require().ErrorIs(err, resolve.ErrNoSuchValue)
+}
+
 func (s *ResolvePublicTestSuite) TestGear() {
 	tests := []struct {
 		name       string

@@ -315,5 +315,12 @@
       },
       "prov": "official"
     }
-  }
+  },
+  "led_colours": [
+    "auto color",
+    "white",
+    "green",
+    "violet",
+    "off"
+  ]
 }
