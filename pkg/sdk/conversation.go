@@ -180,8 +180,14 @@ func (s *Session) Close() {
 
 		s.drain(ctx)
 
-		for _, c := range s.chans {
-			_ = s.send(c, wire.MsgAck, nil)
+		// In the order they were opened, rather than whichever way a map
+		// ranges today. A device is told about a session ending in a
+		// sequence, and a sequence that differs between runs is one nobody
+		// can compare against a capture.
+		for _, spec := range channelSpecs {
+			if c, ok := s.chans[spec.name]; ok {
+				_ = s.send(c, wire.MsgAck, nil)
+			}
 		}
 
 		// The message that opens a channel closes one: it is a session
@@ -189,8 +195,10 @@ func (s *Session) Close() {
 		// left without it goes on believing an editor is attached, and its
 		// front panel stops refreshing footswitches as somebody browses
 		// presets on the pedal itself.
-		for _, c := range s.chans {
-			_ = s.closeChannel(c)
+		for _, spec := range channelSpecs {
+			if c, ok := s.chans[spec.name]; ok {
+				_ = s.closeChannel(c)
+			}
 		}
 
 		// The device answers each one. Reading them is what makes the next

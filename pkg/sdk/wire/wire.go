@@ -18,11 +18,19 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// Package wire is the framing a Helix device speaks over its editor endpoint.
+// Package wire is what a Helix device says over its editor endpoint: the
+// framing, and the documents the framing carries.
 //
-// Pure Go, and deliberately separate from the USB transport in pkg/sdk: the
-// framing has no hardware in it, so it can be exercised in full without a
-// device attached. The transport is the untestable half and is kept thin.
+// Two halves, and the second is the larger one. Framing is a frame, an
+// envelope and a request or reply — wire.go, frame.go, rpc.go, encode.go,
+// decode.go. The rest is the preset document a device sends and takes back:
+// skimming MessagePack without decoding it, splicing a byte range in place,
+// and placing a chain on the grid. Both are what the device speaks, so they
+// live together, and it is worth knowing which half a change is in.
+//
+// Pure Go, and deliberately separate from the USB transport in pkg/sdk: none
+// of it has hardware in it, so it can be exercised in full without a device
+// attached. The transport is the untestable half and is kept thin.
 //
 // The format is not published by Line 6. It was reverse engineered by
 // tonepush and fretwire, both MIT licensed, and their documentation is what
