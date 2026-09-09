@@ -56,7 +56,9 @@ func Lift(doc *preset.Document, cat *catalog.Catalog) (riggen.RigSpec, error) {
 	}
 
 	device := cat.Device
-	version := rig.Version
+	// The contract states one version and the generated types carry it as a
+	// kind of its own, so this is a conversion rather than a number.
+	version := riggen.RigSpecVersion(rig.Version)
 
 	entries := make([]riggen.ChainEntry, 0, len(c.Blocks))
 

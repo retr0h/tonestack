@@ -44,7 +44,7 @@ A rig, complete. Sparse when hand-written; the same document carries settings an
 | `subject *` | Subject | — | [Subject](#subject) |
 | `target` | Target | — | [Target](#target) |
 | `technique` | string | open | — |
-| `version` | integer | — | — |
+| `version` | integer | closed | `2` |
 
 ## ChainEntry
 

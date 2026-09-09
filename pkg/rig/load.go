@@ -61,10 +61,14 @@ func Load(r io.Reader) (gen.RigSpec, error) {
 		return gen.RigSpec{}, err
 	}
 
-	// The document has passed the contract these types were generated from,
-	// so it decodes into them.
+	// Checked rather than assumed. A document can satisfy the contract and
+	// still not fit the types: JSON Schema calls 99999999999999999999 an
+	// integer and Go's int cannot hold it, so this returned a rig with the
+	// field silently zeroed and no error at all.
 	var spec gen.RigSpec
-	_ = json.Unmarshal(body, &spec)
+	if err := json.Unmarshal(body, &spec); err != nil {
+		return gen.RigSpec{}, fmt.Errorf("decoding rig: %w", err)
+	}
 
 	return spec, nil
 }
