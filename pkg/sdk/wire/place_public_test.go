@@ -110,7 +110,10 @@ func (s *PlacePublicTestSuite) TestPlace() {
 		routing bool
 		// every snapshot must agree about every block.
 		snapshots bool
-		err       error
+		// and must leave the positions a chain cannot take exactly as the
+		// device wrote them.
+		keepsRouting bool
+		err          error
 	}{
 		{
 			name:   "one effect",
@@ -207,6 +210,15 @@ func (s *PlacePublicTestSuite) TestPlace() {
 			blocks:    []wire.Placement{s.drive(), s.amp()},
 			snapshots: true,
 		},
+		{
+			// The device keeps its input, split, join and output on the same
+			// grid, and a snapshot records those too. Writing them from a
+			// chain that never mentions them switched the split and the join
+			// off, so recalling the snapshot bypassed the routing.
+			name:         "the routing, inside every snapshot",
+			blocks:       []wire.Placement{s.drive()},
+			keepsRouting: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -252,6 +264,12 @@ func (s *PlacePublicTestSuite) TestPlace() {
 				s.Require().Equal(before, got.Routing)
 			}
 
+			if tt.keepsRouting {
+				s.keepsRouting(doc)
+
+				return
+			}
+
 			if !tt.snapshots {
 				return
 			}
@@ -268,6 +286,47 @@ func (s *PlacePublicTestSuite) TestPlace() {
 				}
 			}
 		})
+	}
+}
+
+// keepsRouting checks that every position a chain cannot take still holds the
+// byte the device wrote, in every snapshot.
+func (s *PlacePublicTestSuite) keepsRouting(doc *wire.Document) {
+	fresh := s.blank()
+
+	open, err := wire.Open(fresh)
+	s.Require().NoError(err)
+
+	takeable := make(map[int]bool, len(open))
+	for _, p := range open {
+		takeable[p] = true
+	}
+
+	was, ok := fresh.Section(10)
+	s.Require().True(ok)
+
+	now, ok := doc.Section(10)
+	s.Require().True(ok)
+
+	for snap := range s.read(doc).Snapshots {
+		for i := range wire.GridSize {
+			if takeable[i] {
+				continue
+			}
+
+			path := wire.Path{10, snap, 3, i, 1}
+
+			from, to, err := wire.Locate(was, path)
+			if err != nil {
+				continue
+			}
+
+			at, end, err := wire.Locate(now, path)
+			s.Require().NoError(err)
+
+			s.Require().Equal(was[from:to], now[at:end],
+				"snapshot %d rewrote position %d, which the device owns", snap, i)
+		}
 	}
 }
 
