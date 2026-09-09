@@ -225,6 +225,7 @@ components:
           $ref: "#/components/schemas/Role"
         gear:
           type: string
+          x-lookup: the gear the catalog maps a model to
           minLength: 1
           # Something other than spaces: a name of blanks is not a name.
           pattern: "\\S"
@@ -347,6 +348,7 @@ components:
       properties:
         device:
           type: string
+          x-lookup: the device the catalog was generated for
           description: Human-readable device name, such as "HX Stomp".
         catalog:
           type: string
@@ -449,6 +451,7 @@ components:
             the chain counts its entries.
         parameter:
           type: string
+          x-lookup: the parameters the model at that block has
           description: >
             The parameter it moves, by the name the catalog gives it —
             "Pedal", "Drive", "Mix".
@@ -516,6 +519,7 @@ components:
             The block the switch works on, by name, whatever the label says.
         led:
           type: string
+          x-lookup: the colours the catalog reads off the device
           description: >
             The colour somebody chose for the switch, by name — `green`,
             `violet`, `off`.

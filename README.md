@@ -107,8 +107,9 @@ system. [docs/workflows.md](docs/workflows.md) has the full loop.
 Start with [`docs/workflows.md`](docs/workflows.md). It says what to do, in
 order, for building a rig, reading a device, and correcting a preset.
 
-- [`docs/recipes.md`](docs/recipes.md) covers every RigSpec field and how to
-  write one by hand.
+- [`docs/recipes.md`](docs/recipes.md) covers how to write a rig by hand.
+- [`docs/rigspec.md`](docs/rigspec.md) is every field of the format, generated
+  from the contract: what each one holds, and what it may say.
 - [`docs/knowledge.md`](docs/knowledge.md) says where the gear knowledge comes
   from and how far each source can be trusted.
 - [`docs/catalog.md`](docs/catalog.md) covers what the device can do, and how

@@ -9,9 +9,13 @@ One is a YAML file under `resources/recipes/`, and it is the only data here that
 is ours: the device catalog and the gear map are derived from Line 6's own
 files, while these are written by hand.
 
-Every field is demonstrated on one subject in
-[`examples/rigspec/mike-dirnt.yaml`](../examples/rigspec/mike-dirnt.yaml). Read
-that alongside this.
+This page is how to write one. For what each field may say, read
+[`docs/rigspec.md`](rigspec.md), which is generated from the contract and lists
+every field, its grammar and its allowed values.
+
+[`examples/rigspec/mike-dirnt.yaml`](../examples/rigspec/mike-dirnt.yaml) shows
+much of it on one subject. Not all of it: a rig read off a device carries
+footswitches, snapshots and controllers that no hand-written example needs.
 
 ## The smallest useful rig
 
