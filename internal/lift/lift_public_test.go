@@ -274,6 +274,7 @@ func (s *LiftPublicTestSuite) TestLower() {
 		absent     []string
 		exact      int
 		types      map[string]catalog.ParamType
+		ints       map[string]int64
 		err        error
 		errText    string
 	}{
@@ -305,6 +306,16 @@ func (s *LiftPublicTestSuite) TestLower() {
 				"Bright":  catalog.ParamBool,
 				"Voicing": catalog.ParamEnum,
 			},
+		},
+		{
+			// Written as stated. Nudging by a half and truncating cuts
+			// toward zero, so this arrived as -11: an octave down turned
+			// into a major seventh, in a preset nobody would think to check.
+			name: "a parameter somebody set below nothing",
+			spec: rigOf("octave", "Ampeg SVT (normal", riggen.InstrumentBass,
+				&map[string]any{"MidFreq": -12.0}),
+			types: map[string]catalog.ParamType{"MidFreq": catalog.ParamInt},
+			ints:  map[string]int64{"MidFreq": -12},
 		},
 		{
 			// "Ampeg SVT" matches both channels. The recorded identifier is
@@ -414,6 +425,12 @@ func (s *LiftPublicTestSuite) TestLower() {
 
 			for key, want := range tt.types {
 				s.Require().Equal(want, c.Blocks[0].Params[key].Type())
+			}
+
+			for key, want := range tt.ints {
+				got, ok := c.Blocks[0].Params[key].Int()
+				s.Require().True(ok)
+				s.Require().Equal(want, got, "%s", key)
 			}
 		})
 	}

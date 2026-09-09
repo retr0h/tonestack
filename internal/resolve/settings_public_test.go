@@ -121,6 +121,16 @@ func (s *SettingsPublicTestSuite) TestResolveSettings() {
 			want: int64(2),
 		},
 		{
+			// Truncation cuts toward zero, so a nudged -12.4 lands on -11
+			// and an octave down becomes a major seventh.
+			name: "an integer the corpus measured below nothing",
+			params: map[string]corpus.ParamStats{
+				"Interval": {N: 30, Median: -12.4, P25: -12.4, P75: -12.4},
+			},
+			key:  "Interval",
+			want: int64(-12),
+		},
+		{
 			// A median over a switch is not a setting the device will accept,
 			// however unanimous the corpus is about it.
 			name: "a switch, which is never averaged",

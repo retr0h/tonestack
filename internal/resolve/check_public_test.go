@@ -148,7 +148,7 @@ func (s *CheckPublicTestSuite) TestCheck() {
 			hasControl: true,
 			err:        resolve.ErrNoSuchValue,
 			field:      "controllers[0].parameter",
-			suggest:    "it has: Bass, Bright, Drive, MidFreq, Treble",
+			suggest:    "it has: Bass, Bright, Drive, Interval, MidFreq, Treble",
 		},
 		{
 			// A model from newer firmware than the catalog was generated
