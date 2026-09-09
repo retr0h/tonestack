@@ -8,6 +8,11 @@ import? '.just/remote/just.just'
 # No documentation site, so md formats every markdown file in the repository.
 md_site_dir := ""
 
+# Except the one nobody writes. docs/rigspec.md is generated from the RigSpec
+# contract, and a test compares it against what the generator produces — so
+# reflowing it here would leave the page disagreeing with its own source.
+md_extra_excludes := "--exclude 'docs/rigspec.md'"
+
 # Coverage target for this repository.
 #
 # Not 100%, and the missing part is one file. pkg/sdk/usb.go is every call this
