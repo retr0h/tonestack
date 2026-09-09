@@ -152,6 +152,23 @@ func impliedCab(cat *catalog.Catalog, blocks []catalog.Block) *catalog.Block {
 	return nil
 }
 
+// Gear finds the model a chain entry names, the way this package resolves
+// every other one.
+//
+// Exported because lowering a rig into a preset asks the same question and
+// asked it differently: a map range that took whatever matched first, which
+// answered a different model each run and would answer with a cabinet for an
+// amplifier. Two resolvers cannot both be right about which Ampeg SVT is
+// meant.
+func Gear(
+	cat *catalog.Catalog,
+	gear string,
+	role riggen.Role,
+	instrument string,
+) (catalog.Block, error) {
+	return findGear(cat, gear, categoryFor(role), instrument)
+}
+
 // findGear returns the block emulating the named gear.
 //
 // Matching is on what Line 6 says a model is based on, because that is the
