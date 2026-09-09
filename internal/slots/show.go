@@ -32,6 +32,7 @@ import (
 	"github.com/retr0h/tonestack/pkg/preset"
 	"github.com/retr0h/tonestack/pkg/rig"
 	riggen "github.com/retr0h/tonestack/pkg/rig/gen"
+	slotpkg "github.com/retr0h/tonestack/pkg/slot"
 )
 
 // ShowOptions says which preset to show.
@@ -78,7 +79,7 @@ func Show(w io.Writer, opts ShowOptions) error {
 
 	spec, err := lift.Lift(doc, cat)
 	if err != nil {
-		return fmt.Errorf("reading slot %d: %w", opts.Slot, err)
+		return fmt.Errorf("reading slot %s: %w", slotpkg.Label(opts.Slot), err)
 	}
 
 	return writeRigTo(w, spec)

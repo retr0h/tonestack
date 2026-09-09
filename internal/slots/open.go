@@ -67,12 +67,3 @@ func save(path string, doc *setlist.Document) error {
 
 	return nil
 }
-
-// position renders a slot the way the hardware labels it.
-//
-// An HX Stomp shows presets as banks of four — 01A through 32D — and that is
-// what a player is looking at while they read this. A bare index would mean
-// counting.
-func position(slot int) string {
-	return fmt.Sprintf("%02d%c", slot/4+1, rune('A'+slot%4))
-}
