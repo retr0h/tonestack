@@ -133,7 +133,10 @@ func (s *SelectTestSuite) TestSelectPreset() {
 		name      string
 		device    func() *device
 		cancelled bool
-		says      string
+		// a caller who stops waiting after the device has answered, rather
+		// than before it was asked.
+		timeout time.Duration
+		says    string
 	}{
 		{
 			// The device reports the preset it was playing before answering
@@ -175,6 +178,17 @@ func (s *SelectTestSuite) TestSelectPreset() {
 			cancelled: true,
 			says:      "context canceled",
 		},
+		{
+			// And one who gave up while it was still switching: the device
+			// took the request and is playing something else, so the wait
+			// ends where somebody stopped waiting rather than at the budget.
+			name: "a caller that gave up part way through",
+			device: func() *device {
+				return answers(s.took(sdk.FirstTxn), s.playing(sdk.FirstTxn+1, 0, 5))
+			},
+			timeout: 5 * time.Millisecond,
+			says:    "context deadline exceeded",
+		},
 	}
 
 	for _, tt := range tests {
@@ -184,6 +198,13 @@ func (s *SelectTestSuite) TestSelectPreset() {
 
 			if tt.cancelled {
 				cancel()
+			}
+
+			if tt.timeout > 0 {
+				var stop context.CancelFunc
+
+				ctx, stop = context.WithTimeout(context.Background(), tt.timeout)
+				defer stop()
 			}
 
 			d := tt.device()
@@ -246,7 +267,7 @@ func (s *SelectTestSuite) TestReadCurrent() {
 	tests := []struct {
 		name   string
 		device func() *device
-		want   any
+		want   []byte
 		err    bool
 	}{
 		{
@@ -254,7 +275,7 @@ func (s *SelectTestSuite) TestReadCurrent() {
 			device: func() *device {
 				return answers(s.document(sdk.FirstTxn, "a preset"))
 			},
-			want: "a preset",
+			want: []byte("a preset"),
 		},
 		{
 			name:   "one that will not answer",

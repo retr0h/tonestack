@@ -53,6 +53,43 @@ func (s *ErrorsPublicTestSuite) TestSentinelsAreDistinct() {
 	s.Require().NotErrorIs(sdk.ErrNoDevice, sdk.ErrUnknownModel)
 }
 
+// TestNotAPresetError covers a device answering with something nobody can
+// decode, which is how a protocol change becomes visible.
+func (s *ErrorsPublicTestSuite) TestNotAPresetError() {
+	tests := []struct {
+		name   string
+		result any
+		want   string
+	}{
+		{
+			name:   "a decoded document",
+			result: map[any]any{1: "a", 2: "b"},
+			want:   "map with 2 keys",
+		},
+		{
+			name:   "a run of bytes",
+			result: []byte{1, 2, 3},
+			want:   "3 bytes",
+		},
+		{
+			name:   "something else entirely",
+			result: 42,
+			want:   "int",
+		},
+		{name: "nothing recognisable at all", want: "<nil>"},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			err := &sdk.NotAPresetError{Result: tt.result}
+
+			s.Require().Equal(tt.want, err.Shape())
+			s.Require().Contains(err.Error(), tt.want)
+			s.Require().ErrorIs(err, sdk.ErrNotAPreset)
+		})
+	}
+}
+
 func TestErrorsPublicTestSuite(t *testing.T) {
 	suite.Run(t, new(ErrorsPublicTestSuite))
 }

@@ -69,12 +69,12 @@ func (s *EditDevicePublicTestSuite) SetupTest() {
 func (s *EditDevicePublicTestSuite) TearDownTest() { s.ctrl.Finish() }
 
 // answer returns one slot as the hardware sent it.
-func (s *EditDevicePublicTestSuite) answer() string {
+func (s *EditDevicePublicTestSuite) answer() []byte {
 	raw, err := os.ReadFile(
 		filepath.Join("..", "..", "pkg", "sdk", "wire", "testdata", "preset.bin"))
 	s.Require().NoError(err)
 
-	return string(raw)
+	return raw
 }
 
 // listing is what the device says the setlist holds.
@@ -109,7 +109,7 @@ func (s *EditDevicePublicTestSuite) expectRead(
 			Return(nil, errors.New("boom"))
 	case "not a preset":
 		return reader.EXPECT().ReadPreset(gomock.Any(), 0, slot).
-			Return(map[any]any{}, nil)
+			Return(nil, nil)
 	default:
 		return reader.EXPECT().ReadPreset(gomock.Any(), 0, slot).
 			Return(s.answer(), nil)
@@ -126,7 +126,7 @@ func (s *EditDevicePublicTestSuite) expectWrite(
 	ok bool,
 ) *gomock.Call {
 	call := s.dev.MockWriter.EXPECT().
-		WriteNamedPreset(gomock.Any(), 0, slot, name, []byte(s.answer()))
+		WriteNamedPreset(gomock.Any(), 0, slot, name, s.answer())
 
 	if !ok {
 		return call.Return(errors.New("boom"))

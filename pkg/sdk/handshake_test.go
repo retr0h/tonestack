@@ -25,6 +25,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/suite"
 	"github.com/vmihailenco/msgpack/v5"
@@ -79,16 +80,30 @@ func (s *HandshakeTestSuite) TestCall() {
 		channel   string
 		device    func() (*device, sdk.TestSender)
 		cancelled bool
-		want      any
-		err       error
-		message   string
+		// wait out the whole budget rather than cancelling, shortened so the
+		// test does not spend six seconds on it.
+		silent  bool
+		want    any
+		err     error
+		message string
 	}{
 		{
+			// Cancellation is not silence. Reporting it as "no reply" told
+			// somebody who pressed Ctrl-C that their device had stopped
+			// answering, six seconds after they stopped waiting.
 			name:      "a call nobody is left waiting for",
 			channel:   sdk.ControlChannel,
 			device:    func() (*device, sdk.TestSender) { d := answers(); return d, d },
 			cancelled: true,
-			message:   "opcode 1",
+			err:       context.Canceled,
+			message:   "context canceled",
+		},
+		{
+			name:    "a device that says nothing at all",
+			channel: sdk.ControlChannel,
+			device:  func() (*device, sdk.TestSender) { d := answers(); return d, d },
+			silent:  true,
+			message: "no reply to opcode 1",
 		},
 		{
 			name:    "an answer to this call",
@@ -188,6 +203,13 @@ func (s *HandshakeTestSuite) TestCall() {
 				cancel()
 			}
 
+			if tc.silent {
+				was := *sdk.ReplyBudget
+				*sdk.ReplyBudget = 50 * time.Millisecond
+
+				defer func() { *sdk.ReplyBudget = was }()
+			}
+
 			got, err := session.Call(ctx, tc.channel, 1, nil)
 
 			if tc.message == "" {
@@ -254,19 +276,41 @@ func (s *HandshakeTestSuite) TestPresets() {
 	}
 }
 
+// TestReadPreset covers what a slot answers with.
+//
+// The three answers are a document, nothing at all, and something else. The
+// last one used to reach the caller as an `any` nobody had checked, where a
+// failed type assertion read as an empty slot.
 func (s *HandshakeTestSuite) TestReadPreset() {
 	tests := []struct {
 		name   string
 		device func() *device
-		want   any
-		fails  bool
+		want   []byte
+		// the shape the failure must name.
+		shape string
+		fails bool
 	}{
 		{
-			name: "one slot",
+			name: "a slot holding a preset",
 			device: func() *device {
 				return answers(s.replyOnData(sdk.FirstTxn, 0, "a preset"))
 			},
-			want: "a preset",
+			want: []byte("a preset"),
+		},
+		{
+			// A slot holding nothing is not a failure, and a backup has to
+			// know the difference.
+			name: "a slot holding nothing",
+			device: func() *device {
+				return answers(s.replyOnData(sdk.FirstTxn, 0, nil))
+			},
+		},
+		{
+			name: "an answer that is not a preset",
+			device: func() *device {
+				return answers(s.replyOnData(sdk.FirstTxn, 0, map[int]int{1: 2}))
+			},
+			shape: "map with 1 keys",
 		},
 		{
 			name:   "a bus that will not answer",
@@ -275,18 +319,28 @@ func (s *HandshakeTestSuite) TestReadPreset() {
 		},
 	}
 
-	for _, tc := range tests {
-		s.Run(tc.name, func() {
-			got, err := s.session(tc.device()).ReadPreset(context.Background(), 0, 3)
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			got, err := s.session(tt.device()).ReadPreset(context.Background(), 0, 3)
 
-			if tc.fails {
+			if tt.fails {
 				s.Require().Error(err)
 
 				return
 			}
 
+			if tt.shape != "" {
+				s.Require().ErrorIs(err, sdk.ErrNotAPreset)
+
+				var answer *sdk.NotAPresetError
+				s.Require().ErrorAs(err, &answer)
+				s.Require().Equal(tt.shape, answer.Shape())
+
+				return
+			}
+
 			s.Require().NoError(err)
-			s.Require().Equal(tc.want, got)
+			s.Require().Equal(tt.want, got)
 		})
 	}
 }

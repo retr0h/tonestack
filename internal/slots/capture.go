@@ -83,23 +83,7 @@ func bytesOf(got any) ([]byte, error) {
 // concatenated MessagePack values, and the models inside it are numbered by a
 // scheme that does not index the catalog. Until that is worked out, saying
 // plainly what arrived beats printing a chain that would be wrong.
-func describe(w io.Writer, model string, slot int, got any) error {
-	shape := fmt.Sprintf("%T", got)
-
-	if m, ok := got.(map[any]any); ok {
-		shape = fmt.Sprintf("map with %d keys", len(m))
-	}
-
-	if b, ok := got.([]byte); ok {
-		shape = fmt.Sprintf("%d bytes", len(b))
-	}
-
-	// A preset arrives as an opaque run of bytes that MessagePack's string
-	// type happens to carry. Reporting it as a string would suggest text.
-	if str, ok := got.(string); ok {
-		shape = fmt.Sprintf("%d bytes", len(str))
-	}
-
+func describe(w io.Writer, model string, slot int, shape string) error {
 	return cli.Section{
 		Title:   model,
 		Detail:  "slot " + slotpkg.Label(slot),

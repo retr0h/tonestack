@@ -144,6 +144,11 @@ func (s *Session) drain(ctx context.Context) {
 	quiet := 0
 
 	for quiet < drainQuietRuns && time.Now().Before(deadline) {
+		// Somebody who stopped waiting is not owed a drained endpoint.
+		if ctx.Err() != nil {
+			break
+		}
+
 		if s.receive(ctx, drainReadWait) {
 			quiet = 0
 

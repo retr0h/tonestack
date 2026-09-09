@@ -266,10 +266,10 @@ func (mr *MockEditorMockRecorder) Presets(ctx, setlist any) *gomock.Call {
 }
 
 // ReadPreset mocks base method.
-func (m *MockEditor) ReadPreset(ctx context.Context, setlist, slot int) (any, error) {
+func (m *MockEditor) ReadPreset(ctx context.Context, setlist, slot int) ([]byte, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ReadPreset", ctx, setlist, slot)
-	ret0, _ := ret[0].(any)
+	ret0, _ := ret[0].([]byte)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

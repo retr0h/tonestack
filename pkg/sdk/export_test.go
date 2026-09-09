@@ -204,6 +204,10 @@ var (
 // test need not wait the whole of it.
 var CommitBudget = &commitBudget
 
+// ReplyBudget is how long a device is given to answer a call, exported so a
+// test can reach the silence without waiting out the whole of it.
+var ReplyBudget = &replyBudget
+
 // Write sends a request too large for one frame and waits for the device to
 // finish acting on it.
 func (s *Session) Write(ctx context.Context, opcode uint64, args []wire.Arg) error {

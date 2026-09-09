@@ -23,6 +23,7 @@ package wire
 import (
 	"errors"
 	"fmt"
+	"slices"
 )
 
 // Putting a chain into a preset.
@@ -149,7 +150,9 @@ func Place(
 			continue
 		}
 
-		entry, err := entryFor(at[i])
+		b, named := at[i]
+
+		entry, err := entryFor(b, named)
 		if err != nil {
 			return err
 		}
@@ -202,11 +205,14 @@ func PlaceAsWritten(
 	doc *Document,
 	blocks []Placement,
 ) error {
-	for i := range blocks {
-		blocks[i].Position += GridOffset
+	// On a copy: shifting in place would rewrite what the caller handed over,
+	// and a second call would shift the same chain twice.
+	shifted := slices.Clone(blocks)
+	for i := range shifted {
+		shifted[i].Position += GridOffset
 	}
 
-	return Place(doc, blocks)
+	return Place(doc, shifted)
 }
 
 // roomFor rejects a position that is not the device's to give.
@@ -296,10 +302,12 @@ func snapshots(
 
 // entryFor renders one grid position.
 //
-// The zero Placement is an empty position, which is what a position no chain
-// named has to become.
-func entryFor(b Placement) ([]byte, error) {
-	if b.Model == 0 && b.Values == nil {
+// A position no chain named is written empty, which is what clears whatever
+// the slot held. Asked rather than inferred from the value: model 0 is a
+// legitimate index into the device's own table, so a block sitting there with
+// nothing set is indistinguishable from a position nobody named.
+func entryFor(b Placement, named bool) ([]byte, error) {
+	if !named {
 		return append(mapHeader(2),
 			byte(keyBlockKind), kindEmpty,
 			byte(keyBlockBody), codeNil), nil

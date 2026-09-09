@@ -104,28 +104,36 @@ func ShowWith(
 		}
 	}
 
-	got, err := s.ReadPreset(ctx, opts.Setlist, opts.Slot)
+	body, err := s.ReadPreset(ctx, opts.Setlist, opts.Slot)
+
+	// A device that answered with something else is not a failure to report
+	// as one: what arrived is worth keeping and showing, because it is how a
+	// protocol change becomes visible.
+	var answer *sdk.NotAPresetError
+	if errors.As(err, &answer) {
+		if err := dump(answer.Result); err != nil {
+			return err
+		}
+
+		return describe(w, s.Model().Name, opts.Slot, answer.Shape())
+	}
+
 	if err != nil {
 		return fmt.Errorf("reading slot %s: %w", slotpkg.Label(opts.Slot), err)
 	}
 
-	if err := dump(got); err != nil {
+	if err := dump(body); err != nil {
 		return err
 	}
 
 	// A device answers an empty slot with no document at all. That is a slot
 	// holding nothing rather than a failure, and a backup has to know the
 	// difference to put a pedal back the way it was found.
-	if got == nil {
+	if body == nil {
 		return fmt.Errorf("%w: %s", ErrEmptySlot, slotpkg.Label(opts.Slot))
 	}
 
-	body, ok := got.(string)
-	if !ok {
-		return describe(w, s.Model().Name, opts.Slot, got)
-	}
-
-	return writeDeviceRig(w, []byte(body), opts)
+	return writeDeviceRig(w, body, opts)
 }
 
 // ErrEmptySlot is returned for a slot holding no preset.
@@ -290,17 +298,24 @@ func chainAt(
 	cat *catalog.Catalog,
 	setlist, slot int,
 ) ([]chain.Block, error) {
-	got, err := s.ReadPreset(ctx, setlist, slot)
+	body, err := s.ReadPreset(ctx, setlist, slot)
+
+	// An answer that is not a preset is skipped the way an undecodable one
+	// is: this is a listing, and one slot nobody can read should not hide the
+	// hundred that read.
+	if errors.Is(err, sdk.ErrNotAPreset) {
+		return nil, nil
+	}
+
 	if err != nil {
 		return nil, fmt.Errorf("reading slot %s: %w", slotpkg.Label(slot), err)
 	}
 
-	body, ok := got.(string)
-	if !ok {
+	if body == nil {
 		return nil, nil
 	}
 
-	preset, err := wire.DecodePreset([]byte(body))
+	preset, err := wire.DecodePreset(body)
 	if err != nil {
 		return nil, nil
 	}

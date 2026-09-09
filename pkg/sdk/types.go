@@ -132,8 +132,9 @@ type Editor interface {
 	Model() Model
 	// Presets lists what a setlist holds.
 	Presets(ctx context.Context, setlist int) ([]wire.Preset, error)
-	// ReadPreset fetches one slot without loading it.
-	ReadPreset(ctx context.Context, setlist, slot int) (any, error)
+	// ReadPreset fetches one slot without loading it. No bytes and no error
+	// is a slot holding no preset.
+	ReadPreset(ctx context.Context, setlist, slot int) ([]byte, error)
 	// Close releases the device.
 	Close()
 }
