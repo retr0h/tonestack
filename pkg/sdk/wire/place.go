@@ -162,7 +162,7 @@ func Place(
 
 	doc.SetSection(int8(keyTone), body)
 
-	return snapshots(doc, at)
+	return snapshots(doc, body, at)
 }
 
 // Open lists the grid positions a block may take, in order.
@@ -267,8 +267,15 @@ func openAt(
 }
 
 // snapshots writes each snapshot's record of what is switched on.
+//
+// Only for the positions a chain may take. The device keeps its input, its
+// split, its join and its output on the same grid, and a snapshot records
+// those too — so writing every position from a chain that never mentions them
+// switches the routing off, and the snapshot recalls a chain with its split
+// bypassed. The tone section leaves those four alone for the same reason.
 func snapshots(
 	doc *Document,
+	tone []byte,
 	at map[int]Placement,
 ) error {
 	body, ok := doc.Section(int8(keySnapshots))
@@ -283,6 +290,10 @@ func snapshots(
 
 	for snap := range count {
 		for i := GridSize - 1; i >= 0; i-- {
+			if _, _, ok := openAt(tone, i); !ok {
+				continue
+			}
+
 			// A snapshot keeping a shorter record than the grid has nothing
 			// to say about the rest of it.
 			start, end, err := Locate(
