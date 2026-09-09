@@ -32,32 +32,37 @@ type VersionTestSuite struct {
 	suite.Suite
 }
 
-func (s *VersionTestSuite) TestAppVersionReadsTheBundle() {
-	got := AppVersion(filepath.Join("testdata", "bundle", "Resources"))
-
-	s.Require().Equal("9.99", got)
-}
-
-func (s *VersionTestSuite) TestAppVersionIsEmptyWhenItCannotTell() {
+// TestAppVersion reads which release of HX Edit a catalog came from.
+func (s *VersionTestSuite) TestAppVersion() {
 	tests := []struct {
 		name string
 		dir  string
+		want string
 	}{
 		{
-			"model definitions that are not inside an application bundle",
-			filepath.Join("testdata", "families"),
+			name: "an application bundle",
+			dir:  filepath.Join("testdata", "bundle", "Resources"),
+			want: "9.99",
 		},
-		{"a directory that is not there", filepath.Join("testdata", "nope", "x")},
 		{
-			"a bundle whose property list names no version",
-			filepath.Join("testdata", "noversion", "Resources"),
+			// A missing version is recorded as unknown, not treated as a
+			// failure.
+			name: "model definitions outside a bundle",
+			dir:  filepath.Join("testdata", "families"),
+		},
+		{
+			name: "a directory that is not there",
+			dir:  filepath.Join("testdata", "nope", "x"),
+		},
+		{
+			name: "a bundle whose property list names no version",
+			dir:  filepath.Join("testdata", "noversion", "Resources"),
 		},
 	}
 
-	for _, tc := range tests {
-		s.Run(tc.name, func() {
-			s.Require().Empty(AppVersion(tc.dir),
-				"a missing version is recorded as unknown, not treated as a failure")
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			s.Require().Equal(tt.want, AppVersion(tt.dir))
 		})
 	}
 }
@@ -118,16 +123,31 @@ func (s *VersionTestSuite) TestPlistString() {
 	}
 }
 
-func (s *VersionTestSuite) TestSourceNamesTheRelease() {
-	s.Require().Equal("Test Editor 9.99", sourceName(Options{
-		ResourcesDir: filepath.Join("testdata", "bundle", "Resources"),
-		SourceName:   "Test Editor",
-	}))
+// TestSourceName names the release a catalog was generated from.
+func (s *VersionTestSuite) TestSourceName() {
+	tests := []struct {
+		name string
+		dir  string
+		want string
+	}{
+		{
+			name: "an installation that says which it is",
+			dir:  filepath.Join("testdata", "bundle", "Resources"),
+			want: "Test Editor 9.99",
+		},
+		{
+			name: "one that does not",
+			dir:  filepath.Join("testdata", "families"),
+		},
+	}
 
-	s.Require().Empty(sourceName(Options{
-		ResourcesDir: filepath.Join("testdata", "families"),
-		SourceName:   "Test Editor",
-	}))
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			s.Require().Equal(tt.want, sourceName(Options{
+				ResourcesDir: tt.dir, SourceName: "Test Editor",
+			}))
+		})
+	}
 }
 
 func TestVersionTestSuite(t *testing.T) {

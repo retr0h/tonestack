@@ -85,274 +85,318 @@ func (s *EditDevicePublicTestSuite) listing() []wire.Preset {
 	}
 }
 
-func (s *EditDevicePublicTestSuite) TestCopyingSendsBackWhatItRead() {
-	// Byte for byte. A preset that changed on the way through would leave the
-	// device's offset table pointing at the wrong places, and the device
-	// would accept it and then read the preset as empty.
-	body := s.answer()
+// expectListing sets up the listing every edit starts from.
+func (s *EditDevicePublicTestSuite) expectListing(reader *mocks.MockEditor, ok bool) {
+	if !ok {
+		reader.EXPECT().Presets(gomock.Any(), 0).Return(nil, errors.New("boom"))
 
-	s.dev.MockEditor.EXPECT().Presets(gomock.Any(), 0).Return(s.listing(), nil)
-	s.dev.MockEditor.EXPECT().ReadPreset(gomock.Any(), 0, 0).Return(body, nil)
-	s.dev.MockWriter.EXPECT().
-		WriteNamedPreset(gomock.Any(), 0, 3, "Chunky Monkey", []byte(body)).
-		Return(nil)
+		return
+	}
 
-	var out bytes.Buffer
-	s.Require().NoError(slots.CopyWith(context.Background(), &out, s.dev,
-		slots.EditOptions{FromSlot: 0, ToSlot: 3}))
-
-	got := out.String()
-	s.Require().Contains(got, "01A")
-	s.Require().Contains(got, "02A")
-	s.Require().Contains(got, "Chunky Monkey")
-	s.Require().Contains(got, "replacing Black Rusty",
-		"the destination is overwritten and there is no undo on a device")
+	reader.EXPECT().Presets(gomock.Any(), 0).Return(s.listing(), nil)
 }
 
-func (s *EditDevicePublicTestSuite) TestSwappingReadsBothBeforeWritingEither() {
-	// A device that failed halfway through would otherwise leave one slot
-	// holding a copy of the other and the original gone.
-	body := s.answer()
-
-	s.dev.MockEditor.EXPECT().Presets(gomock.Any(), 0).Return(s.listing(), nil)
-
-	first := s.dev.MockEditor.EXPECT().
-		ReadPreset(gomock.Any(), 0, 0).Return(body, nil)
-	second := s.dev.MockEditor.EXPECT().
-		ReadPreset(gomock.Any(), 0, 3).Return(body, nil).After(first)
-
-	s.dev.MockWriter.EXPECT().
-		WriteNamedPreset(gomock.Any(), 0, 3, "Chunky Monkey", []byte(body)).
-		Return(nil).After(second)
-	s.dev.MockWriter.EXPECT().
-		WriteNamedPreset(gomock.Any(), 0, 0, "Black Rusty", []byte(body)).
-		Return(nil).After(second)
-
-	var out bytes.Buffer
-	s.Require().NoError(slots.SwapWith(context.Background(), &out, s.dev,
-		slots.EditOptions{FromSlot: 0, ToSlot: 3}))
-
-	s.Require().Contains(out.String(), "swapped")
+// expectRead sets up one slot being read: answered, refused, or answered with
+// something that is not a preset.
+func (s *EditDevicePublicTestSuite) expectRead(
+	reader *mocks.MockEditor,
+	slot int,
+	outcome string,
+) *gomock.Call {
+	switch outcome {
+	case "refused":
+		return reader.EXPECT().ReadPreset(gomock.Any(), 0, slot).
+			Return(nil, errors.New("boom"))
+	case "not a preset":
+		return reader.EXPECT().ReadPreset(gomock.Any(), 0, slot).
+			Return(map[any]any{}, nil)
+	default:
+		return reader.EXPECT().ReadPreset(gomock.Any(), 0, slot).
+			Return(s.answer(), nil)
+	}
 }
 
-func (s *EditDevicePublicTestSuite) TestReportsWhatItCannotDo() {
-	body := s.answer()
+// expectWrite sets up one slot being written, byte for byte. A preset that
+// changed on the way through would leave the device's offset table pointing at
+// the wrong places, and the device would accept it and then read the preset as
+// empty.
+func (s *EditDevicePublicTestSuite) expectWrite(
+	slot int,
+	name string,
+	ok bool,
+) *gomock.Call {
+	call := s.dev.MockWriter.EXPECT().
+		WriteNamedPreset(gomock.Any(), 0, slot, name, []byte(s.answer()))
 
+	if !ok {
+		return call.Return(errors.New("boom"))
+	}
+
+	return call.Return(nil)
+}
+
+// TestCopyWith writes one slot of a device over another.
+func (s *EditDevicePublicTestSuite) TestCopyWith() {
 	tests := []struct {
-		name    string
-		expect  func()
-		message string
+		name string
+		// whether the listing comes back, how the read is answered, and
+		// whether the write lands. An empty outcome means the call is never
+		// reached.
+		listed bool
+		read   string
+		write  string
+		// a session that can read but not write.
+		readOnly bool
+
+		contains []string
+		errText  string
 	}{
 		{
-			name: "a listing it cannot get",
-			expect: func() {
-				s.dev.MockEditor.EXPECT().Presets(gomock.Any(), 0).
-					Return(nil, errors.New("boom"))
+			name:   "a preset sent back byte for byte",
+			listed: true,
+			read:   "answered",
+			write:  "landed",
+			contains: []string{
+				"01A", "02A", "Chunky Monkey",
+				// The destination is overwritten and there is no undo on a
+				// device.
+				"replacing Black Rusty",
 			},
-			message: "listing presets",
+		},
+		{name: "a listing it cannot get", errText: "listing presets"},
+		{
+			name:    "a slot it cannot read",
+			listed:  true,
+			read:    "refused",
+			errText: "reading slot 01A",
 		},
 		{
-			name: "a slot it cannot read",
-			expect: func() {
-				s.dev.MockEditor.EXPECT().Presets(gomock.Any(), 0).
-					Return(s.listing(), nil)
-				s.dev.MockEditor.EXPECT().ReadPreset(gomock.Any(), 0, 0).
-					Return(nil, errors.New("boom"))
-			},
-			message: "reading slot 01A",
+			name:    "an answer that is not a preset",
+			listed:  true,
+			read:    "not a preset",
+			errText: "did not answer with a preset",
 		},
 		{
-			name: "an answer that is not a preset",
-			expect: func() {
-				s.dev.MockEditor.EXPECT().Presets(gomock.Any(), 0).
-					Return(s.listing(), nil)
-				s.dev.MockEditor.EXPECT().ReadPreset(gomock.Any(), 0, 0).
-					Return(map[any]any{}, nil)
-			},
-			message: "did not answer with a preset",
+			name:    "a slot it cannot write",
+			listed:  true,
+			read:    "answered",
+			write:   "refused",
+			errText: "writing slot 02A",
 		},
 		{
-			name: "a slot it cannot write",
-			expect: func() {
-				s.dev.MockEditor.EXPECT().Presets(gomock.Any(), 0).
-					Return(s.listing(), nil)
-				s.dev.MockEditor.EXPECT().ReadPreset(gomock.Any(), 0, 0).
-					Return(body, nil)
-				s.dev.MockWriter.EXPECT().
-					WriteNamedPreset(gomock.Any(), 0, 3, gomock.Any(), gomock.Any()).
-					Return(errors.New("boom"))
-			},
-			message: "writing slot 02A",
+			// Reading and writing are separate abilities, because writing is
+			// the half that can destroy somebody's work.
+			name:     "a session that cannot write",
+			listed:   true,
+			read:     "answered",
+			readOnly: true,
+			errText:  "cannot write",
 		},
 	}
 
-	for _, tc := range tests {
-		s.Run(tc.name, func() {
-			s.SetupTest()
-			tc.expect()
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			reader := s.dev.MockEditor
 
-			err := slots.CopyWith(context.Background(), &bytes.Buffer{}, s.dev,
+			dev := sdk.Editor(s.dev)
+			if tt.readOnly {
+				reader = mocks.NewMockEditor(s.ctrl)
+				dev = sdk.Editor(reader)
+			}
+
+			s.expectListing(reader, tt.listed)
+
+			if tt.read != "" {
+				s.expectRead(reader, 0, tt.read)
+			}
+
+			if tt.write != "" {
+				s.expectWrite(3, "Chunky Monkey", tt.write == "landed")
+			}
+
+			var out bytes.Buffer
+
+			err := slots.CopyWith(context.Background(), &out, dev,
 				slots.EditOptions{FromSlot: 0, ToSlot: 3})
 
-			s.Require().Error(err)
-			s.Require().Contains(err.Error(), tc.message)
+			if tt.errText != "" {
+				s.Require().Error(err)
+				s.Require().Contains(err.Error(), tt.errText)
+
+				return
+			}
+
+			s.Require().NoError(err)
+
+			for _, want := range tt.contains {
+				s.Require().Contains(out.String(), want)
+			}
 		})
 	}
 }
 
-func (s *EditDevicePublicTestSuite) TestSwappingReportsWhatItCannotDo() {
-	body := s.answer()
-
+// TestSwapWith exchanges two slots on a device.
+func (s *EditDevicePublicTestSuite) TestSwapWith() {
 	tests := []struct {
-		name    string
-		expect  func()
-		message string
+		name string
+		// the listing, then how each of the two slots answers, then whether
+		// each of the two writes lands. An empty outcome means the call is
+		// never reached.
+		listed   bool
+		reads    []string
+		writes   []string
+		readOnly bool
+
+		contains string
+		errText  string
 	}{
 		{
-			name: "the second slot it cannot read",
-			expect: func() {
-				s.dev.MockEditor.EXPECT().Presets(gomock.Any(), 0).
-					Return(s.listing(), nil)
-				s.dev.MockEditor.EXPECT().ReadPreset(gomock.Any(), 0, 0).
-					Return(body, nil)
-				s.dev.MockEditor.EXPECT().ReadPreset(gomock.Any(), 0, 3).
-					Return(nil, errors.New("boom"))
-			},
-			message: "reading slot 02A",
+			name:     "both slots, each holding what the other did",
+			listed:   true,
+			reads:    []string{"answered", "answered"},
+			writes:   []string{"landed", "landed"},
+			contains: "swapped",
+		},
+		{name: "a listing it cannot get", errText: "listing presets"},
+		{
+			name:    "the first slot, which it cannot read",
+			listed:  true,
+			reads:   []string{"refused"},
+			errText: "reading slot 01A",
 		},
 		{
-			name: "a listing it cannot get",
-			expect: func() {
-				s.dev.MockEditor.EXPECT().Presets(gomock.Any(), 0).
-					Return(nil, errors.New("boom"))
-			},
-			message: "listing presets",
+			name:    "the second slot, which it cannot read",
+			listed:  true,
+			reads:   []string{"answered", "refused"},
+			errText: "reading slot 02A",
 		},
 		{
-			name: "the first slot it cannot read",
-			expect: func() {
-				s.dev.MockEditor.EXPECT().Presets(gomock.Any(), 0).
-					Return(s.listing(), nil)
-				s.dev.MockEditor.EXPECT().ReadPreset(gomock.Any(), 0, 0).
-					Return(nil, errors.New("boom"))
-			},
-			message: "reading slot 01A",
+			name:    "the destination, which it cannot write",
+			listed:  true,
+			reads:   []string{"answered", "answered"},
+			writes:  []string{"refused"},
+			errText: "writing slot 02A",
 		},
 		{
-			name: "the destination it cannot write",
-			expect: func() {
-				s.dev.MockEditor.EXPECT().Presets(gomock.Any(), 0).
-					Return(s.listing(), nil)
-				s.dev.MockEditor.EXPECT().ReadPreset(gomock.Any(), 0, 0).
-					Return(body, nil)
-				s.dev.MockEditor.EXPECT().ReadPreset(gomock.Any(), 0, 3).
-					Return(body, nil)
-				s.dev.MockWriter.EXPECT().
-					WriteNamedPreset(gomock.Any(), 0, 3, gomock.Any(), gomock.Any()).
-					Return(errors.New("boom"))
-			},
-			message: "writing slot 02A",
+			name:    "the source, which it cannot write",
+			listed:  true,
+			reads:   []string{"answered", "answered"},
+			writes:  []string{"landed", "refused"},
+			errText: "writing slot 01A",
 		},
 		{
-			name: "the first slot it cannot write",
-			expect: func() {
-				s.dev.MockEditor.EXPECT().Presets(gomock.Any(), 0).
-					Return(s.listing(), nil)
-				s.dev.MockEditor.EXPECT().ReadPreset(gomock.Any(), 0, 0).
-					Return(body, nil)
-				s.dev.MockEditor.EXPECT().ReadPreset(gomock.Any(), 0, 3).
-					Return(body, nil)
-				s.dev.MockWriter.EXPECT().
-					WriteNamedPreset(gomock.Any(), 0, 3, gomock.Any(), gomock.Any()).
-					Return(nil)
-				s.dev.MockWriter.EXPECT().
-					WriteNamedPreset(gomock.Any(), 0, 0, gomock.Any(), gomock.Any()).
-					Return(errors.New("boom"))
-			},
-			message: "writing slot 01A",
+			name:     "a session that cannot write",
+			listed:   true,
+			reads:    []string{"answered", "answered"},
+			readOnly: true,
+			errText:  "cannot write",
 		},
 	}
 
-	for _, tc := range tests {
-		s.Run(tc.name, func() {
-			s.SetupTest()
-			tc.expect()
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			reader := s.dev.MockEditor
 
-			err := slots.SwapWith(context.Background(), &bytes.Buffer{}, s.dev,
+			dev := sdk.Editor(s.dev)
+			if tt.readOnly {
+				reader = mocks.NewMockEditor(s.ctrl)
+				dev = sdk.Editor(reader)
+			}
+
+			s.expectListing(reader, tt.listed)
+
+			// A device that failed halfway through would leave one slot
+			// holding a copy of the other and the original gone, so both
+			// slots are read before either is written.
+			var last *gomock.Call
+
+			for i, outcome := range tt.reads {
+				call := s.expectRead(reader, []int{0, 3}[i], outcome)
+				if last != nil {
+					call.After(last)
+				}
+
+				last = call
+			}
+
+			for i, outcome := range tt.writes {
+				call := s.expectWrite(
+					[]int{3, 0}[i],
+					[]string{"Chunky Monkey", "Black Rusty"}[i],
+					outcome == "landed")
+
+				if last != nil {
+					call.After(last)
+				}
+			}
+
+			var out bytes.Buffer
+
+			err := slots.SwapWith(context.Background(), &out, dev,
 				slots.EditOptions{FromSlot: 0, ToSlot: 3})
 
-			s.Require().Error(err)
-			s.Require().Contains(err.Error(), tc.message)
+			if tt.errText != "" {
+				s.Require().Error(err)
+				s.Require().Contains(err.Error(), tt.errText)
+
+				return
+			}
+
+			s.Require().NoError(err)
+			s.Require().Contains(out.String(), tt.contains)
 		})
 	}
 }
 
-func (s *EditDevicePublicTestSuite) TestASwapNeedsASessionThatCanWrite() {
-	readOnly := mocks.NewMockEditor(s.ctrl)
-	readOnly.EXPECT().Presets(gomock.Any(), 0).Return(s.listing(), nil)
-	readOnly.EXPECT().ReadPreset(gomock.Any(), 0, 0).Return(s.answer(), nil)
-	readOnly.EXPECT().ReadPreset(gomock.Any(), 0, 3).Return(s.answer(), nil)
-
-	err := slots.SwapWith(context.Background(), &bytes.Buffer{},
-		sdk.Editor(readOnly), slots.EditOptions{FromSlot: 0, ToSlot: 3})
-
-	s.Require().Error(err)
-	s.Require().Contains(err.Error(), "cannot write")
-}
-
-func (s *EditDevicePublicTestSuite) TestTheCommandsThatFindTheirOwnDevice() {
-	// One line each: find a session, hand it on, release it.
-	restore := *slots.OpenDevice
-	defer func() { *slots.OpenDevice = restore }()
-
-	*slots.OpenDevice = func(context.Context) (sdk.Editor, error) {
-		return s.dev, nil
+// TestCopyDeviceAndSwapDevice covers the two commands somebody actually runs.
+// One line each: find a session, hand it on, release it.
+func (s *EditDevicePublicTestSuite) TestCopyDeviceAndSwapDevice() {
+	tests := []struct {
+		name     string
+		attached bool
+	}{
+		{name: "a device on the bus", attached: true},
+		{name: "nothing on the bus"},
 	}
 
-	body := s.answer()
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			restore := *slots.OpenDevice
+			defer func() { *slots.OpenDevice = restore }()
 
-	s.dev.MockEditor.EXPECT().Presets(gomock.Any(), 0).
-		Return(s.listing(), nil).Times(2)
-	s.dev.MockEditor.EXPECT().ReadPreset(gomock.Any(), 0, gomock.Any()).
-		Return(body, nil).Times(3)
-	s.dev.MockWriter.EXPECT().
-		WriteNamedPreset(gomock.Any(), 0, gomock.Any(), gomock.Any(), gomock.Any()).
-		Return(nil).Times(3)
+			if !tt.attached {
+				*slots.OpenDevice = func(context.Context) (sdk.Editor, error) {
+					return nil, errors.New("no device found")
+				}
+			} else {
+				*slots.OpenDevice = func(context.Context) (sdk.Editor, error) {
+					return s.dev, nil
+				}
 
-	ctx := context.Background()
-	opts := slots.EditOptions{FromSlot: 0, ToSlot: 3}
+				s.dev.MockEditor.EXPECT().Presets(gomock.Any(), 0).
+					Return(s.listing(), nil).Times(2)
+				s.dev.MockEditor.EXPECT().ReadPreset(gomock.Any(), 0, gomock.Any()).
+					Return(s.answer(), nil).Times(3)
+				s.dev.MockWriter.EXPECT().
+					WriteNamedPreset(
+						gomock.Any(), 0, gomock.Any(), gomock.Any(), gomock.Any()).
+					Return(nil).Times(3)
+			}
 
-	s.Require().NoError(slots.CopyDevice(ctx, &bytes.Buffer{}, opts))
-	s.Require().NoError(slots.SwapDevice(ctx, &bytes.Buffer{}, opts))
-}
+			ctx := context.Background()
+			opts := slots.EditOptions{FromSlot: 0, ToSlot: 3}
 
-func (s *EditDevicePublicTestSuite) TestReportsADeviceItCannotOpen() {
-	restore := *slots.OpenDevice
-	defer func() { *slots.OpenDevice = restore }()
+			if !tt.attached {
+				s.Require().Error(slots.CopyDevice(ctx, &bytes.Buffer{}, opts))
+				s.Require().Error(slots.SwapDevice(ctx, &bytes.Buffer{}, opts))
 
-	*slots.OpenDevice = func(context.Context) (sdk.Editor, error) {
-		return nil, errors.New("no device found")
+				return
+			}
+
+			s.Require().NoError(slots.CopyDevice(ctx, &bytes.Buffer{}, opts))
+			s.Require().NoError(slots.SwapDevice(ctx, &bytes.Buffer{}, opts))
+		})
 	}
-
-	ctx := context.Background()
-	opts := slots.EditOptions{FromSlot: 0, ToSlot: 3}
-
-	s.Require().Error(slots.CopyDevice(ctx, &bytes.Buffer{}, opts))
-	s.Require().Error(slots.SwapDevice(ctx, &bytes.Buffer{}, opts))
-}
-
-func (s *EditDevicePublicTestSuite) TestASessionThatCannotWrite() {
-	// Reading and writing are separate abilities, because writing is the half
-	// that can destroy somebody's work.
-	readOnly := mocks.NewMockEditor(s.ctrl)
-	readOnly.EXPECT().Presets(gomock.Any(), 0).Return(s.listing(), nil)
-	readOnly.EXPECT().ReadPreset(gomock.Any(), 0, 0).Return(s.answer(), nil)
-
-	err := slots.CopyWith(context.Background(), &bytes.Buffer{},
-		sdk.Editor(readOnly), slots.EditOptions{FromSlot: 0, ToSlot: 3})
-
-	s.Require().Error(err)
-	s.Require().Contains(err.Error(), "cannot write")
 }
 
 func TestEditDevicePublicTestSuite(t *testing.T) {

@@ -33,36 +33,57 @@ type SymbolPublicTestSuite struct {
 	suite.Suite
 }
 
-func (s *SymbolPublicTestSuite) TestNamesAModelByItsPosition() {
-	c := &catalog.Catalog{Symbols: []catalog.Symbol{
-		{ID: "HD2_First"},
-		{ID: "HD2_Second", Params: []string{"Drive"}},
-	}}
+// TestSymbol names a model by where it sits in the device's own table.
+func (s *SymbolPublicTestSuite) TestSymbol() {
+	tests := []struct {
+		name string
+		// a table holding nothing, rather than this suite's own.
+		bare bool
+		at   int
 
-	got, ok := c.Symbol(1)
-
-	s.Require().True(ok)
-	s.Require().Equal(catalog.ModelID("HD2_Second"), got.ID)
-	s.Require().Equal([]string{"Drive"}, got.Params)
-}
-
-func (s *SymbolPublicTestSuite) TestRefusesAPositionTheTableDoesNotReach() {
-	// A device generated against a different release can name a model this
-	// catalog has never heard of, and answering with the wrong one would be
-	// worse than answering with nothing.
-	c := &catalog.Catalog{Symbols: []catalog.Symbol{{ID: "HD2_Only"}}}
-
-	for _, n := range []int{-1, 1, 9999} {
-		_, ok := c.Symbol(n)
-
-		s.Require().False(ok, "%d", n)
+		want   catalog.ModelID
+		params []string
+		ok     bool
+	}{
+		{
+			name:   "a position the table reaches",
+			at:     1,
+			want:   "HD2_Second",
+			params: []string{"Drive"},
+			ok:     true,
+		},
+		// A device generated against a different release can name a model
+		// this catalog has never heard of, and answering with the wrong one
+		// would be worse than answering with nothing.
+		{name: "a position below the start of it", at: -1},
+		{name: "one past the end", at: 2},
+		{name: "one far past it", at: 9999},
+		{name: "a catalog with no table at all", bare: true},
 	}
-}
 
-func (s *SymbolPublicTestSuite) TestACatalogWithNoTable() {
-	_, ok := (&catalog.Catalog{}).Symbol(0)
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			c := &catalog.Catalog{Symbols: []catalog.Symbol{
+				{ID: "HD2_First"},
+				{ID: "HD2_Second", Params: []string{"Drive"}},
+			}}
 
-	s.Require().False(ok)
+			if tt.bare {
+				c = &catalog.Catalog{}
+			}
+
+			got, ok := c.Symbol(tt.at)
+
+			s.Require().Equal(tt.ok, ok)
+
+			if !tt.ok {
+				return
+			}
+
+			s.Require().Equal(tt.want, got.ID)
+			s.Require().Equal(tt.params, got.Params)
+		})
+	}
 }
 
 func (s *SymbolPublicTestSuite) TestSymbolNumber() {

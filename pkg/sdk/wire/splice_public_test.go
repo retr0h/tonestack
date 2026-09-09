@@ -87,7 +87,10 @@ func (s *SplicePublicTestSuite) TestLocate() {
 		body []byte
 		path wire.Path
 		want []byte
-		err  string
+		// what the failure must be, ErrNoSuchPath unless a case says
+		// otherwise, and what it must say.
+		errIs error
+		err   string
 	}{
 		{
 			name: "the routing kind of the first entry",
@@ -383,6 +386,84 @@ func (s *SplicePublicTestSuite) TestLocate() {
 			path: wire.Path{1, -1},
 			err:  "index -1 is outside an array of 1",
 		},
+		// Bytes no device would send.
+		{
+			name:  "an empty section",
+			body:  []byte{},
+			path:  wire.Path{},
+			errIs: wire.ErrNoSuchPath,
+			err:   "ran off the end",
+		},
+		{
+			name:  "a map claiming a pair that is not there",
+			body:  []byte{0x81},
+			path:  wire.Path{1},
+			errIs: wire.ErrMalformed,
+			err:   "no value here",
+		},
+		{
+			name:  "an array claiming an element that is not there",
+			body:  s.wrap([]byte{0x91}),
+			path:  wire.Path{1},
+			errIs: wire.ErrMalformed,
+			err:   "no value here",
+		},
+		{
+			name:  "a string running past the end",
+			body:  []byte{0x81, 0x01, 0xd9, 0x40, 0x61},
+			path:  wire.Path{},
+			errIs: wire.ErrMalformed,
+			err:   "value runs past the end",
+		},
+		{
+			name:  "a length prefix running past the end",
+			body:  []byte{0x81, 0x01, 0xda, 0x00},
+			path:  wire.Path{1},
+			errIs: wire.ErrMalformed,
+			err:   "length runs past the end",
+		},
+		{
+			name:  "a map16 with no count",
+			body:  []byte{0x81, 0x01, 0xde, 0x00},
+			path:  wire.Path{1, 0},
+			errIs: wire.ErrNoSuchPath,
+			err:   "is not a container, it is code 0xde",
+		},
+		{
+			name:  "a leaf where the path expects a container",
+			body:  s.wrap([]byte{0x2a}),
+			path:  wire.Path{1, 0},
+			errIs: wire.ErrNoSuchPath,
+			err:   "is not a container",
+		},
+		{
+			name:  "a code the format does not define",
+			body:  []byte{0xc1},
+			path:  wire.Path{},
+			errIs: wire.ErrMalformed,
+			err:   "unknown code 0xc1",
+		},
+		{
+			name:  "a key that is not an integer",
+			body:  []byte{0x81, 0xa1, 0x61, 0x01},
+			path:  wire.Path{1},
+			errIs: wire.ErrMalformed,
+			err:   "is not an integer",
+		},
+		{
+			name:  "a value that cannot be stepped over to reach a later key",
+			body:  []byte{0x82, 0x01, 0xd9, 0x40, 0x61, 0x02, 0x2a},
+			path:  wire.Path{2},
+			errIs: wire.ErrMalformed,
+			err:   "value runs past the end",
+		},
+		{
+			name:  "an element that cannot be stepped over to reach a later one",
+			body:  s.wrap([]byte{0x92, 0xd9, 0x40, 0x61}),
+			path:  wire.Path{1, 1},
+			errIs: wire.ErrMalformed,
+			err:   "value runs past the end",
+		},
 	}
 
 	for _, tt := range tests {
@@ -395,7 +476,12 @@ func (s *SplicePublicTestSuite) TestLocate() {
 			start, end, err := wire.Locate(from, tt.path)
 
 			if tt.err != "" {
-				s.Require().ErrorIs(err, wire.ErrNoSuchPath)
+				want := tt.errIs
+				if want == nil {
+					want = wire.ErrNoSuchPath
+				}
+
+				s.Require().ErrorIs(err, want)
 				s.Require().Contains(err.Error(), tt.err)
 
 				return
@@ -509,13 +595,31 @@ func (s *SplicePublicTestSuite) TestSplice() {
 		path  wire.Path
 		value any
 		want  []byte
-		err   error
+		// check the result with a real decoder rather than against the bytes
+		// this package produced.
+		decodes bool
+		err     error
+		errText string
 	}{
 		{
 			name:  "a wide number stays wide when the new one fits",
 			path:  wire.Path{22, 2, 20, 24, 25},
 			value: 7,
 			want:  []byte{0xcd, 0x00, 0x07},
+		},
+		{
+			name:    "a model number, read back by a real decoder",
+			path:    wire.Path{22, 3, 20, 24, 25},
+			value:   300,
+			want:    []byte{0xcd, 0x01, 0x2c},
+			decodes: true,
+		},
+		{
+			name:    "a value with no encoding",
+			path:    wire.Path{21},
+			value:   make(chan int),
+			err:     wire.ErrBadValue,
+			errText: "chan int",
 		},
 		{
 			name:  "a narrow number widens only when it must",
@@ -771,6 +875,10 @@ func (s *SplicePublicTestSuite) TestSplice() {
 			if tt.err != nil {
 				s.Require().ErrorIs(err, tt.err)
 
+				if tt.errText != "" {
+					s.Require().Contains(err.Error(), tt.errText)
+				}
+
 				return
 			}
 
@@ -779,137 +887,26 @@ func (s *SplicePublicTestSuite) TestSplice() {
 			start, _, err := wire.Locate(from, tt.path)
 			s.Require().NoError(err)
 			s.Require().Equal(tt.want, got[start:start+len(tt.want)])
+
+			if !tt.decodes {
+				return
+			}
+
+			dec := msgpack.NewDecoder(bytes.NewReader(got))
+			dec.SetMapDecoder(func(d *msgpack.Decoder) (any, error) {
+				return d.DecodeUntypedMap()
+			})
+
+			raw, err := dec.DecodeInterface()
+			s.Require().NoError(err)
+
+			doc, ok := raw.(map[any]any)
+			s.Require().True(ok)
+
+			entry := s.at(s.index(s.at(doc, 22), 3), 20)
+			s.Require().EqualValues(tt.value, s.at(s.at(entry, 24), 25))
 		})
 	}
-}
-
-// TestASplicedSectionStillDecodes checks the result against a real decoder
-// rather than against the bytes this package produced.
-func (s *SplicePublicTestSuite) TestASplicedSectionStillDecodes() {
-	body := s.blocks()
-
-	got, err := wire.Splice(body, wire.Path{22, 3, 20, 24, 25}, 300)
-	s.Require().NoError(err)
-
-	dec := msgpack.NewDecoder(bytes.NewReader(got))
-	dec.SetMapDecoder(func(d *msgpack.Decoder) (any, error) {
-		return d.DecodeUntypedMap()
-	})
-
-	raw, err := dec.DecodeInterface()
-	s.Require().NoError(err)
-
-	doc, ok := raw.(map[any]any)
-	s.Require().True(ok)
-
-	entry := s.at(s.index(s.at(doc, 22), 3), 20)
-	s.Require().EqualValues(300, s.at(s.at(entry, 24), 25))
-}
-
-// TestMalformedSectionsAreReported covers bytes no device would send.
-func (s *SplicePublicTestSuite) TestMalformedSectionsAreReported() {
-	tests := []struct {
-		name string
-		body []byte
-		path wire.Path
-		want error
-		msg  string
-	}{
-		{
-			name: "an empty section",
-			body: []byte{},
-			path: wire.Path{},
-			want: wire.ErrNoSuchPath,
-			msg:  "ran off the end",
-		},
-		{
-			name: "a map claiming a pair that is not there",
-			body: []byte{0x81},
-			path: wire.Path{1},
-			want: wire.ErrMalformed,
-			msg:  "no value here",
-		},
-		{
-			name: "an array claiming an element that is not there",
-			body: s.wrap([]byte{0x91}),
-			path: wire.Path{1},
-			want: wire.ErrMalformed,
-			msg:  "no value here",
-		},
-		{
-			name: "a string running past the end",
-			body: []byte{0x81, 0x01, 0xd9, 0x40, 0x61},
-			path: wire.Path{},
-			want: wire.ErrMalformed,
-			msg:  "value runs past the end",
-		},
-		{
-			name: "a length prefix running past the end",
-			body: []byte{0x81, 0x01, 0xda, 0x00},
-			path: wire.Path{1},
-			want: wire.ErrMalformed,
-			msg:  "length runs past the end",
-		},
-		{
-			name: "a map16 with no count",
-			body: []byte{0x81, 0x01, 0xde, 0x00},
-			path: wire.Path{1, 0},
-			want: wire.ErrNoSuchPath,
-			msg:  "is not a container, it is code 0xde",
-		},
-		{
-			name: "a leaf where the path expects a container",
-			body: s.wrap([]byte{0x2a}),
-			path: wire.Path{1, 0},
-			want: wire.ErrNoSuchPath,
-			msg:  "is not a container",
-		},
-		{
-			name: "a code the format does not define",
-			body: []byte{0xc1},
-			path: wire.Path{},
-			want: wire.ErrMalformed,
-			msg:  "unknown code 0xc1",
-		},
-		{
-			name: "a key that is not an integer",
-			body: []byte{0x81, 0xa1, 0x61, 0x01},
-			path: wire.Path{1},
-			want: wire.ErrMalformed,
-			msg:  "is not an integer",
-		},
-		{
-			name: "a value that cannot be stepped over to reach a later key",
-			body: []byte{0x82, 0x01, 0xd9, 0x40, 0x61, 0x02, 0x2a},
-			path: wire.Path{2},
-			want: wire.ErrMalformed,
-			msg:  "value runs past the end",
-		},
-		{
-			name: "an element that cannot be stepped over to reach a later one",
-			body: s.wrap([]byte{0x92, 0xd9, 0x40, 0x61}),
-			path: wire.Path{1, 1},
-			want: wire.ErrMalformed,
-			msg:  "value runs past the end",
-		},
-	}
-
-	for _, tt := range tests {
-		s.Run(tt.name, func() {
-			_, _, err := wire.Locate(tt.body, tt.path)
-
-			s.Require().ErrorIs(err, tt.want)
-			s.Require().Contains(err.Error(), tt.msg)
-		})
-	}
-}
-
-// TestBadValueErrorNamesTheType is the other error this package raises.
-func (s *SplicePublicTestSuite) TestBadValueErrorNamesTheType() {
-	_, err := wire.Splice(s.blocks(), wire.Path{21}, make(chan int))
-
-	s.Require().ErrorIs(err, wire.ErrBadValue)
-	s.Require().Contains(err.Error(), "chan int")
 }
 
 // paths walks a section and returns every path in it.

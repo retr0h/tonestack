@@ -70,84 +70,112 @@ func (s *SettingsPublicTestSuite) value(
 	return spec.Blocks[0].Params[key]
 }
 
-func (s *SettingsPublicTestSuite) TestCloseAgreementOverrulesTheCatalog() {
-	// Line 6 states one value; every player moved it to another and they all
-	// agree. The middle of what people do is the better answer.
-	got := s.value(s.stats(map[string]corpus.ParamStats{
-		"Treble": {N: 30, Median: 0.85, P25: 0.84, P75: 0.86},
-	}), "Treble")
+// TestResolveSettings covers what the corpus is allowed to say about a
+// parameter. A nil want means the catalog's own default stands.
+func (s *SettingsPublicTestSuite) TestResolveSettings() {
+	tests := []struct {
+		name    string
+		params  map[string]corpus.ParamStats
+		nothing bool
+		unmet   bool
+		key     string
+		want    any
+	}{
+		{
+			// Line 6 states one value; every player moved it to another and
+			// they all agree. The middle of what people do is the better
+			// answer.
+			name: "close agreement, which overrules the catalog",
+			params: map[string]corpus.ParamStats{
+				"Treble": {N: 30, Median: 0.85, P25: 0.84, P75: 0.86},
+			},
+			key:  "Treble",
+			want: 0.85,
+		},
+		{
+			// An average of disagreement is not a measurement.
+			name: "no agreement",
+			params: map[string]corpus.ParamStats{
+				"Drive": {N: 30, Median: 0.5, P25: 0.2, P75: 0.9},
+			},
+			key: "Drive",
+		},
+		{name: "no statistics at all", nothing: true, key: "Treble"},
+		{
+			name: "a parameter nobody measured",
+			params: map[string]corpus.ParamStats{
+				"SomethingElse": {N: 30, Median: 0.1, P25: 0.1, P75: 0.1},
+			},
+			key: "Treble",
+		},
+		{name: "a model nobody measured", unmet: true, key: "Treble"},
+		{
+			// A device given 1.5 for a three-position switch does not round
+			// it, it refuses the preset. The median is rounded, not
+			// truncated.
+			name: "an integer parameter, which stays an integer",
+			params: map[string]corpus.ParamStats{
+				"MidFreq": {N: 30, Median: 1.6, P25: 1.6, P75: 1.6},
+			},
+			key:  "MidFreq",
+			want: int64(2),
+		},
+		{
+			// A median over a switch is not a setting the device will accept,
+			// however unanimous the corpus is about it.
+			name: "a switch, which is never averaged",
+			params: map[string]corpus.ParamStats{
+				"Bright": {N: 30, Median: 1, P25: 1, P75: 1},
+			},
+			key:  "Bright",
+			want: false,
+		},
+	}
 
-	f, ok := got.Float()
-	s.Require().True(ok)
-	s.Require().InDelta(0.85, f, 1e-9)
-}
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			var stats *corpus.Stats
 
-func (s *SettingsPublicTestSuite) TestNoAgreementLeavesTheCatalogAlone() {
-	def, _ := s.cat.Blocks["HD2_AmpSVBeastNrm"].Params["Drive"].Default.Float()
+			switch {
+			case tt.nothing:
+			case tt.unmet:
+				stats = &corpus.Stats{
+					Models: map[catalog.ModelID]corpus.ModelStats{},
+				}
+			default:
+				stats = s.stats(tt.params)
+			}
 
-	got := s.value(s.stats(map[string]corpus.ParamStats{
-		"Drive": {N: 30, Median: 0.5, P25: 0.2, P75: 0.9},
-	}), "Drive")
+			got := s.value(stats, tt.key)
 
-	f, _ := got.Float()
-	s.Require().InDelta(def, f, 1e-9,
-		"an average of disagreement is not a measurement")
-}
+			switch want := tt.want.(type) {
+			case nil:
+				def, ok := s.cat.
+					Blocks["HD2_AmpSVBeastNrm"].Params[tt.key].Default.Float()
+				s.Require().True(ok)
 
-func (s *SettingsPublicTestSuite) TestWithoutStatisticsTheCatalogStands() {
-	def, _ := s.cat.Blocks["HD2_AmpSVBeastNrm"].Params["Treble"].Default.Float()
+				f, ok := got.Float()
+				s.Require().True(ok)
+				s.Require().InDelta(def, f, 1e-9)
+			case float64:
+				f, ok := got.Float()
+				s.Require().True(ok)
+				s.Require().InDelta(want, f, 1e-9)
+			case int64:
+				s.Require().Equal(catalog.ParamInt, got.Type())
 
-	f, _ := s.value(nil, "Treble").Float()
+				i, ok := got.Int()
+				s.Require().True(ok)
+				s.Require().Equal(want, i)
+			case bool:
+				s.Require().Equal(catalog.ParamBool, got.Type())
 
-	s.Require().InDelta(def, f, 1e-9)
-}
-
-func (s *SettingsPublicTestSuite) TestAParameterNobodyMeasuredKeepsItsDefault() {
-	def, _ := s.cat.Blocks["HD2_AmpSVBeastNrm"].Params["Treble"].Default.Float()
-
-	f, _ := s.value(s.stats(map[string]corpus.ParamStats{
-		"SomethingElse": {N: 30, Median: 0.1, P25: 0.1, P75: 0.1},
-	}), "Treble").Float()
-
-	s.Require().InDelta(def, f, 1e-9)
-}
-
-func (s *SettingsPublicTestSuite) TestAModelNobodyMeasuredKeepsItsDefaults() {
-	def, _ := s.cat.Blocks["HD2_AmpSVBeastNrm"].Params["Treble"].Default.Float()
-
-	f, _ := s.value(&corpus.Stats{
-		Models: map[catalog.ModelID]corpus.ModelStats{},
-	}, "Treble").Float()
-
-	s.Require().InDelta(def, f, 1e-9)
-}
-
-func (s *SettingsPublicTestSuite) TestAnIntegerParameterStaysAnInteger() {
-	// A device given 1.5 for a three-position switch does not round it, it
-	// refuses the preset.
-	got := s.value(s.stats(map[string]corpus.ParamStats{
-		"MidFreq": {N: 30, Median: 1.6, P25: 1.6, P75: 1.6},
-	}), "MidFreq")
-
-	s.Require().Equal(catalog.ParamInt, got.Type())
-
-	i, ok := got.Int()
-	s.Require().True(ok)
-	s.Require().Equal(int64(2), i, "the median is rounded, not truncated")
-}
-
-func (s *SettingsPublicTestSuite) TestASwitchIsNeverAveraged() {
-	// A median over a switch is not a setting the device will accept, however
-	// unanimous the corpus is about it.
-	got := s.value(s.stats(map[string]corpus.ParamStats{
-		"Bright": {N: 30, Median: 1, P25: 1, P75: 1},
-	}), "Bright")
-
-	s.Require().Equal(catalog.ParamBool, got.Type())
-
-	b, ok := got.Bool()
-	s.Require().True(ok)
-	s.Require().False(b, "the catalog's own default stands")
+				b, ok := got.Bool()
+				s.Require().True(ok)
+				s.Require().Equal(want, b)
+			}
+		})
+	}
 }
 
 func TestSettingsPublicTestSuite(t *testing.T) {

@@ -17,12 +17,12 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
+
 package presets_test
 
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -48,132 +48,195 @@ func (s *MakePublicTestSuite) opts(id, out string) presets.MakeOptions {
 	}
 }
 
-func (s *MakePublicTestSuite) TestMakeWritesALoadablePreset() {
-	out := filepath.Join(s.T().TempDir(), "test.hlx")
+// TestMake builds a preset out of a recipe.
+func (s *MakePublicTestSuite) TestMake() {
+	tests := []struct {
+		name     string
+		id       string
+		stats    string
+		catalog  string
+		out      string
+		contains []string
+		loadable bool
+		err      error
+		errText  string
+	}{
+		{
+			name:     "a recipe that builds",
+			id:       "test-player",
+			loadable: true,
+			contains: []string{
+				"Test Player",
+				// The real gear must be named, not only the model identifier.
+				"Ampeg SVT",
+				// The processor budget, because it is the constraint.
+				"dsp0",
+			},
+		},
+		{
+			// A recipe names an amp; a rig is several blocks. Whatever the
+			// corpus contributed has to be visible before anybody plugs in.
+			name:  "what the corpus added unasked",
+			id:    "test-player",
+			stats: filepath.Join("testdata", "stats.json.gz"),
+			contains: []string{
+				"added",
+				"Minotaur",
+				// An unasked-for block says how common it is.
+				"95% of chains",
+			},
+		},
+		{
+			// Statistics improve a preset; they are not required to produce
+			// one.
+			name:  "no statistics to be had",
+			id:    "test-player",
+			stats: filepath.Join("testdata", "no-such-stats.gz"),
+		},
+		{
+			name: "a recipe nobody has",
+			id:   "nobody",
+			err:  recipes.ErrNotFound,
+		},
+		{
+			name:    "a catalog it cannot read",
+			id:      "test-player",
+			catalog: filepath.Join("testdata", "nope.json"),
+			errText: "catalog",
+		},
+		{
+			name: "gear the catalog does not model",
+			id:   "unbuildable",
+			err:  resolve.ErrNoSuchGear,
+		},
+		{
+			// Seven heavy pedals plus an amp and a cabinet exceeds what the
+			// device can hold, and a preset nobody can load is not a preset.
+			name:    "a chain that will not load",
+			id:      "too-big",
+			errText: "will not load",
+		},
+		{
+			name:    "nowhere to write the preset",
+			id:      "test-player",
+			out:     filepath.Join("no", "such", "dir.hlx"),
+			errText: "writing",
+		},
+	}
 
-	var log bytes.Buffer
-	s.Require().NoError(presets.Make(&log, s.opts("test-player", out)))
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			dir := s.T().TempDir()
 
-	f, err := os.Open(out) //nolint:gosec // a path this test chose
-	s.Require().NoError(err)
+			out := filepath.Join(dir, "test.hlx")
+			if tt.out != "" {
+				out = filepath.Join(dir, tt.out)
+			}
 
-	defer func() { s.Require().NoError(f.Close()) }()
+			o := s.opts(tt.id, out)
+			if tt.stats != "" {
+				o.StatsPath = tt.stats
+			}
 
-	doc, err := preset.Read(f)
-	s.Require().NoError(err)
-	s.Require().Equal(2162694, doc.Data.Device)
-	s.Require().Equal("Test Player", doc.Data.Meta.Name)
+			if tt.catalog != "" {
+				o.CatalogPath = tt.catalog
+			}
 
-	spec, err := doc.Spec()
-	s.Require().NoError(err)
-	s.Require().Len(spec.Blocks, 2)
-}
+			var log bytes.Buffer
 
-func (s *MakePublicTestSuite) TestMakeReportsWhatItChose() {
-	out := filepath.Join(s.T().TempDir(), "test.hlx")
+			err := presets.Make(&log, o)
 
-	var log bytes.Buffer
-	s.Require().NoError(presets.Make(&log, s.opts("test-player", out)))
+			if tt.err != nil || tt.errText != "" {
+				s.Require().Error(err)
 
-	got := log.String()
-	s.Require().Contains(got, "Test Player")
-	s.Require().Contains(got, "Ampeg SVT",
-		"the real gear must be named, not only the model identifier")
-	s.Require().Contains(got, "dsp0",
-		"the processor budget must be shown, because it is the constraint")
-	s.Require().Contains(got, out)
-}
+				if tt.err != nil {
+					s.Require().ErrorIs(err, tt.err)
+				}
 
-func (s *MakePublicTestSuite) TestMakeExplainsWhatItAddedUnasked() {
-	// A recipe names an amp; a rig is several blocks. Whatever the corpus
-	// contributed has to be visible before anybody plugs in.
-	out := filepath.Join(s.T().TempDir(), "test.hlx")
+				if tt.errText != "" {
+					s.Require().Contains(err.Error(), tt.errText)
+				}
 
-	o := s.opts("test-player", out)
-	o.StatsPath = filepath.Join("testdata", "stats.json.gz")
+				return
+			}
 
-	var log bytes.Buffer
-	s.Require().NoError(presets.Make(&log, o))
+			s.Require().NoError(err)
 
-	got := log.String()
-	s.Require().Contains(got, "added")
-	s.Require().Contains(got, "Minotaur")
-	s.Require().Contains(got, "95% of chains",
-		"an unasked-for block must say how common it is")
-}
+			got := log.String()
+			s.Require().Contains(got, out)
 
-func (s *MakePublicTestSuite) TestMakeReportsAWriterThatFailsOnTheExplanation() {
-	o := s.opts("test-player", filepath.Join(s.T().TempDir(), "test.hlx"))
-	o.StatsPath = filepath.Join("testdata", "stats.json.gz")
+			for _, want := range tt.contains {
+				s.Require().Contains(got, want)
+			}
 
-	// The explanation is written after the chain and the budget, so a writer
-	// failing there must still surface.
-	for _, after := range []int{5, 6, 7, 8} {
-		s.Run(fmt.Sprintf("after %d writes", after), func() {
-			s.Require().Error(presets.Make(&failingWriter{ok: after}, o))
+			if !tt.loadable {
+				return
+			}
+
+			s.Require().NoError(func() error {
+				f, err := os.Open(out) //nolint:gosec // a path this test chose
+				if err != nil {
+					return err
+				}
+
+				defer func() { s.Require().NoError(f.Close()) }()
+
+				doc, err := preset.Read(f)
+				if err != nil {
+					return err
+				}
+
+				s.Require().Equal(2162694, doc.Data.Device)
+				s.Require().Equal("Test Player", doc.Data.Meta.Name)
+
+				spec, err := doc.Spec()
+				if err != nil {
+					return err
+				}
+
+				s.Require().Len(spec.Blocks, 2)
+
+				return nil
+			}())
 		})
 	}
 }
 
-func (s *MakePublicTestSuite) TestMakeCarriesOnWithoutStatistics() {
-	// Statistics improve a preset; they are not required to produce one.
-	o := s.opts("test-player", filepath.Join(s.T().TempDir(), "test.hlx"))
-	o.StatsPath = filepath.Join("testdata", "no-such-stats.gz")
-
-	s.Require().NoError(presets.Make(&bytes.Buffer{}, o))
-}
-
-func (s *MakePublicTestSuite) TestMakeReportsAnUnknownRecipe() {
-	err := presets.Make(&bytes.Buffer{},
-		s.opts("nobody", filepath.Join(s.T().TempDir(), "x.hlx")))
-
-	s.Require().ErrorIs(err, recipes.ErrNotFound)
-}
-
-func (s *MakePublicTestSuite) TestMakeReportsAnUnreadableCatalog() {
-	o := s.opts("test-player", filepath.Join(s.T().TempDir(), "x.hlx"))
-	o.CatalogPath = "testdata/nope.json"
-
-	s.Require().Error(presets.Make(&bytes.Buffer{}, o))
-}
-
-func (s *MakePublicTestSuite) TestMakeReportsGearItCannotResolve() {
-	err := presets.Make(&bytes.Buffer{},
-		s.opts("unbuildable", filepath.Join(s.T().TempDir(), "x.hlx")))
-
-	s.Require().ErrorIs(err, resolve.ErrNoSuchGear)
-}
-
-func (s *MakePublicTestSuite) TestMakeRefusesAChainThatWillNotLoad() {
-	// Seven heavy pedals plus an amp and a cabinet exceeds what the device can
-	// hold, and a preset nobody can load is not a preset.
-	err := presets.Make(&bytes.Buffer{},
-		s.opts("too-big", filepath.Join(s.T().TempDir(), "x.hlx")))
-
-	s.Require().Error(err)
-	s.Require().Contains(err.Error(), "will not load")
-}
-
-func (s *MakePublicTestSuite) TestMakeReportsAnUnwritableDestination() {
-	err := presets.Make(&bytes.Buffer{},
-		s.opts("test-player", filepath.Join(s.T().TempDir(), "no", "such", "dir.hlx")))
-
-	s.Require().Error(err)
-	s.Require().Contains(err.Error(), "writing")
-}
-
+// TestMakeReportsAFailingWriter covers a report nobody can read. It is written
+// in parts, and a writer that fails part way through must be reported rather
+// than leaving a half-written summary and a success.
 func (s *MakePublicTestSuite) TestMakeReportsAFailingWriter() {
-	// The report is written in three parts, and a writer that fails part way
-	// through must still be reported rather than leaving a half-written
-	// summary and a success.
-	for _, after := range []int{0, 1, 4} {
-		s.Run(fmt.Sprintf("after %d writes", after), func() {
-			out := filepath.Join(s.T().TempDir(), "test.hlx")
+	tests := []struct {
+		name    string
+		ok      int
+		stats   bool
+		errText string
+	}{
+		{name: "before anything is written", errText: "reporting"},
+		{name: "part way through the summary", ok: 1, errText: "reporting"},
+		{name: "part way through the chain", ok: 4, errText: "reporting"},
+		// The explanation is written after the chain and the budget, so a
+		// writer failing there must still surface.
+		{name: "at the explanation", ok: 5, stats: true},
+		{name: "one line into the explanation", ok: 6, stats: true},
+		{name: "two lines in", ok: 7, stats: true},
+		{name: "at the last line of it", ok: 8, stats: true},
+	}
 
-			err := presets.Make(&failingWriter{ok: after}, s.opts("test-player", out))
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			o := s.opts("test-player", filepath.Join(s.T().TempDir(), "test.hlx"))
+			if tt.stats {
+				o.StatsPath = filepath.Join("testdata", "stats.json.gz")
+			}
+
+			err := presets.Make(&failingWriter{ok: tt.ok}, o)
 
 			s.Require().Error(err)
-			s.Require().Contains(err.Error(), "reporting")
+
+			if tt.errText != "" {
+				s.Require().Contains(err.Error(), tt.errText)
+			}
 		})
 	}
 }

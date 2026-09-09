@@ -71,92 +71,139 @@ func (s *SnapshotsPublicTestSuite) presetWith(entries map[string]string) *preset
 	return doc
 }
 
-func (s *SnapshotsPublicTestSuite) TestReadsSnapshotsInTheOrderTheyAreNumbered() {
-	// Not the order a map happens to iterate: snapshot10 comes after
-	// snapshot2, and reading them by name would put it second.
-	doc := s.presetWith(map[string]string{
-		"snapshot2":  `{"@name": "Third"}`,
-		"snapshot10": `{"@name": "Eleventh"}`,
-		"snapshot0":  `{"@name": "First"}`,
-	})
-
-	spec, err := lift.Lift(doc, s.cat)
-	s.Require().NoError(err)
-	s.Require().Len(*spec.Snapshots, 3)
-	s.Require().Equal("First", *(*spec.Snapshots)[0].Name)
-	s.Require().Equal("Third", *(*spec.Snapshots)[1].Name)
-	s.Require().Equal("Eleventh", *(*spec.Snapshots)[2].Name)
-}
-
-func (s *SnapshotsPublicTestSuite) TestIgnoresWhatIsNotNumbered() {
-	doc := s.presetWith(map[string]string{"snapshotX": `{"@name": "Nope"}`})
-
-	spec, err := lift.Lift(doc, s.cat)
-	s.Require().NoError(err)
-	s.Require().Nil(spec.Snapshots)
-}
-
-func (s *SnapshotsPublicTestSuite) TestAFieldThatWillNotRead() {
-	// A rig somebody edited can put anything here. A field that cannot be
-	// read is left unset rather than written as a zero, which would claim the
-	// device said something it did not.
-	doc := s.presetWith(map[string]string{
-		"snapshot0": `{"@name": 7, "@tempo": 120}`,
-	})
-
-	spec, err := lift.Lift(doc, s.cat)
-	s.Require().NoError(err)
-
-	snap := (*spec.Snapshots)[0]
-	s.Require().Nil(snap.Name)
-	s.Require().InDelta(120.0, *snap.Tempo, 0.001)
-}
-
-func (s *SnapshotsPublicTestSuite) TestSnapshotsReplaceWhatWasThere() {
-	// An untouched preset carries three of its own, and keeping those beside
-	// a rig's would rebuild a preset holding snapshots nobody made.
-	doc := s.presetWith(map[string]string{"snapshot0": `{"@name": "Only"}`})
-
-	spec, err := lift.Lift(doc, s.cat)
-	s.Require().NoError(err)
-
-	back, err := preset.Blank()
-	s.Require().NoError(err)
-	s.Require().NoError(lift.Lower(back, spec, s.cat))
-
-	var out bytes.Buffer
-	s.Require().NoError(preset.Write(&out, back))
-
-	got := out.String()
-	s.Require().Contains(got, `"@name": "Only"`)
-	s.Require().NotContains(got, "SNAPSHOT 2")
-}
-
-func (s *SnapshotsPublicTestSuite) TestAHandWrittenRigReplacesTheTemplates() {
-	// A rig somebody typed carries no record of a device, so nothing has
-	// already cleared the preset it is built into. Its snapshots still have
-	// to replace the three an untouched preset ships with.
-	name := "Verse"
-	spec := riggen.RigSpec{
-		Schema:     riggen.RigSpecSchemaRigSpec,
-		ID:         "typed",
-		Subject:    riggen.Subject{Kind: riggen.KindSound, Name: "Typed"},
-		Instrument: riggen.InstrumentBass,
-		Chain:      []riggen.ChainEntry{{Role: riggen.RoleAmp, Gear: "Ampeg SVT"}},
-		Snapshots:  &[]riggen.Snapshot{{Name: &name}},
+// TestLiftSnapshots reads what a footswitch recalls.
+func (s *SnapshotsPublicTestSuite) TestLiftSnapshots() {
+	tests := []struct {
+		name    string
+		entries map[string]string
+		// the names the snapshots must carry, in order.
+		want []string
+		// a snapshot naming nothing, with a tempo of its own.
+		unnamed bool
+		tempo   float64
+		// no snapshots at all.
+		none bool
+	}{
+		{
+			// Not the order a map happens to iterate: snapshot10 comes after
+			// snapshot2, and reading them by name would put it second.
+			name: "snapshots in the order they are numbered",
+			entries: map[string]string{
+				"snapshot2":  `{"@name": "Third"}`,
+				"snapshot10": `{"@name": "Eleventh"}`,
+				"snapshot0":  `{"@name": "First"}`,
+			},
+			want: []string{"First", "Third", "Eleventh"},
+		},
+		{
+			name:    "an entry nothing can number",
+			entries: map[string]string{"snapshotX": `{"@name": "Nope"}`},
+			none:    true,
+		},
+		{
+			// A rig somebody edited can put anything here. A field that
+			// cannot be read is left unset rather than written as a zero,
+			// which would claim the device said something it did not.
+			name:    "a field that will not read",
+			entries: map[string]string{"snapshot0": `{"@name": 7, "@tempo": 120}`},
+			unnamed: true,
+			tempo:   120,
+		},
 	}
 
-	doc, err := preset.Blank()
-	s.Require().NoError(err)
-	s.Require().NoError(lift.Lower(doc, spec, s.cat))
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			spec, err := lift.Lift(s.presetWith(tt.entries), s.cat)
+			s.Require().NoError(err)
 
-	var out bytes.Buffer
-	s.Require().NoError(preset.Write(&out, doc))
+			if tt.none {
+				s.Require().Nil(spec.Snapshots)
 
-	got := out.String()
-	s.Require().Contains(got, `"@name": "Verse"`)
-	s.Require().NotContains(got, "SNAPSHOT 2",
-		"the preset's own snapshots are not kept beside the rig's")
+				return
+			}
+
+			if tt.unnamed {
+				snap := (*spec.Snapshots)[0]
+
+				s.Require().Nil(snap.Name)
+				s.Require().InDelta(tt.tempo, *snap.Tempo, 0.001)
+
+				return
+			}
+
+			s.Require().Len(*spec.Snapshots, len(tt.want))
+
+			for i, want := range tt.want {
+				s.Require().Equal(want, *(*spec.Snapshots)[i].Name)
+			}
+		})
+	}
+}
+
+// TestLowerSnapshots writes a rig's snapshots over the preset's own.
+//
+// An untouched preset carries three of its own, and keeping those beside a
+// rig's would rebuild a preset holding snapshots nobody made.
+func (s *SnapshotsPublicTestSuite) TestLowerSnapshots() {
+	name := "Verse"
+
+	tests := []struct {
+		name string
+		// a rig lifted off a preset holding this one snapshot, or one
+		// somebody typed.
+		lifted string
+		typed  *riggen.RigSpec
+		want   string
+	}{
+		{
+			name:   "a rig lifted off a preset",
+			lifted: "Only",
+			want:   `"@name": "Only"`,
+		},
+		{
+			// A rig somebody typed carries no record of a device, so nothing
+			// has already cleared the preset it is built into. Its snapshots
+			// still have to replace the three an untouched preset ships with.
+			name: "a rig somebody typed",
+			typed: &riggen.RigSpec{
+				Schema:     riggen.RigSpecSchemaRigSpec,
+				ID:         "typed",
+				Subject:    riggen.Subject{Kind: riggen.KindSound, Name: "Typed"},
+				Instrument: riggen.InstrumentBass,
+				Chain:      []riggen.ChainEntry{{Role: riggen.RoleAmp, Gear: "Ampeg SVT"}},
+				Snapshots:  &[]riggen.Snapshot{{Name: &name}},
+			},
+			want: `"@name": "Verse"`,
+		},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			var spec riggen.RigSpec
+
+			if tt.typed != nil {
+				spec = *tt.typed
+			} else {
+				got, err := lift.Lift(s.presetWith(map[string]string{
+					"snapshot0": `{"@name": "` + tt.lifted + `"}`,
+				}), s.cat)
+				s.Require().NoError(err)
+
+				spec = got
+			}
+
+			doc, err := preset.Blank()
+			s.Require().NoError(err)
+			s.Require().NoError(lift.Lower(doc, spec, s.cat))
+
+			var out bytes.Buffer
+			s.Require().NoError(preset.Write(&out, doc))
+
+			s.Require().Contains(out.String(), tt.want)
+			s.Require().NotContains(out.String(), "SNAPSHOT 2",
+				"the preset's own snapshots are not kept beside the rig's")
+		})
+	}
 }
 
 func TestSnapshotsPublicTestSuite(t *testing.T) {

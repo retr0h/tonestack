@@ -78,296 +78,364 @@ func (s *DevicePublicTestSuite) listing() []wire.Preset {
 	}
 }
 
-func (s *DevicePublicTestSuite) TestListsWhatADeviceHolds() {
-	// Every named slot is read, because a name says nothing about whether
-	// anything is in it.
-	s.dev.EXPECT().Presets(gomock.Any(), 0).Return(s.listing(), nil)
+// full is the reads a listing makes: one per named slot, because a name says
+// nothing about whether anything is in it.
+func (s *DevicePublicTestSuite) full() {
 	s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 0).Return(s.answer("preset.bin"), nil)
 	s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 24).Return(s.answer("switches.bin"), nil)
 	s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 79).Return(s.answer("empty.bin"), nil)
-
-	var out bytes.Buffer
-	s.Require().NoError(
-		slots.ListWith(context.Background(), &out, s.dev, slots.DeviceOptions{}))
-
-	got := out.String()
-	s.Require().Contains(got, "01A")
-	s.Require().Contains(got, "Chunky Monkey")
-	s.Require().Contains(got, "09A")
-	s.Require().Contains(got, "amp", "the chain each slot holds")
-
-	// A slot nobody has named holds nothing.
-	s.Require().NotContains(got, "New Preset")
-
-	// And one that is named can still hold nothing, which is the state a
-	// name alone cannot tell you about.
-	s.Require().NotContains(got, "BAS:SVT Nrm")
-	s.Require().Contains(got, "2 in use")
 }
 
-func (s *DevicePublicTestSuite) TestListsEmptySlotsWhenAsked() {
-	s.dev.EXPECT().Presets(gomock.Any(), 0).Return(s.listing(), nil)
-	s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 0).Return(s.answer("preset.bin"), nil)
-	s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 24).Return(s.answer("switches.bin"), nil)
-	s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 79).Return(s.answer("empty.bin"), nil)
+// TestListWith writes out what a setlist holds.
+func (s *DevicePublicTestSuite) TestListWith() {
+	tests := []struct {
+		name     string
+		opts     slots.DeviceOptions
+		expect   func()
+		contains []string
+		absent   []string
+		says     string
+	}{
+		{
+			name:     "every slot holding a chain, and what is in it",
+			expect:   s.full,
+			contains: []string{"01A", "Chunky Monkey", "09A", "amp", "2 in use"},
+			// A slot nobody has named holds nothing, and one that is named
+			// can still hold nothing. Neither belongs in a listing of what
+			// somebody made.
+			absent: []string{"New Preset", "BAS:SVT Nrm"},
+		},
+		{
+			// Two kinds of empty, and the difference is worth seeing.
+			name:     "the empty ones as well, when asked",
+			opts:     slots.DeviceOptions{All: true},
+			expect:   s.full,
+			contains: []string{"New Preset", "BAS:SVT Nrm", "empty"},
+		},
+		{
+			name: "a catalog that will not open",
+			opts: slots.DeviceOptions{CatalogPath: "nowhere.json"},
+			says: "nowhere.json",
+		},
+		{
+			// A catalog generated from another release should not hide every
+			// slot behind the first model it cannot name.
+			name: "one whose model table this device has outgrown",
+			opts: slots.DeviceOptions{
+				All:         true,
+				CatalogPath: filepath.Join("testdata", "unnamed.catalog.json"),
+			},
+			expect:   s.full,
+			contains: []string{"0 in use"},
+		},
+		{
+			name: "a slot the device will not read",
+			expect: func() {
+				s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 0).
+					Return(nil, errors.New("boom"))
+			},
+			says: "boom",
+		},
+		{
+			// One unreadable preset should not hide the hundred that read.
+			name: "a preset that will not decode",
+			expect: func() {
+				s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 0).Return("not a preset", nil)
+				s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 24).Return(42, nil)
+				s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 79).
+					Return(s.answer("empty.bin"), nil)
+			},
+			opts:     slots.DeviceOptions{All: true},
+			contains: []string{"0 in use"},
+		},
+	}
 
-	var out bytes.Buffer
-	s.Require().NoError(slots.ListWith(
-		context.Background(), &out, s.dev, slots.DeviceOptions{All: true}))
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			s.dev.EXPECT().Presets(gomock.Any(), 0).Return(s.listing(), nil)
 
-	got := out.String()
+			if tt.expect != nil {
+				tt.expect()
+			}
 
-	// Two kinds of empty, and the difference is worth seeing: one nobody has
-	// touched, and one somebody named and then emptied.
-	s.Require().Contains(got, "New Preset")
-	s.Require().Contains(got, "BAS:SVT Nrm")
-	s.Require().Contains(got, "empty")
+			var out bytes.Buffer
+
+			err := slots.ListWith(context.Background(), &out, s.dev, tt.opts)
+
+			if tt.says != "" {
+				s.Require().ErrorContains(err, tt.says)
+
+				return
+			}
+
+			s.Require().NoError(err)
+
+			for _, want := range tt.contains {
+				s.Require().Contains(out.String(), want)
+			}
+
+			for _, gone := range tt.absent {
+				s.Require().NotContains(out.String(), gone)
+			}
+		})
+	}
 }
 
-// TestListingReportsACatalogItCannotOpen covers naming gear against a
-// catalog that is not there.
-func (s *DevicePublicTestSuite) TestListingReportsACatalogItCannotOpen() {
-	s.dev.EXPECT().Presets(gomock.Any(), 0).Return(s.listing(), nil)
-
-	s.Require().Error(slots.ListWith(context.Background(), &bytes.Buffer{},
-		s.dev, slots.DeviceOptions{CatalogPath: "nowhere.json"}))
-}
-
-// TestListingSurvivesAModelTheCatalogCannotName keeps a catalog generated
-// from another release from hiding every slot behind it.
-func (s *DevicePublicTestSuite) TestListingSurvivesAModelTheCatalogCannotName() {
-	s.dev.EXPECT().Presets(gomock.Any(), 0).Return(s.listing(), nil)
-	s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 0).Return(s.answer("preset.bin"), nil)
-	s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 24).Return(s.answer("switches.bin"), nil)
-	s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 79).Return(s.answer("empty.bin"), nil)
-
-	var out bytes.Buffer
-
-	s.Require().NoError(slots.ListWith(context.Background(), &out, s.dev,
-		slots.DeviceOptions{
-			All:         true,
-			CatalogPath: filepath.Join("testdata", "unnamed.catalog.json"),
-		}))
-
-	s.Require().Contains(out.String(), "0 in use")
-}
-
-// TestListingReportsASlotItCannotRead covers a device that answers the
-// listing and then refuses one of the slots in it.
-func (s *DevicePublicTestSuite) TestListingReportsASlotItCannotRead() {
-	s.dev.EXPECT().Presets(gomock.Any(), 0).Return(s.listing(), nil)
-	s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 0).
-		Return(nil, errors.New("no answer"))
+// TestListWithReportsAListingItCannotGet covers the device refusing the one
+// call the listing cannot do without.
+func (s *DevicePublicTestSuite) TestListWithReportsAListingItCannotGet() {
+	s.dev.EXPECT().Presets(gomock.Any(), 0).Return(nil, errors.New("boom"))
 
 	s.Require().ErrorContains(slots.ListWith(context.Background(),
-		&bytes.Buffer{}, s.dev, slots.DeviceOptions{}), "no answer")
+		&bytes.Buffer{}, s.dev, slots.DeviceOptions{}), "listing presets")
 }
 
-// TestListingSurvivesAPresetItCannotDecode keeps one unreadable slot from
-// hiding the hundred that read.
-func (s *DevicePublicTestSuite) TestListingSurvivesAPresetItCannotDecode() {
-	s.dev.EXPECT().Presets(gomock.Any(), 0).Return(s.listing(), nil)
-	s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 0).Return("not a preset", nil)
-	s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 24).Return(42, nil)
-	s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 79).Return(s.answer("empty.bin"), nil)
+// TestShowWith writes out one slot.
+func (s *DevicePublicTestSuite) TestShowWith() {
+	tests := []struct {
+		name     string
+		slot     int
+		answer   any
+		listing  error
+		contains []string
+		is       error
+		says     string
+	}{
+		{
+			name:   "a preset, as a rig",
+			slot:   24,
+			answer: s.answer("switches.bin"),
+			contains: []string{
+				"schema: RigSpec",
+				// The name comes from the listing.
+				"name: B15 Eras",
+				// Somebody labelled and coloured these switches, and a rig
+				// carries what the pedal shows rather than what the block is
+				// called.
+				"label: Drive", "gear: Teemah!", "led: light orange", "switch: 2",
+			},
+		},
+		{
+			name:     "one holding no blocks",
+			slot:     1,
+			answer:   s.answer("empty.bin"),
+			contains: []string{"is empty"},
+		},
+		{
+			// The name is a convenience. A slot beyond what the listing
+			// returned is still read, and named by where it sits.
+			name:     "one the listing does not reach",
+			slot:     99,
+			answer:   s.answer("preset.bin"),
+			contains: []string{"slot 34A"},
+		},
+		{
+			name:     "one read without a listing at all",
+			slot:     0,
+			answer:   s.answer("preset.bin"),
+			listing:  errors.New("boom"),
+			contains: []string{"slot 01A"},
+		},
+		{
+			// Nothing guarantees what comes off a wire. Saying what arrived
+			// beats printing a rig that would be wrong.
+			name:     "an answer that is not a preset",
+			slot:     0,
+			answer:   map[any]any{1: 2},
+			contains: []string{"map with 1 keys"},
+		},
+		{
+			// A device answers an empty slot with no document at all. That
+			// is a slot holding nothing rather than a failure, and a backup
+			// has to know the difference.
+			name:   "one the device answers with nothing",
+			slot:   4,
+			answer: nil,
+			is:     slots.ErrEmptySlot,
+		},
+		{
+			name: "one the device will not read",
+			slot: 3,
+			says: "slot 02A",
+		},
+	}
 
-	var out bytes.Buffer
-	s.Require().NoError(slots.ListWith(context.Background(), &out, s.dev,
-		slots.DeviceOptions{All: true}))
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			s.dev.EXPECT().Presets(gomock.Any(), 0).Return(s.listing(), tt.listing)
 
-	s.Require().Contains(out.String(), "0 in use")
+			if tt.says != "" {
+				s.dev.EXPECT().ReadPreset(gomock.Any(), 0, tt.slot).
+					Return(nil, errors.New("boom"))
+			} else {
+				s.dev.EXPECT().ReadPreset(gomock.Any(), 0, tt.slot).
+					Return(tt.answer, nil)
+			}
+
+			var out bytes.Buffer
+
+			err := slots.ShowWith(context.Background(), &out, s.dev,
+				slots.DeviceOptions{Slot: tt.slot})
+
+			if tt.is != nil {
+				s.Require().ErrorIs(err, tt.is)
+
+				return
+			}
+
+			if tt.says != "" {
+				s.Require().ErrorContains(err, tt.says)
+
+				return
+			}
+
+			s.Require().NoError(err)
+
+			for _, want := range tt.contains {
+				s.Require().Contains(out.String(), want)
+			}
+		})
+	}
 }
 
-func (s *DevicePublicTestSuite) TestReportsAListingItCannotGet() {
-	s.dev.EXPECT().Presets(gomock.Any(), 0).Return(nil, errors.New("boom"))
+// TestShowWithKeepsTheAnswer covers the capture hook, which is how the wire
+// format was read in the first place.
+func (s *DevicePublicTestSuite) TestShowWithKeepsTheAnswer() {
+	tests := []struct {
+		name string
+		path func() string
+		err  bool
+	}{
+		{
+			name: "somewhere it can write",
+			path: func() string { return filepath.Join(s.T().TempDir(), "slot.bin") },
+		},
+		{
+			name: "somewhere it cannot",
+			path: func() string {
+				return filepath.Join(s.T().TempDir(), "no", "such", "dir.bin")
+			},
+			err: true,
+		},
+	}
 
-	err := slots.ListWith(
-		context.Background(), &bytes.Buffer{}, s.dev, slots.DeviceOptions{})
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			path := tt.path()
+			s.T().Setenv("TONESTACK_USB_DUMP", path)
 
-	s.Require().Error(err)
-	s.Require().Contains(err.Error(), "listing presets")
+			s.dev.EXPECT().Presets(gomock.Any(), 0).Return(s.listing(), nil)
+			s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 0).
+				Return(s.answer("preset.bin"), nil)
+
+			err := slots.ShowWith(context.Background(), &bytes.Buffer{}, s.dev,
+				slots.DeviceOptions{Slot: 0})
+
+			if tt.err {
+				s.Require().Error(err)
+
+				return
+			}
+
+			s.Require().NoError(err)
+
+			body, readErr := os.ReadFile(path) //nolint:gosec // a path this test wrote
+			s.Require().NoError(readErr)
+			s.Require().Equal(s.answer("preset.bin"), string(body), "kept verbatim")
+		})
+	}
 }
 
-func (s *DevicePublicTestSuite) TestReadsOneSlotAsARig() {
-	s.dev.EXPECT().Presets(gomock.Any(), 0).Return(s.listing(), nil)
-	s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 24).Return(s.answer("switches.bin"), nil)
+// TestExportWith writes one slot out to a file.
+func (s *DevicePublicTestSuite) TestExportWith() {
+	tests := []struct {
+		name     string
+		opts     slots.ExportOptions
+		answer   any
+		out      string
+		contains []string
+		is       error
+		err      bool
+	}{
+		{
+			name:     "a rig, which is the default",
+			opts:     slots.ExportOptions{Slot: 24},
+			answer:   s.answer("switches.bin"),
+			out:      "rig.yaml",
+			contains: []string{"schema: RigSpec"},
+		},
+		{
+			// A slot holding nothing leaves no file behind. An export used
+			// to write a diagnostic into one and report success.
+			name:   "a slot holding nothing",
+			opts:   slots.ExportOptions{Slot: 4, As: "hlx"},
+			answer: nil,
+			out:    "empty.hlx",
+			is:     slots.ErrEmptySlot,
+		},
+		{
+			name:   "somewhere it cannot write",
+			opts:   slots.ExportOptions{Slot: 0},
+			answer: s.answer("preset.bin"),
+			out:    filepath.Join("no", "such", "dir.yaml"),
+			err:    true,
+		},
+		{
+			name: "a slot the device will not read",
+			opts: slots.ExportOptions{Slot: 0},
+			out:  "x.yaml",
+			err:  true,
+		},
+	}
 
-	var out bytes.Buffer
-	s.Require().NoError(slots.ShowWith(context.Background(), &out, s.dev,
-		slots.DeviceOptions{Slot: 24}))
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			path := filepath.Join(s.T().TempDir(), tt.out)
 
-	got := out.String()
-	s.Require().Contains(got, "schema: RigSpec")
-	s.Require().Contains(got, "name: B15 Eras", "the name comes from the listing")
+			opts := tt.opts
+			opts.OutputPath = path
 
-	// Somebody labelled and coloured these switches, and a rig carries what
-	// the pedal shows rather than what the block is called.
-	s.Require().Contains(got, "label: Drive")
-	s.Require().Contains(got, "gear: Teemah!")
-	s.Require().Contains(got, "led: light orange")
-	s.Require().Contains(got, "switch: 2")
+			s.dev.EXPECT().Presets(gomock.Any(), 0).Return(s.listing(), nil)
+
+			if tt.err && tt.answer == nil {
+				s.dev.EXPECT().ReadPreset(gomock.Any(), 0, opts.Slot).
+					Return(nil, errors.New("boom"))
+			} else {
+				s.dev.EXPECT().ReadPreset(gomock.Any(), 0, opts.Slot).
+					Return(tt.answer, nil)
+			}
+
+			var log bytes.Buffer
+
+			err := slots.ExportWith(context.Background(), &log, s.dev, opts)
+
+			if tt.is != nil {
+				s.Require().ErrorIs(err, tt.is)
+				s.Require().NoFileExists(path)
+
+				return
+			}
+
+			if tt.err {
+				s.Require().Error(err)
+
+				return
+			}
+
+			s.Require().NoError(err)
+			s.Require().Contains(log.String(), "wrote "+path)
+
+			body, readErr := os.ReadFile(path) //nolint:gosec // a path this test chose
+			s.Require().NoError(readErr)
+
+			for _, want := range tt.contains {
+				s.Require().Contains(string(body), want)
+			}
+		})
+	}
 }
 
-func (s *DevicePublicTestSuite) TestASlotHoldingNothing() {
-	s.dev.EXPECT().Presets(gomock.Any(), 0).Return(s.listing(), nil)
-	s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 1).Return(s.answer("empty.bin"), nil)
-
-	var out bytes.Buffer
-	s.Require().NoError(slots.ShowWith(context.Background(), &out, s.dev,
-		slots.DeviceOptions{Slot: 1}))
-
-	s.Require().Contains(out.String(), "is empty")
-}
-
-func (s *DevicePublicTestSuite) TestASlotTheListingDoesNotReach() {
-	// The name is a convenience. A slot beyond what the listing returned is
-	// still read, and named by where it sits.
-	s.dev.EXPECT().Presets(gomock.Any(), 0).Return(s.listing(), nil)
-	s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 99).Return(s.answer("preset.bin"), nil)
-
-	var out bytes.Buffer
-	s.Require().NoError(slots.ShowWith(context.Background(), &out, s.dev,
-		slots.DeviceOptions{Slot: 99}))
-
-	s.Require().Contains(out.String(), "slot 34A")
-}
-
-func (s *DevicePublicTestSuite) TestCarriesOnWithoutAListing() {
-	s.dev.EXPECT().Presets(gomock.Any(), 0).Return(nil, errors.New("boom"))
-	s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 0).Return(s.answer("preset.bin"), nil)
-
-	var out bytes.Buffer
-	s.Require().NoError(slots.ShowWith(context.Background(), &out, s.dev,
-		slots.DeviceOptions{Slot: 0}))
-
-	s.Require().Contains(out.String(), "slot 01A")
-}
-
-func (s *DevicePublicTestSuite) TestReportsASlotItCannotRead() {
-	s.dev.EXPECT().Presets(gomock.Any(), 0).Return(s.listing(), nil)
-	s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 3).Return(nil, errors.New("boom"))
-
-	err := slots.ShowWith(context.Background(), &bytes.Buffer{}, s.dev,
-		slots.DeviceOptions{Slot: 3})
-
-	s.Require().Error(err)
-	s.Require().Contains(err.Error(), "slot 02A")
-}
-
-func (s *DevicePublicTestSuite) TestAnAnswerThatIsNotAPreset() {
-	// Nothing guarantees what comes off a wire. Saying what arrived beats
-	// printing a rig that would be wrong.
-	s.dev.EXPECT().Presets(gomock.Any(), 0).Return(s.listing(), nil)
-	s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 0).Return(map[any]any{1: 2}, nil)
-
-	var out bytes.Buffer
-	s.Require().NoError(slots.ShowWith(context.Background(), &out, s.dev,
-		slots.DeviceOptions{Slot: 0}))
-
-	s.Require().Contains(out.String(), "map with 1 keys")
-}
-
-func (s *DevicePublicTestSuite) TestKeepsTheAnswerWhenAsked() {
-	path := filepath.Join(s.T().TempDir(), "slot.bin")
-	s.T().Setenv("TONESTACK_USB_DUMP", path)
-
-	s.dev.EXPECT().Presets(gomock.Any(), 0).Return(s.listing(), nil)
-	s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 0).Return(s.answer("preset.bin"), nil)
-
-	s.Require().NoError(slots.ShowWith(context.Background(), &bytes.Buffer{},
-		s.dev, slots.DeviceOptions{Slot: 0}))
-
-	body, err := os.ReadFile(path) //nolint:gosec // a path this test wrote
-	s.Require().NoError(err)
-	s.Require().Equal(s.answer("preset.bin"), string(body), "kept verbatim")
-}
-
-func (s *DevicePublicTestSuite) TestReportsAnAnswerItCannotKeep() {
-	s.T().Setenv("TONESTACK_USB_DUMP",
-		filepath.Join(s.T().TempDir(), "no", "such", "dir.bin"))
-
-	s.dev.EXPECT().Presets(gomock.Any(), 0).Return(s.listing(), nil)
-	s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 0).Return(s.answer("preset.bin"), nil)
-
-	s.Require().Error(slots.ShowWith(context.Background(), &bytes.Buffer{},
-		s.dev, slots.DeviceOptions{Slot: 0}))
-}
-
-func (s *DevicePublicTestSuite) TestWritesOneSlotToAFile() {
-	out := filepath.Join(s.T().TempDir(), "rig.yaml")
-
-	s.dev.EXPECT().Presets(gomock.Any(), 0).Return(s.listing(), nil)
-	s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 24).Return(s.answer("switches.bin"), nil)
-
-	var log bytes.Buffer
-	s.Require().NoError(slots.ExportWith(context.Background(), &log, s.dev,
-		slots.ExportOptions{Slot: 24, OutputPath: out}))
-
-	s.Require().Contains(log.String(), "wrote "+out)
-
-	body, err := os.ReadFile(out) //nolint:gosec // a path this test chose
-	s.Require().NoError(err)
-	s.Require().Contains(string(body), "schema: RigSpec")
-}
-
-// TestReportsASlotHoldingNothing covers the answer a device gives for an
-// empty slot: no document at all.
-//
-// It used to reach a diagnostic left over from before the format was decoded,
-// which printed what shape had arrived. An export then wrote that prose into
-// the file and reported success.
-func (s *DevicePublicTestSuite) TestReportsASlotHoldingNothing() {
-	s.dev.EXPECT().Presets(gomock.Any(), 0).Return(s.listing(), nil).Times(2)
-	s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 4).Return(nil, nil).Times(2)
-
-	var out bytes.Buffer
-
-	err := slots.ShowWith(context.Background(), &out, s.dev,
-		slots.DeviceOptions{Slot: 4})
-	s.Require().ErrorIs(err, slots.ErrEmptySlot)
-
-	// And an export writes nothing rather than a file that is not a preset.
-	path := filepath.Join(s.T().TempDir(), "empty.hlx")
-
-	s.Require().ErrorIs(slots.ExportWith(context.Background(), &out, s.dev,
-		slots.ExportOptions{Slot: 4, As: "hlx", OutputPath: path}),
-		slots.ErrEmptySlot)
-
-	s.Require().NoFileExists(path, "an empty slot leaves no file behind")
-}
-
-// TestShowingAnEmptySlotOnItsOwnDevice covers the entry point somebody runs,
-// where a slot holding nothing is an answer rather than a failure.
-func (s *DevicePublicTestSuite) TestShowingAnEmptySlotOnItsOwnDevice() {
-	s.dev.EXPECT().Presets(gomock.Any(), 0).Return(s.listing(), nil)
-	s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 4).Return(nil, nil)
-	s.dev.EXPECT().Close()
-
-	defer s.stand(s.dev, nil)()
-
-	var out bytes.Buffer
-
-	s.Require().NoError(slots.ShowDevice(context.Background(), &out,
-		slots.DeviceOptions{Slot: 4}))
-
-	s.Require().Contains(out.String(), "02B is empty")
-}
-
-// TestShowingASlotItCannotRead covers an error that is not an empty slot,
-// which is passed on rather than reported as one.
-func (s *DevicePublicTestSuite) TestShowingASlotItCannotRead() {
-	s.dev.EXPECT().Presets(gomock.Any(), 0).Return(s.listing(), nil)
-	s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 4).
-		Return(nil, errors.New("no answer"))
-	s.dev.EXPECT().Close()
-
-	defer s.stand(s.dev, nil)()
-
-	s.Require().ErrorContains(slots.ShowDevice(context.Background(),
-		&bytes.Buffer{}, slots.DeviceOptions{Slot: 4}), "no answer")
-}
-
-// TestWritesOneSlotAsTheDevicesOwnFile covers `--as hlx`, which the device
+// TestExportWithWritesTheDevicesOwnFile covers `--as hlx`, which the device
 // path ignored: it wrote a rig whatever was asked for.
 //
 // The positions are the check that matters. A preset counts its blocks along
@@ -375,7 +443,7 @@ func (s *DevicePublicTestSuite) TestShowingASlotItCannotRead() {
 // export carrying the device's numbers is not the file HX Edit writes. Slot
 // 27B exported from HX Edit holds these six at 1 to 6, and preset.bin is that
 // same slot as the device sent it.
-func (s *DevicePublicTestSuite) TestWritesOneSlotAsTheDevicesOwnFile() {
+func (s *DevicePublicTestSuite) TestExportWithWritesTheDevicesOwnFile() {
 	out := filepath.Join(s.T().TempDir(), "slot.hlx")
 
 	s.dev.EXPECT().Presets(gomock.Any(), 0).Return(s.listing(), nil)
@@ -428,27 +496,6 @@ func (s *DevicePublicTestSuite) TestWritesOneSlotAsTheDevicesOwnFile() {
 		"the routing a device wraps a chain in comes too")
 }
 
-func (s *DevicePublicTestSuite) TestReportsAFileItCannotWrite() {
-	s.dev.EXPECT().Presets(gomock.Any(), 0).Return(s.listing(), nil)
-	s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 0).Return(s.answer("preset.bin"), nil)
-
-	err := slots.ExportWith(context.Background(), &bytes.Buffer{}, s.dev,
-		slots.ExportOptions{
-			Slot:       0,
-			OutputPath: filepath.Join(s.T().TempDir(), "no", "such", "dir.yaml"),
-		})
-
-	s.Require().Error(err)
-}
-
-func (s *DevicePublicTestSuite) TestReportsASlotItCannotExport() {
-	s.dev.EXPECT().Presets(gomock.Any(), 0).Return(s.listing(), nil)
-	s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 0).Return(nil, errors.New("boom"))
-
-	s.Require().Error(slots.ExportWith(context.Background(), &bytes.Buffer{},
-		s.dev, slots.ExportOptions{Slot: 0, OutputPath: "x.yaml"}))
-}
-
 // stand puts a session in place of the one that needs hardware, and takes it
 // away again.
 func (s *DevicePublicTestSuite) stand(dev sdk.Editor, err error) func() {
@@ -460,9 +507,10 @@ func (s *DevicePublicTestSuite) stand(dev sdk.Editor, err error) func() {
 	return func() { *slots.OpenDevice = restore }
 }
 
+// TestTheCommandsThatFindTheirOwnDevice covers the three entry points, which
+// are one line each: find a session, hand it on, release it. They are the
+// only lines in the package that need hardware.
 func (s *DevicePublicTestSuite) TestTheCommandsThatFindTheirOwnDevice() {
-	// The three entry points are one line each — find a session, hand it on,
-	// release it — and the only line in the package that needs hardware.
 	out := filepath.Join(s.T().TempDir(), "rig.yaml")
 
 	s.dev.EXPECT().Presets(gomock.Any(), 0).Return(s.listing(), nil).Times(3)
@@ -486,6 +534,53 @@ func (s *DevicePublicTestSuite) TestTheCommandsThatFindTheirOwnDevice() {
 		slots.ExportOptions{OutputPath: out}))
 }
 
+// TestShowDeviceOnAnEmptySlot covers the entry point somebody runs, where a
+// slot holding nothing is an answer rather than a failure.
+func (s *DevicePublicTestSuite) TestShowDeviceOnAnEmptySlot() {
+	tests := []struct {
+		name     string
+		answer   any
+		fails    error
+		contains string
+		says     string
+	}{
+		{
+			name:     "a slot holding nothing",
+			contains: "02B is empty",
+		},
+		{
+			name:  "an error that is not an empty slot",
+			fails: errors.New("no answer"),
+			says:  "no answer",
+		},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			s.dev.EXPECT().Presets(gomock.Any(), 0).Return(s.listing(), nil)
+			s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 4).Return(tt.answer, tt.fails)
+			s.dev.EXPECT().Close()
+
+			defer s.stand(s.dev, nil)()
+
+			var out bytes.Buffer
+
+			err := slots.ShowDevice(context.Background(), &out,
+				slots.DeviceOptions{Slot: 4})
+
+			if tt.says != "" {
+				s.Require().ErrorContains(err, tt.says)
+
+				return
+			}
+
+			s.Require().NoError(err)
+			s.Require().Contains(out.String(), tt.contains)
+		})
+	}
+}
+
+// TestReportsADeviceItCannotOpen covers all three entry points finding none.
 func (s *DevicePublicTestSuite) TestReportsADeviceItCannotOpen() {
 	defer s.stand(nil, errors.New("no device found"))()
 
@@ -496,8 +591,7 @@ func (s *DevicePublicTestSuite) TestReportsADeviceItCannotOpen() {
 		slots.ShowDevice(ctx, &bytes.Buffer{}, slots.DeviceOptions{}),
 		slots.ExportDevice(ctx, &bytes.Buffer{}, slots.ExportOptions{}),
 	} {
-		s.Require().Error(err)
-		s.Require().Contains(err.Error(), "no device found")
+		s.Require().ErrorContains(err, "no device found")
 	}
 }
 

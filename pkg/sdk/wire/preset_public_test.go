@@ -53,94 +53,230 @@ func (s *PresetPublicTestSuite) captureNamed(name string) []byte {
 	return raw
 }
 
-func (s *PresetPublicTestSuite) TestReadsTheChainADeviceSent() {
-	// The slot is a factory preset called "BAS:SVT Nrm", so the models it
-	// names are known before decoding: a volume pedal, an LA-2A, two pitch
-	// blocks, the SVT's normal channel and the 8x10 it is voiced with.
-	got, err := wire.DecodePreset(s.capture())
-
-	s.Require().NoError(err)
-	s.Require().Len(got.Blocks, 6)
-
-	s.Require().Equal(261, got.Blocks[0].Model)
-
-	// Where the device put them, not where they fall in the chain: a preset
-	// leaves gaps in its layout, and footswitches address blocks by this.
-	s.Require().Equal(2, got.Blocks[0].Index)
-	s.Require().Equal(5, got.Blocks[4].Model, "the SVT normal channel")
-	s.Require().Equal(74, got.Blocks[5].Model, "the 8x10 it is paired with")
-}
-
-func (s *PresetPublicTestSuite) TestParametersArriveByPosition() {
-	got, err := wire.DecodePreset(s.capture())
+// withControllers rebuilds the captured preset with a different controller
+// section, so shapes a device never sends can still be read.
+func (s *PresetPublicTestSuite) withControllers(section any) []byte {
+	doc, err := wire.DecodeDocument(s.capture())
 	s.Require().NoError(err)
 
-	// An amp has twelve, and their names come from the catalog's model table
-	// rather than from anything the device sent.
-	s.Require().Len(got.Blocks[4].Values, 12)
+	var buf bytes.Buffer
+
+	enc := msgpack.NewEncoder(&buf)
+	enc.SetCustomStructTag("msgpack")
+	s.Require().NoError(enc.Encode(section))
+
+	doc.SetSection(4, buf.Bytes())
+
+	return doc.Encode()
 }
 
-func (s *PresetPublicTestSuite) TestCarriesWhetherABlockIsOn() {
-	got, err := wire.DecodePreset(s.capture())
-	s.Require().NoError(err)
-
-	s.Require().True(got.Blocks[0].Enabled)
-	s.Require().False(got.Blocks[2].Enabled, "a bypassed block is still a block")
-}
-
-func (s *PresetPublicTestSuite) TestRefusesWhatIsNotAPreset() {
-	for _, tc := range []struct {
+// TestDecodePreset reads a preset a device sent.
+func (s *PresetPublicTestSuite) TestDecodePreset() {
+	tests := []struct {
 		name string
+		// one of this suite's captures, or bytes written by hand.
+		file string
 		body []byte
-	}{
-		{"nothing at all", nil},
-		{"something else entirely", []byte{0xc0}},
-		{"the header and no more", []byte("\xa9l6-helix\x00")},
-		{"a header and offsets but no document", []byte("\xa9l6-helix\x00\xa1x")},
-	} {
-		s.Run(tc.name, func() {
-			_, err := wire.DecodePreset(tc.body)
+		// the captured preset rebuilt with another controller section.
+		custom  bool
+		section any
 
-			s.Require().ErrorIs(err, wire.ErrNotAPreset)
+		wantBlocks int
+		// the model each block names, by its place in the reading.
+		models map[int]int
+		// where the device put a block, which is not where it falls in the
+		// chain.
+		index map[int]int
+		// how many parameters a block carries.
+		values map[int]int
+		// blocks that must read as switched on, and as switched off.
+		on  []int
+		off []int
+		// blocks carrying a cabinet of their own.
+		paired      int
+		controllers []wire.DeviceController
+		err         bool
+	}{
+		{
+			// The slot is a factory preset called "BAS:SVT Nrm", so the
+			// models it names are known before decoding: a volume pedal, an
+			// LA-2A, two pitch blocks, the SVT's normal channel and the 8x10
+			// it is voiced with.
+			name:       "a factory preset",
+			file:       "preset.bin",
+			wantBlocks: 6,
+			models: map[int]int{
+				0: 261,
+				// The SVT normal channel, and the 8x10 it is paired with.
+				4: 5,
+				5: 74,
+			},
+			// A preset leaves gaps in its layout, and footswitches address
+			// blocks by this.
+			index: map[int]int{0: 2},
+			// An amp has twelve, and their names come from the catalog's
+			// model table rather than from anything the device sent.
+			values: map[int]int{4: 12},
+			on:     []int{0},
+			// A bypassed block is still a block.
+			off: []int{2},
+			// The captured preset carries exactly one assignment, and it is
+			// what established the layout: slot 27B read off an HX Stomp
+			// beside the same slot exported from HX Edit, which names it as
+			// block0's Pedal with min 0, max 1, controller 2.
+			controllers: []wire.DeviceController{
+				{Controller: 2, Block: 2, Param: 0, Min: 0, Max: 1},
+			},
+		},
+		{
+			// A device stores an amplifier and its cabinet as one block.
+			name:   "a slot holding two amplifiers",
+			file:   "switches.bin",
+			paired: 2,
+		},
+		{name: "a slot holding nothing", file: "empty.bin"},
+		{name: "nothing at all", err: true},
+		{name: "something else entirely", body: []byte{0xc0}, err: true},
+		{
+			name: "the header and no more",
+			body: []byte("\xa9l6-helix\x00"),
+			err:  true,
+		},
+		{
+			name: "a header and offsets but no document",
+			body: []byte("\xa9l6-helix\x00\xa1x"),
+			err:  true,
+		},
+		{
+			name: "a document that is not a map",
+			body: []byte("\xa9l6-helix\x00\xa1x\xc3"),
+			err:  true,
+		},
+		// Every shape the controller decoder refuses, since a preset carrying
+		// one assignment exercises none of them.
+		{
+			name:       "a controller section that is not an array",
+			custom:     true,
+			section:    42,
+			wantBlocks: 6,
+		},
+		{
+			name:       "a controller holding something that is not a list",
+			custom:     true,
+			section:    []any{42},
+			wantBlocks: 6,
+		},
+		{
+			name:       "an assignment that is not a map",
+			custom:     true,
+			section:    []any{[]any{"nonsense"}},
+			wantBlocks: 6,
+		},
+		{
+			name:       "an assignment naming no parameter",
+			custom:     true,
+			section:    []any{[]any{map[any]any{int8(1): map[any]any{}}}},
+			wantBlocks: 6,
+		},
+		{
+			name:       "one with no body",
+			custom:     true,
+			section:    []any{[]any{map[any]any{int8(0): int8(0)}}},
+			wantBlocks: 6,
+		},
+		{
+			name:   "one naming no block",
+			custom: true,
+			section: []any{[]any{map[any]any{
+				int8(0): int8(0),
+				int8(1): map[any]any{int8(2): 0.0},
+			}}},
+			wantBlocks: 6,
+		},
+		{
+			name:   "travel a device wrote as whole numbers",
+			custom: true,
+			section: []any{nil, nil, []any{map[any]any{
+				int8(0): int8(1),
+				int8(1): map[any]any{
+					int8(0): int8(5),
+					int8(2): int8(0),
+					int8(3): int8(1),
+					int8(6): map[any]any{int8(41): true},
+				},
+			}}},
+			wantBlocks: 6,
+			controllers: []wire.DeviceController{{
+				Controller: 2, Block: 5, Param: 1, Min: 0, Max: 1,
+				NoSnapshot: true,
+			}},
+		},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			body := tt.body
+
+			switch {
+			case tt.custom:
+				body = s.withControllers(tt.section)
+			case tt.file != "":
+				body = s.captureNamed(tt.file)
+			}
+
+			got, err := wire.DecodePreset(body)
+
+			if tt.err {
+				s.Require().ErrorIs(err, wire.ErrNotAPreset)
+
+				return
+			}
+
+			s.Require().NoError(err)
+
+			if tt.wantBlocks > 0 {
+				s.Require().Len(got.Blocks, tt.wantBlocks)
+			}
+
+			for at, want := range tt.models {
+				s.Require().Equal(want, got.Blocks[at].Model)
+			}
+
+			for at, want := range tt.index {
+				s.Require().Equal(want, got.Blocks[at].Index)
+			}
+
+			for at, want := range tt.values {
+				s.Require().Len(got.Blocks[at].Values, want)
+			}
+
+			for _, at := range tt.on {
+				s.Require().True(got.Blocks[at].Enabled)
+			}
+
+			for _, at := range tt.off {
+				s.Require().False(got.Blocks[at].Enabled)
+			}
+
+			var paired int
+
+			for _, b := range got.Blocks {
+				if len(b.Cab) == 0 {
+					continue
+				}
+
+				paired++
+
+				// Five settings the cabinet model has names for, and a
+				// microphone after them.
+				s.Require().Equal(5, b.CabNamed)
+				s.Require().Len(b.Cab, 6)
+			}
+
+			s.Require().Equal(tt.paired, paired)
+			s.Require().Equal(tt.controllers, got.Controllers)
 		})
 	}
-}
-
-func (s *PresetPublicTestSuite) TestADocumentThatIsNotAMap() {
-	_, err := wire.DecodePreset([]byte("\xa9l6-helix\x00\xa1x\xc3"))
-
-	s.Require().ErrorIs(err, wire.ErrNotAPreset)
-}
-
-func (s *PresetPublicTestSuite) TestReadsTheCabinetAnAmplifierCarries() {
-	// switches.bin is a slot holding two amplifiers, each with a cabinet.
-	// A device stores the pair as one block.
-	raw, err := os.ReadFile(filepath.Join("testdata", "switches.bin"))
-	s.Require().NoError(err)
-
-	got, err := wire.DecodePreset(raw)
-	s.Require().NoError(err)
-
-	var paired int
-
-	for _, b := range got.Blocks {
-		if len(b.Cab) == 0 {
-			continue
-		}
-
-		paired++
-
-		// Five settings the cabinet model has names for, and a microphone
-		// after them.
-		s.Require().Equal(5, b.CabNamed)
-		s.Require().Len(b.Cab, 6)
-	}
-
-	s.Require().Equal(2, paired, "two amplifiers, two cabinets")
-}
-
-func TestPresetPublicTestSuite(t *testing.T) {
-	suite.Run(t, new(PresetPublicTestSuite))
 }
 
 // TestDecodeLoaded covers what a device answers when asked what it is
@@ -202,113 +338,6 @@ func (s *PresetPublicTestSuite) TestDecodeLoaded() {
 	}
 }
 
-// TestDecodesControllerAssignments covers what an expression pedal moves.
-//
-// The captured preset carries exactly one, and it is what established the
-// layout: slot 27B read off an HX Stomp beside the same slot exported from
-// HX Edit, which names it as block0's Pedal with min 0, max 1, controller 2.
-func (s *PresetPublicTestSuite) TestDecodesControllerAssignments() {
-	got, err := wire.DecodePreset(s.capture())
-
-	s.Require().NoError(err)
-	s.Require().Equal([]wire.DeviceController{{
-		Controller: 2,
-		Block:      2,
-		Param:      0,
-		Min:        0,
-		Max:        1,
-	}}, got.Controllers)
-}
-
-// TestAPresetWithNoControllers covers the ordinary case: nine of the ten
-// slots hold nothing on any real preset, and most presets assign none at all.
-func (s *PresetPublicTestSuite) TestAPresetWithNoControllers() {
-	for _, name := range []string{"switches.bin", "empty.bin"} {
-		got, err := wire.DecodePreset(s.captureNamed(name))
-
-		s.Require().NoError(err)
-		s.Require().Empty(got.Controllers, name)
-	}
-}
-
-// TestControllerSectionsNoDeviceWouldSend covers every shape the decoder
-// refuses, since a preset carrying one assignment exercises none of them.
-func (s *PresetPublicTestSuite) TestControllerSectionsNoDeviceWouldSend() {
-	tests := []struct {
-		name    string
-		section any
-		want    []wire.DeviceController
-	}{
-		{
-			name:    "a section that is not an array",
-			section: 42,
-		},
-		{
-			name:    "a controller holding something that is not a list",
-			section: []any{42},
-		},
-		{
-			name:    "an assignment that is not a map",
-			section: []any{[]any{"nonsense"}},
-		},
-		{
-			name:    "one naming no parameter",
-			section: []any{[]any{map[any]any{int8(1): map[any]any{}}}},
-		},
-		{
-			name: "one with no body",
-			section: []any{[]any{map[any]any{
-				int8(0): int8(0),
-			}}},
-		},
-		{
-			name: "one naming no block",
-			section: []any{[]any{map[any]any{
-				int8(0): int8(0),
-				int8(1): map[any]any{int8(2): 0.0},
-			}}},
-		},
-		{
-			name: "travel a device wrote as whole numbers",
-			section: []any{nil, nil, []any{map[any]any{
-				int8(0): int8(1),
-				int8(1): map[any]any{
-					int8(0): int8(5),
-					int8(2): int8(0),
-					int8(3): int8(1),
-					int8(6): map[any]any{int8(41): true},
-				},
-			}}},
-			want: []wire.DeviceController{{
-				Controller: 2, Block: 5, Param: 1, Min: 0, Max: 1,
-				NoSnapshot: true,
-			}},
-		},
-	}
-
-	for _, tt := range tests {
-		s.Run(tt.name, func() {
-			got, err := wire.DecodePreset(s.withControllers(tt.section))
-
-			s.Require().NoError(err)
-			s.Require().Equal(tt.want, got.Controllers)
-		})
-	}
-}
-
-// withControllers rebuilds the captured preset with a different controller
-// section, so shapes a device never sends can still be read.
-func (s *PresetPublicTestSuite) withControllers(section any) []byte {
-	doc, err := wire.DecodeDocument(s.capture())
-	s.Require().NoError(err)
-
-	var buf bytes.Buffer
-
-	enc := msgpack.NewEncoder(&buf)
-	enc.SetCustomStructTag("msgpack")
-	s.Require().NoError(enc.Encode(section))
-
-	doc.SetSection(4, buf.Bytes())
-
-	return doc.Encode()
+func TestPresetPublicTestSuite(t *testing.T) {
+	suite.Run(t, new(PresetPublicTestSuite))
 }

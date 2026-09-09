@@ -33,7 +33,8 @@ type BlockTestSuite struct {
 	suite.Suite
 }
 
-func (s *BlockTestSuite) TestCategoryMapsEveryFamily() {
+// TestCategory maps every family Line 6 name to one of ours.
+func (s *BlockTestSuite) TestCategory() {
 	tests := map[string]catalog.Category{
 		"amp":              catalog.CategoryAmp,
 		"preamp":           catalog.CategoryAmp,
@@ -65,29 +66,78 @@ func (s *BlockTestSuite) TestCategoryMapsEveryFamily() {
 	}
 }
 
-func (s *BlockTestSuite) TestNumberReportsZeroForANonNumber() {
-	s.Require().Zero(number(json.RawMessage(`"not a number"`)))
-	s.Require().Zero(number(json.RawMessage(``)))
-}
+// TestNumber reads a value that is meant to be one.
+func (s *BlockTestSuite) TestNumber() {
+	tests := []struct {
+		name string
+		raw  json.RawMessage
+	}{
+		{name: "something that is not a number", raw: json.RawMessage(`"not a number"`)},
+		{name: "nothing at all", raw: json.RawMessage(``)},
+	}
 
-func (s *BlockTestSuite) TestDefaultValueFallsBackWhenAnIntIsWrittenAsAFloat() {
-	// Line 6 records four integer defaults as floats. Reading those as ints
-	// fails, and the value is recovered through the float path.
-	got := defaultValue(wireParam{ValueType: wireInt, Default: json.RawMessage("2.0")})
-
-	v, ok := got.Int()
-	s.Require().True(ok)
-	s.Require().Equal(int64(2), v)
-}
-
-func (s *BlockTestSuite) TestDefaultValueToleratesAnUndecodableDefault() {
-	for _, vt := range []int{wireBool, wireString, wireFloat} {
-		got := defaultValue(wireParam{ValueType: vt, Default: json.RawMessage(`{}`)})
-		s.Require().NotEqual(catalog.ParamType(""), got.Type())
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			s.Require().Zero(number(tt.raw))
+		})
 	}
 }
 
-func (s *BlockTestSuite) TestBuildMapsEveryFamilyToACategory() {
+// TestDefaultValue reads the value Line 6 state a knob starts at.
+func (s *BlockTestSuite) TestDefaultValue() {
+	tests := []struct {
+		name string
+		kind int
+		raw  json.RawMessage
+		// the integer it must come back as, when it is one.
+		want int64
+	}{
+		{
+			// Line 6 records four integer defaults as floats. Reading those
+			// as ints fails, and the value is recovered through the float
+			// path.
+			name: "an integer written as a float",
+			kind: wireInt,
+			raw:  json.RawMessage("2.0"),
+			want: 2,
+		},
+		{
+			name: "a switch that will not decode",
+			kind: wireBool,
+			raw:  json.RawMessage(`{}`),
+		},
+		{
+			name: "a string that will not decode",
+			kind: wireString,
+			raw:  json.RawMessage(`{}`),
+		},
+		{
+			name: "a float that will not decode",
+			kind: wireFloat,
+			raw:  json.RawMessage(`{}`),
+		},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			got := defaultValue(wireParam{ValueType: tt.kind, Default: tt.raw})
+
+			s.Require().NotEqual(catalog.ParamType(""), got.Type(),
+				"a value that will not decode still has a kind")
+
+			if tt.want == 0 {
+				return
+			}
+
+			v, ok := got.Int()
+			s.Require().True(ok)
+			s.Require().Equal(tt.want, v)
+		})
+	}
+}
+
+// TestBuild carries a family through to the catalog it writes.
+func (s *BlockTestSuite) TestBuild() {
 	c, err := Build(Options{
 		ResourcesDir: filepath.Join("testdata", "families"),
 		DeviceID:     2162694,

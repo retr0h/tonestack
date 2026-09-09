@@ -24,6 +24,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -50,120 +51,248 @@ func (s *SlotsPublicTestSuite) doc(name string) *setlist.Document {
 	return doc
 }
 
-func (s *SlotsPublicTestSuite) TestCopyOverwritesTheDestination() {
-	doc := s.doc("setlist.hls")
-
-	s.Require().NoError(doc.Copy(
-		setlist.Address{Slot: 0}, setlist.Address{Slot: 1}))
-
-	s.Require().Equal("First", doc.Setlists[0].Slots[0].Meta.Name)
-	s.Require().Equal("First", doc.Setlists[0].Slots[1].Meta.Name)
-}
-
-func (s *SlotsPublicTestSuite) TestSwapExchangesTwoSlots() {
-	doc := s.doc("setlist.hls")
-
-	s.Require().NoError(doc.Swap(
-		setlist.Address{Slot: 0}, setlist.Address{Slot: 1}))
-
-	s.Require().Equal("Second", doc.Setlists[0].Slots[0].Meta.Name)
-	s.Require().Equal("First", doc.Setlists[0].Slots[1].Meta.Name)
-}
-
-func (s *SlotsPublicTestSuite) TestSwapUndoesItself() {
-	doc := s.doc("setlist.hls")
-	before := doc.Setlists[0].Slots[0].Meta.Name
-
-	a, b := setlist.Address{Slot: 0}, setlist.Address{Slot: 3}
-	s.Require().NoError(doc.Swap(a, b))
-	s.Require().NoError(doc.Swap(a, b))
-
-	s.Require().Equal(before, doc.Setlists[0].Slots[0].Meta.Name)
-}
-
-func (s *SlotsPublicTestSuite) TestEditsRejectAnAddressThatIsNotThere() {
-	doc := s.doc("setlist.hls")
-	good, bad := setlist.Address{Slot: 0}, setlist.Address{Slot: 99}
-
+// TestCopy writes one slot over another.
+func (s *SlotsPublicTestSuite) TestCopy() {
 	tests := []struct {
 		name string
-		call func() error
+		from int
+		to   int
+		// what the first two slots must hold afterwards.
+		want []string
+		err  bool
 	}{
-		{"copy from", func() error { return doc.Copy(bad, good) }},
-		{"copy to", func() error { return doc.Copy(good, bad) }},
-		{"swap first", func() error { return doc.Swap(bad, good) }},
-		{"swap second", func() error { return doc.Swap(good, bad) }},
-		{"rename", func() error { return doc.Rename(bad, "x") }},
+		{
+			name: "a slot over another",
+			to:   1,
+			want: []string{"First", "First"},
+		},
+		{name: "a source that is not there", from: 99, to: 1, err: true},
+		{name: "a destination that is not there", to: 99, err: true},
 	}
 
-	for _, tc := range tests {
-		s.Run(tc.name, func() {
-			s.Require().ErrorIs(tc.call(), setlist.ErrNoSuchSlot)
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			doc := s.doc("setlist.hls")
+
+			err := doc.Copy(
+				setlist.Address{Slot: tt.from}, setlist.Address{Slot: tt.to})
+
+			if tt.err {
+				s.Require().ErrorIs(err, setlist.ErrNoSuchSlot)
+
+				return
+			}
+
+			s.Require().NoError(err)
+
+			for i, want := range tt.want {
+				s.Require().Equal(want, doc.Setlists[0].Slots[i].Meta.Name)
+			}
 		})
 	}
 }
 
-func (s *SlotsPublicTestSuite) TestRename() {
-	doc := s.doc("setlist.hls")
-
-	s.Require().NoError(doc.Rename(setlist.Address{Slot: 2}, "Renamed"))
-
-	s.Require().Equal("Renamed", doc.Setlists[0].Slots[2].Meta.Name)
-}
-
-func (s *SlotsPublicTestSuite) TestNames() {
-	doc := s.doc("setlist.hls")
-
-	got, err := doc.Names(0)
-
-	s.Require().NoError(err)
-	s.Require().Equal(
-		[]string{"First", "Second", "New Preset", "Unknown Gear"}, got)
-}
-
-func (s *SlotsPublicTestSuite) TestNamesRejectsASetlistThatIsNotThere() {
-	doc := s.doc("setlist.hls")
-
-	_, err := doc.Names(9)
-
-	s.Require().ErrorIs(err, setlist.ErrNoSuchSlot)
-}
-
-func (s *SlotsPublicTestSuite) TestNameIsEmptyWhenMetadataHasNone() {
-	sl := setlist.Setlist{Meta: json.RawMessage(`{}`)}
-
-	s.Require().Empty(sl.Name())
-}
-
-func (s *SlotsPublicTestSuite) TestWriteRefusesASetlistHoldingSeveral() {
-	doc := s.doc("bundle.hlb")
-	doc.Schema = setlist.SchemaSetlist
-
-	err := setlist.Write(&bytes.Buffer{}, doc)
-
-	s.Require().Error(err)
-	s.Require().Contains(err.Error(), "holds one setlist, not 2")
-}
-
-func (s *SlotsPublicTestSuite) TestWriteRefusesAPayloadThatCannotEncode() {
-	doc := s.doc("setlist.hls")
-	// A channel has no JSON representation, so this fails where a real
-	// payload never would.
-	doc.Setlists[0].Slots[0].Tone = map[string]preset.Tone{
-		"dsp0": {"block0": json.RawMessage("not json")},
+// TestSwap exchanges two slots.
+func (s *SlotsPublicTestSuite) TestSwap() {
+	tests := []struct {
+		name string
+		from int
+		to   int
+		// swap twice, which must leave the setlist as it was.
+		twice bool
+		want  []string
+		err   bool
+	}{
+		{
+			name: "two slots",
+			to:   1,
+			want: []string{"Second", "First"},
+		},
+		{
+			name:  "the same two twice",
+			to:    3,
+			twice: true,
+			want:  []string{"First", "Second"},
+		},
+		{name: "a first address that is not there", from: 99, to: 1, err: true},
+		{name: "a second that is not there", to: 99, err: true},
 	}
 
-	err := setlist.Write(&bytes.Buffer{}, doc)
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			doc := s.doc("setlist.hls")
+			a, b := setlist.Address{Slot: tt.from}, setlist.Address{Slot: tt.to}
 
-	s.Require().Error(err)
-	s.Require().Contains(err.Error(), "encoding payload")
+			err := doc.Swap(a, b)
+
+			if tt.err {
+				s.Require().ErrorIs(err, setlist.ErrNoSuchSlot)
+
+				return
+			}
+
+			s.Require().NoError(err)
+
+			if tt.twice {
+				s.Require().NoError(doc.Swap(a, b))
+			}
+
+			for i, want := range tt.want {
+				s.Require().Equal(want, doc.Setlists[0].Slots[i].Meta.Name)
+			}
+		})
+	}
 }
 
-func (s *SlotsPublicTestSuite) TestWriteReportsAWriterThatFails() {
-	err := setlist.Write(&failingWriter{}, s.doc("setlist.hls"))
+// TestRename names a slot.
+func (s *SlotsPublicTestSuite) TestRename() {
+	tests := []struct {
+		name string
+		slot int
+		err  bool
+	}{
+		{name: "a slot the setlist has", slot: 2},
+		{name: "one it does not", slot: 99, err: true},
+	}
 
-	s.Require().Error(err)
-	s.Require().Contains(err.Error(), "encoding setlist")
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			doc := s.doc("setlist.hls")
+
+			err := doc.Rename(setlist.Address{Slot: tt.slot}, "Renamed")
+
+			if tt.err {
+				s.Require().ErrorIs(err, setlist.ErrNoSuchSlot)
+
+				return
+			}
+
+			s.Require().NoError(err)
+			s.Require().Equal("Renamed", doc.Setlists[0].Slots[tt.slot].Meta.Name)
+		})
+	}
+}
+
+// TestNames lists what a setlist holds.
+func (s *SlotsPublicTestSuite) TestNames() {
+	tests := []struct {
+		name    string
+		setlist int
+		want    []string
+		err     bool
+	}{
+		{
+			name: "a setlist the file has",
+			want: []string{"First", "Second", "New Preset", "Unknown Gear"},
+		},
+		{name: "one it does not", setlist: 9, err: true},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			got, err := s.doc("setlist.hls").Names(tt.setlist)
+
+			if tt.err {
+				s.Require().ErrorIs(err, setlist.ErrNoSuchSlot)
+
+				return
+			}
+
+			s.Require().NoError(err)
+			s.Require().Equal(tt.want, got)
+		})
+	}
+}
+
+// TestName reads what a setlist calls itself.
+func (s *SlotsPublicTestSuite) TestName() {
+	tests := []struct {
+		name string
+		meta string
+		want string
+	}{
+		{name: "metadata naming it", meta: `{"name":"Songs"}`, want: "Songs"},
+		{name: "metadata with no name", meta: `{}`},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			sl := setlist.Setlist{Meta: json.RawMessage(tt.meta)}
+
+			s.Require().Equal(tt.want, sl.Name())
+		})
+	}
+}
+
+// TestWrite writes a setlist back out.
+func (s *SlotsPublicTestSuite) TestWrite() {
+	tests := []struct {
+		name string
+		file string
+		// claim the file holds one setlist when it holds several.
+		mislabelled bool
+		// a payload nothing can encode.
+		unencodable bool
+		deaf        bool
+		errText     string
+	}{
+		{name: "a setlist as it was read", file: "setlist.hls"},
+		{
+			name:        "a bundle claiming to be one setlist",
+			file:        "bundle.hlb",
+			mislabelled: true,
+			errText:     "holds one setlist, not 2",
+		},
+		{
+			name:        "a payload that cannot encode",
+			file:        "setlist.hls",
+			unencodable: true,
+			errText:     "encoding payload",
+		},
+		{
+			name:    "a writer that fails",
+			file:    "setlist.hls",
+			deaf:    true,
+			errText: "encoding setlist",
+		},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			doc := s.doc(tt.file)
+
+			if tt.mislabelled {
+				doc.Schema = setlist.SchemaSetlist
+			}
+
+			if tt.unencodable {
+				// A raw message that is not JSON has no representation, so
+				// this fails where a real payload never would.
+				doc.Setlists[0].Slots[0].Tone = map[string]preset.Tone{
+					"dsp0": {"block0": json.RawMessage("not json")},
+				}
+			}
+
+			var out bytes.Buffer
+
+			w := io.Writer(&out)
+			if tt.deaf {
+				w = &failingWriter{}
+			}
+
+			err := setlist.Write(w, doc)
+
+			if tt.errText != "" {
+				s.Require().Error(err)
+				s.Require().Contains(err.Error(), tt.errText)
+
+				return
+			}
+
+			s.Require().NoError(err)
+			s.Require().NotEmpty(out.String())
+		})
+	}
 }
 
 type failingWriter struct{}

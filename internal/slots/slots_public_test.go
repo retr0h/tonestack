@@ -23,14 +23,13 @@ package slots_test
 import (
 	"bytes"
 	"errors"
-	"os"
+	"io"
 	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
 
 	"github.com/retr0h/tonestack/internal/slots"
-	"github.com/retr0h/tonestack/pkg/setlist"
 )
 
 type SlotsPublicTestSuite struct {
@@ -41,235 +40,247 @@ func fixture(name string) string { return filepath.Join("testdata", name) }
 
 func catalogPath() string { return fixture("catalog.json") }
 
-func (s *SlotsPublicTestSuite) TestListShowsWhatIsInUse() {
-	var out bytes.Buffer
-
-	s.Require().NoError(slots.List(&out, slots.ListOptions{
-		Path: fixture("setlist.hls"), CatalogPath: catalogPath(),
-	}))
-
-	s.Require().Contains(out.String(), "Test Setlist")
-	s.Require().Contains(out.String(), "4 slots · 3 in use")
-	s.Require().Contains(out.String(), "01A")
-	s.Require().Contains(out.String(), "First")
-	// The empty slot is hidden unless asked for.
-	s.Require().NotContains(out.String(), "New Preset")
-}
-
-func (s *SlotsPublicTestSuite) TestListShowsEveryySlotWhenAsked() {
-	var out bytes.Buffer
-
-	s.Require().NoError(slots.List(&out, slots.ListOptions{
-		Path: fixture("setlist.hls"), CatalogPath: catalogPath(), All: true,
-	}))
-
-	s.Require().Contains(out.String(), "New Preset")
-}
-
-func (s *SlotsPublicTestSuite) TestListReachesIntoABundle() {
-	var out bytes.Buffer
-
-	s.Require().NoError(slots.List(&out, slots.ListOptions{
-		Path: fixture("bundle.hlb"), Setlist: 1, CatalogPath: catalogPath(),
-	}))
-
-	s.Require().Contains(out.String(), "Second Setlist")
-	s.Require().Contains(out.String(), "Only")
-}
-
-func (s *SlotsPublicTestSuite) TestListSaysWhenNothingIsThere() {
-	var out bytes.Buffer
-
-	s.Require().NoError(slots.List(&out, slots.ListOptions{
-		Path: fixture("broken.hls"), CatalogPath: catalogPath(),
-	}))
-
-	s.Require().Contains(out.String(), "no presets")
-}
-
-func (s *SlotsPublicTestSuite) TestListReportsProblems() {
+// TestList prints what a setlist holds.
+func (s *SlotsPublicTestSuite) TestList() {
 	tests := []struct {
-		name    string
-		opts    slots.ListOptions
-		message string
+		name     string
+		opts     slots.ListOptions
+		contains []string
+		absent   []string
+		errText  string
 	}{
 		{
-			"a file that is not there",
-			slots.ListOptions{Path: fixture("nope.hls"), CatalogPath: catalogPath()},
-			"opening",
+			name: "the slots in use",
+			opts: slots.ListOptions{
+				Path: fixture("setlist.hls"), CatalogPath: catalogPath(),
+			},
+			contains: []string{"Test Setlist", "4 slots · 3 in use", "01A", "First"},
+			// The empty slot is hidden unless asked for.
+			absent: []string{"New Preset"},
 		},
 		{
-			"a file that is not a setlist",
-			slots.ListOptions{Path: fixture("notasetlist.hls"), CatalogPath: catalogPath()},
-			"not a setlist",
+			name: "every slot, when somebody asks",
+			opts: slots.ListOptions{
+				Path: fixture("setlist.hls"), CatalogPath: catalogPath(), All: true,
+			},
+			contains: []string{"New Preset"},
 		},
 		{
-			"a catalog that is not there",
-			slots.ListOptions{Path: fixture("setlist.hls"), CatalogPath: fixture("nope.json")},
-			"catalog",
+			name: "one setlist out of a bundle",
+			opts: slots.ListOptions{
+				Path: fixture("bundle.hlb"), Setlist: 1, CatalogPath: catalogPath(),
+			},
+			contains: []string{"Second Setlist", "Only"},
 		},
 		{
-			"a setlist that is not there",
-			slots.ListOptions{
+			name: "a setlist holding nothing",
+			opts: slots.ListOptions{
+				Path: fixture("broken.hls"), CatalogPath: catalogPath(),
+			},
+			contains: []string{"no presets"},
+		},
+		{
+			name: "a file that is not there",
+			opts: slots.ListOptions{
+				Path: fixture("nope.hls"), CatalogPath: catalogPath(),
+			},
+			errText: "opening",
+		},
+		{
+			name: "a file that is not a setlist",
+			opts: slots.ListOptions{
+				Path: fixture("notasetlist.hls"), CatalogPath: catalogPath(),
+			},
+			errText: "not a setlist",
+		},
+		{
+			name: "a catalog that is not there",
+			opts: slots.ListOptions{
+				Path: fixture("setlist.hls"), CatalogPath: fixture("nope.json"),
+			},
+			errText: "catalog",
+		},
+		{
+			name: "a setlist that is not there",
+			opts: slots.ListOptions{
 				Path: fixture("setlist.hls"), Setlist: 9, CatalogPath: catalogPath(),
 			},
-			"no such slot",
+			errText: "no such slot",
 		},
 	}
 
-	for _, tc := range tests {
-		s.Run(tc.name, func() {
-			err := slots.List(&bytes.Buffer{}, tc.opts)
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			var out bytes.Buffer
 
-			s.Require().Error(err)
-			s.Require().Contains(err.Error(), tc.message)
+			err := slots.List(&out, tt.opts)
+
+			if tt.errText != "" {
+				s.Require().Error(err)
+				s.Require().Contains(err.Error(), tt.errText)
+
+				return
+			}
+
+			s.Require().NoError(err)
+
+			for _, want := range tt.contains {
+				s.Require().Contains(out.String(), want)
+			}
+
+			for _, unwanted := range tt.absent {
+				s.Require().NotContains(out.String(), unwanted)
+			}
 		})
 	}
 }
 
+// TestListReportsAWriterThatFails covers a listing nobody can read.
 func (s *SlotsPublicTestSuite) TestListReportsAWriterThatFails() {
 	tests := []struct {
 		name string
-		w    interface{ Write([]byte) (int, error) }
+		path string
+		w    io.Writer
 	}{
-		{"on the header", &failingWriter{}},
-		{"on the rows", &oneGoodWrite{}},
+		{name: "on the header", path: "setlist.hls", w: &failingWriter{}},
+		{name: "on the rows", path: "setlist.hls", w: &oneGoodWrite{}},
+		{name: "with no presets to show", path: "broken.hls", w: &failingWriter{}},
 	}
 
-	for _, tc := range tests {
-		s.Run(tc.name, func() {
-			err := slots.List(tc.w, slots.ListOptions{
-				Path: fixture("setlist.hls"), CatalogPath: catalogPath(),
-			})
-
-			s.Require().Error(err)
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			s.Require().Error(slots.List(tt.w, slots.ListOptions{
+				Path: fixture(tt.path), CatalogPath: catalogPath(),
+			}))
 		})
 	}
 }
 
-func (s *SlotsPublicTestSuite) TestListReportsAWriterThatFailsWithNoPresets() {
-	err := slots.List(&failingWriter{}, slots.ListOptions{
-		Path: fixture("broken.hls"), CatalogPath: catalogPath(),
-	})
-
-	s.Require().Error(err)
-}
-
-func (s *SlotsPublicTestSuite) TestShowRendersASlot() {
-	var out bytes.Buffer
-
-	s.Require().NoError(slots.Show(&out, slots.ShowOptions{
-		Path: fixture("setlist.hls"), Slot: 0, CatalogPath: catalogPath(),
-	}))
-
-	s.Require().Contains(out.String(), "name: First")
-	s.Require().Contains(out.String(), "gear: Ampeg SVT")
-	s.Require().Contains(out.String(), "schema: RigSpec")
-}
-
-func (s *SlotsPublicTestSuite) TestShowRendersAFile() {
-	var out bytes.Buffer
-
-	s.Require().NoError(slots.Show(&out, slots.ShowOptions{
-		File: fixture("preset.hlx"), CatalogPath: catalogPath(),
-	}))
-
-	// A rig, because a rig is what this project reads and writes. What comes
-	// out here is what compiles back into the preset it came from.
-	s.Require().Contains(out.String(), "schema: RigSpec")
-	s.Require().Contains(out.String(), "gear: Ampeg SVT")
-}
-
-func (s *SlotsPublicTestSuite) TestShowSaysWhenASlotIsEmpty() {
-	var out bytes.Buffer
-
-	s.Require().NoError(slots.Show(&out, slots.ShowOptions{
-		Path: fixture("setlist.hls"), Slot: 2, CatalogPath: catalogPath(),
-	}))
-
-	s.Require().Contains(out.String(), "empty")
-}
-
-func (s *SlotsPublicTestSuite) TestShowMarksGearTheCatalogDoesNotKnow() {
-	var out bytes.Buffer
-
-	s.Require().NoError(slots.Show(&out, slots.ShowOptions{
-		Path: fixture("setlist.hls"), Slot: 3, CatalogPath: catalogPath(),
-	}))
-
-	// Gear the catalog cannot name is written as the identifier the preset
-	// carried, so the rig still rebuilds it exactly rather than dropping it.
-	s.Require().Contains(out.String(), "gear: HD2_NotInCatalog")
-	s.Require().Contains(out.String(), "HX Stomp: HD2_NotInCatalog")
-}
-
-func (s *SlotsPublicTestSuite) TestShowReportsProblems() {
+// TestShow prints one slot as a rig.
+func (s *SlotsPublicTestSuite) TestShow() {
 	tests := []struct {
-		name    string
-		opts    slots.ShowOptions
-		message string
+		name     string
+		opts     slots.ShowOptions
+		contains []string
+		errText  string
 	}{
 		{
-			"a setlist that is not there",
-			slots.ShowOptions{Path: fixture("nope.hls"), CatalogPath: catalogPath()},
-			"opening",
+			name: "a slot in a setlist",
+			opts: slots.ShowOptions{
+				Path: fixture("setlist.hls"), Slot: 0, CatalogPath: catalogPath(),
+			},
+			contains: []string{"name: First", "gear: Ampeg SVT", "schema: RigSpec"},
 		},
 		{
-			"a preset that is not there",
-			slots.ShowOptions{File: fixture("nope.hlx"), CatalogPath: catalogPath()},
-			"opening",
+			// A rig, because a rig is what this project reads and writes.
+			// What comes out here is what compiles back into the preset it
+			// came from.
+			name: "a preset in a file of its own",
+			opts: slots.ShowOptions{
+				File: fixture("preset.hlx"), CatalogPath: catalogPath(),
+			},
+			contains: []string{"schema: RigSpec", "gear: Ampeg SVT"},
 		},
 		{
-			"a file that is not a preset",
-			slots.ShowOptions{File: fixture("notapreset.hlx"), CatalogPath: catalogPath()},
-			"not a preset",
+			name: "a slot holding nothing",
+			opts: slots.ShowOptions{
+				Path: fixture("setlist.hls"), Slot: 2, CatalogPath: catalogPath(),
+			},
+			contains: []string{"empty"},
 		},
 		{
-			"a slot that is not there",
-			slots.ShowOptions{
+			name: "gear the catalog cannot name",
+			opts: slots.ShowOptions{
+				Path: fixture("setlist.hls"), Slot: 3, CatalogPath: catalogPath(),
+			},
+			// It is written as the identifier the preset carried, so the rig
+			// still rebuilds it exactly rather than dropping it.
+			contains: []string{
+				"gear: HD2_NotInCatalog",
+				"HX Stomp: HD2_NotInCatalog",
+			},
+		},
+		{
+			name: "a setlist that is not there",
+			opts: slots.ShowOptions{
+				Path: fixture("nope.hls"), CatalogPath: catalogPath(),
+			},
+			errText: "opening",
+		},
+		{
+			name: "a preset that is not there",
+			opts: slots.ShowOptions{
+				File: fixture("nope.hlx"), CatalogPath: catalogPath(),
+			},
+			errText: "opening",
+		},
+		{
+			name: "a file that is not a preset",
+			opts: slots.ShowOptions{
+				File: fixture("notapreset.hlx"), CatalogPath: catalogPath(),
+			},
+			errText: "not a preset",
+		},
+		{
+			name: "a slot that is not there",
+			opts: slots.ShowOptions{
 				Path: fixture("setlist.hls"), Slot: 99, CatalogPath: catalogPath(),
 			},
-			"no such slot",
+			errText: "no such slot",
 		},
 		{
-			"a slot that will not parse",
-			slots.ShowOptions{Path: fixture("broken.hls"), CatalogPath: catalogPath()},
-			"reading slot 0",
+			name: "a slot that will not parse",
+			opts: slots.ShowOptions{
+				Path: fixture("broken.hls"), CatalogPath: catalogPath(),
+			},
+			errText: "reading slot 0",
 		},
 		{
-			"a catalog that is not there",
-			slots.ShowOptions{Path: fixture("setlist.hls"), CatalogPath: fixture("nope.json")},
-			"catalog",
+			name: "a catalog that is not there",
+			opts: slots.ShowOptions{
+				Path: fixture("setlist.hls"), CatalogPath: fixture("nope.json"),
+			},
+			errText: "catalog",
 		},
 	}
 
-	for _, tc := range tests {
-		s.Run(tc.name, func() {
-			err := slots.Show(&bytes.Buffer{}, tc.opts)
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			var out bytes.Buffer
 
-			s.Require().Error(err)
-			s.Require().Contains(err.Error(), tc.message)
+			err := slots.Show(&out, tt.opts)
+
+			if tt.errText != "" {
+				s.Require().Error(err)
+				s.Require().Contains(err.Error(), tt.errText)
+
+				return
+			}
+
+			s.Require().NoError(err)
+
+			for _, want := range tt.contains {
+				s.Require().Contains(out.String(), want)
+			}
 		})
 	}
 }
 
+// TestShowReportsAWriterThatFails covers a rig nobody can read.
 func (s *SlotsPublicTestSuite) TestShowReportsAWriterThatFails() {
 	tests := []struct {
 		name string
 		slot int
-		w    interface{ Write([]byte) (int, error) }
 	}{
-		{"on the rig", 0, &failingWriter{}},
-		{"on an empty slot", 2, &failingWriter{}},
+		{name: "on the rig"},
+		{name: "on an empty slot", slot: 2},
 	}
 
-	for _, tc := range tests {
-		s.Run(tc.name, func() {
-			err := slots.Show(tc.w, slots.ShowOptions{
-				Path: fixture("setlist.hls"), Slot: tc.slot, CatalogPath: catalogPath(),
-			})
-
-			s.Require().Error(err)
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			s.Require().Error(slots.Show(&failingWriter{}, slots.ShowOptions{
+				Path: fixture("setlist.hls"), Slot: tt.slot, CatalogPath: catalogPath(),
+			}))
 		})
 	}
 }
@@ -294,8 +305,3 @@ func (w *oneGoodWrite) Write(p []byte) (int, error) {
 func TestSlotsPublicTestSuite(t *testing.T) {
 	suite.Run(t, new(SlotsPublicTestSuite))
 }
-
-var (
-	_ = os.Open
-	_ = setlist.ErrNoSuchSlot
-)

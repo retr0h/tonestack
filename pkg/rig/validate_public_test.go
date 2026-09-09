@@ -45,11 +45,9 @@ func (s *ValidatePublicTestSuite) good() gen.RigSpec {
 	}
 }
 
-func (s *ValidatePublicTestSuite) TestTheSmallestUsefulRigIsValid() {
-	s.Require().NoError(rig.Validate(s.good()))
-}
-
-func (s *ValidatePublicTestSuite) TestRejects() {
+// TestValidate checks a rig against its own contract. A case naming no field
+// is one the contract accepts.
+func (s *ValidatePublicTestSuite) TestValidate() {
 	settings := func(v float64) *gen.Settings {
 		out := gen.Settings{"drive": v}
 
@@ -61,120 +59,136 @@ func (s *ValidatePublicTestSuite) TestRejects() {
 		name   string
 		mutate func(*gen.RigSpec)
 		field  string
+		// a failure that is not the contract refusing a field.
+		says string
 	}{
 		{
-			"a document that is not a rig",
-			func(r *gen.RigSpec) { r.Schema = "L6Preset" },
-			"schema",
+			name:   "the smallest useful rig",
+			mutate: func(*gen.RigSpec) {},
 		},
 		{
-			"an identifier with spaces",
-			func(r *gen.RigSpec) { r.ID = "Mike Dirnt" },
-			"id",
+			// Absent is not invalid. A hand-written rig carries almost none
+			// of this.
+			name: "everything optional, filled in",
+			mutate: func(r *gen.RigSpec) {
+				r.Chain[0].Settings = &gen.Settings{"drive": 0, "treble": 1}
+				r.Chain[0].Evidence = &[]gen.Evidence{{Kind: gen.EvidenceCited}}
+				r.Mutations = &[]gen.Mutation{{Ask: "make it clunkier"}}
+			},
 		},
 		{
-			"an identifier that is empty",
-			func(r *gen.RigSpec) { r.ID = "" },
-			"id",
+			// A rig carries raw JSON it was handed — the state a device wrote
+			// — and something that is not JSON cannot be checked against
+			// anything.
+			name: "state that is not JSON at all",
+			mutate: func(r *gen.RigSpec) {
+				broken := json.RawMessage("not json")
+				r.Device = &gen.DeviceState{Version: &broken}
+			},
+			says: "reading the rig",
 		},
 		{
-			"a subject of no known kind",
-			func(r *gen.RigSpec) { r.Subject.Kind = "robot" },
-			"subject.kind",
+			name:   "a document that is not a rig",
+			mutate: func(r *gen.RigSpec) { r.Schema = "L6Preset" },
+			field:  "schema",
 		},
 		{
-			"a subject nobody named",
-			func(r *gen.RigSpec) { r.Subject.Name = "  " },
-			"subject.name",
+			name:   "an identifier with spaces",
+			mutate: func(r *gen.RigSpec) { r.ID = "Mike Dirnt" },
+			field:  "id",
 		},
 		{
-			"an instrument the catalog cannot be filtered by",
-			func(r *gen.RigSpec) { r.Instrument = "theremin" },
-			"instrument",
+			name:   "an identifier that is empty",
+			mutate: func(r *gen.RigSpec) { r.ID = "" },
+			field:  "id",
 		},
 		{
-			"a chain holding nothing",
-			func(r *gen.RigSpec) { r.Chain = nil },
-			"chain",
+			name:   "a subject of no known kind",
+			mutate: func(r *gen.RigSpec) { r.Subject.Kind = "robot" },
+			field:  "subject.kind",
 		},
 		{
-			"gear doing nothing in particular",
-			func(r *gen.RigSpec) { r.Chain[0].Role = "vibe" },
-			"chain[0].role",
+			name:   "a subject nobody named",
+			mutate: func(r *gen.RigSpec) { r.Subject.Name = "  " },
+			field:  "subject.name",
 		},
 		{
-			"gear with no name",
-			func(r *gen.RigSpec) { r.Chain[0].Gear = "" },
-			"chain[0].gear",
+			name:   "an instrument the catalog cannot be filtered by",
+			mutate: func(r *gen.RigSpec) { r.Instrument = "theremin" },
+			field:  "instrument",
 		},
 		{
-			"a setting above one",
-			func(r *gen.RigSpec) { r.Chain[0].Settings = settings(1.5) },
-			"chain[0].settings.drive",
+			name:   "a chain holding nothing",
+			mutate: func(r *gen.RigSpec) { r.Chain = nil },
+			field:  "chain",
 		},
 		{
-			"a setting below nought",
-			func(r *gen.RigSpec) { r.Chain[0].Settings = settings(-0.1) },
-			"chain[0].settings.drive",
+			name:   "gear doing nothing in particular",
+			mutate: func(r *gen.RigSpec) { r.Chain[0].Role = "vibe" },
+			field:  "chain[0].role",
 		},
 		{
-			"a confidence nobody can act on",
-			func(r *gen.RigSpec) { r.Chain[0].Confidence = confidence("certain") },
-			"chain[0].confidence",
+			name:   "gear with no name",
+			mutate: func(r *gen.RigSpec) { r.Chain[0].Gear = "" },
+			field:  "chain[0].gear",
 		},
 		{
-			"evidence of no known kind",
-			func(r *gen.RigSpec) {
+			name:   "a setting above one",
+			mutate: func(r *gen.RigSpec) { r.Chain[0].Settings = settings(1.5) },
+			field:  "chain[0].settings.drive",
+		},
+		{
+			name:   "a setting below nought",
+			mutate: func(r *gen.RigSpec) { r.Chain[0].Settings = settings(-0.1) },
+			field:  "chain[0].settings.drive",
+		},
+		{
+			name:   "a confidence nobody can act on",
+			mutate: func(r *gen.RigSpec) { r.Chain[0].Confidence = confidence("certain") },
+			field:  "chain[0].confidence",
+		},
+		{
+			name: "evidence of no known kind",
+			mutate: func(r *gen.RigSpec) {
 				r.Chain[0].Evidence = &[]gen.Evidence{{Kind: "vibes"}}
 			},
-			"chain[0].evidence[0].kind",
+			field: "chain[0].evidence[0].kind",
 		},
 		{
-			"a correction that records no request",
-			func(r *gen.RigSpec) {
+			name: "a correction that records no request",
+			mutate: func(r *gen.RigSpec) {
 				r.Mutations = &[]gen.Mutation{{Ask: "  "}}
 			},
-			"mutations[0].ask",
+			field: "mutations[0].ask",
 		},
 	}
 
-	for _, tc := range tests {
-		s.Run(tc.name, func() {
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
 			got := s.good()
-			tc.mutate(&got)
+			tt.mutate(&got)
 
 			err := rig.Validate(got)
 
+			if tt.says != "" {
+				s.Require().Error(err)
+				s.Require().Contains(err.Error(), tt.says)
+
+				return
+			}
+
+			if tt.field == "" {
+				s.Require().NoError(err)
+
+				return
+			}
+
 			s.Require().ErrorIs(err, rig.ErrInvalid)
-			s.Require().Contains(err.Error(), tc.field)
+			s.Require().Contains(err.Error(), tt.field)
 		})
 	}
 }
 
-func (s *ValidatePublicTestSuite) TestAcceptsEverythingOptional() {
-	// Absent is not invalid. A hand-written rig carries almost none of this.
-	got := s.good()
-	settings := gen.Settings{"drive": 0, "treble": 1}
-	got.Chain[0].Settings = &settings
-	got.Chain[0].Evidence = &[]gen.Evidence{{Kind: gen.EvidenceCited}}
-	got.Mutations = &[]gen.Mutation{{Ask: "make it clunkier"}}
-
-	s.Require().NoError(rig.Validate(got))
-}
-
 func TestValidatePublicTestSuite(t *testing.T) {
 	suite.Run(t, new(ValidatePublicTestSuite))
-}
-
-func (s *ValidatePublicTestSuite) TestReportsARigItCannotRead() {
-	// A rig carries raw JSON it was handed — the state a device wrote — and
-	// something that is not JSON cannot be checked against anything.
-	spec := s.good()
-	broken := json.RawMessage("not json")
-	spec.Device = &gen.DeviceState{Version: &broken}
-
-	err := rig.Validate(spec)
-
-	s.Require().Error(err)
-	s.Require().Contains(err.Error(), "reading the rig")
 }

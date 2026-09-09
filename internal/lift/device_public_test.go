@@ -66,60 +66,82 @@ func (s *DevicePublicTestSuite) rig(state *riggen.DeviceState) riggen.RigSpec {
 	}
 }
 
-func (s *DevicePublicTestSuite) TestAToneEntryThatIsNotAnObjectIsIgnored() {
-	// A person edited the file and put a string where a device wrote a map.
-	// Dropping that one entry beats refusing to build the rest of the rig.
-	doc, err := preset.Blank()
-	s.Require().NoError(err)
+// TestLowerDeviceState builds a preset out of what a rig carries under
+// `device`.
+func (s *DevicePublicTestSuite) TestLowerDeviceState() {
+	tests := []struct {
+		name string
+		// one entry of the tone section, or one of the routing.
+		tone    map[string]json.RawMessage
+		routing map[string]json.RawMessage
 
-	tone := map[string]json.RawMessage{"controller": json.RawMessage(`"nonsense"`)}
-	s.Require().NoError(lift.Lower(doc, s.rig(&riggen.DeviceState{Tone: &tone}), s.cat))
-
-	var out bytes.Buffer
-	s.Require().NoError(preset.Write(&out, doc))
-	s.Require().NotContains(out.String(), "nonsense")
-}
-
-func (s *DevicePublicTestSuite) TestAToneEntryThatWillNotReadIsIgnored() {
-	// A rig somebody edited can put anything under `device`. One entry that
-	// will not read is dropped rather than failing the whole build.
-	doc, err := preset.Blank()
-	s.Require().NoError(err)
-
-	tone := map[string]json.RawMessage{"controller": json.RawMessage(`[1, 2]`)}
-	s.Require().NoError(lift.Lower(doc, s.rig(&riggen.DeviceState{Tone: &tone}), s.cat))
-
-	var out bytes.Buffer
-	s.Require().NoError(preset.Write(&out, doc))
-	s.Require().NotContains(out.String(), `"controller": [`)
-}
-
-func (s *DevicePublicTestSuite) TestRoutingNotNamingAProcessorIsIgnored() {
-	// Routing is keyed by processor and entry — "dsp0.inputA". A key with no
-	// processor names nowhere to put it.
-	doc, err := preset.Blank()
-	s.Require().NoError(err)
-
-	routing := map[string]json.RawMessage{"inputA": json.RawMessage(`{"@model":"X"}`)}
-	s.Require().NoError(lift.Lower(doc, s.rig(&riggen.DeviceState{Routing: &routing}), s.cat))
-
-	var out bytes.Buffer
-	s.Require().NoError(preset.Write(&out, doc))
-	s.Require().NotContains(out.String(), `"@model":"X"`)
-}
-
-func (s *DevicePublicTestSuite) TestRoutingReachesAProcessorThePresetLacks() {
-	doc, err := preset.Blank()
-	s.Require().NoError(err)
-
-	routing := map[string]json.RawMessage{
-		"dsp7.inputA": json.RawMessage(`{"@model":"HD2_AppDSPFlow1Input"}`),
+		contains string
+		absent   string
+	}{
+		{
+			// A person edited the file and put a string where a device wrote
+			// a map. Dropping that one entry beats refusing to build the rest
+			// of the rig.
+			name: "a tone entry that is not an object",
+			tone: map[string]json.RawMessage{
+				"controller": json.RawMessage(`"nonsense"`),
+			},
+			absent: "nonsense",
+		},
+		{
+			name: "a tone entry that will not read",
+			tone: map[string]json.RawMessage{
+				"controller": json.RawMessage(`[1, 2]`),
+			},
+			absent: `"controller": [`,
+		},
+		{
+			// Routing is keyed by processor and entry — "dsp0.inputA". A key
+			// with no processor names nowhere to put it.
+			name: "routing naming no processor",
+			routing: map[string]json.RawMessage{
+				"inputA": json.RawMessage(`{"@model":"X"}`),
+			},
+			absent: `"@model":"X"`,
+		},
+		{
+			name: "routing reaching a processor the preset lacks",
+			routing: map[string]json.RawMessage{
+				"dsp7.inputA": json.RawMessage(`{"@model":"HD2_AppDSPFlow1Input"}`),
+			},
+			contains: "dsp7",
+		},
 	}
-	s.Require().NoError(lift.Lower(doc, s.rig(&riggen.DeviceState{Routing: &routing}), s.cat))
 
-	var out bytes.Buffer
-	s.Require().NoError(preset.Write(&out, doc))
-	s.Require().Contains(out.String(), "dsp7")
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			doc, err := preset.Blank()
+			s.Require().NoError(err)
+
+			state := &riggen.DeviceState{}
+
+			if tt.tone != nil {
+				state.Tone = &tt.tone
+			}
+
+			if tt.routing != nil {
+				state.Routing = &tt.routing
+			}
+
+			s.Require().NoError(lift.Lower(doc, s.rig(state), s.cat))
+
+			var out bytes.Buffer
+			s.Require().NoError(preset.Write(&out, doc))
+
+			if tt.contains != "" {
+				s.Require().Contains(out.String(), tt.contains)
+			}
+
+			if tt.absent != "" {
+				s.Require().NotContains(out.String(), tt.absent)
+			}
+		})
+	}
 }
 
 func TestDevicePublicTestSuite(t *testing.T) {

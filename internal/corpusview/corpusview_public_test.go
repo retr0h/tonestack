@@ -23,6 +23,7 @@ package corpusview_test
 import (
 	"bytes"
 	"errors"
+	"io"
 	"path/filepath"
 	"testing"
 
@@ -42,179 +43,186 @@ func (s *CorpusViewPublicTestSuite) opts() corpusview.Options {
 	}
 }
 
-func (s *CorpusViewPublicTestSuite) TestShowsOneModelsDistributions() {
-	o := s.opts()
-	o.Model = "HD2_AmpSVBeastNrm"
-
-	var out bytes.Buffer
-	s.Require().NoError(corpusview.Show(&out, o))
-
-	got := out.String()
-	s.Require().Contains(got, "Ampeg SVT Nrm", "the model is named, not just identified")
-	s.Require().Contains(got, "Drive")
-	s.Require().Contains(got, "0.440", "the median is what people actually set")
-	s.Require().Contains(got, "unanimous", "a parameter nobody varies says so")
-}
-
-func (s *CorpusViewPublicTestSuite) TestShowsChainGrammar() {
-	var out bytes.Buffer
-	s.Require().NoError(corpusview.Show(&out, s.opts()))
-
-	got := out.String()
-	s.Require().Contains(got, "bass")
-	s.Require().Contains(got, "drive")
-	s.Require().Contains(got, "100%", "every drive in this corpus precedes the amp")
-}
-
-func (s *CorpusViewPublicTestSuite) TestGrammarCanBeLimitedToOneInstrument() {
-	o := s.opts()
-	o.Instrument = "guitar"
-
-	var out bytes.Buffer
-	s.Require().NoError(corpusview.Show(&out, o))
-
-	s.Require().Contains(out.String(), "nothing measured")
-}
-
-func (s *CorpusViewPublicTestSuite) TestShowsAModelTheCatalogDoesNotName() {
-	o := s.opts()
-	o.Model = "HD2_Cab8x10SVBeast"
-	o.CatalogPath = filepath.Join("testdata", "empty-catalog.json")
-
-	var out bytes.Buffer
-	s.Require().NoError(corpusview.Show(&out, o))
-
-	s.Require().Contains(out.String(), "HD2_Cab8x10SVBeast",
-		"an unnamed model is shown by identifier rather than hidden")
-}
-
-func (s *CorpusViewPublicTestSuite) TestAgreementIsGradedAgainstTheParametersRange() {
-	o := s.opts()
-	o.StatsPath = filepath.Join("testdata", "bands.json.gz")
-	o.Model = "HD2_AmpSVBeastNrm"
-
-	var out bytes.Buffer
-	s.Require().NoError(corpusview.Show(&out, o))
-
-	got := out.String()
-	for _, want := range []string{"unanimous", "close", "loose", "none"} {
-		s.Require().Contains(got, want,
-			"each band must be reachable, or the grading says nothing")
-	}
-	// A parameter the catalog does not carry has no range to grade against.
-	s.Require().Contains(got, "Ghost")
-}
-
-func (s *CorpusViewPublicTestSuite) TestTiedCategoriesAreOrderedStably() {
-	o := s.opts()
-	o.StatsPath = filepath.Join("testdata", "bands.json.gz")
-
-	var first string
-
-	for range 3 {
-		var out bytes.Buffer
-		s.Require().NoError(corpusview.Show(&out, o))
-
-		if first == "" {
-			first = out.String()
-		}
-
-		s.Require().Equal(first, out.String(),
-			"two categories used equally often must not shuffle between runs")
-	}
-}
-
-func (s *CorpusViewPublicTestSuite) TestFallsBackToTheBuiltInStatistics() {
-	var out bytes.Buffer
-	s.Require().NoError(corpusview.Show(&out, corpusview.Options{}))
-
-	s.Require().Contains(out.String(), "guitar")
-}
-
-func (s *CorpusViewPublicTestSuite) TestAMeasuredModelTheCatalogNeverHeardOf() {
-	// The corpus measures whatever presets contained; a catalog for one
-	// device will not carry all of it. Showing the identifier is more useful
-	// than pretending the model does not exist.
-	o := s.opts()
-	o.StatsPath = filepath.Join("testdata", "bands.json.gz")
-	o.Model = "HD2_GhostModel"
-
-	var out bytes.Buffer
-	s.Require().NoError(corpusview.Show(&out, o))
-
-	got := out.String()
-	s.Require().Contains(got, "HD2_GhostModel")
-	s.Require().Contains(got, "Drive")
-}
-
-func (s *CorpusViewPublicTestSuite) TestReportsProblems() {
+// TestShow prints what the corpus measured.
+func (s *CorpusViewPublicTestSuite) TestShow() {
 	tests := []struct {
-		name    string
-		mutate  func(*corpusview.Options)
-		want    error
-		message string
+		name       string
+		model      string
+		instrument string
+		// files to read instead of this suite's own.
+		stats   string
+		catalog string
+		// the statistics and catalog this binary ships, rather than fixtures.
+		builtIn bool
+		deaf    bool
+		// show it three times, for an ordering that must not shuffle.
+		stable bool
+
+		contains []string
+		err      error
+		errText  string
 	}{
 		{
-			"a model nobody used",
-			func(o *corpusview.Options) { o.Model = "HD2_NoSuchModel" },
-			corpusview.ErrNotMeasured, "no preset in the corpus uses",
-		},
-		{
-			"a statistics file that is not there",
-			func(o *corpusview.Options) { o.StatsPath = filepath.Join("testdata", "no.gz") },
-			nil, "opening",
-		},
-		{
-			"a statistics file that is not gzip",
-			func(o *corpusview.Options) {
-				o.StatsPath = filepath.Join("testdata", "notgzip.json.gz")
+			name:  "one model's distributions",
+			model: "HD2_AmpSVBeastNrm",
+			contains: []string{
+				// The model is named, not just identified.
+				"Ampeg SVT Nrm",
+				"Drive",
+				// The median is what people actually set.
+				"0.440",
+				// A parameter nobody varies says so.
+				"unanimous",
 			},
-			nil, "decoding",
 		},
 		{
-			"a catalog that is not there",
-			func(o *corpusview.Options) {
-				o.Model = "HD2_AmpSVBeastNrm"
-				o.CatalogPath = filepath.Join("testdata", "no.json")
+			name: "the grammar of a chain",
+			// Every drive in this corpus precedes the amp.
+			contains: []string{"bass", "drive", "100%"},
+		},
+		{
+			name:       "an instrument nobody measured",
+			instrument: "guitar",
+			contains:   []string{"nothing measured"},
+		},
+		{
+			// An unnamed model is shown by identifier rather than hidden.
+			name:     "a model the catalog does not name",
+			model:    "HD2_Cab8x10SVBeast",
+			catalog:  filepath.Join("testdata", "empty-catalog.json"),
+			contains: []string{"HD2_Cab8x10SVBeast"},
+		},
+		{
+			name:  "agreement, graded against each parameter's range",
+			stats: filepath.Join("testdata", "bands.json.gz"),
+			model: "HD2_AmpSVBeastNrm",
+			contains: []string{
+				// Each band must be reachable, or the grading says nothing.
+				"unanimous", "close", "loose", "none",
+				// A parameter the catalog does not carry has no range to
+				// grade against.
+				"Ghost",
 			},
-			nil, "catalog",
+		},
+		{
+			// Two categories used equally often must not shuffle between
+			// runs.
+			name:   "categories used equally often",
+			stats:  filepath.Join("testdata", "bands.json.gz"),
+			stable: true,
+		},
+		{
+			name:     "the statistics this binary ships",
+			builtIn:  true,
+			contains: []string{"guitar"},
+		},
+		{
+			// The corpus measures whatever presets contained; a catalog for
+			// one device will not carry all of it. Showing the identifier is
+			// more useful than pretending the model does not exist.
+			name:     "a measured model the catalog never heard of",
+			stats:    filepath.Join("testdata", "bands.json.gz"),
+			model:    "HD2_GhostModel",
+			contains: []string{"HD2_GhostModel", "Drive"},
+		},
+		{
+			name:     "a corpus nobody measured anything from",
+			stats:    filepath.Join("testdata", "empty.json.gz"),
+			contains: []string{"nothing measured"},
+		},
+		{
+			name:    "a model nobody used",
+			model:   "HD2_NoSuchModel",
+			err:     corpusview.ErrNotMeasured,
+			errText: "no preset in the corpus uses",
+		},
+		{
+			name:    "a statistics file that is not there",
+			stats:   filepath.Join("testdata", "no.gz"),
+			errText: "opening",
+		},
+		{
+			name:    "a statistics file that is not gzip",
+			stats:   filepath.Join("testdata", "notgzip.json.gz"),
+			errText: "decoding",
+		},
+		{
+			name:    "a catalog that is not there",
+			model:   "HD2_AmpSVBeastNrm",
+			catalog: filepath.Join("testdata", "no.json"),
+			errText: "catalog",
+		},
+		{name: "a writer that fails on the grammar", deaf: true},
+		{
+			name:  "a writer that fails on a model",
+			model: "HD2_AmpSVBeastNrm",
+			deaf:  true,
 		},
 	}
 
-	for _, tc := range tests {
-		s.Run(tc.name, func() {
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
 			o := s.opts()
-			tc.mutate(&o)
+			if tt.builtIn {
+				o = corpusview.Options{}
+			}
 
-			err := corpusview.Show(&bytes.Buffer{}, o)
+			o.Model = tt.model
+			o.Instrument = tt.instrument
 
-			s.Require().Error(err)
-			s.Require().Contains(err.Error(), tc.message)
+			if tt.stats != "" {
+				o.StatsPath = tt.stats
+			}
 
-			if tc.want != nil {
-				s.Require().ErrorIs(err, tc.want)
+			if tt.catalog != "" {
+				o.CatalogPath = tt.catalog
+			}
+
+			if tt.deaf {
+				s.Require().Error(corpusview.Show(&failingWriter{}, o))
+
+				return
+			}
+
+			var first string
+
+			runs := 1
+			if tt.stable {
+				runs = 3
+			}
+
+			for range runs {
+				var out bytes.Buffer
+
+				err := corpusview.Show(io.Writer(&out), o)
+
+				if tt.err != nil || tt.errText != "" {
+					s.Require().Error(err)
+
+					if tt.err != nil {
+						s.Require().ErrorIs(err, tt.err)
+					}
+
+					s.Require().Contains(err.Error(), tt.errText)
+
+					return
+				}
+
+				s.Require().NoError(err)
+
+				if first == "" {
+					first = out.String()
+				}
+
+				s.Require().Equal(first, out.String(),
+					"the same corpus must read the same way every run")
+
+				for _, want := range tt.contains {
+					s.Require().Contains(out.String(), want)
+				}
 			}
 		})
 	}
-}
-
-func (s *CorpusViewPublicTestSuite) TestReportsAWriterThatFails() {
-	o := s.opts()
-
-	s.Require().Error(corpusview.Show(&failingWriter{}, o))
-
-	o.Model = "HD2_AmpSVBeastNrm"
-	s.Require().Error(corpusview.Show(&failingWriter{}, o))
-}
-
-func (s *CorpusViewPublicTestSuite) TestSaysWhenNothingWasMeasured() {
-	o := s.opts()
-	o.StatsPath = filepath.Join("testdata", "empty.json.gz")
-
-	var out bytes.Buffer
-	s.Require().NoError(corpusview.Show(&out, o))
-
-	s.Require().Contains(out.String(), "nothing measured")
 }
 
 type failingWriter struct{}

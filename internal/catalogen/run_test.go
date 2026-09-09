@@ -17,12 +17,14 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
+
 package catalogen
 
 import (
 	"bytes"
 	"compress/gzip"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -46,27 +48,6 @@ func (s *RunTestSuite) opts(out string) Options {
 	}
 }
 
-func (s *RunTestSuite) TestRunWritesACatalogAndReportsIt() {
-	out := filepath.Join(s.T().TempDir(), "catalog.json")
-
-	var log bytes.Buffer
-	s.Require().NoError(Run(&log, s.opts(out)))
-
-	s.Require().FileExists(out)
-	s.Require().Contains(log.String(), "blocks for HX Stomp")
-	s.Require().Contains(log.String(), "mapped to real gear")
-}
-
-func (s *RunTestSuite) TestRunDefaultsTheSchemaVersion() {
-	out := filepath.Join(s.T().TempDir(), "catalog.json")
-
-	o := s.opts(out)
-	o.SchemaVersion = 0
-	s.Require().NoError(Run(&bytes.Buffer{}, o))
-
-	s.Require().Equal(6, s.written(out).SchemaVersion)
-}
-
 // written reads back a catalog this suite generated.
 //
 // The file is gzipped, because it is embedded in the binary and a catalog
@@ -86,27 +67,90 @@ func (s *RunTestSuite) written(path string) *catalog.Catalog {
 	return c
 }
 
-func (s *RunTestSuite) TestRunReportsAFailedBuild() {
-	o := s.opts(filepath.Join(s.T().TempDir(), "catalog.json"))
-	o.ResourcesDir = "testdata/does-not-exist"
+// TestRun builds a catalog out of somebody's HX Edit installation.
+func (s *RunTestSuite) TestRun() {
+	tests := []struct {
+		name       string
+		resources  string
+		out        string
+		deaf       bool
+		contains   []string
+		wantSchema int
+		err        error
+		errText    string
+	}{
+		{
+			name: "a catalog, and a report of what went into it",
+			contains: []string{
+				"blocks for HX Stomp",
+				"mapped to real gear",
+			},
+			// Nobody said which version to write, so it takes the current one.
+			wantSchema: 6,
+		},
+		{
+			name:      "resources that are not there",
+			resources: filepath.Join("testdata", "does-not-exist"),
+			err:       ErrNoResources,
+		},
+		{
+			name:    "nowhere to write it",
+			out:     filepath.Join("no", "such", "dir.json"),
+			errText: "writing",
+		},
+		{
+			name:    "a writer that fails",
+			deaf:    true,
+			errText: "reporting",
+		},
+	}
 
-	s.Require().ErrorIs(Run(&bytes.Buffer{}, o), ErrNoResources)
-}
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			dir := s.T().TempDir()
 
-func (s *RunTestSuite) TestRunReportsAnUnwritableDestination() {
-	err := Run(&bytes.Buffer{}, s.opts(filepath.Join(s.T().TempDir(), "no", "such", "dir.json")))
+			out := filepath.Join(dir, "catalog.json")
+			if tt.out != "" {
+				out = filepath.Join(dir, tt.out)
+			}
 
-	s.Require().Error(err)
-	s.Require().Contains(err.Error(), "writing")
-}
+			o := s.opts(out)
+			if tt.resources != "" {
+				o.ResourcesDir = tt.resources
+			}
 
-func (s *RunTestSuite) TestRunReportsAFailingWriter() {
-	out := filepath.Join(s.T().TempDir(), "catalog.json")
+			var buf bytes.Buffer
 
-	err := Run(&failingWriter{}, s.opts(out))
+			log := io.Writer(&buf)
+			if tt.deaf {
+				log = &failingWriter{}
+			}
 
-	s.Require().Error(err)
-	s.Require().Contains(err.Error(), "reporting")
+			err := Run(log, o)
+
+			if tt.err != nil || tt.errText != "" {
+				s.Require().Error(err)
+
+				if tt.err != nil {
+					s.Require().ErrorIs(err, tt.err)
+				}
+
+				if tt.errText != "" {
+					s.Require().Contains(err.Error(), tt.errText)
+				}
+
+				return
+			}
+
+			s.Require().NoError(err)
+			s.Require().FileExists(out)
+			s.Require().Equal(tt.wantSchema, s.written(out).SchemaVersion)
+
+			for _, want := range tt.contains {
+				s.Require().Contains(buf.String(), want)
+			}
+		})
+	}
 }
 
 type failingWriter struct{}

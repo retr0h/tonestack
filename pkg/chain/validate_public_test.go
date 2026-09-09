@@ -37,69 +37,81 @@ func (*ValidatePublicTestSuite) limits() chain.Limits {
 	return chain.Limits{MaxBlocks: 6, Paths: 2, ChipCeiling: 95.0}
 }
 
-func (s *ValidatePublicTestSuite) TestAcceptsAValidRig() {
-	spec := chain.Chain{
-		Name: "Fine",
-		Blocks: []chain.Block{{
-			Model:   "HD2_AmpTest",
-			Params:  map[string]catalog.ParamValue{"Gain": catalog.Float(0.5)},
-			DSP:     0,
-			Pos:     0,
-			Enabled: true,
-		}},
+// TestValidate composes the four layers, and the order they report in is
+// what this covers.
+//
+// Each row is wrong in more than one way at once, and names which complaint
+// has to come first. The order is what makes a failure actionable: being told
+// a block is over budget is no use when the model does not exist.
+func (s *ValidatePublicTestSuite) TestValidate() {
+	crowded := make([]chain.Block, 7)
+	for i := range crowded {
+		crowded[i] = chain.Block{Model: "HD2_AmpTest", DSP: 0, Pos: i}
 	}
 
-	s.Require().NoError(chain.Validate(newCatalog(testAmp()), spec, s.limits()))
-}
-
-func (s *ValidatePublicTestSuite) TestReportsStructureBeforeParams() {
-	spec := chain.Chain{Blocks: []chain.Block{{
-		Model:  "HD2_Nope",
-		Params: map[string]catalog.ParamValue{"Whatever": catalog.Float(99)},
-		Pos:    0,
-	}}}
-
-	s.Require().ErrorIs(
-		chain.Validate(newCatalog(testAmp()), spec, s.limits()),
-		chain.ErrUnknownBlock,
-	)
-}
-
-func (s *ValidatePublicTestSuite) TestReportsParamsBeforeTopology() {
-	spec := chain.Chain{Blocks: []chain.Block{{
-		Model:  "HD2_AmpTest",
-		Params: map[string]catalog.ParamValue{"Gain": catalog.Float(99)},
-		Pos:    3,
-	}}}
-
-	s.Require().ErrorIs(
-		chain.Validate(newCatalog(testAmp()), spec, s.limits()),
-		catalog.ErrBadParam,
-	)
-}
-
-func (s *ValidatePublicTestSuite) TestReportsTopologyBeforeBudget() {
-	blocks := make([]chain.Block, 7)
-	for i := range blocks {
-		blocks[i] = chain.Block{Model: "HD2_AmpTest", DSP: 0, Pos: i}
+	overBudget := make([]chain.Block, 4)
+	for i := range overBudget {
+		overBudget[i] = chain.Block{Model: "HD2_AmpTest", DSP: 0, Pos: i}
 	}
 
-	s.Require().ErrorIs(
-		chain.Validate(newCatalog(testAmp()), chain.Chain{Blocks: blocks}, s.limits()),
-		chain.ErrBadTopology,
-	)
-}
-
-func (s *ValidatePublicTestSuite) TestReportsBudgetLast() {
-	blocks := make([]chain.Block, 4)
-	for i := range blocks {
-		blocks[i] = chain.Block{Model: "HD2_AmpTest", DSP: 0, Pos: i}
+	tests := []struct {
+		name string
+		spec chain.Chain
+		is   error
+	}{
+		{
+			name: "a rig with nothing wrong with it",
+			spec: chain.Chain{
+				Name: "Fine",
+				Blocks: []chain.Block{{
+					Model:   "HD2_AmpTest",
+					Params:  map[string]catalog.ParamValue{"Gain": catalog.Float(0.5)},
+					Enabled: true,
+				}},
+			},
+		},
+		{
+			name: "an unknown model with a bad parameter: structure first",
+			spec: chain.Chain{Blocks: []chain.Block{{
+				Model:  "HD2_Nope",
+				Params: map[string]catalog.ParamValue{"Whatever": catalog.Float(99)},
+			}}},
+			is: chain.ErrUnknownBlock,
+		},
+		{
+			name: "a bad parameter at a bad position: parameters next",
+			spec: chain.Chain{Blocks: []chain.Block{{
+				Model:  "HD2_AmpTest",
+				Params: map[string]catalog.ParamValue{"Gain": catalog.Float(99)},
+				Pos:    3,
+			}}},
+			is: catalog.ErrBadParam,
+		},
+		{
+			name: "too many blocks, which are also too expensive: topology next",
+			spec: chain.Chain{Blocks: crowded},
+			is:   chain.ErrBadTopology,
+		},
+		{
+			name: "a chain that is only too expensive: budget last",
+			spec: chain.Chain{Blocks: overBudget},
+			is:   chain.ErrOverBudget,
+		},
 	}
 
-	s.Require().ErrorIs(
-		chain.Validate(newCatalog(testAmp()), chain.Chain{Blocks: blocks}, s.limits()),
-		chain.ErrOverBudget,
-	)
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			err := chain.Validate(newCatalog(testAmp()), tt.spec, s.limits())
+
+			if tt.is == nil {
+				s.Require().NoError(err)
+
+				return
+			}
+
+			s.Require().ErrorIs(err, tt.is)
+		})
+	}
 }
 
 func TestValidatePublicTestSuite(t *testing.T) {

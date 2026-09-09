@@ -106,11 +106,19 @@ func (s *DiscoverPublicTestSuite) TestDevices() {
 		descs  []sdk.Descriptor
 		fails  error
 		models []string
+		// the detail beside the name, for a device the table carries.
+		deviceID int
+		bus      int
 	}{
 		{
-			name:   "one this table can name",
-			descs:  []sdk.Descriptor{stomp()},
-			models: []string{"HX Stomp"},
+			// Two identifier systems: a device answers to a USB product on
+			// the bus and is named by a different number inside a preset.
+			// Both are needed and neither derives from the other.
+			name:     "one this table can name",
+			descs:    []sdk.Descriptor{stomp()},
+			models:   []string{"HX Stomp"},
+			deviceID: 2162694,
+			bus:      2,
 		},
 		{
 			name: "another vendor's device alongside it",
@@ -149,25 +157,15 @@ func (s *DiscoverPublicTestSuite) TestDevices() {
 
 			s.Require().NoError(err)
 			s.Require().Equal(tt.models, names(got))
+
+			if tt.deviceID == 0 {
+				return
+			}
+
+			s.Require().Equal(tt.deviceID, got[0].DeviceID)
+			s.Require().Equal(tt.bus, got[0].Descriptor.Bus)
 		})
 	}
-}
-
-// TestDevicesCarriesWhatTheBusSaid covers the detail beside the name, which
-// is one device rather than a set of cases.
-//
-// Two identifier systems: a device answers to a USB product on the bus and is
-// named by a different number inside a preset. Both are needed and neither
-// derives from the other.
-func (s *DiscoverPublicTestSuite) TestDevicesCarriesWhatTheBusSaid() {
-	got, err := sdk.Devices(context.Background(),
-		s.lister([]sdk.Descriptor{stomp()}, nil))
-
-	s.Require().NoError(err)
-	s.Require().Len(got, 1)
-	s.Require().Equal("HX Stomp", got[0].Model)
-	s.Require().Equal(2162694, got[0].DeviceID)
-	s.Require().Equal(2, got[0].Descriptor.Bus)
 }
 
 // TestFirst picks one when a person did not say which.

@@ -42,126 +42,198 @@ func (s *SymbolsTestSuite) write(body string) string {
 	return dir
 }
 
-func (s *SymbolsTestSuite) TestReadsTheTable() {
-	got, err := readSymbols(s.write(`[
-		{ "symbol": "HD2_AmpSVBeastNrm",
-		  "parameters": [ "Drive", "Bass", "Mid" ] },
-		{ "symbol": "HD2_Cab8x10SVBeast", "parameters": [ "Distance" ] }
-	]`))
+// TestReadSymbols reads the table a device names its models by.
+func (s *SymbolsTestSuite) TestReadSymbols() {
+	tests := []struct {
+		name    string
+		body    string
+		absent  bool
+		locked  bool
+		wantIDs []string
+		params  []string
+		errText string
+	}{
+		{
+			name: "a table two models long",
+			body: `[
+				{ "symbol": "HD2_AmpSVBeastNrm",
+				  "parameters": [ "Drive", "Bass", "Mid" ] },
+				{ "symbol": "HD2_Cab8x10SVBeast",
+				  "parameters": [ "Distance" ] }
+			]`,
+			// Position is the whole point: a device names a model by where it
+			// sits.
+			wantIDs: []string{"HD2_AmpSVBeastNrm", "HD2_Cab8x10SVBeast"},
+			params:  []string{"Drive", "Bass", "Mid"},
+		},
+		{
+			// A catalog without the table still describes what the device can
+			// do. Only reading a preset off the hardware needs it.
+			name:   "an installation without one",
+			absent: true,
+		},
+		{
+			name:    "a table that will not parse",
+			body:    "not json",
+			errText: symbolFile,
+		},
+		{
+			name:   "a table it cannot read",
+			body:   "[]",
+			locked: true,
+		},
+	}
 
-	s.Require().NoError(err)
-	s.Require().Len(got, 2)
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			dir := s.T().TempDir()
+			if !tt.absent {
+				dir = s.write(tt.body)
+			}
 
-	// Position is the whole point: a device names a model by where it sits.
-	s.Require().Equal("HD2_AmpSVBeastNrm", string(got[0].ID))
-	s.Require().Equal([]string{"Drive", "Bass", "Mid"}, got[0].Params)
-	s.Require().Equal("HD2_Cab8x10SVBeast", string(got[1].ID))
+			if tt.locked {
+				s.Require().NoError(
+					os.Chmod(filepath.Join(dir, symbolFile), 0o000))
+			}
+
+			got, err := readSymbols(dir)
+
+			if tt.errText != "" || tt.locked {
+				s.Require().Error(err)
+
+				if tt.errText != "" {
+					s.Require().Contains(err.Error(), tt.errText)
+				}
+
+				return
+			}
+
+			s.Require().NoError(err)
+			s.Require().Len(got, len(tt.wantIDs))
+
+			for i, want := range tt.wantIDs {
+				s.Require().Equal(want, string(got[i].ID))
+			}
+
+			if tt.params != nil {
+				s.Require().Equal(tt.params, got[0].Params)
+			}
+		})
+	}
 }
 
-func (s *SymbolsTestSuite) TestAnInstallationWithoutOneIsNotAFailure() {
-	// A catalog without the table still describes what the device can do.
-	// Only reading a preset off the hardware needs it.
-	got, err := readSymbols(s.T().TempDir())
+// TestReadLEDColours reads the colours a device names its switches by.
+func (s *SymbolsTestSuite) TestReadLEDColours() {
+	tests := []struct {
+		name    string
+		body    string
+		absent  bool
+		locked  bool
+		want    []string
+		errText string
+	}{
+		{
+			name: "the colours themselves",
+			body: `{
+				"blend": { "format": "%.0f" },
+				"footswitchLED": { "isDiscrete": true,
+				  "format": ["Auto Color", "White", "Green", "Violet"] }
+			}`,
+			want: []string{"auto color", "white", "green", "violet"},
+		},
+		{
+			name:   "an installation without them",
+			absent: true,
+		},
+		{
+			name:    "a file that will not parse",
+			body:    "not json",
+			errText: controlsFile,
+		},
+		{
+			name:    "a colour list of the wrong shape",
+			body:    `{"footswitchLED": {"format": "%.0f"}}`,
+			errText: ledControl,
+		},
+		{
+			name:   "a file it cannot read",
+			body:   "{}",
+			locked: true,
+		},
+	}
 
-	s.Require().NoError(err)
-	s.Require().Nil(got)
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			dir := s.T().TempDir()
+			path := filepath.Join(dir, controlsFile)
+
+			if !tt.absent {
+				s.Require().NoError(os.WriteFile(path, []byte(tt.body), 0o600))
+			}
+
+			if tt.locked {
+				s.Require().NoError(os.Chmod(path, 0o000))
+			}
+
+			got, err := readLEDColours(dir)
+
+			if tt.errText != "" || tt.locked {
+				s.Require().Error(err)
+
+				if tt.errText != "" {
+					s.Require().Contains(err.Error(), tt.errText)
+				}
+
+				return
+			}
+
+			s.Require().NoError(err)
+			s.Require().Equal(tt.want, got)
+		})
+	}
 }
 
-func (s *SymbolsTestSuite) TestReportsATableThatWillNotParse() {
-	_, err := readSymbols(s.write("not json"))
+// TestBuildReportsAnInstallationItCannotRead covers what Build does with the
+// two files this one owns. A catalog is generated from somebody's own
+// installation, and a file in it that cannot be read is worth complaining
+// about rather than quietly producing a catalog nothing can name a model with.
+func (s *SymbolsTestSuite) TestBuildReportsAnInstallationItCannotRead() {
+	tests := []struct {
+		name     string
+		symbols  string
+		controls string
+		errText  string
+	}{
+		{
+			name:     "colours that will not parse",
+			symbols:  "[]",
+			controls: "not json",
+			errText:  controlsFile,
+		},
+		{
+			name:    "a symbol table that will not parse",
+			symbols: "not json",
+			errText: symbolFile,
+		},
+	}
 
-	s.Require().Error(err)
-	s.Require().Contains(err.Error(), symbolFile)
-}
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			dir := s.write(tt.symbols)
+			s.Require().NoError(os.WriteFile(
+				filepath.Join(dir, "amp.models"), []byte("[]"), 0o600))
 
-func (s *SymbolsTestSuite) TestReportsATableItCannotRead() {
-	dir := s.write("[]")
-	s.Require().NoError(os.Chmod(filepath.Join(dir, symbolFile), 0o000))
+			if tt.controls != "" {
+				s.Require().NoError(os.WriteFile(
+					filepath.Join(dir, controlsFile), []byte(tt.controls), 0o600))
+			}
 
-	_, err := readSymbols(dir)
+			_, err := Build(Options{ResourcesDir: dir, DeviceID: 1})
 
-	s.Require().Error(err)
-}
-
-func (s *SymbolsTestSuite) TestReadsTheColoursADeviceNamesItsSwitchesBy() {
-	dir := s.write("[]")
-	s.Require().NoError(os.WriteFile(filepath.Join(dir, controlsFile), []byte(`{
-		"blend": { "format": "%.0f" },
-		"footswitchLED": { "isDiscrete": true,
-		  "format": ["Auto Color", "White", "Green", "Violet"] }
-	}`), 0o600))
-
-	got, err := readLEDColours(dir)
-
-	s.Require().NoError(err)
-	s.Require().Equal([]string{"auto color", "white", "green", "violet"}, got)
-}
-
-func (s *SymbolsTestSuite) TestAnInstallationWithoutColours() {
-	got, err := readLEDColours(s.T().TempDir())
-
-	s.Require().NoError(err)
-	s.Require().Nil(got)
-}
-
-func (s *SymbolsTestSuite) TestReportsColoursThatWillNotParse() {
-	dir := s.T().TempDir()
-	s.Require().NoError(os.WriteFile(
-		filepath.Join(dir, controlsFile), []byte("not json"), 0o600))
-
-	_, err := readLEDColours(dir)
-
-	s.Require().Error(err)
-	s.Require().Contains(err.Error(), controlsFile)
-}
-
-func (s *SymbolsTestSuite) TestReportsAColourListOfTheWrongShape() {
-	dir := s.T().TempDir()
-	s.Require().NoError(os.WriteFile(filepath.Join(dir, controlsFile),
-		[]byte(`{"footswitchLED": {"format": "%.0f"}}`), 0o600))
-
-	_, err := readLEDColours(dir)
-
-	s.Require().Error(err)
-	s.Require().Contains(err.Error(), ledControl)
-}
-
-func (s *SymbolsTestSuite) TestReportsColoursItCannotRead() {
-	dir := s.T().TempDir()
-	path := filepath.Join(dir, controlsFile)
-	s.Require().NoError(os.WriteFile(path, []byte("{}"), 0o600))
-	s.Require().NoError(os.Chmod(path, 0o000))
-
-	_, err := readLEDColours(dir)
-
-	s.Require().Error(err)
-}
-
-func (s *SymbolsTestSuite) TestBuildReportsColoursItCannotRead() {
-	dir := s.write("[]")
-	s.Require().NoError(os.WriteFile(
-		filepath.Join(dir, "amp.models"), []byte("[]"), 0o600))
-	s.Require().NoError(os.WriteFile(
-		filepath.Join(dir, controlsFile), []byte("not json"), 0o600))
-
-	_, err := Build(Options{ResourcesDir: dir, DeviceID: 1})
-
-	s.Require().Error(err)
-	s.Require().Contains(err.Error(), controlsFile)
-}
-
-func (s *SymbolsTestSuite) TestBuildReportsATableItCannotRead() {
-	// A catalog is generated from somebody's own installation, and a file in
-	// it that cannot be read is worth complaining about rather than quietly
-	// producing a catalog nothing can name a model with.
-	dir := s.write("not json")
-	s.Require().NoError(os.WriteFile(
-		filepath.Join(dir, "amp.models"), []byte("[]"), 0o600))
-
-	_, err := Build(Options{ResourcesDir: dir, DeviceID: 1})
-
-	s.Require().Error(err)
-	s.Require().Contains(err.Error(), symbolFile)
+			s.Require().Error(err)
+			s.Require().Contains(err.Error(), tt.errText)
+		})
+	}
 }
 
 func TestSymbolsTestSuite(t *testing.T) {

@@ -54,132 +54,193 @@ func evidence(kinds ...gen.EvidenceKind) *[]gen.Evidence {
 	return &out
 }
 
-func (s *ReadPublicTestSuite) TestGearFindsARole() {
-	got, ok := rig.Gear(spec(
-		gen.ChainEntry{Role: gen.RoleDrive, Gear: "Klon Centaur"},
-		gen.ChainEntry{Role: gen.RoleAmp, Gear: "Ampeg SVT"},
-	), gen.RoleAmp)
-
-	s.Require().True(ok)
-	s.Require().Equal("Ampeg SVT", got.Gear)
-}
-
-func (s *ReadPublicTestSuite) TestGearReportsARoleTheChainDoesNotHave() {
-	_, ok := rig.Gear(spec(gen.ChainEntry{Role: gen.RoleAmp}), gen.RoleCab)
-
-	s.Require().False(ok)
-}
-
-func (s *ReadPublicTestSuite) TestGearNameIsEmptyForARoleTheChainLacks() {
-	s.Require().Empty(rig.GearName(spec(), gen.RoleAmp))
-}
-
-func (s *ReadPublicTestSuite) TestGearNameNamesTheGear() {
-	s.Require().Equal("Ampeg SVT", rig.GearName(
-		spec(gen.ChainEntry{Role: gen.RoleAmp, Gear: "Ampeg SVT"}), gen.RoleAmp))
-}
-
-func (s *ReadPublicTestSuite) TestAClaimNobodySupportedIsNotTrusted() {
-	s.Require().False(rig.Trusted(spec(gen.ChainEntry{Role: gen.RoleAmp})))
-}
-
-func (s *ReadPublicTestSuite) TestAnAssertionAloneIsNotTrusted() {
-	// `llm` means a model said so and nobody checked, which is the same
-	// standing as nobody having said anything.
-	s.Require().False(rig.Trusted(spec(gen.ChainEntry{
-		Role: gen.RoleAmp, Evidence: evidence(gen.EvidenceLLM),
-	})))
-}
-
-func (s *ReadPublicTestSuite) TestOneUnsupportedClaimIsEnoughToDistrustARig() {
-	s.Require().False(rig.Trusted(spec(
-		gen.ChainEntry{Role: gen.RoleAmp, Evidence: evidence(gen.EvidenceCited)},
-		gen.ChainEntry{Role: gen.RoleCab, Evidence: evidence(gen.EvidenceLLM)},
-	)))
-}
-
-func (s *ReadPublicTestSuite) TestEveryClaimSupportedIsTrusted() {
-	s.Require().True(rig.Trusted(spec(
-		gen.ChainEntry{Role: gen.RoleAmp, Evidence: evidence(gen.EvidenceCited)},
-		gen.ChainEntry{Role: gen.RoleCab, Evidence: evidence(gen.EvidenceVideo)},
-	)))
-}
-
-func (s *ReadPublicTestSuite) TestEvidenceOnTheRigCoversTheWholeChain() {
-	// A rig rundown covers every piece of gear in it. Requiring the citation
-	// on each entry would only encourage repeating it.
-	r := spec(gen.ChainEntry{Role: gen.RoleAmp})
-	r.Evidence = evidence(gen.EvidenceCited)
-
-	s.Require().True(rig.Trusted(r))
-}
-
-func (s *ReadPublicTestSuite) TestARigWithNoChainIsNotTrusted() {
-	s.Require().False(rig.Trusted(spec()))
-}
-
-func (s *ReadPublicTestSuite) TestSourcedNamesTheStrongestEvidence() {
-	r := spec(
-		gen.ChainEntry{Role: gen.RoleAmp, Evidence: evidence(gen.EvidenceLLM)},
-		gen.ChainEntry{Role: gen.RoleCab, Evidence: evidence(gen.EvidenceCited)},
-	)
-	r.Evidence = evidence(gen.EvidenceCorpus)
-
-	s.Require().Equal(gen.EvidenceCited, rig.Sourced(r))
-}
-
-func (s *ReadPublicTestSuite) TestSourcedRanksAPersonAboveEverything() {
-	// Nothing in this project can hear, so somebody who listened outranks any
-	// citation.
-	s.Require().Equal(gen.EvidenceUser, rig.Sourced(spec(gen.ChainEntry{
-		Role: gen.RoleAmp,
-		Evidence: evidence(
-			gen.EvidenceMeasured, gen.EvidenceUser, gen.EvidenceCited),
-	})))
-}
-
-func (s *ReadPublicTestSuite) TestSourcedRanksEveryKind() {
-	for _, tc := range []struct {
+// TestGear looks a role up in a chain.
+func (s *ReadPublicTestSuite) TestGear() {
+	tests := []struct {
 		name  string
-		kinds []gen.EvidenceKind
-		want  gen.EvidenceKind
+		chain []gen.ChainEntry
+		role  gen.Role
+		want  string
+		ok    bool
 	}{
-		{"measured over cited", []gen.EvidenceKind{
-			gen.EvidenceCited, gen.EvidenceMeasured,
-		}, gen.EvidenceMeasured},
-		{"cited over video", []gen.EvidenceKind{
-			gen.EvidenceVideo, gen.EvidenceCited,
-		}, gen.EvidenceCited},
-		{"video over audio", []gen.EvidenceKind{
-			gen.EvidenceAudio, gen.EvidenceVideo,
-		}, gen.EvidenceVideo},
-		{"audio over corpus", []gen.EvidenceKind{
-			gen.EvidenceCorpus, gen.EvidenceAudio,
-		}, gen.EvidenceAudio},
-		{"corpus over an assertion", []gen.EvidenceKind{
-			gen.EvidenceLLM, gen.EvidenceCorpus,
-		}, gen.EvidenceCorpus},
-		{"a kind nobody has ranked", []gen.EvidenceKind{
-			gen.EvidenceKind("seance"),
-		}, gen.EvidenceKind("seance")},
-		{"an unranked kind does not outrank a known one", []gen.EvidenceKind{
-			gen.EvidenceCorpus, gen.EvidenceKind("seance"),
-		}, gen.EvidenceCorpus},
-	} {
-		s.Run(tc.name, func() {
-			s.Require().Equal(tc.want, rig.Sourced(spec(gen.ChainEntry{
-				Role: gen.RoleAmp, Evidence: evidence(tc.kinds...),
-			})))
+		{
+			name: "a role the chain has",
+			chain: []gen.ChainEntry{
+				{Role: gen.RoleDrive, Gear: "Klon Centaur"},
+				{Role: gen.RoleAmp, Gear: "Ampeg SVT"},
+			},
+			role: gen.RoleAmp,
+			want: "Ampeg SVT",
+			ok:   true,
+		},
+		{
+			name:  "a role it does not",
+			chain: []gen.ChainEntry{{Role: gen.RoleAmp}},
+			role:  gen.RoleCab,
+		},
+		{
+			name: "an empty chain",
+			role: gen.RoleAmp,
+		},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			got, ok := rig.Gear(spec(tt.chain...), tt.role)
+
+			s.Require().Equal(tt.ok, ok)
+			s.Require().Equal(tt.want, got.Gear)
+
+			// GearName is the same lookup with the miss spelled as an empty
+			// name, which is what a template wants.
+			s.Require().Equal(tt.want, rig.GearName(spec(tt.chain...), tt.role))
 		})
 	}
 }
 
-func (s *ReadPublicTestSuite) TestSourcedOnARigNobodySupported() {
-	// Nothing said where it came from, which is the same standing as a model
-	// having asserted it.
-	s.Require().Equal(gen.EvidenceLLM, rig.Sourced(spec(
-		gen.ChainEntry{Role: gen.RoleAmp},
-	)))
+// TestTrusted says whether every claim in a rig is supported.
+func (s *ReadPublicTestSuite) TestTrusted() {
+	tests := []struct {
+		name  string
+		chain []gen.ChainEntry
+		rig   []gen.EvidenceKind
+		want  bool
+	}{
+		{
+			name:  "a claim nobody supported",
+			chain: []gen.ChainEntry{{Role: gen.RoleAmp}},
+		},
+		{
+			// `llm` means a model said so and nobody checked, which is the
+			// same standing as nobody having said anything.
+			name: "an assertion alone",
+			chain: []gen.ChainEntry{
+				{Role: gen.RoleAmp, Evidence: evidence(gen.EvidenceLLM)},
+			},
+		},
+		{
+			name: "one unsupported claim among supported ones",
+			chain: []gen.ChainEntry{
+				{Role: gen.RoleAmp, Evidence: evidence(gen.EvidenceCited)},
+				{Role: gen.RoleCab, Evidence: evidence(gen.EvidenceLLM)},
+			},
+		},
+		{
+			name: "every claim supported",
+			chain: []gen.ChainEntry{
+				{Role: gen.RoleAmp, Evidence: evidence(gen.EvidenceCited)},
+				{Role: gen.RoleCab, Evidence: evidence(gen.EvidenceVideo)},
+			},
+			want: true,
+		},
+		{
+			// A rig rundown covers every piece of gear in it. Requiring the
+			// citation on each entry would only encourage repeating it.
+			name:  "evidence on the rig, covering the whole chain",
+			chain: []gen.ChainEntry{{Role: gen.RoleAmp}},
+			rig:   []gen.EvidenceKind{gen.EvidenceCited},
+			want:  true,
+		},
+		{name: "a rig with no chain at all"},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			r := spec(tt.chain...)
+			if tt.rig != nil {
+				r.Evidence = evidence(tt.rig...)
+			}
+
+			s.Require().Equal(tt.want, rig.Trusted(r))
+		})
+	}
+}
+
+// TestSourced names the strongest evidence anywhere in a rig.
+func (s *ReadPublicTestSuite) TestSourced() {
+	tests := []struct {
+		name  string
+		kinds []gen.EvidenceKind
+		rig   []gen.EvidenceKind
+		want  gen.EvidenceKind
+	}{
+		{
+			// Nothing in this project can hear, so somebody who listened
+			// outranks any citation.
+			name: "a person, above everything",
+			kinds: []gen.EvidenceKind{
+				gen.EvidenceMeasured, gen.EvidenceUser, gen.EvidenceCited,
+			},
+			want: gen.EvidenceUser,
+		},
+		{
+			name: "measured over cited",
+			kinds: []gen.EvidenceKind{
+				gen.EvidenceCited, gen.EvidenceMeasured,
+			},
+			want: gen.EvidenceMeasured,
+		},
+		{
+			name:  "cited over video",
+			kinds: []gen.EvidenceKind{gen.EvidenceVideo, gen.EvidenceCited},
+			want:  gen.EvidenceCited,
+		},
+		{
+			name:  "video over audio",
+			kinds: []gen.EvidenceKind{gen.EvidenceAudio, gen.EvidenceVideo},
+			want:  gen.EvidenceVideo,
+		},
+		{
+			name:  "audio over corpus",
+			kinds: []gen.EvidenceKind{gen.EvidenceCorpus, gen.EvidenceAudio},
+			want:  gen.EvidenceAudio,
+		},
+		{
+			name:  "corpus over an assertion",
+			kinds: []gen.EvidenceKind{gen.EvidenceLLM, gen.EvidenceCorpus},
+			want:  gen.EvidenceCorpus,
+		},
+		{
+			name:  "a kind nobody has ranked",
+			kinds: []gen.EvidenceKind{gen.EvidenceKind("seance")},
+			want:  gen.EvidenceKind("seance"),
+		},
+		{
+			name: "an unranked kind, which does not outrank a known one",
+			kinds: []gen.EvidenceKind{
+				gen.EvidenceCorpus, gen.EvidenceKind("seance"),
+			},
+			want: gen.EvidenceCorpus,
+		},
+		{
+			name:  "the chain, beating what the rig itself carries",
+			kinds: []gen.EvidenceKind{gen.EvidenceCited},
+			rig:   []gen.EvidenceKind{gen.EvidenceCorpus},
+			want:  gen.EvidenceCited,
+		},
+		{
+			// Nothing said where it came from, which is the same standing as
+			// a model having asserted it.
+			name: "a rig nobody supported",
+			want: gen.EvidenceLLM,
+		},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			entry := gen.ChainEntry{Role: gen.RoleAmp}
+			if tt.kinds != nil {
+				entry.Evidence = evidence(tt.kinds...)
+			}
+
+			r := spec(entry)
+			if tt.rig != nil {
+				r.Evidence = evidence(tt.rig...)
+			}
+
+			s.Require().Equal(tt.want, rig.Sourced(r))
+		})
+	}
 }
 
 func TestReadPublicTestSuite(t *testing.T) {

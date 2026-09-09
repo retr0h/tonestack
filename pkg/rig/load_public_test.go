@@ -23,6 +23,7 @@ package rig_test
 import (
 	"bytes"
 	"errors"
+	"io"
 	"strings"
 	"testing"
 
@@ -45,81 +46,122 @@ chain:
   - { role: amp, gear: Ampeg SVT }
 `
 
-func (s *LoadPublicTestSuite) TestReadsARig() {
-	got, err := rig.Load(strings.NewReader(smallest))
-
-	s.Require().NoError(err)
-	s.Require().Equal("mike-dirnt", got.ID)
-	s.Require().Equal("Mike Dirnt", got.Subject.Name)
-	s.Require().Equal(gen.InstrumentBass, got.Instrument)
-	s.Require().Len(got.Chain, 1)
-	s.Require().Equal("Ampeg SVT", got.Chain[0].Gear)
-}
-
-func (s *LoadPublicTestSuite) TestWhatIsWrittenReadsBack() {
-	first, err := rig.Load(strings.NewReader(smallest))
-	s.Require().NoError(err)
-
-	var out bytes.Buffer
-	s.Require().NoError(rig.Write(&out, first))
-
-	again, err := rig.Load(&out)
-
-	s.Require().NoError(err)
-	s.Require().Equal(first, again)
-}
-
-func (s *LoadPublicTestSuite) TestRefusesWhatIsNotARig() {
+// TestLoad reads a rig off a reader.
+func (s *LoadPublicTestSuite) TestLoad() {
 	tests := []struct {
-		name    string
-		in      string
-		message string
+		name string
+		in   string
+		// a reader that fails outright.
+		deaf    bool
+		errText string
 	}{
-		{"something that is not YAML", "\tnope: [", "decoding rig"},
+		{name: "the smallest rig there is", in: smallest},
 		{
-			"a preset, which is a different kind of document",
-			`{"schema":"L6Preset","version":6}`,
-			"not a valid rig",
+			name:    "something that is not YAML",
+			in:      "\tnope: [",
+			errText: "decoding rig",
 		},
 		{
-			"a rig holding no chain",
-			"schema: RigSpec\nid: x\nsubject: {kind: artist, name: X}\n" +
+			name:    "a preset, which is a different kind of document",
+			in:      `{"schema":"L6Preset","version":6}`,
+			errText: "not a valid rig",
+		},
+		{
+			name: "a rig holding no chain",
+			in: "schema: RigSpec\nid: x\nsubject: {kind: artist, name: X}\n" +
 				"instrument: bass\nchain: []\n",
-			"chain minimum number of items is 1",
+			errText: "chain minimum number of items is 1",
 		},
+		{name: "a reader that fails", deaf: true, errText: "reading rig"},
 	}
 
-	for _, tc := range tests {
-		s.Run(tc.name, func() {
-			_, err := rig.Load(strings.NewReader(tc.in))
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			in := io.Reader(strings.NewReader(tt.in))
+			if tt.deaf {
+				in = &failingReader{}
+			}
 
-			s.Require().Error(err)
-			s.Require().Contains(err.Error(), tc.message)
+			got, err := rig.Load(in)
+
+			if tt.errText != "" {
+				s.Require().Error(err)
+				s.Require().Contains(err.Error(), tt.errText)
+
+				return
+			}
+
+			s.Require().NoError(err)
+			s.Require().Equal("mike-dirnt", got.ID)
+			s.Require().Equal("Mike Dirnt", got.Subject.Name)
+			s.Require().Equal(gen.InstrumentBass, got.Instrument)
+			s.Require().Len(got.Chain, 1)
+			s.Require().Equal("Ampeg SVT", got.Chain[0].Gear)
 		})
 	}
 }
 
-func (s *LoadPublicTestSuite) TestRefusesToWriteOneThatIsNotValid() {
-	err := rig.Write(&bytes.Buffer{}, gen.RigSpec{})
+// TestWrite writes a rig back out.
+func (s *LoadPublicTestSuite) TestWrite() {
+	tests := []struct {
+		name string
+		// a rig read from this document, or the zero rig, which is not one.
+		in      string
+		deaf    bool
+		err     error
+		errText string
+	}{
+		{name: "a rig, which reads back as itself", in: smallest},
+		{name: "a rig that is not one", err: rig.ErrInvalid},
+		{
+			name:    "a writer that fails",
+			in:      smallest,
+			deaf:    true,
+			errText: "writing rig",
+		},
+	}
 
-	s.Require().ErrorIs(err, rig.ErrInvalid)
-}
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			var spec gen.RigSpec
 
-func (s *LoadPublicTestSuite) TestReportsAReaderThatFails() {
-	_, err := rig.Load(&failingReader{})
+			if tt.in != "" {
+				got, err := rig.Load(strings.NewReader(tt.in))
+				s.Require().NoError(err)
 
-	s.Require().Error(err)
-	s.Require().Contains(err.Error(), "reading rig")
-}
+				spec = got
+			}
 
-func (s *LoadPublicTestSuite) TestReportsAWriterThatFails() {
-	spec, err := rig.Load(strings.NewReader(smallest))
-	s.Require().NoError(err)
+			var buf bytes.Buffer
 
-	err = rig.Write(&failingWriter{}, spec)
+			out := io.Writer(&buf)
+			if tt.deaf {
+				out = &failingWriter{}
+			}
 
-	s.Require().Error(err)
-	s.Require().Contains(err.Error(), "writing rig")
+			err := rig.Write(out, spec)
+
+			if tt.err != nil || tt.errText != "" {
+				s.Require().Error(err)
+
+				if tt.err != nil {
+					s.Require().ErrorIs(err, tt.err)
+				}
+
+				if tt.errText != "" {
+					s.Require().Contains(err.Error(), tt.errText)
+				}
+
+				return
+			}
+
+			s.Require().NoError(err)
+
+			again, err := rig.Load(&buf)
+			s.Require().NoError(err)
+			s.Require().Equal(spec, again)
+		})
+	}
 }
 
 type failingReader struct{}

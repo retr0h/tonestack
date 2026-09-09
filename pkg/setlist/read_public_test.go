@@ -44,92 +44,168 @@ func (s *ReadPublicTestSuite) read(name string) (*setlist.Document, error) {
 	return setlist.Read(f)
 }
 
-func (s *ReadPublicTestSuite) TestReadDecodesASetlist() {
-	doc, err := s.read("setlist.hls")
-
-	s.Require().NoError(err)
-	s.Require().Equal(setlist.SchemaSetlist, doc.Schema)
-	s.Require().Equal(2, doc.Version)
-	s.Require().Len(doc.Setlists, 1)
-	s.Require().Equal("Test Setlist", doc.Setlists[0].Name())
-	s.Require().Len(doc.Setlists[0].Slots, 4)
-	s.Require().Equal("First", doc.Setlists[0].Slots[0].Meta.Name)
-}
-
-func (s *ReadPublicTestSuite) TestReadDecodesABundle() {
-	doc, err := s.read("bundle.hlb")
-
-	s.Require().NoError(err)
-	s.Require().Equal(setlist.SchemaBundle, doc.Schema)
-	s.Require().Len(doc.Setlists, 2)
-	s.Require().Equal("Second Setlist", doc.Setlists[1].Name())
-	s.Require().Equal("Only", doc.Setlists[1].Slots[0].Meta.Name)
-}
-
-func (s *ReadPublicTestSuite) TestReadRejects() {
+// TestRead decodes a setlist or a bundle.
+func (s *ReadPublicTestSuite) TestRead() {
 	tests := []struct {
 		name    string
 		fixture string
-		want    error
-		message string
+		// what the document must say once it is read.
+		schema    string
+		version   int
+		setlists  int
+		named     map[int]string
+		slots     map[int]int
+		firstSlot map[int]string
+
+		err     error
+		errText string
 	}{
-		{"a preset", "notasetlist.hls", setlist.ErrNotASetlist, "schema is"},
-		{"a file with no schema", "noschema.hls", setlist.ErrNotASetlist, "no schema field"},
-		{"something that is not JSON", "notjson.hls", nil, "decoding setlist"},
-		{"a bad checksum", "badcrc.hls", setlist.ErrCorrupt, "checksum"},
-		{"a bad size", "badsize.hls", setlist.ErrCorrupt, "decompressed size"},
-		{"data that is not base64", "badbase64.hls", nil, "decoding encoded_data"},
-		{"data that is not zlib", "badzlib.hls", nil, "opening compressed payload"},
-		{"a truncated stream", "truncated.hls", nil, "decompressing payload"},
-		{"a payload that is not JSON", "badpayload.hls", nil, "decoding setlist payload"},
 		{
-			"a bundle payload that is not JSON", "badbundlepayload.hlb",
-			nil, "decoding bundle payload",
+			name:      "a setlist",
+			fixture:   "setlist.hls",
+			schema:    setlist.SchemaSetlist,
+			version:   2,
+			setlists:  1,
+			named:     map[int]string{0: "Test Setlist"},
+			slots:     map[int]int{0: 4},
+			firstSlot: map[int]string{0: "First"},
+		},
+		{
+			name:      "a bundle holding several",
+			fixture:   "bundle.hlb",
+			schema:    setlist.SchemaBundle,
+			version:   1,
+			setlists:  2,
+			named:     map[int]string{1: "Second Setlist"},
+			firstSlot: map[int]string{1: "Only"},
+		},
+		{
+			name:    "a preset",
+			fixture: "notasetlist.hls",
+			err:     setlist.ErrNotASetlist,
+			errText: "schema is",
+		},
+		{
+			name:    "a file with no schema",
+			fixture: "noschema.hls",
+			err:     setlist.ErrNotASetlist,
+			errText: "no schema field",
+		},
+		{
+			name:    "something that is not JSON",
+			fixture: "notjson.hls",
+			errText: "decoding setlist",
+		},
+		{
+			name:    "a bad checksum",
+			fixture: "badcrc.hls",
+			err:     setlist.ErrCorrupt,
+			errText: "checksum",
+		},
+		{
+			name:    "a bad size",
+			fixture: "badsize.hls",
+			err:     setlist.ErrCorrupt,
+			errText: "decompressed size",
+		},
+		{
+			name:    "data that is not base64",
+			fixture: "badbase64.hls",
+			errText: "decoding encoded_data",
+		},
+		{
+			name:    "data that is not zlib",
+			fixture: "badzlib.hls",
+			errText: "opening compressed payload",
+		},
+		{
+			name:    "a truncated stream",
+			fixture: "truncated.hls",
+			errText: "decompressing payload",
+		},
+		{
+			name:    "a payload that is not JSON",
+			fixture: "badpayload.hls",
+			errText: "decoding setlist payload",
+		},
+		{
+			name:    "a bundle payload that is not JSON",
+			fixture: "badbundlepayload.hlb",
+			errText: "decoding bundle payload",
 		},
 	}
 
-	for _, tc := range tests {
-		s.Run(tc.name, func() {
-			_, err := s.read(tc.fixture)
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			got, err := s.read(tt.fixture)
 
-			s.Require().Error(err)
-			s.Require().Contains(err.Error(), tc.message)
+			if tt.errText != "" {
+				s.Require().Error(err)
+				s.Require().Contains(err.Error(), tt.errText)
 
-			if tc.want != nil {
-				s.Require().ErrorIs(err, tc.want)
+				if tt.err != nil {
+					s.Require().ErrorIs(err, tt.err)
+				}
+
+				return
+			}
+
+			s.Require().NoError(err)
+			s.Require().Equal(tt.schema, got.Schema)
+			s.Require().Equal(tt.version, got.Version)
+			s.Require().Len(got.Setlists, tt.setlists)
+
+			for at, want := range tt.named {
+				s.Require().Equal(want, got.Setlists[at].Name())
+			}
+
+			for at, want := range tt.slots {
+				s.Require().Len(got.Setlists[at].Slots, want)
+			}
+
+			for at, want := range tt.firstSlot {
+				s.Require().Equal(want, got.Setlists[at].Slots[0].Meta.Name)
 			}
 		})
 	}
 }
 
+// TestSlot addresses one slot of one setlist.
 func (s *ReadPublicTestSuite) TestSlot() {
-	doc, err := s.read("setlist.hls")
-	s.Require().NoError(err)
-
-	got, err := doc.Slot(0, 1)
-	s.Require().NoError(err)
-	s.Require().Equal("Second", got.Meta.Name)
-
 	tests := []struct {
 		name     string
 		sl, slot int
+		want     string
 	}{
-		{"a setlist that is not there", 9, 0},
-		{"a negative setlist", -1, 0},
-		{"a slot that is not there", 0, 99},
-		{"a negative slot", 0, -1},
+		{name: "a slot the setlist holds", slot: 1, want: "Second"},
+		{name: "a setlist that is not there", sl: 9},
+		{name: "a negative setlist", sl: -1},
+		{name: "a slot that is not there", slot: 99},
+		{name: "a negative slot", slot: -1},
 	}
 
-	for _, tc := range tests {
-		s.Run(tc.name, func() {
-			_, err := doc.Slot(tc.sl, tc.slot)
+	doc, err := s.read("setlist.hls")
+	s.Require().NoError(err)
 
-			s.Require().ErrorIs(err, setlist.ErrNoSuchSlot)
-			s.Require().Contains(err.Error(), "no such slot")
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			got, err := doc.Slot(tt.sl, tt.slot)
+
+			if tt.want == "" {
+				s.Require().ErrorIs(err, setlist.ErrNoSuchSlot)
+				s.Require().Contains(err.Error(), "no such slot")
+
+				return
+			}
+
+			s.Require().NoError(err)
+			s.Require().Equal(tt.want, got.Meta.Name)
 		})
 	}
 }
 
+// TestRoundTrip is the claim a file rests on: what was read is what is
+// written back.
 func (s *ReadPublicTestSuite) TestRoundTrip() {
 	for _, name := range []string{"setlist.hls", "bundle.hlb"} {
 		s.Run(name, func() {

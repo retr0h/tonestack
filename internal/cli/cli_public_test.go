@@ -44,7 +44,8 @@ func (s *ThemePublicTestSuite) TearDownTest() {
 	cli.SetTheme("tube")
 }
 
-func (s *ThemePublicTestSuite) TestEveryRoleRenders() {
+// TestRoles covers every colour a theme names.
+func (s *ThemePublicTestSuite) TestRoles() {
 	var out bytes.Buffer
 
 	tests := []struct {
@@ -57,20 +58,28 @@ func (s *ThemePublicTestSuite) TestEveryRoleRenders() {
 		{"err", func() string { return cli.Err(&out, "x") }},
 		{"info", func() string { return cli.Info(&out, "x") }},
 		{"title", func() string { return cli.Title(&out, "x") }},
+		{
+			// A *os.File gets its own renderer so NO_COLOR and TTY detection
+			// apply to the sink actually written to, not to stdout.
+			"a sink with a renderer of its own",
+			func() string { return cli.Mute(os.Stderr, "x") },
+		},
 	}
 
-	for _, tc := range tests {
-		s.Run(tc.name, func() {
-			s.Require().Contains(tc.call(), "x")
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			s.Require().Contains(tt.call(), "x")
 		})
 	}
 }
 
-func (s *ThemePublicTestSuite) TestHeadingIsUppercased() {
+// TestHeading shouts a column name.
+func (s *ThemePublicTestSuite) TestHeading() {
 	s.Require().Equal("SLOT", cli.Heading(&bytes.Buffer{}, "slot"))
 }
 
-func (s *ThemePublicTestSuite) TestBannerNamesTheTool() {
+// TestBanner names the tool.
+func (s *ThemePublicTestSuite) TestBanner() {
 	got := cli.Banner(&bytes.Buffer{})
 
 	s.Require().Len(strings.Split(strings.TrimRight(got, "\n"), "\n"), 2)
@@ -87,44 +96,53 @@ func glyph(banner string, n int) string {
 	return strings.Fields(lines[0])[n] + strings.Fields(lines[1])[n]
 }
 
-func (s *ThemePublicTestSuite) TestSuccessAndFailureFallBackWithoutColor() {
-	// A buffer is not a terminal, so lipgloss emits no escapes and the marks
-	// degrade to words rather than vanishing.
+// TestSuccessAndFailure covers the two marks a command ends with. A buffer is
+// not a terminal, so lipgloss emits no escapes and the marks degrade to words
+// rather than vanishing.
+func (s *ThemePublicTestSuite) TestSuccessAndFailure() {
 	var out bytes.Buffer
 
-	s.Require().Equal("[ok] done", cli.Success(&out, "done"))
-	s.Require().Equal("[err] broke", cli.Failure(&out, "broke"))
+	tests := []struct {
+		name string
+		got  string
+		want string
+	}{
+		{name: "a command that worked", got: cli.Success(&out, "done"), want: "[ok] done"},
+		{name: "one that did not", got: cli.Failure(&out, "broke"), want: "[err] broke"},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			s.Require().Equal(tt.want, tt.got)
+		})
+	}
 }
 
-func (s *ThemePublicTestSuite) TestThemeLookup() {
+// TestSetTheme picks a theme by name.
+func (s *ThemePublicTestSuite) TestSetTheme() {
 	tests := []struct {
 		name  string
 		theme string
 		want  bool
 	}{
-		{"the default", "tube", true},
-		{"a different case", "TUBE", true},
-		{"surrounded by space", "  tube  ", true},
-		{"one nobody registered", "chartreuse", false},
-		{"nothing at all", "", false},
+		{name: "the default", theme: "tube", want: true},
+		{name: "a different case", theme: "TUBE", want: true},
+		{name: "surrounded by space", theme: "  tube  ", want: true},
+		{name: "one nobody registered", theme: "chartreuse"},
+		{name: "nothing at all"},
 	}
 
-	for _, tc := range tests {
-		s.Run(tc.name, func() {
-			s.Require().Equal(tc.want, cli.SetTheme(tc.theme))
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			s.Require().Equal(tt.want, cli.SetTheme(tt.theme))
 		})
 	}
 }
 
-func (s *ThemePublicTestSuite) TestActiveThemeAndNames() {
+// TestActiveTheme names what is in use, and what could be.
+func (s *ThemePublicTestSuite) TestActiveTheme() {
 	s.Require().Equal("tube", cli.ActiveTheme().Name)
 	s.Require().Equal([]string{"tube"}, cli.ThemeNames())
-}
-
-func (s *ThemePublicTestSuite) TestRendererFollowsTheSink() {
-	// A *os.File gets its own renderer so NO_COLOR and TTY detection apply to
-	// the sink actually written to, not to stdout.
-	s.Require().NotPanics(func() { cli.Mute(os.Stderr, "x") })
 }
 
 func TestThemePublicTestSuite(t *testing.T) {
@@ -135,38 +153,59 @@ type HelpPublicTestSuite struct {
 	suite.Suite
 }
 
-func (s *HelpPublicTestSuite) TestRenderShowsEverySection() {
-	var out bytes.Buffer
+// TestRender lays out a help page.
+func (s *HelpPublicTestSuite) TestRender() {
+	tests := []struct {
+		name     string
+		help     cli.Help
+		contains []string
+		absent   []string
+	}{
+		{
+			name: "every section there is",
+			help: cli.Help{
+				Name:        "tonestack presets make",
+				Description: "Build a preset.\n\nFrom a recipe.",
+				Usage:       "tonestack presets make [flags]",
+				Commands:    []cli.Item{{Name: "list", Description: "list them"}},
+				Flags:       []cli.Item{{Name: "--id string", Description: "which one"}},
+				Footer:      "Run --help for more.",
+			},
+			contains: []string{
+				"tonestack presets make", "Build a preset.", "USAGE",
+				"COMMANDS", "list", "FLAGS", "--id string", "Run --help for more.",
+			},
+		},
+		{
+			name:     "a command with neither subcommands nor flags",
+			help:     cli.Help{Usage: "tonestack"},
+			contains: []string{"USAGE"},
+			absent:   []string{"COMMANDS", "FLAGS"},
+		},
+	}
 
-	s.Require().NoError(cli.Help{
-		Name:        "tonestack presets make",
-		Description: "Build a preset.\n\nFrom a recipe.",
-		Usage:       "tonestack presets make [flags]",
-		Commands:    []cli.Item{{Name: "list", Description: "list them"}},
-		Flags:       []cli.Item{{Name: "--id string", Description: "which one"}},
-		Footer:      "Run --help for more.",
-	}.Render(&out))
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			var out bytes.Buffer
 
-	got := out.String()
-	for _, want := range []string{
-		"tonestack presets make", "Build a preset.", "USAGE",
-		"COMMANDS", "list", "FLAGS", "--id string", "Run --help for more.",
-	} {
-		s.Require().Contains(got, want)
+			s.Require().NoError(tt.help.Render(&out))
+
+			for _, want := range tt.contains {
+				s.Require().Contains(out.String(), want)
+			}
+
+			for _, unwanted := range tt.absent {
+				s.Require().NotContains(out.String(), unwanted)
+			}
+		})
 	}
 }
 
-func (s *HelpPublicTestSuite) TestRenderOmitsWhatIsNotThere() {
-	var out bytes.Buffer
-
-	s.Require().NoError(cli.Help{Usage: "tonestack"}.Render(&out))
-
-	got := out.String()
-	s.Require().NotContains(got, "COMMANDS")
-	s.Require().NotContains(got, "FLAGS")
-	s.Require().Contains(got, "USAGE")
-}
-
+// TestRenderReportsAWriterThatFails covers a page nobody can read. Each
+// section is a separate write, so a writer failing at any point must surface
+// rather than leaving a half-rendered page and a success. Ten writes make a
+// complete page: title, description, three headings with a row each, the
+// footer, and the closing newline.
 func (s *HelpPublicTestSuite) TestRenderReportsAWriterThatFails() {
 	full := cli.Help{
 		Name:        "n",
@@ -177,10 +216,6 @@ func (s *HelpPublicTestSuite) TestRenderReportsAWriterThatFails() {
 		Footer:      "foot",
 	}
 
-	// Each section is a separate write, so a writer failing at any point must
-	// surface rather than leaving a half-rendered page and a success.
-	// Ten writes make a complete page: title, description, three headings
-	// with a row each, the footer, and the closing newline.
 	for i := range 10 {
 		s.Run(fmt.Sprintf("after %d writes", i), func() {
 			s.Require().Error(full.Render(&failAfter{ok: i}))
@@ -196,70 +231,95 @@ type UIPublicTestSuite struct {
 	suite.Suite
 }
 
-func (s *UIPublicTestSuite) TestSectionRendersATable() {
-	var out bytes.Buffer
+// TestSectionRender lays out a titled table.
+func (s *UIPublicTestSuite) TestSectionRender() {
+	tests := []struct {
+		name     string
+		section  cli.Section
+		contains []string
+		silent   bool
+	}{
+		{
+			name: "a table under a title",
+			section: cli.Section{
+				Title:   "Songs",
+				Detail:  "128 slots",
+				Headers: []string{"slot", "name"},
+				Rows:    [][]string{{"01A", "Claptone"}},
+				Summary: "1 of 128",
+			},
+			contains: []string{"Songs", "128 slots", "SLOT", "01A", "1 of 128"},
+		},
+		{
+			name:     "nothing to show, and something to say about it",
+			section:  cli.Section{Title: "Songs", Empty: "no presets"},
+			contains: []string{"no presets"},
+		},
+		{name: "nothing to say at all", section: cli.Section{}, silent: true},
+		{
+			name:     "rows with neither headers nor a summary",
+			section:  cli.Section{Rows: [][]string{{"a", "b"}}},
+			contains: []string{"a"},
+		},
+	}
 
-	s.Require().NoError(cli.Section{
-		Title:   "Songs",
-		Detail:  "128 slots",
-		Headers: []string{"slot", "name"},
-		Rows:    [][]string{{"01A", "Claptone"}},
-		Summary: "1 of 128",
-	}.Render(&out))
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			var out bytes.Buffer
 
-	got := out.String()
-	for _, want := range []string{"Songs", "128 slots", "SLOT", "01A", "1 of 128"} {
-		s.Require().Contains(got, want)
+			s.Require().NoError(tt.section.Render(&out))
+
+			if tt.silent {
+				s.Require().Empty(out.String())
+
+				return
+			}
+
+			for _, want := range tt.contains {
+				s.Require().Contains(out.String(), want)
+			}
+		})
 	}
 }
 
-func (s *UIPublicTestSuite) TestSectionSaysWhenThereIsNothing() {
-	var out bytes.Buffer
-
-	s.Require().NoError(cli.Section{
-		Title: "Songs", Empty: "no presets",
-	}.Render(&out))
-
-	s.Require().Contains(out.String(), "no presets")
-}
-
-func (s *UIPublicTestSuite) TestSectionStaysSilentWithNothingToSay() {
-	var out bytes.Buffer
-
-	s.Require().NoError(cli.Section{}.Render(&out))
-
-	s.Require().Empty(out.String())
-}
-
-func (s *UIPublicTestSuite) TestSectionWithoutHeadersOrSummary() {
-	var out bytes.Buffer
-
-	s.Require().NoError(cli.Section{
-		Rows: [][]string{{"a", "b"}},
-	}.Render(&out))
-
-	s.Require().Contains(out.String(), "a")
-}
-
-func (s *UIPublicTestSuite) TestSectionReportsAWriterThatFails() {
+// TestSectionRenderReportsAWriterThatFails covers a writer failing at each
+// point a section writes.
+func (s *UIPublicTestSuite) TestSectionRenderReportsAWriterThatFails() {
 	full := cli.Section{
 		Title: "t", Detail: "d",
 		Headers: []string{"h"}, Rows: [][]string{{"r"}}, Summary: "s",
 	}
 
-	for i := range 4 {
-		s.Run(fmt.Sprintf("after %d writes", i), func() {
-			s.Require().Error(full.Render(&failAfter{ok: i}))
-		})
+	tests := []struct {
+		name    string
+		section cli.Section
+		after   int
+	}{
+		{name: "on the title", section: full},
+		{name: "on the headers", section: full, after: 1},
+		{name: "on the rows", section: full, after: 2},
+		{name: "on the summary", section: full, after: 3},
+		{
+			name:    "on what it says instead of rows",
+			section: cli.Section{Title: "t", Empty: "none"},
+			after:   1,
+		},
+		{
+			name:    "on rows with no title above them",
+			section: cli.Section{Rows: [][]string{{"r"}}},
+			after:   1,
+		},
 	}
 
-	s.Require().Error(cli.Section{Title: "t", Empty: "none"}.
-		Render(&failAfter{ok: 1}))
-	s.Require().Error(cli.Section{Rows: [][]string{{"r"}}}.
-		Render(&failAfter{ok: 1}))
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			s.Require().Error(tt.section.Render(&failAfter{ok: tt.after}))
+		})
+	}
 }
 
-func (s *UIPublicTestSuite) TestDetailRendersFields() {
+// TestDetailRender lays out a titled list of fields.
+func (s *UIPublicTestSuite) TestDetailRender() {
 	var out bytes.Buffer
 
 	s.Require().NoError(cli.Detail{
@@ -272,15 +332,16 @@ func (s *UIPublicTestSuite) TestDetailRendersFields() {
 		Note: "unverified",
 	}.Render(&out))
 
-	got := out.String()
 	for _, want := range []string{
 		"Mike Dirnt", "mike-dirnt", "amp", "Ampeg SVT", "unknown", "unverified",
 	} {
-		s.Require().Contains(got, want)
+		s.Require().Contains(out.String(), want)
 	}
 }
 
-func (s *UIPublicTestSuite) TestDetailReportsAWriterThatFails() {
+// TestDetailRenderReportsAWriterThatFails covers a writer failing at each
+// point a detail writes.
+func (s *UIPublicTestSuite) TestDetailRenderReportsAWriterThatFails() {
 	full := cli.Detail{
 		Title: "t", Subtitle: "s",
 		Fields: []cli.Field{{Label: "l", Value: "v"}}, Note: "n",
@@ -293,57 +354,90 @@ func (s *UIPublicTestSuite) TestDetailReportsAWriterThatFails() {
 	}
 }
 
-func (s *UIPublicTestSuite) TestTableAlignsColumns() {
-	var out bytes.Buffer
+// TestTable lays rows out in columns.
+func (s *UIPublicTestSuite) TestTable() {
+	tests := []struct {
+		name      string
+		rows      [][]string
+		align     []lipgloss.Position
+		aligned   bool
+		sameWidth bool
+		contains  string
+		silent    bool
+	}{
+		{
+			name: "columns that line up",
+			rows: [][]string{
+				{"a", "1", "end"},
+				{"bbbb", "22", "end"},
+			},
+			align:   []lipgloss.Position{lipgloss.Left, lipgloss.Right},
+			aligned: true,
+		},
+		{
+			// A styled cell is measured by what it shows rather than by the
+			// escapes around it.
+			name: "a cell somebody painted",
+			rows: [][]string{
+				{lipgloss.NewStyle().
+					Foreground(lipgloss.Color("#ffa032")).Render("ab"), "x"},
+				{"abcd", "y"},
+			},
+			sameWidth: true,
+		},
+		{
+			name:     "rows of different lengths",
+			rows:     [][]string{{"a"}, {"bb", "cc"}},
+			contains: "cc",
+		},
+		{name: "no rows at all", silent: true},
+	}
 
-	s.Require().NoError(cli.Table(&out, [][]string{
-		{"a", "1", "end"},
-		{"bbbb", "22", "end"},
-	}, []lipgloss.Position{lipgloss.Left, lipgloss.Right}))
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			var out bytes.Buffer
 
-	lines := strings.Split(strings.TrimRight(out.String(), "\n"), "\n")
-	s.Require().Len(lines, 2)
-	// A right-aligned column ends at the same offset on both lines.
-	s.Require().Equal(
-		strings.Index(lines[0], "1")+1, strings.Index(lines[1], "22")+2)
-	// The last column starts at the same offset on both lines.
-	s.Require().Equal(
-		strings.Index(lines[0], "end"), strings.Index(lines[1], "end"))
-	// Nothing trails a line.
-	for _, l := range lines {
-		s.Require().Equal(l, strings.TrimRight(l, " "))
+			s.Require().NoError(cli.Table(&out, tt.rows, tt.align))
+
+			if tt.silent {
+				s.Require().Empty(out.String())
+
+				return
+			}
+
+			lines := strings.Split(strings.TrimRight(out.String(), "\n"), "\n")
+
+			if tt.contains != "" {
+				s.Require().Contains(out.String(), tt.contains)
+			}
+
+			if tt.sameWidth {
+				s.Require().Equal(lipgloss.Width(lines[0]), lipgloss.Width(lines[1]))
+			}
+
+			if !tt.aligned {
+				return
+			}
+
+			s.Require().Len(lines, 2)
+
+			// A right-aligned column ends at the same offset on both lines.
+			s.Require().Equal(
+				strings.Index(lines[0], "1")+1, strings.Index(lines[1], "22")+2)
+
+			// The last column starts at the same offset on both lines.
+			s.Require().Equal(
+				strings.Index(lines[0], "end"), strings.Index(lines[1], "end"))
+
+			// Nothing trails a line.
+			for _, l := range lines {
+				s.Require().Equal(l, strings.TrimRight(l, " "))
+			}
+		})
 	}
 }
 
-func (s *UIPublicTestSuite) TestTableMeasuresStyledCells() {
-	var out bytes.Buffer
-
-	styled := lipgloss.NewStyle().Foreground(lipgloss.Color("#ffa032")).Render("ab")
-	s.Require().NoError(cli.Table(&out, [][]string{
-		{styled, "x"},
-		{"abcd", "y"},
-	}, nil))
-
-	lines := strings.Split(strings.TrimRight(out.String(), "\n"), "\n")
-	s.Require().Equal(lipgloss.Width(lines[0]), lipgloss.Width(lines[1]))
-}
-
-func (s *UIPublicTestSuite) TestTableToleratesRaggedRows() {
-	var out bytes.Buffer
-
-	s.Require().NoError(cli.Table(&out, [][]string{{"a"}, {"bb", "cc"}}, nil))
-
-	s.Require().Contains(out.String(), "cc")
-}
-
-func (s *UIPublicTestSuite) TestTableWritesNothingForNoRows() {
-	var out bytes.Buffer
-
-	s.Require().NoError(cli.Table(&out, nil, nil))
-
-	s.Require().Empty(out.String())
-}
-
+// TestTableReportsAWriterThatFails covers a row nobody can read.
 func (s *UIPublicTestSuite) TestTableReportsAWriterThatFails() {
 	err := cli.Table(&failAfter{}, [][]string{{"a"}}, nil)
 
@@ -373,6 +467,10 @@ func (s *ChainPublicTestSuite) cat() *catalog.Catalog {
 			Name: "Utility", Category: catalog.Category("nothing"),
 			DSP: catalog.DSPCost{Mono: 1},
 		},
+		"HD2_ImpulseResponse1024": {
+			Name: "IR 1024", Category: catalog.CategoryCab,
+			DSP: catalog.DSPCost{Mono: 7},
+		},
 	}}
 }
 
@@ -380,114 +478,112 @@ func (s *ChainPublicTestSuite) spec(blocks ...chain.Block) chain.Chain {
 	return chain.Chain{Name: "Test", Blocks: blocks}
 }
 
-func (s *ChainPublicTestSuite) TestChainRendersEveryBlock() {
-	var out bytes.Buffer
-
-	s.Require().NoError(cli.Chain(&out, s.spec(
-		chain.Block{Model: "amp", DSP: 0, Pos: 0, Enabled: true},
-		chain.Block{Model: "cab", DSP: 0, Pos: 1, Enabled: false},
-		chain.Block{Model: "weird", DSP: 1, Pos: 0, Enabled: true},
-		chain.Block{Model: "ghost", DSP: 1, Pos: 1, Enabled: true},
-	), s.cat()))
-
-	got := out.String()
-	for _, want := range []string{
-		"Test Amp", "Some Amp", "Test Cab", "○", "●",
-		"ghost", "not in catalog", "?", "dsp0", "dsp1", "30.0%",
-	} {
-		s.Require().Contains(got, want)
-	}
-}
-
-func (s *ChainPublicTestSuite) TestChainFlagsABlockNeedingTheOwnersOwnIR() {
-	var out bytes.Buffer
-
-	cat := s.cat()
-	cat.Blocks["HD2_ImpulseResponse1024"] = catalog.Block{
-		Name: "IR 1024", Category: catalog.CategoryCab,
-		DSP: catalog.DSPCost{Mono: 7},
-	}
-
-	s.Require().NoError(cli.Chain(&out, chain.Chain{Blocks: []chain.Block{
-		{Model: "amp", Enabled: true},
+// TestChain draws a chain and what it costs.
+func (s *ChainPublicTestSuite) TestChain() {
+	tests := []struct {
+		name     string
+		blocks   []chain.Block
+		contains []string
+		absent   []string
+	}{
 		{
-			Model: "HD2_ImpulseResponse1024", Pos: 1, Enabled: true,
-			Params: chain.Params{"Index": catalog.Int(82)},
-		},
-	}}, cat))
-
-	got := out.String()
-	s.Require().Contains(got, "IR slot 82",
-		"the slot is the useful thing to show, since the audio is not in the file")
-	s.Require().Contains(got, "same IRs are loaded there")
-}
-
-func (s *ChainPublicTestSuite) TestChainDescribesAnIRWithNoSlot() {
-	var out bytes.Buffer
-
-	cat := s.cat()
-	cat.Blocks["HD2_ImpulseResponse1024"] = catalog.Block{Name: "IR 1024"}
-
-	s.Require().NoError(cli.Chain(&out, chain.Chain{Blocks: []chain.Block{
-		{Model: "HD2_ImpulseResponse1024", Enabled: true},
-	}}, cat))
-
-	s.Require().Contains(out.String(), "a user IR")
-}
-
-func (s *ChainPublicTestSuite) TestChainReportsAWriterThatFailsOnTheIRWarning() {
-	cat := s.cat()
-	cat.Blocks["HD2_ImpulseResponse1024"] = catalog.Block{Name: "IR 1024"}
-
-	s.Require().Error(cli.Chain(&failAfter{ok: 3}, chain.Chain{
-		Blocks: []chain.Block{
-			{
-				Model: "HD2_ImpulseResponse1024", Enabled: true,
-				Params: chain.Params{"Index": catalog.Int(82)},
+			name: "every block in it",
+			blocks: []chain.Block{
+				{Model: "amp", DSP: 0, Pos: 0, Enabled: true},
+				{Model: "cab", DSP: 0, Pos: 1, Enabled: false},
+				{Model: "weird", DSP: 1, Pos: 0, Enabled: true},
+				{Model: "ghost", DSP: 1, Pos: 1, Enabled: true},
+			},
+			contains: []string{
+				"Test Amp", "Some Amp", "Test Cab", "○", "●",
+				"ghost", "not in catalog", "?", "dsp0", "dsp1", "30.0%",
 			},
 		},
-	}, cat))
-}
-
-func (s *ChainPublicTestSuite) TestChainSkipsAProcessorNothingUses() {
-	var out bytes.Buffer
-
-	s.Require().NoError(cli.Chain(&out, s.spec(
-		chain.Block{Model: "amp", DSP: 1, Enabled: true},
-	), s.cat()))
-
-	s.Require().NotContains(out.String(), "dsp0")
-	s.Require().Contains(out.String(), "dsp1")
-}
-
-func (s *ChainPublicTestSuite) TestChainSaysWhenThereIsNothing() {
-	var out bytes.Buffer
-
-	s.Require().NoError(cli.Chain(&out, s.spec(), s.cat()))
-
-	s.Require().Contains(out.String(), "empty")
-}
-
-func (s *ChainPublicTestSuite) TestChainReportsAWriterThatFails() {
-	tests := []struct {
-		name  string
-		spec  chain.Chain
-		after int
-	}{
-		{"with nothing to show", s.spec(), 0},
-		{"on the rows", s.spec(chain.Block{Model: "amp"}), 0},
-		{"on the budget", s.spec(chain.Block{Model: "amp"}), 1},
-		{"on the budget's own line", s.spec(chain.Block{Model: "amp"}), 2},
+		{
+			name: "a block needing the owner's own IR",
+			blocks: []chain.Block{
+				{Model: "amp", Enabled: true},
+				{
+					Model: "HD2_ImpulseResponse1024", Pos: 1, Enabled: true,
+					Params: chain.Params{"Index": catalog.Int(82)},
+				},
+			},
+			contains: []string{
+				// The slot is the useful thing to show, since the audio is
+				// not in the file.
+				"IR slot 82",
+				"same IRs are loaded there",
+			},
+		},
+		{
+			name: "an IR naming no slot",
+			blocks: []chain.Block{
+				{Model: "HD2_ImpulseResponse1024", Enabled: true},
+			},
+			contains: []string{"a user IR"},
+		},
+		{
+			name:     "a processor nothing uses",
+			blocks:   []chain.Block{{Model: "amp", DSP: 1, Enabled: true}},
+			contains: []string{"dsp1"},
+			absent:   []string{"dsp0"},
+		},
+		{name: "nothing at all", contains: []string{"empty"}},
 	}
 
-	for _, tc := range tests {
-		s.Run(tc.name, func() {
-			s.Require().Error(cli.Chain(&failAfter{ok: tc.after}, tc.spec, s.cat()))
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			var out bytes.Buffer
+
+			s.Require().NoError(cli.Chain(&out, s.spec(tt.blocks...), s.cat()))
+
+			for _, want := range tt.contains {
+				s.Require().Contains(out.String(), want)
+			}
+
+			for _, unwanted := range tt.absent {
+				s.Require().NotContains(out.String(), unwanted)
+			}
 		})
 	}
 }
 
-func (s *ChainPublicTestSuite) TestMeterFillsInProportion() {
+// TestChainReportsAWriterThatFails covers a writer failing at each point a
+// chain writes.
+func (s *ChainPublicTestSuite) TestChainReportsAWriterThatFails() {
+	tests := []struct {
+		name   string
+		blocks []chain.Block
+		after  int
+	}{
+		{name: "with nothing to show"},
+		{name: "on the rows", blocks: []chain.Block{{Model: "amp"}}},
+		{name: "on the budget", blocks: []chain.Block{{Model: "amp"}}, after: 1},
+		{
+			name:   "on the budget's own line",
+			blocks: []chain.Block{{Model: "amp"}},
+			after:  2,
+		},
+		{
+			name: "on the warning about somebody's own IR",
+			blocks: []chain.Block{{
+				Model: "HD2_ImpulseResponse1024", Enabled: true,
+				Params: chain.Params{"Index": catalog.Int(82)},
+			}},
+			after: 3,
+		},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			s.Require().Error(cli.Chain(
+				&failAfter{ok: tt.after}, s.spec(tt.blocks...), s.cat()))
+		})
+	}
+}
+
+// TestMeter fills in proportion to what a chain uses.
+func (s *ChainPublicTestSuite) TestMeter() {
 	var out bytes.Buffer
 
 	tests := []struct {
@@ -495,27 +591,40 @@ func (s *ChainPublicTestSuite) TestMeterFillsInProportion() {
 		pct  float64
 		want string
 	}{
-		{"nothing used", 0, "░░░░░░░░░░"},
-		{"half used", 50, "█████░░░░░"},
-		{"warning", 80, "████████░░"},
-		{"critical", 95, "█████████░"},
-		{"all used", 100, "██████████"},
-		{"more than all used", 150, "██████████"},
-		{"a negative reading", -10, "░░░░░░░░░░"},
+		{name: "nothing used", pct: 0, want: "░░░░░░░░░░"},
+		{name: "half used", pct: 50, want: "█████░░░░░"},
+		{name: "warning", pct: 80, want: "████████░░"},
+		{name: "critical", pct: 95, want: "█████████░"},
+		{name: "all used", pct: 100, want: "██████████"},
+		{name: "more than all used", pct: 150, want: "██████████"},
+		{name: "a negative reading", pct: -10, want: "░░░░░░░░░░"},
 	}
 
-	for _, tc := range tests {
-		s.Run(tc.name, func() {
-			s.Require().Equal(tc.want, cli.Meter(&out, tc.pct, 10))
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			s.Require().Equal(tt.want, cli.Meter(&out, tt.pct, 10))
 		})
 	}
 }
 
-func (s *ChainPublicTestSuite) TestCategoryNamesEveryKind() {
+// TestCategory names a kind of block.
+func (s *ChainPublicTestSuite) TestCategory() {
 	var out bytes.Buffer
 
-	s.Require().Equal("amp", cli.Category(&out, catalog.CategoryAmp))
-	s.Require().Equal("nothing", cli.Category(&out, catalog.Category("nothing")))
+	tests := []struct {
+		name string
+		in   catalog.Category
+		want string
+	}{
+		{name: "a kind this project knows", in: catalog.CategoryAmp, want: "amp"},
+		{name: "one it does not", in: catalog.Category("nothing"), want: "nothing"},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			s.Require().Equal(tt.want, cli.Category(&out, tt.in))
+		})
+	}
 }
 
 // failAfter fails once it has accepted ok writes, so a caller writing several

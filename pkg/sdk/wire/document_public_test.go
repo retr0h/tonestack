@@ -73,103 +73,192 @@ func (s *DocumentPublicTestSuite) offsets(raw []byte) []uint32 {
 	return out
 }
 
-func (s *DocumentPublicTestSuite) TestAPresetSurvivesBeingReadAndWritten() {
-	// Byte for byte. Anything less than this must never reach a device.
-	for _, name := range []string{"preset.bin", "switches.bin", "empty.bin"} {
-		s.Run(name, func() {
-			raw := s.capture(name)
+// header returns a preset header with an empty offset table.
+func header(magic string) []byte {
+	return append([]byte(magic+"\xda\x00\x30"), make([]byte, 48)...)
+}
+
+// TestDecodeDocument reads what a device sent.
+func (s *DocumentPublicTestSuite) TestDecodeDocument() {
+	tests := []struct {
+		name string
+		file string
+		body []byte
+		err  bool
+	}{
+		// Byte for byte. Anything less than this must never reach a device.
+		{name: "a preset", file: "preset.bin"},
+		{name: "one with switch colours", file: "switches.bin"},
+		{name: "a slot holding nothing", file: "empty.bin"},
+		{
+			// The length of a string can be written three ways and a device
+			// uses one of them. Reading is not the place to be strict about
+			// which.
+			name: "a magic written another way",
+			body: append(header("\xd9\x09l6-helix\x00"), 0x80),
+		},
+		{name: "nothing at all", err: true},
+		{name: "something else entirely", body: []byte{0xc0}, err: true},
+		{
+			name: "the header and no more",
+			body: []byte("\xa9l6-helix\x00"),
+			err:  true,
+		},
+		{
+			name: "an offset table of the wrong size",
+			body: []byte("\xa9l6-helix\x00\xa1x"),
+			err:  true,
+		},
+		{
+			name: "a header with no document",
+			body: header("\xa9l6-helix\x00"),
+			err:  true,
+		},
+		{
+			name: "a section with no key",
+			body: append(header("\xa9l6-helix\x00"), 0x81, 0xc0),
+			err:  true,
+		},
+		{
+			name: "a key with no section",
+			body: append(header("\xa9l6-helix\x00"), 0x81, 0x00),
+			err:  true,
+		},
+		{
+			name: "a key that is not a number",
+			body: append(header("\xa9l6-helix\x00"), 0x81, 0xa1, 'x', 0xc0),
+			err:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			raw := tt.body
+			if tt.file != "" {
+				raw = s.capture(tt.file)
+			}
 
 			doc, err := wire.DecodeDocument(raw)
+
+			if tt.err {
+				s.Require().ErrorIs(err, wire.ErrNotADocument)
+
+				return
+			}
+
 			s.Require().NoError(err)
-			s.Require().Equal(raw, doc.Encode())
+			s.Require().NotNil(doc)
+
+			if tt.file != "" {
+				s.Require().Equal(raw, doc.Encode())
+			}
 		})
 	}
 }
 
-func (s *DocumentPublicTestSuite) TestChangingASectionMovesTheOffsetsAfterIt() {
-	// The reason the table is rewritten rather than carried: a section that
-	// grows moves everything after it, and an offset left pointing at where
-	// something used to be is how a preset reads back empty.
-	raw := s.capture("preset.bin")
+// TestEncode writes a preset back, table and all.
+//
+// The table is an index into the document: the first entry is the map, the
+// last two are the end, and each one between points at the key byte of a
+// section. It is rewritten rather than carried, because a section that grows
+// moves everything after it, and an offset left pointing at where something
+// used to be is how a preset reads back empty.
+func (s *DocumentPublicTestSuite) TestEncode() {
+	tests := []struct {
+		name string
+		grow bool
+	}{
+		{name: "a preset as the device wrote it"},
+		{name: "a preset with a section that grew", grow: true},
+	}
 
-	doc, err := wire.DecodeDocument(raw)
-	s.Require().NoError(err)
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			raw := s.capture("preset.bin")
 
-	body, ok := doc.Section(7)
-	s.Require().True(ok, "a preset records what wrote it")
+			doc, err := wire.DecodeDocument(raw)
+			s.Require().NoError(err)
 
-	doc.SetSection(7, append(append(msgpack.RawMessage(nil), body...),
-		msgpack.RawMessage("\xc0")...))
+			if tt.grow {
+				body, ok := doc.Section(7)
+				s.Require().True(ok, "a preset records what wrote it")
 
-	got := doc.Encode()
-	s.Require().Greater(len(got), len(raw), "the section grew")
+				doc.SetSection(7, append(append(msgpack.RawMessage(nil), body...),
+					msgpack.RawMessage("\xc0")...))
+			}
 
-	was, now := s.offsets(raw), s.offsets(got)
-	s.Require().Len(now, len(was))
+			got := doc.Encode()
+			s.Require().Equal(tt.grow, len(got) > len(raw))
 
-	// The document is longer, and the table says so.
-	s.Require().Equal(uint32(len(got)), now[len(now)-1])
-	s.Require().Equal(uint32(len(raw)), was[len(was)-1])
+			offsets := s.offsets(got)
+			s.Require().Len(offsets, len(s.offsets(raw)))
 
-	// Every offset still points at the byte it names.
-	for i, o := range now {
-		s.Require().LessOrEqual(int(o), len(got), "offset %d is inside the file", i)
+			// The document is however long it is, and the table says so.
+			s.Require().Equal(uint32(len(got)), offsets[len(offsets)-1])
+
+			s.Require().Equal(byte(0x89), got[offsets[0]],
+				"the preset map, nine sections")
+
+			for i, key := range []byte{0, 1, 3, 4, 2, 5, 6, 7, 10} {
+				s.Require().Equal(key, got[offsets[i+1]],
+					"offset %d names section %d", i+1, key)
+			}
+		})
 	}
 }
 
-func (s *DocumentPublicTestSuite) TestEveryOffsetPointsAtItsSection() {
-	// The table is an index into the document: the first entry is the map,
-	// the last two are the end, and each one between points at the key byte
-	// of a section.
-	raw := s.capture("preset.bin")
+// TestSetSection puts a section into a preset that did not have one.
+func (s *DocumentPublicTestSuite) TestSetSection() {
+	tests := []struct {
+		name  string
+		first int8
+		last  int8
+	}{
+		{name: "a section the preset lacked", first: 9, last: 9},
+		{
+			// A fixmap runs to fifteen entries. Past that the length is
+			// written differently, and a document that got it wrong would not
+			// decode at all.
+			name:  "more sections than a fixmap holds",
+			first: 20,
+			last:  31,
+		},
+	}
 
-	doc, err := wire.DecodeDocument(raw)
-	s.Require().NoError(err)
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			doc, err := wire.DecodeDocument(s.capture("preset.bin"))
+			s.Require().NoError(err)
 
-	got := doc.Encode()
-	offsets := s.offsets(got)
+			_, had := doc.Section(tt.last)
+			s.Require().False(had)
 
-	s.Require().Equal(byte(0x89), got[offsets[0]], "the preset map, nine sections")
+			for key := tt.first; key <= tt.last; key++ {
+				doc.SetSection(key, msgpack.RawMessage("\xc3"))
+			}
 
-	for i, key := range []byte{0, 1, 3, 4, 2, 5, 6, 7, 10} {
-		s.Require().Equal(key, got[offsets[i+1]],
-			"offset %d names section %d", i+1, key)
+			again, err := wire.DecodeDocument(doc.Encode())
+			s.Require().NoError(err)
+
+			body, ok := again.Section(tt.last)
+			s.Require().True(ok)
+			s.Require().Equal(msgpack.RawMessage("\xc3"), body)
+		})
 	}
 }
 
-func (s *DocumentPublicTestSuite) TestAddingASectionThePresetLacked() {
-	raw := s.capture("preset.bin")
-
-	doc, err := wire.DecodeDocument(raw)
+// TestNewDocument rebuilds a preset holding fewer sections.
+//
+// The table has an entry for every section a preset can hold, and a preset
+// need not hold them all. An offset for a section that is not there is left
+// alone rather than pointed somewhere wrong.
+func (s *DocumentPublicTestSuite) TestNewDocument() {
+	doc, err := wire.DecodeDocument(s.capture("preset.bin"))
 	s.Require().NoError(err)
 
-	_, had := doc.Section(9)
-	s.Require().False(had)
-
-	doc.SetSection(9, msgpack.RawMessage("\xc3"))
-
-	again, err := wire.DecodeDocument(doc.Encode())
-	s.Require().NoError(err)
-
-	body, ok := again.Section(9)
-	s.Require().True(ok)
-	s.Require().Equal(msgpack.RawMessage("\xc3"), body)
-}
-
-func (s *DocumentPublicTestSuite) TestAPresetMissingASectionTheTableNames() {
-	// The table has an entry for every section a preset can hold, and a
-	// preset need not hold them all. An offset for a section that is not
-	// there is left alone rather than pointed somewhere wrong.
-	raw := s.capture("preset.bin")
-
-	doc, err := wire.DecodeDocument(raw)
-	s.Require().NoError(err)
-
-	// Rebuilt with one section dropped, which is what an older firmware
-	// writing fewer of them would look like.
-	fewer := wire.NewDocument(doc, []int8{0, 7})
-
-	again, err := wire.DecodeDocument(fewer.Encode())
+	// One section dropped, which is what an older firmware writing fewer of
+	// them would look like.
+	again, err := wire.DecodeDocument(wire.NewDocument(doc, []int8{0, 7}).Encode())
 	s.Require().NoError(err)
 
 	_, ok := again.Section(0)
@@ -177,67 +266,6 @@ func (s *DocumentPublicTestSuite) TestAPresetMissingASectionTheTableNames() {
 
 	_, ok = again.Section(3)
 	s.Require().False(ok, "the section that was dropped")
-}
-
-func (s *DocumentPublicTestSuite) TestAPresetWithMoreSectionsThanAMapHolds() {
-	// A fixmap runs to fifteen entries. Past that the length is written
-	// differently, and a document that got it wrong would not decode at all.
-	raw := s.capture("preset.bin")
-
-	doc, err := wire.DecodeDocument(raw)
-	s.Require().NoError(err)
-
-	for key := int8(20); key < 32; key++ {
-		doc.SetSection(key, msgpack.RawMessage("\xc3"))
-	}
-
-	again, err := wire.DecodeDocument(doc.Encode())
-	s.Require().NoError(err)
-
-	body, ok := again.Section(31)
-	s.Require().True(ok)
-	s.Require().Equal(msgpack.RawMessage("\xc3"), body)
-}
-
-func (s *DocumentPublicTestSuite) TestAMagicWrittenAnotherWay() {
-	// The length of a string can be written three ways and a device uses one
-	// of them. Reading is not the place to be strict about which.
-	raw := append(append(
-		[]byte("\xd9\x09l6-helix\x00\xda\x00\x30"), make([]byte, 48)...), 0x80)
-
-	doc, err := wire.DecodeDocument(raw)
-
-	s.Require().NoError(err)
-	s.Require().NotNil(doc)
-}
-
-func (s *DocumentPublicTestSuite) TestRefusesWhatIsNotAPreset() {
-	for _, tc := range []struct {
-		name string
-		body []byte
-	}{
-		{"nothing at all", nil},
-		{"something else entirely", []byte{0xc0}},
-		{"the header and no more", []byte("\xa9l6-helix\x00")},
-		{"an offset table of the wrong size", []byte("\xa9l6-helix\x00\xa1x")},
-		{"a header with no document", append(
-			[]byte("\xa9l6-helix\x00\xda\x00\x30"), make([]byte, 48)...)},
-		{"a section with no key", append(append(
-			[]byte("\xa9l6-helix\x00\xda\x00\x30"), make([]byte, 48)...),
-			0x81, 0xc0)},
-		{"a key with no section", append(append(
-			[]byte("\xa9l6-helix\x00\xda\x00\x30"), make([]byte, 48)...),
-			0x81, 0x00)},
-		{"a key that is not a number", append(append(
-			[]byte("\xa9l6-helix\x00\xda\x00\x30"), make([]byte, 48)...),
-			0x81, 0xa1, 'x', 0xc0)},
-	} {
-		s.Run(tc.name, func() {
-			_, err := wire.DecodeDocument(tc.body)
-
-			s.Require().ErrorIs(err, wire.ErrNotADocument)
-		})
-	}
 }
 
 func TestDocumentPublicTestSuite(t *testing.T) {
