@@ -22,6 +22,7 @@ package sdk
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -171,6 +172,17 @@ func (s *Session) drain(ctx context.Context) {
 func message(c *channel) ([]byte, bool) {
 	env, _, err := wire.DecodeEnvelope(c.buf)
 	if err != nil {
+		// A frame that has not all arrived is waited for. A length no frame
+		// carries is not: the buffer is out of step with the stream and no
+		// further byte will bring it back, so waiting means every later call
+		// on this channel times out with a full buffer nobody can read.
+		//
+		// Dropped rather than scanned forward. The framing has no marker to
+		// resynchronise on, so what is held is unreadable by definition.
+		if errors.Is(err, wire.ErrBodyTooLarge) {
+			c.buf = nil
+		}
+
 		return nil, false
 	}
 

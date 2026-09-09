@@ -99,6 +99,25 @@ func (s *HandshakeTestSuite) TestCall() {
 			message:   "context canceled",
 		},
 		{
+			// A length no frame carries. The buffer is out of step with the
+			// stream and no later byte brings it back, so a channel that
+			// held it answered nothing again for the rest of the session.
+			// The answer behind it is read once the unreadable bytes are
+			// dropped.
+			name:    "a frame claiming a length nothing could hold",
+			channel: sdk.ControlChannel,
+			device: func() (*device, sdk.TestSender) {
+				d := answers(
+					sdk.FrameFor(sdk.ControlChannel, wire.MsgData,
+						[]byte{1, 0, 5, 0, 0xff, 0xff, 0xff, 0xff}),
+					s.reply(sdk.FirstTxn, 0, "an answer"),
+				)
+
+				return d, d
+			},
+			want: "an answer",
+		},
+		{
 			name:    "a device that says nothing at all",
 			channel: sdk.ControlChannel,
 			device:  func() (*device, sdk.TestSender) { d := answers(); return d, d },
