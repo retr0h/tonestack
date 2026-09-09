@@ -23,6 +23,7 @@ package lift
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"strings"
 
 	"github.com/retr0h/tonestack/internal/resolve"
@@ -244,7 +245,11 @@ func paramValue(
 	case float64:
 		if known {
 			if p, ok := blk.Params[key]; ok && p.Default.Type() == catalog.ParamInt {
-				return catalog.Int(int64(t + 0.5)), true
+				// Rounded rather than nudged and truncated: adding a half
+				// and cutting toward zero turns -12 into -11, and this
+				// catalog has integer parameters that go negative. An octave
+				// down became a major seventh.
+				return catalog.Int(int64(math.Round(t))), true
 			}
 		}
 

@@ -21,6 +21,8 @@
 package resolve
 
 import (
+	"math"
+
 	"github.com/retr0h/tonestack/pkg/catalog"
 	"github.com/retr0h/tonestack/pkg/chain"
 	"github.com/retr0h/tonestack/pkg/corpus"
@@ -93,8 +95,12 @@ func agreed(
 
 	// Rounding an integer matters: a device given 1.5 for a three-position
 	// switch does not round it, it refuses the preset.
+	//
+	// math.Round rather than adding a half and truncating, because
+	// truncation cuts toward zero and this catalog has parameters that go
+	// negative: a median of -12.4 became -11.
 	if kind == catalog.ParamInt {
-		return catalog.Int(int64(d.Median + 0.5)), true
+		return catalog.Int(int64(math.Round(d.Median))), true
 	}
 
 	return catalog.Float(d.Median), true
