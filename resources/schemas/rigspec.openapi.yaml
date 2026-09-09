@@ -121,6 +121,7 @@ components:
 
     Subject:
       type: object
+      additionalProperties: false
       description: >
         Who or what this rig belongs to.
 
@@ -149,6 +150,7 @@ components:
 
     Evidence:
       type: object
+      additionalProperties: false
       description: >
         Why one claim is believed. Attached per claim rather than per
         document, because the amp may come from an interview and the drive
@@ -208,6 +210,7 @@ components:
 
     ChainEntry:
       type: object
+      additionalProperties: false
       description: >
         One piece of gear, in signal order.
 
@@ -294,6 +297,7 @@ components:
 
     Requirement:
       type: object
+      additionalProperties: false
       description: >
         Something a rig needs that a device does not ship with.
 
@@ -328,6 +332,7 @@ components:
 
     Target:
       type: object
+      additionalProperties: false
       description: >
         Where the settings in this rig were arrived at.
 
@@ -359,6 +364,7 @@ components:
 
     Change:
       type: object
+      additionalProperties: false
       description: One field a mutation moved.
       required: [path]
       properties:
@@ -372,6 +378,7 @@ components:
 
     Mutation:
       type: object
+      additionalProperties: false
       description: >
         One round of correction, and what a person made of the result.
 
@@ -462,6 +469,7 @@ components:
 
     Footswitch:
       type: object
+      additionalProperties: false
       description: >
         One thing a switch on the pedal does.
 
@@ -551,6 +559,7 @@ components:
 
     Snapshot:
       type: object
+      additionalProperties: false
       description: >
         One snapshot: a set of block states a footswitch recalls.
       properties:
@@ -603,6 +612,7 @@ components:
 
     DeviceState:
       type: object
+      additionalProperties: false
       description: >
         Everything a preset carries that this format does not model as musical
         intent, kept exactly as the device wrote it.
@@ -690,6 +700,7 @@ components:
 
     RigSpec:
       type: object
+      additionalProperties: false
       description: >
         A rig, complete. Sparse when hand-written; the same document carries
         settings and evidence once anything has been measured or tuned.

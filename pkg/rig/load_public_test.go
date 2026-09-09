@@ -67,6 +67,22 @@ func (s *LoadPublicTestSuite) TestLoad() {
 			errText: "not a valid rig",
 		},
 		{
+			// Decoding drops what the types have no field for, so this used
+			// to pass with the misspelt line quietly gone.
+			name: "a field nobody spelled right",
+			in: "schema: RigSpec\nid: x\nsubject: {kind: artist, name: X}\n" +
+				"instrument: bass\nchain:\n  - {role: amp, gear: Ampeg SVT}\n" +
+				"tecnique: pick\n",
+			errText: `property "tecnique" is unsupported`,
+		},
+		{
+			name: "a field nobody spelled right, inside the chain",
+			in: "schema: RigSpec\nid: x\nsubject: {kind: artist, name: X}\n" +
+				"instrument: bass\nchain:\n" +
+				"  - {role: amp, gear: Ampeg SVT, gera: nonsense}\n",
+			errText: `property "gera" is unsupported`,
+		},
+		{
 			name: "a rig holding no chain",
 			in: "schema: RigSpec\nid: x\nsubject: {kind: artist, name: X}\n" +
 				"instrument: bass\nchain: []\n",
