@@ -140,8 +140,13 @@ func readModels(path string) ([]wireModel, error) {
 	return models, nil
 }
 
-// loadGearMap reads what each model emulates. A missing file is not fatal: the
-// catalog is still usable, only unable to answer a request naming real gear.
+// loadGearMap reads what each model emulates.
+//
+// Naming no map is a choice: the catalog is still usable, only unable to
+// answer a request naming real gear. Naming one that is not there is not a
+// choice, and the file is gitignored — a fresh clone that swallowed this
+// would generate a catalog where nothing resolves and say so only as
+// "0 mapped to real gear" halfway down a report.
 func loadGearMap(path string) (map[string]gearEntry, error) {
 	if path == "" {
 		return map[string]gearEntry{}, nil
@@ -149,10 +154,6 @@ func loadGearMap(path string) (map[string]gearEntry, error) {
 
 	raw, err := os.ReadFile(path) //nolint:gosec // caller-supplied build input
 	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return map[string]gearEntry{}, nil
-		}
-
 		return nil, fmt.Errorf("reading gear map: %w", err)
 	}
 

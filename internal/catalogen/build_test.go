@@ -194,31 +194,20 @@ func (s *BuildTestSuite) TestBuild() {
 
 // TestBuildWithoutAGearMap covers the half of the sources that is optional.
 //
-// The catalog is usable without it: the models supply every value, and the
-// map only says what real gear each one emulates.
+// The catalog is usable without it: the models supply every value, and the map
+// only says what real gear each one emulates. Naming no map is that choice;
+// naming one that is not there is a mistake, and covered beside the other
+// failures.
 func (s *BuildTestSuite) TestBuildWithoutAGearMap() {
-	tests := []struct {
-		name string
-		path string
-	}{
-		{name: "a path to no file", path: filepath.Join("testdata", "no-such-map.json")},
-		{name: "no path at all", path: ""},
-	}
+	o := s.opts()
+	o.GearMapPath = ""
 
-	for _, tt := range tests {
-		s.Run(tt.name, func() {
-			o := s.opts()
-			o.GearMapPath = tt.path
+	got, err := Build(o)
+	s.Require().NoError(err)
 
-			got, err := Build(o)
-
-			s.Require().NoError(err)
-
-			b, ok := got.Block("HD2_AmpTestBass")
-			s.Require().True(ok)
-			s.Require().Empty(b.BasedOn, "usable, just unable to name gear")
-		})
-	}
+	b, ok := got.Block("HD2_AmpTestBass")
+	s.Require().True(ok)
+	s.Require().Empty(b.BasedOn, "usable, just unable to name gear")
 }
 
 // TestBuildReportsWhatItCannotRead covers the sources going missing or
@@ -270,10 +259,16 @@ func (s *BuildTestSuite) TestBuildReportsWhatItCannotRead() {
 			says:    "gear map",
 		},
 		{
-			// A directory is not ErrNotExist, so it is a real read failure
-			// rather than an absent map.
 			name:    "a gear map that is a directory",
 			gearMap: "testdata",
+			says:    "gear map",
+		},
+		{
+			// The file is gitignored, so a fresh clone has none. Swallowing
+			// this generated a catalog where no recipe could resolve any
+			// gear, reported only as "0 mapped to real gear".
+			name:    "a gear map somebody named and does not have",
+			gearMap: filepath.Join("testdata", "no-such-map.json"),
 			says:    "gear map",
 		},
 	}

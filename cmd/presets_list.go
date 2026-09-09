@@ -47,8 +47,9 @@ there.`,
 		if presetsListOptions.Path == "" {
 			return slots.ListDevice(cmd.Context(), cmd.OutOrStdout(),
 				slots.DeviceOptions{
-					Setlist: presetsListOptions.Setlist,
-					All:     presetsListOptions.All,
+					Setlist:     presetsListOptions.Setlist,
+					All:         presetsListOptions.All,
+					CatalogPath: presetsListOptions.CatalogPath,
 				})
 		}
 
