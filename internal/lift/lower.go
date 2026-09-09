@@ -70,6 +70,13 @@ func Lower(
 		})
 	}
 
+	// What the rig claims beside its chain, against the catalog that has to
+	// supply it. After the chain, because a controller names the block it
+	// moves by position and that list is what says which model is there.
+	if err := resolve.Check(spec, blocks, cat); err != nil {
+		return err
+	}
+
 	// Before the chain, so a rig that carries routing writes its own rather
 	// than keeping whatever the preset underneath came with.
 	restore(doc, spec.Device)

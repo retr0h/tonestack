@@ -250,6 +250,13 @@ func (s *LiftPublicTestSuite) TestLift() {
 	}
 }
 
+// withSwitch puts one footswitch on a rig, lit the given colour.
+func withSwitch(spec riggen.RigSpec, led string) riggen.RigSpec {
+	spec.Footswitches = &[]riggen.Footswitch{{Led: &led}}
+
+	return spec
+}
+
 // TestLower writes a rig into a preset.
 func (s *LiftPublicTestSuite) TestLower() {
 	tests := []struct {
@@ -325,6 +332,16 @@ func (s *LiftPublicTestSuite) TestLower() {
 			into:       "HD2_Half",
 			wantParams: []string{"Drive"},
 			absent:     []string{"Missing"},
+		},
+		{
+			// Lowering asks the same question about what a rig claims beside
+			// its chain, so a colour this device cannot light fails here
+			// rather than reaching a preset.
+			name: "a colour the device does not have",
+			spec: withSwitch(
+				rigOf("lit", "Ampeg SVT (normal", riggen.InstrumentBass, nil),
+				"chartruse"),
+			errText: "footswitches[0].led",
 		},
 		{
 			name: "a parameter of no known kind",

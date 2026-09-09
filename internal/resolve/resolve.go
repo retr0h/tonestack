@@ -105,7 +105,15 @@ func Resolve(
 
 	blocks, added := fill(blocks, cat, stats, instrument)
 
-	return specFor(spec, blocks, stats), append(sub, added...), nil
+	built := specFor(spec, blocks, stats)
+
+	// What the rig claims beside its chain: a colour, a parameter, a device.
+	// Checked here because the answer is a fact about this catalog.
+	if err := Check(spec, built.Blocks, cat); err != nil {
+		return chain.Chain{}, nil, err
+	}
+
+	return built, append(sub, added...), nil
 }
 
 // categoryFor maps a rig's role onto the catalog's own grouping.
