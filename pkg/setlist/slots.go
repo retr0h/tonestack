@@ -20,7 +20,12 @@
 
 package setlist
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"maps"
+
+	"github.com/retr0h/tonestack/pkg/preset"
+)
 
 // Copy overwrites one slot with another.
 //
@@ -36,7 +41,21 @@ func (d *Document) Copy(from, to Address) error {
 		return err
 	}
 
-	*dst = *src
+	// Deep, because a preset.Data is mostly maps: a struct copy would leave
+	// the two slots sharing their tone and their metadata, so the next edit
+	// to either would rewrite both.
+	//
+	// The raw messages inside are shared, and that is safe — nothing in this
+	// package writes into one, they are replaced whole.
+	out := *src
+	out.Meta.Rest = maps.Clone(src.Meta.Rest)
+	out.Tone = make(map[string]preset.Tone, len(src.Tone))
+
+	for key, entries := range src.Tone {
+		out.Tone[key] = maps.Clone(entries)
+	}
+
+	*dst = out
 
 	return nil
 }

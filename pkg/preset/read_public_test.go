@@ -179,8 +179,10 @@ func (s *ReadPublicTestSuite) TestSpec() {
 	tests := []struct {
 		name string
 		doc  string
-		// the blocks the chain must hold, and the parameters of the first.
+		// the blocks the chain must hold, the models they name in order, and
+		// the parameters of the first.
 		blocks int
+		models []string
 		params int
 		err    bool
 		says   string
@@ -197,8 +199,11 @@ func (s *ReadPublicTestSuite) TestSpec() {
 			params: 1,
 		},
 		{
+			// Beside one that can be, so the two are ordered against each
+			// other before either is read.
 			name: "a processor key nothing can number",
-			doc:  `{"schema":"L6Preset","data":{"tone":{"dspX":{}}}}`,
+			doc: `{"schema":"L6Preset","data":{"tone":{` +
+				`"dspX":{},"dsp0":{}}}}`,
 			err:  true,
 			says: "dspX",
 		},
@@ -214,6 +219,25 @@ func (s *ReadPublicTestSuite) TestSpec() {
 				`{"@model":"X","Gain":{"nested":1}}}}}}`,
 			err:  true,
 			says: "Gain",
+		},
+		{
+			// Two blocks stating no position both sit at zero, and an order
+			// that depends on which way a map ranged is one this package's
+			// round-trip guarantee cannot hold. The key breaks the tie.
+			name: "blocks that share a position",
+			doc: `{"schema":"L6Preset","data":{"tone":{"dsp0":{` +
+				`"block3":{"@model":"Third"},"block1":{"@model":"First"}}}}}`,
+			blocks: 2,
+			models: []string{"First", "Third"},
+		},
+		{
+			// dsp10 comes after dsp2, which sorting the names does not do.
+			name: "processors past the ninth",
+			doc: `{"schema":"L6Preset","data":{"tone":{` +
+				`"dsp10":{"block0":{"@model":"Later"}},` +
+				`"dsp2":{"block0":{"@model":"Earlier"}}}}}`,
+			blocks: 2,
+			models: []string{"Earlier", "Later"},
 		},
 		{
 			name: "an attribute of the wrong kind",
@@ -242,6 +266,10 @@ func (s *ReadPublicTestSuite) TestSpec() {
 
 			s.Require().NoError(err)
 			s.Require().Len(got.Blocks, tt.blocks)
+
+			for i, want := range tt.models {
+				s.Require().Equal(catalog.ModelID(want), got.Blocks[i].Model)
+			}
 
 			if tt.params > 0 {
 				s.Require().Len(got.Blocks[0].Params, tt.params)

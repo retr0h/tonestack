@@ -62,7 +62,6 @@ func (v ParamValue) Enum() (value string, ok bool) {
 	return v.s, v.typ == ParamEnum
 }
 
-// MarshalJSON writes the value in its own kind. A zero ParamValue is an error.
 // String renders the value the way the device would show it.
 //
 // A ParamValue holds one of four kinds, and a caller that only wants to print
@@ -77,6 +76,9 @@ func (v ParamValue) String() string {
 	return strings.Trim(string(raw), `"`)
 }
 
+// MarshalJSON writes the value in its own kind. A zero ParamValue is an error:
+// a value with no kind is one nothing set, and writing it as null would put a
+// parameter into a preset that the device has no reading for.
 func (v ParamValue) MarshalJSON() ([]byte, error) {
 	switch v.typ {
 	case ParamFloat:

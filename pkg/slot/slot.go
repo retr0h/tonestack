@@ -61,8 +61,10 @@ func Parse(s string) (int, error) {
 
 	bank, letter := s[:len(s)-1], strings.ToUpper(s[len(s)-1:])
 
+	// Unsigned, so a letter before A wraps rather than going negative and is
+	// caught by the same test.
 	offset := int(letter[0] - 'A')
-	if offset < 0 || offset >= PerBank {
+	if offset >= PerBank {
 		return 0, fmt.Errorf(
 			"%w: %q — a bank runs A to %c", ErrBadSlot, s, 'A'+PerBank-1)
 	}
