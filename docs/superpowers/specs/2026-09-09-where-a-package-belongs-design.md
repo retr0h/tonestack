@@ -199,3 +199,78 @@ Step 2 is reversible: unexporting is a compile error away from being noticed,
 and re-exporting is trivial. Step 3 moves files, which git records as moves and
 review can read. Neither changes behaviour, so the gate is the check: same
 tests, same coverage, no new gaps.
+
+## What the audit found, and what changed in doing it
+
+Added rather than rewritten, so the record shows what the design got wrong.
+
+**The audit.** Every exported identifier under `pkg/`, resolved with `go/types`
+rather than by grepping, so a method reached through an interface counts and a
+name that merely appears in a comment does not. Struct fields are excluded; they
+belong to their type. Uses from a package's own external test are counted
+separately, because that test lives in the package's directory and is not
+evidence that anybody outside would call the thing.
+
+| bucket                                          | count |
+| ----------------------------------------------- | ----- |
+| exported in `pkg/`                              | 364   |
+| called from another package's production code   | 168   |
+| reached only by its own package's external test | 117   |
+| reached by nothing                              | 79    |
+
+Two things stop that last column being a list of deletions, and both were missed
+when the step was written.
+
+A type nobody names is still public. `wire.Document` is reached by nothing,
+because every caller writes `doc, err := wire.DecodeDocument(...)` and lets the
+compiler name the type. Unexporting it would leave an exported function
+returning a value a caller cannot declare. The same holds for every error struct
+a caller reaches through `errors.As`.
+
+And some of it is exported on purpose against this test. `ValidateStructure`,
+`ValidateParams`, `ValidateTopology` and `ValidateBudget` are called only by
+`Validate`, and CONTRIBUTING says why they are four functions rather than one:
+each has its own error type and its own suite, and a combined test says
+something failed without saying which layer.
+
+So the count is a reading list, not a work list. Shrinking the surface is worth
+doing and needs the judgment of whoever knows what each thing is for. It is not
+in this change.
+
+**Nothing moved down.** `pkg/corpus` looked like the one package that would,
+until `compile.Resolve` turned out to take a `*corpus.Stats`. A type in the
+signature of a function a consumer calls is part of what that consumer compiles
+against, wherever it is declared. The prediction that this test moves code up
+and nothing down held.
+
+**The mirror.** `pkg/foo` is what a consumer calls and `internal/foo` is the
+rest of that domain, named to match so both halves are findable. No domain needs
+the second half today: unexported identifiers already give a package its private
+side, and a twin package earns its place only when the implementation has to be
+several files with tests of its own that nobody outside may import. When one
+appears its tests still live in `internal/foo_test` as `*_public_test.go`,
+because the suffix says how Go sees the surface rather than who may import it.
+
+**So the boundary test reads the way it was first written.** Adding `pkg/foo`
+over `internal/foo` would have `pkg/` importing `internal/`, and the assertion
+would have had to invert. It did not happen, so `main_test.go` asserts that no
+package under `pkg/` imports `internal/`, which is also the thing that keeps the
+SDK liftable.
+
+**Two packages became one.** `internal/resolve` and `internal/lift` were merged
+into `pkg/compile` rather than kept as neighbours under it. They shared one
+unexported name between them, `lift` already imported `resolve` for `Check` and
+`Gear`, and splitting a rig's journey to a preset across two import paths made a
+consumer learn an ordering that is not theirs to know.
+
+**`pkg/editor` came out of `internal/slots`, which kept the commands.**
+`decode.go`, `encode.go` and `routing.go` moved whole. `deviceread.go` split:
+the translation went to `pkg/editor/document.go` and `writeDeviceRig`, which
+opens a catalog and writes YAML to an `io.Writer`, stayed behind. That file went
+from 265 lines to 95.
+
+The tests that came with it kept their shape. What reaches an unexported helper
+stayed an internal test in the same package, and `Document`, `Snapshots` and
+`Footswitches` gained public tests of their own, because the suite that covered
+them stayed in `internal/slots` with the command it tests and coverage is
+counted per package.

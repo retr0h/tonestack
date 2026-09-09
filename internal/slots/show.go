@@ -28,7 +28,7 @@ import (
 
 	"github.com/retr0h/tonestack/internal/catalogview"
 	"github.com/retr0h/tonestack/internal/cli"
-	"github.com/retr0h/tonestack/internal/lift"
+	"github.com/retr0h/tonestack/pkg/compile"
 	"github.com/retr0h/tonestack/pkg/preset"
 	"github.com/retr0h/tonestack/pkg/rig"
 	riggen "github.com/retr0h/tonestack/pkg/rig/gen"
@@ -77,7 +77,7 @@ func Show(w io.Writer, opts ShowOptions) error {
 		return err
 	}
 
-	spec, err := lift.Lift(doc, cat)
+	spec, err := compile.Lift(doc, cat)
 	if err != nil {
 		return fmt.Errorf("reading slot %s: %w", slotpkg.Label(opts.Slot), err)
 	}

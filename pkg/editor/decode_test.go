@@ -18,7 +18,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-package slots
+package editor
 
 import (
 	"encoding/json"
@@ -183,7 +183,7 @@ func (s *DecodeTestSuite) TestChainOf() {
 				title = "x"
 			}
 
-			got, err := chainOf(title, wire.DevicePreset{Blocks: blocks}, cat)
+			got, err := Chain(title, wire.DevicePreset{Blocks: blocks}, cat)
 
 			if tt.errText != "" {
 				s.Require().Error(err)

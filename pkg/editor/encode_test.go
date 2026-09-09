@@ -18,7 +18,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-package slots
+package editor
 
 import (
 	"encoding/json"
@@ -29,7 +29,6 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
-	"github.com/retr0h/tonestack/internal/catalogview"
 	"github.com/retr0h/tonestack/pkg/catalog"
 	"github.com/retr0h/tonestack/pkg/chain"
 	"github.com/retr0h/tonestack/pkg/preset"
@@ -44,7 +43,7 @@ type EncodeTestSuite struct {
 }
 
 func (s *EncodeTestSuite) SetupSuite() {
-	cat, err := catalogview.Open("")
+	cat, err := catalog.BuiltIn()
 	s.Require().NoError(err)
 
 	s.cat = cat
@@ -53,7 +52,7 @@ func (s *EncodeTestSuite) SetupSuite() {
 // capture returns one slot as an HX Stomp actually sent it.
 func (s *EncodeTestSuite) capture(name string) []byte {
 	raw, err := os.ReadFile(
-		filepath.Join("..", "..", "pkg", "sdk", "wire", "testdata", name))
+		filepath.Join("..", "sdk", "wire", "testdata", name))
 	s.Require().NoError(err)
 
 	return raw
@@ -64,7 +63,7 @@ func (s *EncodeTestSuite) asPreset(
 	name string,
 	got wire.DevicePreset,
 ) *preset.Document {
-	c, err := chainOf(name, got, s.cat)
+	c, err := Chain(name, got, s.cat)
 	s.Require().NoError(err)
 
 	doc, err := preset.Blank()
@@ -97,7 +96,7 @@ func (s *EncodeTestSuite) TestAPresetSurvivesGoingBackToTheDevice() {
 			was, err := wire.DecodePreset(s.capture(name))
 			s.Require().NoError(err)
 
-			blocks, err := placementsOf(s.asPreset(name, was), s.cat)
+			blocks, err := Placements(s.asPreset(name, was), s.cat)
 			s.Require().NoError(err)
 
 			out, err := wire.Blank()
@@ -195,7 +194,7 @@ func (s *EncodeTestSuite) TestPlacementsOfReportsWhatItCannotWrite() {
 				doc.Data.Tone[processorKey][key] = body
 			}
 
-			_, err = placementsOf(doc, cat)
+			_, err = Placements(doc, cat)
 
 			s.Require().Error(err)
 

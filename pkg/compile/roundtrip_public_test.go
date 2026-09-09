@@ -18,7 +18,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-package lift_test
+package compile_test
 
 import (
 	"bytes"
@@ -30,8 +30,8 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
-	"github.com/retr0h/tonestack/internal/lift"
 	"github.com/retr0h/tonestack/pkg/catalog"
+	"github.com/retr0h/tonestack/pkg/compile"
 	"github.com/retr0h/tonestack/pkg/preset"
 	riggen "github.com/retr0h/tonestack/pkg/rig/gen"
 )
@@ -90,7 +90,7 @@ func (s *RoundTripPublicTestSuite) TestLift() {
 	doc, err := preset.Read(bytes.NewReader(s.read(s.fixtures()[0])))
 	s.Require().NoError(err)
 
-	spec, err := lift.Lift(doc, s.cat)
+	spec, err := compile.Lift(doc, s.cat)
 	s.Require().NoError(err)
 	s.Require().NotEmpty(spec.Chain)
 
@@ -196,14 +196,14 @@ func (s *RoundTripPublicTestSuite) backAgain(raw []byte) (string, string) {
 	from, err := preset.Read(bytes.NewReader(raw))
 	s.Require().NoError(err)
 
-	first, err := lift.Lift(from, s.cat)
+	first, err := compile.Lift(from, s.cat)
 	s.Require().NoError(err)
 
 	blank, err := preset.Blank()
 	s.Require().NoError(err)
-	s.Require().NoError(lift.Lower(blank, first, s.cat))
+	s.Require().NoError(compile.Lower(blank, first, s.cat))
 
-	second, err := lift.Lift(blank, s.cat)
+	second, err := compile.Lift(blank, s.cat)
 	s.Require().NoError(err)
 
 	return s.marshal(first), s.marshal(second)
@@ -227,10 +227,10 @@ func (s *RoundTripPublicTestSuite) through(raw []byte, doc *preset.Document) []b
 	from, err := preset.Read(bytes.NewReader(raw))
 	s.Require().NoError(err)
 
-	spec, err := lift.Lift(from, s.cat)
+	spec, err := compile.Lift(from, s.cat)
 	s.Require().NoError(err)
 
-	s.Require().NoError(lift.Lower(doc, spec, s.cat))
+	s.Require().NoError(compile.Lower(doc, spec, s.cat))
 
 	var out bytes.Buffer
 	s.Require().NoError(preset.Write(&out, doc))

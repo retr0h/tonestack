@@ -18,7 +18,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-package slots
+package editor
 
 import (
 	"encoding/json"
@@ -31,14 +31,14 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk/wire"
 )
 
-// chainOf turns a device's answer into a chain the rest of this speaks.
+// Chain turns a device's answer into a chain the rest of this speaks.
 //
 // The device names nothing. A block carries a number into the device's own
 // model table and its parameters arrive as a bare array, so the catalog's
 // symbol list is what puts names back on both — and that table is longer than
 // the block list, because it holds a mono and a stereo entry for the same
 // model.
-func chainOf(name string, got wire.DevicePreset, cat *catalog.Catalog) (chain.Chain, error) {
+func Chain(name string, got wire.DevicePreset, cat *catalog.Catalog) (chain.Chain, error) {
 	if len(cat.Symbols) == 0 {
 		return chain.Chain{}, fmt.Errorf(
 			"this catalog has no model table, so a preset read off the device " +

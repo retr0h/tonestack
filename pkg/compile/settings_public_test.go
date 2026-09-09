@@ -18,7 +18,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-package resolve_test
+package compile_test
 
 import (
 	"os"
@@ -27,8 +27,8 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
-	"github.com/retr0h/tonestack/internal/resolve"
 	"github.com/retr0h/tonestack/pkg/catalog"
+	"github.com/retr0h/tonestack/pkg/compile"
 	"github.com/retr0h/tonestack/pkg/corpus"
 )
 
@@ -63,7 +63,7 @@ func (s *SettingsPublicTestSuite) value(
 	stats *corpus.Stats,
 	key string,
 ) catalog.ParamValue {
-	spec, _, err := resolve.Resolve(recipe("Ampeg SVT (normal", ""), s.cat, stats)
+	spec, _, err := compile.Resolve(recipe("Ampeg SVT (normal", ""), s.cat, stats)
 	s.Require().NoError(err)
 	s.Require().NotEmpty(spec.Blocks)
 

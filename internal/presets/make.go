@@ -29,9 +29,9 @@ import (
 	"github.com/retr0h/tonestack/internal/catalogview"
 	"github.com/retr0h/tonestack/internal/cli"
 	"github.com/retr0h/tonestack/internal/recipes"
-	"github.com/retr0h/tonestack/internal/resolve"
 	"github.com/retr0h/tonestack/pkg/catalog"
 	"github.com/retr0h/tonestack/pkg/chain"
+	"github.com/retr0h/tonestack/pkg/compile"
 	"github.com/retr0h/tonestack/pkg/corpus"
 	"github.com/retr0h/tonestack/pkg/preset"
 )
@@ -73,13 +73,13 @@ func Make(w io.Writer, opts MakeOptions) error {
 	// generic, so a failure to read them is not a failure to build.
 	stats, _ := openStats(opts.StatsPath)
 
-	spec, added, err := resolve.Resolve(rec, cat, stats)
+	spec, added, err := compile.Resolve(rec, cat, stats)
 	if err != nil {
 		return err
 	}
 
 	limits := chain.HXStompLimits()
-	spec = resolve.Fit(spec, cat, limits)
+	spec = compile.Fit(spec, cat, limits)
 
 	if err := chain.Validate(cat, spec, limits); err != nil {
 		return fmt.Errorf("the chain this recipe describes will not load: %w", err)
@@ -154,7 +154,7 @@ func report(
 	w io.Writer,
 	spec chain.Chain,
 	cat *catalog.Catalog,
-	added []resolve.Added,
+	added []compile.Added,
 	path string,
 ) error {
 	if err := render(w, spec, cat, added, path); err != nil {
@@ -171,7 +171,7 @@ func render(
 	w io.Writer,
 	spec chain.Chain,
 	cat *catalog.Catalog,
-	added []resolve.Added,
+	added []compile.Added,
 	path string,
 ) error {
 	if _, err := fmt.Fprintf(
@@ -198,7 +198,7 @@ func render(
 // A recipe names an amp; a rig is four or five blocks. The rest come from what
 // the corpus shows chains of this kind almost always hold, and a choice made
 // on the player's behalf has to be visible before they plug in.
-func explain(w io.Writer, added []resolve.Added) error {
+func explain(w io.Writer, added []compile.Added) error {
 	if len(added) == 0 {
 		return nil
 	}

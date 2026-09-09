@@ -18,7 +18,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-package lift_test
+package compile_test
 
 import (
 	"bytes"
@@ -27,8 +27,8 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
-	"github.com/retr0h/tonestack/internal/lift"
 	"github.com/retr0h/tonestack/pkg/catalog"
+	"github.com/retr0h/tonestack/pkg/compile"
 	"github.com/retr0h/tonestack/pkg/preset"
 	riggen "github.com/retr0h/tonestack/pkg/rig/gen"
 )
@@ -113,7 +113,7 @@ func (s *SnapshotsPublicTestSuite) TestLiftSnapshots() {
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			spec, err := lift.Lift(s.presetWith(tt.entries), s.cat)
+			spec, err := compile.Lift(s.presetWith(tt.entries), s.cat)
 			s.Require().NoError(err)
 
 			if tt.none {
@@ -184,7 +184,7 @@ func (s *SnapshotsPublicTestSuite) TestLowerSnapshots() {
 			if tt.typed != nil {
 				spec = *tt.typed
 			} else {
-				got, err := lift.Lift(s.presetWith(map[string]string{
+				got, err := compile.Lift(s.presetWith(map[string]string{
 					"snapshot0": `{"@name": "` + tt.lifted + `"}`,
 				}), s.cat)
 				s.Require().NoError(err)
@@ -194,7 +194,7 @@ func (s *SnapshotsPublicTestSuite) TestLowerSnapshots() {
 
 			doc, err := preset.Blank()
 			s.Require().NoError(err)
-			s.Require().NoError(lift.Lower(doc, spec, s.cat))
+			s.Require().NoError(compile.Lower(doc, spec, s.cat))
 
 			var out bytes.Buffer
 			s.Require().NoError(preset.Write(&out, doc))

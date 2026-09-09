@@ -17,18 +17,8 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
-// Package resolve turns curated knowledge into a signal chain.
-//
-// A recipe names real-world gear; a device understands model identifiers. This
-// package is where the two meet: it looks up what each named piece of gear
-// corresponds to on this device, orders the result into a chain the hardware
-// can represent, and sets every parameter to what Line 6 says it should be.
-//
-// What it does not yet do is act on a recipe's character lines. Those describe
-// how a rig should sound, and turning them into parameter moves is the next
-// piece of work. Until then a generated preset is the right gear at factory
-// settings, which is a starting point rather than an answer.
-package resolve
+
+package compile
 
 import (
 	"errors"

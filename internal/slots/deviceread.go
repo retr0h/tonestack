@@ -23,13 +23,11 @@ package slots
 import (
 	"fmt"
 	"io"
-	"strings"
 
 	"github.com/retr0h/tonestack/internal/catalogview"
-	"github.com/retr0h/tonestack/internal/lift"
-	"github.com/retr0h/tonestack/pkg/catalog"
+	"github.com/retr0h/tonestack/pkg/compile"
+	"github.com/retr0h/tonestack/pkg/editor"
 	"github.com/retr0h/tonestack/pkg/preset"
-	riggen "github.com/retr0h/tonestack/pkg/rig/gen"
 	"github.com/retr0h/tonestack/pkg/sdk/wire"
 	slotpkg "github.com/retr0h/tonestack/pkg/slot"
 )
@@ -56,7 +54,7 @@ func writeDeviceRig(w io.Writer, body []byte, opts DeviceOptions) error {
 		name = "slot " + slotpkg.Label(opts.Slot)
 	}
 
-	doc, empty, err := deviceDocument(got, cat, name)
+	doc, empty, err := editor.Document(got, cat, name)
 	if err != nil {
 		return err
 	}
@@ -73,7 +71,7 @@ func writeDeviceRig(w io.Writer, body []byte, opts DeviceOptions) error {
 		return preset.Write(w, doc)
 	}
 
-	spec, err := lift.Lift(doc, cat)
+	spec, err := compile.Lift(doc, cat)
 	if err != nil {
 		return fmt.Errorf("reading slot %s: %w", slotpkg.Label(opts.Slot), err)
 	}
@@ -84,182 +82,10 @@ func writeDeviceRig(w io.Writer, body []byte, opts DeviceOptions) error {
 	//
 	// Controller assignments are not decoded yet and so are not carried. A
 	// rig read off the device rebuilds its routing but not those.
-	spec.Device = deviceStateOf(got, cat)
-	spec.Snapshots = snapshotsOf(got)
-	spec.Footswitches = footswitchesOf(got, cat)
-	spec.Controllers = controllersOf(got, cat)
+	spec.Device = editor.DeviceState(got, cat)
+	spec.Snapshots = editor.Snapshots(got)
+	spec.Footswitches = editor.Footswitches(got, cat)
+	spec.Controllers = editor.Controllers(got, cat)
 
 	return writeRigTo(w, spec)
-}
-
-// controllersOf carries what an expression pedal or a footswitch moves.
-//
-// A device stores the parameter as a number, its place in the model's own
-// order, and stores the block by the position it lays it out at. Neither
-// reads, so the catalog turns the first into a name and the grid offset turns
-// the second into a place along the path.
-//
-// An assignment naming a model or a parameter this catalog cannot reach is
-// dropped rather than written with a number in place of a name. A rig that
-// said `parameter: 4` would be unreadable and would mean something different
-// after the next firmware release.
-func controllersOf(
-	got wire.DevicePreset,
-	cat *catalog.Catalog,
-) *[]riggen.Controller {
-	if len(got.Controllers) == 0 {
-		return nil
-	}
-
-	out := make([]riggen.Controller, 0, len(got.Controllers))
-
-	for _, c := range got.Controllers {
-		name, ok := paramNameOf(got, cat, c.Block, c.Param)
-		if !ok {
-			continue
-		}
-
-		lo, hi := float32(c.Min), float32(c.Max)
-		one := riggen.Controller{
-			Controller: c.Controller,
-			Block:      c.Block - wire.GridOffset,
-			Parameter:  name,
-			Min:        &lo,
-			Max:        &hi,
-		}
-
-		if c.NoSnapshot {
-			one.NoSnapshot = &c.NoSnapshot
-		}
-
-		out = append(out, one)
-	}
-
-	if len(out) == 0 {
-		return nil
-	}
-
-	return &out
-}
-
-// paramNameOf names one parameter of one block.
-//
-// The block is found by the position the device laid it out at, because that
-// is how a controller assignment addresses it.
-func paramNameOf(
-	got wire.DevicePreset,
-	cat *catalog.Catalog,
-	at, param int,
-) (string, bool) {
-	for _, b := range got.Blocks {
-		if b.Index != at {
-			continue
-		}
-
-		sym, ok := cat.Symbol(b.Model)
-		if !ok || param < 0 || param >= len(sym.Params) {
-			return "", false
-		}
-
-		return sym.Params[param], true
-	}
-
-	return "", false
-}
-
-// deviceDocument builds the preset a device's answer describes.
-//
-// Everything a preset holds, not only the chain: the routing a device wraps
-// one in, and the cabinets its amplifiers carry, which a preset keeps as
-// sibling entries rather than inside the block.
-//
-// The blank it is written into is an untouched preset the device itself
-// wrote, embedded in this binary and read by a test, so it cannot fail to
-// decode.
-func deviceDocument(
-	got wire.DevicePreset,
-	cat *catalog.Catalog,
-	name string,
-) (*preset.Document, bool, error) {
-	c, err := chainOf(name, got, cat)
-	if err != nil {
-		return nil, false, err
-	}
-
-	if len(c.Blocks) == 0 {
-		return nil, true, nil
-	}
-
-	doc, _ := preset.Blank()
-	doc.Data.Device = cat.DeviceID
-	doc.Data.Meta.Name = name
-
-	_ = doc.SetSpec(c)
-
-	if state := routingOf(got, cat); state != nil {
-		for key, body := range *state {
-			doc.Data.Tone[processorKey][strings.TrimPrefix(
-				key, processorKey+".")] = body
-		}
-	}
-
-	return doc, false, nil
-}
-
-// snapshotsOf carries what the device recalls on a footswitch.
-func snapshotsOf(got wire.DevicePreset) *[]riggen.Snapshot {
-	if len(got.Snapshots) == 0 {
-		return nil
-	}
-
-	out := make([]riggen.Snapshot, 0, len(got.Snapshots))
-
-	for _, s := range got.Snapshots {
-		snap := riggen.Snapshot{}
-
-		if s.Name != "" {
-			name := s.Name
-			snap.Name = &name
-		}
-
-		if s.Tempo > 0 {
-			tempo := s.Tempo
-			snap.Tempo = &tempo
-		}
-
-		led, valid := s.LED, s.Valid
-		snap.Led, snap.Valid = &led, &valid
-
-		out = append(out, snap)
-	}
-
-	return &out
-}
-
-// footswitchesOf carries what the pedal prints under each switch.
-func footswitchesOf(got wire.DevicePreset, cat *catalog.Catalog) *[]riggen.Footswitch {
-	if len(got.Footswitches) == 0 {
-		return nil
-	}
-
-	out := make([]riggen.Footswitch, 0, len(got.Footswitches))
-
-	for _, f := range got.Footswitches {
-		// The block as the chain numbers it, so a footswitch and the entry
-		// it works on agree.
-		label, gear, at, block := f.Label, f.Gear, f.Switch, f.Block-wire.GridOffset
-		fs := riggen.Footswitch{
-			Switch: &at, Label: &label, Gear: &gear, Block: &block,
-		}
-
-		// A colour a device knows and this catalog does not gets no name
-		// rather than a wrong one.
-		if name, ok := cat.LEDColour(f.LED); ok {
-			fs.Led = &name
-		}
-
-		out = append(out, fs)
-	}
-
-	return &out
 }

@@ -28,7 +28,7 @@ import (
 
 	"github.com/retr0h/tonestack/internal/catalogview"
 	"github.com/retr0h/tonestack/internal/cli"
-	"github.com/retr0h/tonestack/internal/lift"
+	"github.com/retr0h/tonestack/pkg/compile"
 	"github.com/retr0h/tonestack/pkg/preset"
 	"github.com/retr0h/tonestack/pkg/rig"
 	slotpkg "github.com/retr0h/tonestack/pkg/slot"
@@ -116,7 +116,7 @@ func writeRig(buf *bytes.Buffer, doc *preset.Document, catalogPath string) error
 		return err
 	}
 
-	spec, err := lift.Lift(doc, cat)
+	spec, err := compile.Lift(doc, cat)
 	if err != nil {
 		return err
 	}
