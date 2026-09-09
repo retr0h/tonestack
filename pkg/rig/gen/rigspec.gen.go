@@ -139,6 +139,21 @@ func (e RigSpecSchema) Valid() bool {
 	}
 }
 
+// Defines values for RigSpecVersion.
+const (
+	VersionTwo RigSpecVersion = 2
+)
+
+// Valid indicates whether the value is a known member of the RigSpecVersion enum.
+func (e RigSpecVersion) Valid() bool {
+	switch e {
+	case VersionTwo:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for Role.
 const (
 	RoleAmp     Role = "amp"
@@ -511,12 +526,21 @@ type RigSpec struct {
 
 	// Version Which version of this contract the document was written against.
 	//
+	// One value, because there is one version. A rig stating another is refused rather than read as if the fields meant the same thing. `default` says nothing here: nothing applies it, so a rig that states no version simply states none.
+	//
 	// A rig this project writes states it, so a file says what validated it without anybody having to guess from which fields are present.
-	Version *int `json:"version,omitempty"`
+	Version *RigSpecVersion `json:"version,omitempty"`
 }
 
 // RigSpecSchema Names the format, so a file says what it is without relying on where it was found.
 type RigSpecSchema string
+
+// RigSpecVersion Which version of this contract the document was written against.
+//
+// One value, because there is one version. A rig stating another is refused rather than read as if the fields meant the same thing. `default` says nothing here: nothing applies it, so a rig that states no version simply states none.
+//
+// A rig this project writes states it, so a file says what validated it without anybody having to guess from which fields are present.
+type RigSpecVersion int
 
 // Role What a piece of gear does in a chain. The same vocabulary the catalog groups blocks by, so a role resolves without translation.
 //

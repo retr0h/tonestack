@@ -23,6 +23,7 @@ package rig_test
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"strings"
 	"testing"
@@ -81,6 +82,26 @@ func (s *LoadPublicTestSuite) TestLoad() {
 				"instrument: bass\nchain:\n" +
 				"  - {role: amp, gear: Ampeg SVT, gera: nonsense}\n",
 			errText: `property "gera" is unsupported`,
+		},
+		{
+			// The contract calls this an integer and Go's int cannot hold
+			// it, so the decode fails on a document that validated. It came
+			// back as a rig with the field zeroed and no error at all.
+			name: "a number larger than the type that holds it",
+			in: "schema: RigSpec\nid: x\nsubject: {kind: artist, name: X}\n" +
+				"instrument: bass\nchain:\n  - {role: amp, gear: Ampeg SVT}\n" +
+				"controllers:\n" +
+				"  - {controller: 99999999999999999999, block: 0, parameter: Drive}\n",
+			errText: "of type int",
+		},
+		{
+			// One version, so a rig stating another is refused rather than
+			// read as if its fields meant the same thing.
+			name: "a version this contract is not",
+			in: "schema: RigSpec\nversion: 3\nid: x\n" +
+				"subject: {kind: artist, name: X}\n" +
+				"instrument: bass\nchain:\n  - {role: amp, gear: Ampeg SVT}\n",
+			errText: "version",
 		},
 		{
 			name: "a link that is not one",
@@ -219,6 +240,20 @@ func (*failingReader) Read([]byte) (int, error) { return 0, errors.New("boom") }
 type failingWriter struct{}
 
 func (*failingWriter) Write([]byte) (int, error) { return 0, errors.New("boom") }
+
+// TestTheContractAcceptsTheVersionThisPackageWrites keeps the constant and
+// the contract from drifting apart.
+//
+// rig.Version says which version this package reads and writes; the contract
+// says which one a document may state. Nothing else compares them, and a bump
+// that moved one and not the other would be silent.
+func (s *LoadPublicTestSuite) TestTheContractAcceptsTheVersionThisPackageWrites() {
+	stated := fmt.Sprintf("version: %d\n", rig.Version)
+
+	_, err := rig.Load(strings.NewReader(stated + smallest))
+
+	s.Require().NoError(err)
+}
 
 func TestLoadPublicTestSuite(t *testing.T) {
 	suite.Run(t, new(LoadPublicTestSuite))

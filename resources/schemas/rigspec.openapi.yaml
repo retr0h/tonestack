@@ -723,9 +723,16 @@ components:
             where it was found.
         version:
           type: integer
-          default: 2
+          enum: [2]
+          x-enum-varnames: [VersionTwo]
           description: >
             Which version of this contract the document was written against.
+
+
+            One value, because there is one version. A rig stating another is
+            refused rather than read as if the fields meant the same thing.
+            `default` says nothing here: nothing applies it, so a rig that
+            states no version simply states none.
 
 
             A rig this project writes states it, so a file says what validated
