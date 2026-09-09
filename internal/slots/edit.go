@@ -26,6 +26,7 @@ import (
 
 	"github.com/retr0h/tonestack/internal/cli"
 	"github.com/retr0h/tonestack/pkg/setlist"
+	slotpkg "github.com/retr0h/tonestack/pkg/slot"
 )
 
 // EditOptions says which two slots to act on and where to put the result.
@@ -121,9 +122,9 @@ func report(
 ) error {
 	_, err := fmt.Fprintf(w, "\n%s%s %s %s %s %s\n\n%s%s\n\n",
 		cli.Indent,
-		cli.Accent(w, position(from.Slot)), fromName,
+		cli.Accent(w, slotpkg.Label(from.Slot)), fromName,
 		cli.Mute(w, "→"),
-		cli.Accent(w, position(to.Slot)), toName,
+		cli.Accent(w, slotpkg.Label(to.Slot)), toName,
 		cli.Indent,
 		cli.Success(w, fmt.Sprintf("%s, wrote %s", verb, path)),
 	)

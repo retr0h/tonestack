@@ -31,6 +31,7 @@ import (
 	"github.com/retr0h/tonestack/internal/lift"
 	"github.com/retr0h/tonestack/pkg/preset"
 	"github.com/retr0h/tonestack/pkg/rig"
+	slotpkg "github.com/retr0h/tonestack/pkg/slot"
 )
 
 // Format is what an export is written as.
@@ -102,7 +103,7 @@ func Export(w io.Writer, opts ExportOptions) error {
 	}
 
 	_, err = fmt.Fprintf(w, "\n%s%s %s\n\n%s%s\n\n",
-		cli.Indent, cli.Accent(w, position(opts.Slot)), data.Meta.Name,
+		cli.Indent, cli.Accent(w, slotpkg.Label(opts.Slot)), data.Meta.Name,
 		cli.Indent, cli.Success(w, "wrote "+opts.OutputPath))
 
 	return err
@@ -176,7 +177,7 @@ func Import(w io.Writer, opts ImportOptions) error {
 	}
 
 	_, err = fmt.Fprintf(w, "\n%s%s %s %s %s\n\n%s%s\n\n",
-		cli.Indent, cli.Accent(w, position(opts.Slot)),
+		cli.Indent, cli.Accent(w, slotpkg.Label(opts.Slot)),
 		src.Data.Meta.Name,
 		cli.Mute(w, "replaced"), replaced,
 		cli.Indent, cli.Success(w, "wrote "+opts.OutputPath))

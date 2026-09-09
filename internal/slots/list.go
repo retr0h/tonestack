@@ -30,6 +30,7 @@ import (
 	"github.com/retr0h/tonestack/pkg/catalog"
 	"github.com/retr0h/tonestack/pkg/chain"
 	"github.com/retr0h/tonestack/pkg/setlist"
+	slotpkg "github.com/retr0h/tonestack/pkg/slot"
 )
 
 // ListOptions says which setlist to list.
@@ -96,7 +97,7 @@ func listRows(
 		if len(spec.Blocks) == 0 {
 			if all {
 				rows = append(rows, []string{
-					cli.Mute(w, position(i)),
+					cli.Mute(w, slotpkg.Label(i)),
 					cli.Mute(w, sl.Slots[i].Meta.Name),
 					"",
 				})
@@ -108,7 +109,7 @@ func listRows(
 		used++
 
 		rows = append(rows, []string{
-			cli.Accent(w, position(i)),
+			cli.Accent(w, slotpkg.Label(i)),
 			sl.Slots[i].Meta.Name,
 			flow(w, spec.Blocks, cat),
 		})

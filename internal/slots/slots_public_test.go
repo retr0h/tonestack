@@ -63,7 +63,12 @@ func (s *SlotsPublicTestSuite) TestList() {
 			opts: slots.ListOptions{
 				Path: fixture("setlist.hls"), CatalogPath: catalogPath(), All: true,
 			},
-			contains: []string{"New Preset"},
+			// A bank holds three, so the fourth slot opens the second bank.
+			// This file labelled slots in banks of four while the flag that
+			// addresses them parsed banks of three, so `--slot 04A` came
+			// back as `03B`.
+			contains: []string{"New Preset", "01C", "02A"},
+			absent:   []string{"01D"},
 		},
 		{
 			name: "one setlist out of a bundle",
