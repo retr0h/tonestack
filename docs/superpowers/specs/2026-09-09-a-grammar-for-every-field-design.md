@@ -250,3 +250,31 @@ It does not touch the catalog, the corpus, or anything under `pkg/sdk`.
 
 Each step lands on its own. The first is worth doing even if the rest is
 rejected.
+
+## Corrections found while implementing
+
+Added rather than rewritten, so the record shows what the design got wrong.
+
+**`format` is not enforced.** kin-openapi treats a string format as an
+annotation unless the format is registered globally, and registering one from a
+library mutates a table shared with everything else in the binary. So the shaped
+fields use `pattern`, which is enforced. Measured: a rig carrying
+`url: "not a url at all"` under `format: uri` compiled without complaint.
+
+**`mutation.at` is a date, not a place in a recording.** It records when a
+correction was made, "so a run of corrections can be read in order". Only
+`evidence.at` is a timestamp into a source. The two were grouped together in the
+table above and take different shapes: `2026-09-06` against `1:42` or
+`1:20-1:45`.
+
+**`subject.era` has no shape.** It holds "1994" or "American Idiot", a year or
+the record a rig belongs to, and a pattern admitting both admits everything. It
+moves to open.
+
+**`target.catalog` moves to open as well.** It is written by the catalog
+generator rather than by hand, so a pattern would check this project's own
+output against itself.
+
+**Label lengths are deferred.** A device truncates a label it cannot hold, and
+the limit is not written down anywhere here. Guessing a `maxLength` would refuse
+presets the hardware accepts. It needs measuring against a device first.

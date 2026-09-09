@@ -83,6 +83,38 @@ func (s *LoadPublicTestSuite) TestLoad() {
 			errText: `property "gera" is unsupported`,
 		},
 		{
+			name: "a link that is not one",
+			in: "schema: RigSpec\nid: x\nsubject: {kind: artist, name: X}\n" +
+				"instrument: bass\nchain:\n  - {role: amp, gear: Ampeg SVT}\n" +
+				"evidence:\n  - {kind: cited, url: mikes-website}\n",
+			errText: "evidence[0].url",
+		},
+		{
+			// Where in a recording, so it has to be a time.
+			name: "a place in a recording, given in words",
+			in: "schema: RigSpec\nid: x\nsubject: {kind: artist, name: X}\n" +
+				"instrument: bass\nchain:\n  - {role: amp, gear: Ampeg SVT}\n" +
+				"evidence:\n  - {kind: video, url: \"https://x.test/v\", at: the end}\n",
+			errText: "evidence[0].at",
+		},
+		{
+			name: "a correction dated in words",
+			in: "schema: RigSpec\nid: x\nsubject: {kind: artist, name: X}\n" +
+				"instrument: bass\nchain:\n  - {role: amp, gear: Ampeg SVT}\n" +
+				"mutations:\n  - {at: yesterday, ask: make it clunkier}\n",
+			errText: "mutations[0].at",
+		},
+		{
+			// A path into this document, which is how a correction says what it
+			// moved.
+			name: "a path nothing could follow",
+			in: "schema: RigSpec\nid: x\nsubject: {kind: artist, name: X}\n" +
+				"instrument: bass\nchain:\n  - {role: amp, gear: Ampeg SVT}\n" +
+				"mutations:\n  - {at: \"2026-09-06\", ask: x,\n" +
+				"     changed: [{path: the drive knob, from: 1, to: 2}]}\n",
+			errText: "changed[0].path",
+		},
+		{
 			name: "a rig holding no chain",
 			in: "schema: RigSpec\nid: x\nsubject: {kind: artist, name: X}\n" +
 				"instrument: bass\nchain: []\n",
