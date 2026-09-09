@@ -25,15 +25,30 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
+	"runtime"
 
 	"github.com/retr0h/tonestack/internal/specdoc"
 	"github.com/retr0h/tonestack/resources/schemas"
 )
 
-// out is where the page goes, relative to the package `go generate` runs in.
-const out = "../../docs/rigspec.md"
+// out is where the page goes, worked out from this file rather than from
+// wherever somebody ran the command. CONTRIBUTING asks a generator to write by
+// a path relative to itself, so which directory you are in does not matter.
+func out() (string, error) {
+	_, self, _, ok := runtime.Caller(0)
+	if !ok {
+		return "", errors.New("cannot tell where this generator lives")
+	}
+
+	// internal/specdoc/gen/main.go, so the repository is three above it.
+	root := filepath.Dir(filepath.Dir(filepath.Dir(filepath.Dir(self))))
+
+	return filepath.Join(root, "docs", "rigspec.md"), nil
+}
 
 func main() {
 	body, err := specdoc.Render(schemas.RigSpec)
@@ -42,7 +57,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := os.WriteFile(out, body, 0o600); err != nil {
+	path, err := out()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
+	if err := os.WriteFile(path, body, 0o600); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}

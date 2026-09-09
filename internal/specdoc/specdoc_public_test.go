@@ -23,6 +23,8 @@ package specdoc_test
 import (
 	"os"
 	"path/filepath"
+	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
@@ -106,6 +108,28 @@ func (s *SpecdocPublicTestSuite) TestRender() {
 			contains: []string{"shaped | `10` or less"},
 		},
 		{
+			// Nothing to tabulate, so the constraint is answered here rather
+			// than linked to a section nobody emits.
+			name: "a field holding a map of numbers",
+			schema: `
+openapi: 3.0.3
+info: { title: t, version: "1" }
+paths: {}
+components:
+  schemas:
+    RigSpec:
+      type: object
+      properties:
+        settings:
+          $ref: "#/components/schemas/Settings"
+    Settings:
+      type: object
+      additionalProperties: { type: number, minimum: 0, maximum: 1 }
+`,
+			contains: []string{"| `settings` | map of number | shaped | `0` to `1` |"},
+			absent:   []string{"(#settings)"},
+		},
+		{
 			// The question moves to that object's own table rather than
 			// being answered twice.
 			name: "a field holding another object",
@@ -164,6 +188,30 @@ paths: {}
 				s.Require().NotContains(string(got), unwanted)
 			}
 		})
+	}
+}
+
+// TestEveryLinkPointsAtASection covers a page that refers to itself.
+//
+// A field holding another object points at that object's table. One holding
+// something with no fields to tabulate — Settings is a map of numbers — has no
+// table to point at, and linked to a heading nobody emits.
+func (s *SpecdocPublicTestSuite) TestEveryLinkPointsAtASection() {
+	body, err := specdoc.Render(schemas.RigSpec)
+	s.Require().NoError(err)
+
+	page := string(body)
+
+	sections := map[string]bool{}
+	for _, m := range regexp.MustCompile(`(?m)^## (\w+)`).FindAllStringSubmatch(page, -1) {
+		sections[strings.ToLower(m[1])] = true
+	}
+
+	s.Require().NotEmpty(sections)
+
+	for _, m := range regexp.MustCompile(`\]\(#([\w-]+)\)`).FindAllStringSubmatch(page, -1) {
+		s.Require().True(sections[m[1]],
+			"the page links to #%s and has no such section", m[1])
 	}
 }
 
