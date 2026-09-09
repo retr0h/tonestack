@@ -49,35 +49,47 @@ func (s *PresetShapeTestSuite) encode(doc any) []byte {
 	return buf.Bytes()
 }
 
-func (s *PresetShapeTestSuite) TestADocumentSayingNothingUseful() {
-	for _, tc := range []struct {
+// footswitch wraps one switch entry the way a preset carries it.
+func footswitch(entry map[int8]any) map[int8]any {
+	return map[int8]any{
+		keyFootswitch: map[int8]any{keyFsPaths: []any{[]any{entry}}},
+	}
+}
+
+// TestDecodePreset reads a preset a device sent, however it is shaped.
+func (s *PresetShapeTestSuite) TestDecodePreset() {
+	tests := []struct {
 		name string
 		doc  map[int8]any
+		// routing entries the reading must hold, none unless a case says so.
+		routing int
+		// the label a single footswitch must show, when one is expected.
+		label string
 	}{
-		{"no tone at all", map[int8]any{}},
-		{"a tone that is not a map", map[int8]any{keyTone: "text"}},
-		{"blocks that are not a list", map[int8]any{
+		{name: "no tone at all", doc: map[int8]any{}},
+		{name: "a tone that is not a map", doc: map[int8]any{keyTone: "text"}},
+		{name: "blocks that are not a list", doc: map[int8]any{
 			keyTone: map[int8]any{keyBlocks: "text"},
 		}},
-		{"an entry that is not a map", map[int8]any{
+		{name: "a block that is not a map", doc: map[int8]any{
 			keyTone: map[int8]any{keyBlocks: []any{"text"}},
 		}},
-		{"an entry of another kind", map[int8]any{
+		{name: "a block of another kind", doc: map[int8]any{
 			keyTone: map[int8]any{keyBlocks: []any{
 				map[int8]any{keyBlockKind: 8},
 			}},
 		}},
-		{"a body that is not a map", map[int8]any{
+		{name: "a block body that is not a map", doc: map[int8]any{
 			keyTone: map[int8]any{keyBlocks: []any{
 				map[int8]any{keyBlockKind: kindBlock, keyBlockBody: "text"},
 			}},
 		}},
-		{"a block naming no model", map[int8]any{
+		{name: "a block naming no model", doc: map[int8]any{
 			keyTone: map[int8]any{keyBlocks: []any{
 				map[int8]any{keyBlockKind: kindBlock, keyBlockBody: map[int8]any{}},
 			}},
 		}},
-		{"a model reference that is not a number", map[int8]any{
+		{name: "a model reference that is not a number", doc: map[int8]any{
 			keyTone: map[int8]any{keyBlocks: []any{
 				map[int8]any{
 					keyBlockKind: kindBlock,
@@ -87,178 +99,201 @@ func (s *PresetShapeTestSuite) TestADocumentSayingNothingUseful() {
 				},
 			}},
 		}},
-	} {
-		s.Run(tc.name, func() {
-			got, err := DecodePreset(s.encode(tc.doc))
+		{name: "snapshots that are not a map", doc: map[int8]any{
+			keySnapshots: "text",
+		}},
+		{name: "a snapshot list that is not a list", doc: map[int8]any{
+			keySnapshots: map[int8]any{keySnapList: "text"},
+		}},
+		{name: "a snapshot that is not a map", doc: map[int8]any{
+			keySnapshots: map[int8]any{keySnapList: []any{"text"}},
+		}},
+		{name: "footswitches that are not a map", doc: map[int8]any{
+			keyFootswitch: "text",
+		}},
+		{name: "switch paths that are not a list", doc: map[int8]any{
+			keyFootswitch: map[int8]any{keyFsPaths: "text"},
+		}},
+		{name: "a switch path that is not a list", doc: map[int8]any{
+			keyFootswitch: map[int8]any{keyFsPaths: []any{"text"}},
+		}},
+		{name: "a switch that is not a map", doc: map[int8]any{
+			keyFootswitch: map[int8]any{keyFsPaths: []any{[]any{"text"}}},
+		}},
+		{
+			name: "a switch body that is not a map",
+			doc:  footswitch(map[int8]any{keyFsBody: "text"}),
+		},
+		{
+			name: "a switch naming nothing",
+			doc: footswitch(map[int8]any{
+				keyFsBody: map[int8]any{keyFsModel: ""},
+			}),
+		},
+		// Somebody's own words when they set them, and the block's name when
+		// they did not. A device carries both and flags which it is showing.
+		{
+			name: "a label somebody set",
+			doc: footswitch(map[int8]any{
+				keyFsNamed: true, keyFsLabel: "60s / 70s\x00",
+				keyFsBody: map[int8]any{keyFsModel: "Ampeg B-15NF\x00"},
+			}),
+			label: "60s / 70s",
+		},
+		{
+			name: "no label set",
+			doc: footswitch(map[int8]any{
+				keyFsNamed: false, keyFsLabel: "ignored\x00",
+				keyFsBody: map[int8]any{keyFsModel: "Ampeg B-15NF\x00"},
+			}),
+			label: "Ampeg B-15NF",
+		},
+		{
+			name: "a label flagged but empty",
+			doc: footswitch(map[int8]any{
+				keyFsNamed: true, keyFsLabel: "\x00",
+				keyFsBody: map[int8]any{keyFsModel: "Ampeg B-15NF\x00"},
+			}),
+			label: "Ampeg B-15NF",
+		},
+		{
+			name: "a label flagged but of the wrong kind",
+			doc: footswitch(map[int8]any{
+				keyFsNamed: true, keyFsLabel: 7,
+				keyFsBody: map[int8]any{keyFsModel: "Ampeg B-15NF\x00"},
+			}),
+			label: "Ampeg B-15NF",
+		},
+		{name: "a routing kind that is not a number", doc: map[int8]any{
+			keyTone: map[int8]any{keyBlocks: []any{map[int8]any{
+				keyBlockKind: "text", keyBlockBody: map[int8]any{},
+			}}},
+		}},
+		{name: "a routing body that is not a map", doc: map[int8]any{
+			keyTone: map[int8]any{keyBlocks: []any{map[int8]any{
+				keyBlockKind: kindInput, keyBlockBody: "text",
+			}}},
+		}},
+		{name: "a split with nothing after it", doc: map[int8]any{
+			keyTone: map[int8]any{keyBlocks: []any{map[int8]any{
+				keyBlockKind: kindSplit,
+				keyBlockBody: map[int8]any{keySplitBlock: "text"},
+			}}},
+		}},
+		{name: "a join with nothing before it", doc: map[int8]any{
+			keyTone: map[int8]any{keyBlocks: []any{map[int8]any{
+				keyBlockKind: kindJoin,
+				keyBlockBody: map[int8]any{keyJoinBlock: "text"},
+			}}},
+		}},
+		// A routing entry that names itself but says nothing readable about
+		// its settings is still a routing entry.
+		{
+			name: "settings that are not a map",
+			doc: map[int8]any{keyTone: map[int8]any{keyBlocks: []any{
+				map[int8]any{keyBlockKind: kindInput, keyBlockBody: map[int8]any{
+					keyInputSelect: 1, keyFlowParams: "text",
+				}},
+			}}},
+			routing: 1,
+		},
+		{
+			name: "settings holding values that are not a map",
+			doc: map[int8]any{keyTone: map[int8]any{keyBlocks: []any{
+				map[int8]any{keyBlockKind: kindInput, keyBlockBody: map[int8]any{
+					keyInputSelect: 1,
+					keyFlowParams:  map[int8]any{keyValues: "text"},
+				}},
+			}}},
+			routing: 1,
+		},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			got, err := DecodePreset(s.encode(tt.doc))
 
 			s.Require().NoError(err)
 			s.Require().Empty(got.Blocks)
-		})
-	}
-}
+			s.Require().Empty(got.Snapshots)
+			s.Require().Len(got.Routing, tt.routing)
 
-func (s *PresetShapeTestSuite) TestSnapshotsInTheWrongShape() {
-	for _, doc := range []map[int8]any{
-		{keySnapshots: "text"},
-		{keySnapshots: map[int8]any{keySnapList: "text"}},
-		{keySnapshots: map[int8]any{keySnapList: []any{"text"}}},
-	} {
-		got, err := DecodePreset(s.encode(doc))
+			for _, r := range got.Routing {
+				s.Require().Empty(r.Values)
+			}
 
-		s.Require().NoError(err)
-		s.Require().Empty(got.Snapshots)
-	}
-}
+			if tt.label == "" {
+				s.Require().Empty(got.Footswitches)
 
-func (s *PresetShapeTestSuite) TestFootswitchesInTheWrongShape() {
-	for _, doc := range []map[int8]any{
-		{keyFootswitch: "text"},
-		{keyFootswitch: map[int8]any{keyFsPaths: "text"}},
-		{keyFootswitch: map[int8]any{keyFsPaths: []any{"text"}}},
-		{keyFootswitch: map[int8]any{keyFsPaths: []any{[]any{"text"}}}},
-		{keyFootswitch: map[int8]any{keyFsPaths: []any{[]any{
-			map[int8]any{keyFsBody: "text"},
-		}}}},
-		{keyFootswitch: map[int8]any{keyFsPaths: []any{[]any{
-			map[int8]any{keyFsBody: map[int8]any{keyFsModel: ""}},
-		}}}},
-	} {
-		got, err := DecodePreset(s.encode(doc))
+				return
+			}
 
-		s.Require().NoError(err)
-		s.Require().Empty(got.Footswitches)
-	}
-}
-
-func (s *PresetShapeTestSuite) TestValuesOfEveryWidth() {
-	// MessagePack carries a number in whichever width holds it, so the same
-	// parameter arrives differently from one preset to the next.
-	got := narrow([]any{
-		true, float32(0.5), 1.5, int8(1), int16(2), int32(3), int64(4),
-		uint8(5), uint16(6), uint32(7), uint64(8), "text",
-	})
-
-	s.Require().Equal([]any{
-		true, 0.5, 1.5,
-		int64(1), int64(2), int64(3), int64(4),
-		int64(5), int64(6), int64(7), int64(8),
-		"text",
-	}, got)
-}
-
-func (s *PresetShapeTestSuite) TestASwitchShowsWhatThePedalPrints() {
-	// Somebody's own words when they set them, and the block's name when they
-	// did not. A device carries both and flags which it is showing.
-	for _, tc := range []struct {
-		name  string
-		entry map[int8]any
-		want  string
-	}{
-		{"a label somebody set", map[int8]any{
-			keyFsNamed: true, keyFsLabel: "60s / 70s\x00",
-			keyFsBody: map[int8]any{keyFsModel: "Ampeg B-15NF\x00"},
-		}, "60s / 70s"},
-		{"no label set", map[int8]any{
-			keyFsNamed: false, keyFsLabel: "ignored\x00",
-			keyFsBody: map[int8]any{keyFsModel: "Ampeg B-15NF\x00"},
-		}, "Ampeg B-15NF"},
-		{"a label flagged but empty", map[int8]any{
-			keyFsNamed: true, keyFsLabel: "\x00",
-			keyFsBody: map[int8]any{keyFsModel: "Ampeg B-15NF\x00"},
-		}, "Ampeg B-15NF"},
-		{"a label flagged but of the wrong kind", map[int8]any{
-			keyFsNamed: true, keyFsLabel: 7,
-			keyFsBody: map[int8]any{keyFsModel: "Ampeg B-15NF\x00"},
-		}, "Ampeg B-15NF"},
-	} {
-		s.Run(tc.name, func() {
-			got, err := DecodePreset(s.encode(map[int8]any{
-				keyFootswitch: map[int8]any{keyFsPaths: []any{[]any{tc.entry}}},
-			}))
-
-			s.Require().NoError(err)
 			s.Require().Len(got.Footswitches, 1)
-			s.Require().Equal(tc.want, got.Footswitches[0].Label)
+			s.Require().Equal(tt.label, got.Footswitches[0].Label)
 			s.Require().Equal("Ampeg B-15NF", got.Footswitches[0].Gear)
 		})
 	}
 }
 
-func (s *PresetShapeTestSuite) TestRoutingInTheWrongShape() {
-	// Everything here comes off a wire, so a malformed answer must produce an
-	// empty reading rather than a panic mid-session on hardware somebody is
-	// playing.
-	for _, tc := range []struct {
-		name  string
-		entry map[int8]any
+// TestNarrow reads a value in whichever width it arrived in. MessagePack
+// carries a number in the narrowest form that holds it, so the same parameter
+// arrives differently from one preset to the next.
+func (s *PresetShapeTestSuite) TestNarrow() {
+	tests := []struct {
+		name string
+		in   any
+		want any
 	}{
-		{"a kind that is not a number", map[int8]any{
-			keyBlockKind: "text", keyBlockBody: map[int8]any{},
-		}},
-		{"a body that is not a map", map[int8]any{
-			keyBlockKind: kindInput, keyBlockBody: "text",
-		}},
-		{"a split with nothing after it", map[int8]any{
-			keyBlockKind: kindSplit,
-			keyBlockBody: map[int8]any{keySplitBlock: "text"},
-		}},
-		{"a join with nothing before it", map[int8]any{
-			keyBlockKind: kindJoin,
-			keyBlockBody: map[int8]any{keyJoinBlock: "text"},
-		}},
-	} {
-		s.Run(tc.name, func() {
-			got, err := DecodePreset(s.encode(map[int8]any{
-				keyTone: map[int8]any{keyBlocks: []any{tc.entry}},
-			}))
+		{name: "a flag", in: true, want: true},
+		{name: "a single-width float", in: float32(0.5), want: 0.5},
+		{name: "a double-width float", in: 1.5, want: 1.5},
+		{name: "a one-byte integer", in: int8(1), want: int64(1)},
+		{name: "a two-byte integer", in: int16(2), want: int64(2)},
+		{name: "a four-byte integer", in: int32(3), want: int64(3)},
+		{name: "an eight-byte integer", in: int64(4), want: int64(4)},
+		{name: "an unsigned byte", in: uint8(5), want: int64(5)},
+		{name: "two unsigned bytes", in: uint16(6), want: int64(6)},
+		{name: "four unsigned bytes", in: uint32(7), want: int64(7)},
+		{name: "eight unsigned bytes", in: uint64(8), want: int64(8)},
+		{name: "something that is not a number", in: "text", want: "text"},
+	}
 
-			s.Require().NoError(err)
-			s.Require().Empty(got.Routing)
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			s.Require().Equal([]any{tt.want}, narrow([]any{tt.in}))
 		})
 	}
 }
 
-func (s *PresetShapeTestSuite) TestRoutingParametersInTheWrongShape() {
-	// A routing entry that names itself but says nothing readable about its
-	// settings is still a routing entry.
-	for _, body := range []map[int8]any{
-		{keyInputSelect: 1, keyFlowParams: "text"},
-		{keyInputSelect: 1, keyFlowParams: map[int8]any{keyValues: "text"}},
-	} {
-		got, err := DecodePreset(s.encode(map[int8]any{
-			keyTone: map[int8]any{keyBlocks: []any{
-				map[int8]any{keyBlockKind: kindInput, keyBlockBody: body},
-			}},
-		}))
-
-		s.Require().NoError(err)
-		s.Require().Len(got.Routing, 1)
-		s.Require().Empty(got.Routing[0].Values)
-	}
-}
-
-func (s *PresetShapeTestSuite) TestReadsANumberOfAnyWidth() {
-	// A tempo arrives as a float in one preset and as an integer in another,
-	// because MessagePack carries a value in the narrowest form that fits.
-	for _, tc := range []struct {
+// TestAsFloat reads a number of any width. A tempo arrives as a float in one
+// preset and as an integer in another.
+func (s *PresetShapeTestSuite) TestAsFloat() {
+	tests := []struct {
+		name string
 		in   any
 		want float64
+		ok   bool
 	}{
-		{1.5, 1.5},
-		{float32(2.5), 2.5},
-		{int8(3), 3},
-		{int64(4), 4},
-		{uint8(5), 5},
-		{uint64(6), 6},
-	} {
-		got, ok := asFloat(tc.in)
-
-		s.Require().True(ok)
-		s.Require().InDelta(tc.want, got, 0.001)
+		{name: "a double-width float", in: 1.5, want: 1.5, ok: true},
+		{name: "a single-width float", in: float32(2.5), want: 2.5, ok: true},
+		{name: "a one-byte integer", in: int8(3), want: 3, ok: true},
+		{name: "an eight-byte integer", in: int64(4), want: 4, ok: true},
+		{name: "an unsigned byte", in: uint8(5), want: 5, ok: true},
+		{name: "eight unsigned bytes", in: uint64(6), want: 6, ok: true},
+		{name: "something that is not a number", in: "text"},
 	}
 
-	_, ok := asFloat("text")
-	s.Require().False(ok)
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			got, ok := asFloat(tt.in)
+
+			s.Require().Equal(tt.ok, ok)
+
+			if tt.ok {
+				s.Require().InDelta(tt.want, got, 0.001)
+			}
+		})
+	}
 }
 
 func TestPresetShapeTestSuite(t *testing.T) {

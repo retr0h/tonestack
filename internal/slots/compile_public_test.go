@@ -22,6 +22,7 @@ package slots_test
 
 import (
 	"bytes"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -66,149 +67,6 @@ func (s *CompilePublicTestSuite) exported(dir string) string {
 	return out
 }
 
-func (s *CompilePublicTestSuite) TestARigBecomesAPresetAndBack() {
-	dir := s.T().TempDir()
-	out := filepath.Join(dir, "out.hlx")
-
-	var log bytes.Buffer
-	s.Require().NoError(slots.Compile(&log, slots.CompileOptions{
-		RigPath: s.exported(dir), OutputPath: out, CatalogPath: catalogPath(),
-	}))
-
-	s.Require().Contains(log.String(), "in the chain")
-
-	f, err := os.Open(out) //nolint:gosec // a path this test chose
-	s.Require().NoError(err)
-
-	defer func() { s.Require().NoError(f.Close()) }()
-
-	doc, err := preset.Read(f)
-	s.Require().NoError(err)
-
-	c, err := doc.Spec()
-	s.Require().NoError(err)
-	s.Require().NotEmpty(c.Blocks)
-}
-
-func (s *CompilePublicTestSuite) TestALiftedRigRebuildsItsOwnPreset() {
-	// A lifted rig carries what the preset it came from carried, and that
-	// wins over whatever the preset being written into holds. Otherwise a rig
-	// shared with somebody else would rebuild with a stranger's routing.
-	dir := s.T().TempDir()
-	out := filepath.Join(dir, "out.hlx")
-
-	s.Require().NoError(slots.Compile(&bytes.Buffer{}, slots.CompileOptions{
-		RigPath: s.exported(dir), OutputPath: out, CatalogPath: catalogPath(),
-		TemplatePath: fixture("preset.hlx"),
-	}))
-
-	raw, err := os.ReadFile(out) //nolint:gosec // a path this test chose
-	s.Require().NoError(err)
-
-	s.Require().NotContains(string(raw), "controller",
-		"the template's own state must not leak into a rig that carries its own")
-}
-
-func (s *CompilePublicTestSuite) TestTheResultCarriesWhatADeviceExpects() {
-	// A device expects inputs, outputs, a split and a join around a chain.
-	// 98.6% of real presets carry them, and one assembled from nothing
-	// carries none — so a compiled preset is written into an untouched one.
-	dir := s.T().TempDir()
-	out := filepath.Join(dir, "out.hlx")
-
-	s.Require().NoError(slots.Compile(&bytes.Buffer{}, slots.CompileOptions{
-		RigPath: s.handWritten(dir), OutputPath: out, CatalogPath: catalogPath(),
-	}))
-
-	raw, err := os.ReadFile(out) //nolint:gosec // a path this test chose
-	s.Require().NoError(err)
-
-	for _, want := range []string{"inputA", "outputA", "split", "join", "snapshot0"} {
-		s.Require().Contains(string(raw), want)
-	}
-}
-
-func (s *CompilePublicTestSuite) TestATemplateIsWrittenInto() {
-	dir := s.T().TempDir()
-	out := filepath.Join(dir, "out.hlx")
-
-	s.Require().NoError(slots.Compile(&bytes.Buffer{}, slots.CompileOptions{
-		RigPath: s.handWritten(dir), OutputPath: out, CatalogPath: catalogPath(),
-		TemplatePath: fixture("preset.hlx"),
-	}))
-
-	raw, err := os.ReadFile(out) //nolint:gosec // a path this test chose
-	s.Require().NoError(err)
-	s.Require().Contains(string(raw), "controller",
-		"a rig nobody lifted carries no state, so the template's is kept")
-}
-
-func (s *CompilePublicTestSuite) TestReportsProblems() {
-	dir := s.T().TempDir()
-
-	tests := []struct {
-		name    string
-		mutate  func(*slots.CompileOptions)
-		message string
-	}{
-		{
-			"a rig that is not there",
-			func(o *slots.CompileOptions) { o.RigPath = fixture("nope.yaml") },
-			"opening",
-		},
-		{
-			"a file that is not a rig",
-			func(o *slots.CompileOptions) { o.RigPath = fixture("setlist.hls") },
-			"not a valid rig",
-		},
-		{
-			"a template that is not there",
-			func(o *slots.CompileOptions) { o.TemplatePath = fixture("nope.hlx") },
-			"opening",
-		},
-		{
-			"a template that is not a preset",
-			func(o *slots.CompileOptions) { o.TemplatePath = fixture("notapreset.hlx") },
-			"reading",
-		},
-		{
-			"a catalog that is not there",
-			func(o *slots.CompileOptions) { o.CatalogPath = fixture("nope.json") },
-			"catalog",
-		},
-		{
-			"a rig naming gear this device does not model",
-			func(o *slots.CompileOptions) { o.RigPath = s.unknownGear(dir) },
-			"nothing on this device is",
-		},
-		{
-			"a destination directory that is not there",
-			func(o *slots.CompileOptions) {
-				o.OutputPath = filepath.Join(dir, "no", "out.hlx")
-			},
-			"writing",
-		},
-	}
-
-	rigPath := s.exported(dir)
-
-	for _, tc := range tests {
-		s.Run(tc.name, func() {
-			o := slots.CompileOptions{
-				RigPath:     rigPath,
-				OutputPath:  filepath.Join(dir, "out.hlx"),
-				CatalogPath: catalogPath(),
-			}
-			tc.mutate(&o)
-
-			err := slots.Compile(&bytes.Buffer{}, o)
-
-			s.Require().Error(err)
-			s.Require().Contains(err.Error(), tc.message)
-		})
-	}
-}
-
 // unknownGear writes a valid rig naming gear no catalog carries.
 func (s *CompilePublicTestSuite) unknownGear(dir string) string {
 	path := filepath.Join(dir, "unknown.yaml")
@@ -220,29 +78,198 @@ func (s *CompilePublicTestSuite) unknownGear(dir string) string {
 	return path
 }
 
-func (s *CompilePublicTestSuite) TestReportsAWriterThatFails() {
-	dir := s.T().TempDir()
-
-	s.Require().Error(slots.Compile(&failingWriter{}, slots.CompileOptions{
-		RigPath:     s.exported(dir),
-		OutputPath:  filepath.Join(dir, "out.hlx"),
-		CatalogPath: catalogPath(),
-	}))
-}
-
-func (s *CompilePublicTestSuite) TestARigMustMeetItsOwnContract() {
-	dir := s.T().TempDir()
-	bad := filepath.Join(dir, "bad.yaml")
-	s.Require().NoError(os.WriteFile(bad, []byte(
+// emptyChain writes a rig with no chain, which the contract refuses.
+func (s *CompilePublicTestSuite) emptyChain(dir string) string {
+	path := filepath.Join(dir, "bad.yaml")
+	s.Require().NoError(os.WriteFile(path, []byte(
 		"schema: RigSpec\nid: x\nsubject: {kind: artist, name: X}\n"+
 			"instrument: bass\nchain: []\n"), 0o600))
 
-	err := slots.Compile(&bytes.Buffer{}, slots.CompileOptions{
-		RigPath: bad, OutputPath: filepath.Join(dir, "out.hlx"),
-		CatalogPath: catalogPath(),
-	})
+	return path
+}
 
-	s.Require().ErrorIs(err, rig.ErrInvalid)
+// TestCompile turns a rig into a preset.
+func (s *CompilePublicTestSuite) TestCompile() {
+	tests := []struct {
+		name string
+		// which rig to build: one exported from a slot unless a case says
+		// otherwise.
+		rig string
+		// a preset to write the chain into, rather than an untouched one.
+		template string
+		catalog  string
+		out      string
+		deaf     bool
+
+		logs []string
+		// what the written preset must say, and must not.
+		contains []string
+		absent   []string
+		// the chain must come back out of what was written.
+		loadable bool
+
+		err     error
+		errText string
+	}{
+		{
+			name:     "a rig lifted off a slot",
+			logs:     []string{"in the chain"},
+			loadable: true,
+		},
+		{
+			// A device expects inputs, outputs, a split and a join around a
+			// chain. 98.6% of real presets carry them, and one assembled from
+			// nothing carries none — so a compiled preset is written into an
+			// untouched one.
+			name:     "a rig somebody typed",
+			rig:      "hand-written",
+			contains: []string{"inputA", "outputA", "split", "join", "snapshot0"},
+		},
+		{
+			// A lifted rig carries what the preset it came from carried, and
+			// that wins over whatever the preset being written into holds.
+			// Otherwise a rig shared with somebody else would rebuild with a
+			// stranger's routing.
+			name:     "a lifted rig, written into somebody else's preset",
+			template: fixture("preset.hlx"),
+			absent:   []string{"controller"},
+		},
+		{
+			name:     "a typed rig, written into a template",
+			rig:      "hand-written",
+			template: fixture("preset.hlx"),
+			// A rig nobody lifted carries no state, so the template's is
+			// kept.
+			contains: []string{"controller"},
+		},
+		{
+			name:    "a rig that is not there",
+			rig:     fixture("nope.yaml"),
+			errText: "opening",
+		},
+		{
+			name:    "a file that is not a rig",
+			rig:     fixture("setlist.hls"),
+			errText: "not a valid rig",
+		},
+		{
+			name:    "a rig that does not meet its own contract",
+			rig:     "empty chain",
+			err:     rig.ErrInvalid,
+			errText: "chain",
+		},
+		{
+			name:    "a rig naming gear this device does not model",
+			rig:     "unknown gear",
+			errText: "nothing on this device is",
+		},
+		{
+			name:     "a template that is not there",
+			template: fixture("nope.hlx"),
+			errText:  "opening",
+		},
+		{
+			name:     "a template that is not a preset",
+			template: fixture("notapreset.hlx"),
+			errText:  "reading",
+		},
+		{
+			name:    "a catalog that is not there",
+			catalog: fixture("nope.json"),
+			errText: "catalog",
+		},
+		{
+			name:    "a destination directory that is not there",
+			out:     filepath.Join("no", "out.hlx"),
+			errText: "writing",
+		},
+		{name: "a writer that fails", deaf: true},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			dir := s.T().TempDir()
+
+			out := filepath.Join(dir, "out.hlx")
+			if tt.out != "" {
+				out = filepath.Join(dir, tt.out)
+			}
+
+			var rigPath string
+
+			switch tt.rig {
+			case "":
+				rigPath = s.exported(dir)
+			case "hand-written":
+				rigPath = s.handWritten(dir)
+			case "unknown gear":
+				rigPath = s.unknownGear(dir)
+			case "empty chain":
+				rigPath = s.emptyChain(dir)
+			default:
+				rigPath = tt.rig
+			}
+
+			catalog := catalogPath()
+			if tt.catalog != "" {
+				catalog = tt.catalog
+			}
+
+			var log bytes.Buffer
+
+			w := io.Writer(&log)
+			if tt.deaf {
+				w = &failingWriter{}
+			}
+
+			err := slots.Compile(w, slots.CompileOptions{
+				RigPath: rigPath, OutputPath: out, CatalogPath: catalog,
+				TemplatePath: tt.template,
+			})
+
+			if tt.err != nil || tt.errText != "" || tt.deaf {
+				s.Require().Error(err)
+
+				if tt.err != nil {
+					s.Require().ErrorIs(err, tt.err)
+				}
+
+				if tt.errText != "" {
+					s.Require().Contains(err.Error(), tt.errText)
+				}
+
+				return
+			}
+
+			s.Require().NoError(err)
+
+			for _, want := range tt.logs {
+				s.Require().Contains(log.String(), want)
+			}
+
+			raw, err := os.ReadFile(out) //nolint:gosec // a path this test chose
+			s.Require().NoError(err)
+
+			for _, want := range tt.contains {
+				s.Require().Contains(string(raw), want)
+			}
+
+			for _, unwanted := range tt.absent {
+				s.Require().NotContains(string(raw), unwanted)
+			}
+
+			if !tt.loadable {
+				return
+			}
+
+			doc, err := preset.Read(bytes.NewReader(raw))
+			s.Require().NoError(err)
+
+			c, err := doc.Spec()
+			s.Require().NoError(err)
+			s.Require().NotEmpty(c.Blocks)
+		})
+	}
 }
 
 func TestCompilePublicTestSuite(t *testing.T) {

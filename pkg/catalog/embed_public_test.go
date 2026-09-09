@@ -32,7 +32,8 @@ type EmbedPublicTestSuite struct {
 	suite.Suite
 }
 
-func (s *EmbedPublicTestSuite) TestBuiltInIsUsable() {
+// TestBuiltIn covers the catalog this binary ships.
+func (s *EmbedPublicTestSuite) TestBuiltIn() {
 	// The whole point of embedding is that nothing else has to be installed,
 	// so this asserts the shipped catalog is complete enough to build with.
 	c, err := catalog.BuiltIn()
@@ -45,6 +46,20 @@ func (s *EmbedPublicTestSuite) TestBuiltInIsUsable() {
 	b, ok := c.Block("HD2_AmpSVBeastNrm")
 	s.Require().True(ok)
 	s.Require().Contains(b.BasedOn, "Ampeg SVT")
+
+	// A generated chain draws only from this catalog, so anything needing a
+	// user's own impulse response must be visible here rather than discovered
+	// on a device.
+	var needing int
+
+	for id := range c.Blocks {
+		if catalog.NeedsUserIR(id) {
+			needing++
+		}
+	}
+
+	s.Require().NotZero(needing,
+		"the block exists and must be recognisable, not filtered out")
 }
 
 func (s *EmbedPublicTestSuite) TestNeedsUserIR() {
@@ -73,25 +88,8 @@ func (s *EmbedPublicTestSuite) TestNeedsUserIR() {
 	}
 }
 
-func (s *EmbedPublicTestSuite) TestTheShippedCatalogHoldsNoUserIRCabs() {
-	// A generated chain draws only from this catalog, so anything needing a
-	// user's own IR must be visible here rather than discovered on a device.
-	c, err := catalog.BuiltIn()
-	s.Require().NoError(err)
-
-	var found int
-
-	for id := range c.Blocks {
-		if catalog.NeedsUserIR(id) {
-			found++
-		}
-	}
-
-	s.Require().NotZero(found,
-		"the block exists and must be recognisable, not filtered out of the catalog")
-}
-
-func (s *EmbedPublicTestSuite) TestDecodeRejectsADamagedArchive() {
+// TestDecode reads the archive a catalog ships in.
+func (s *EmbedPublicTestSuite) TestDecode() {
 	tests := []struct {
 		name   string
 		packed []byte

@@ -65,191 +65,226 @@ func (s *RoutingTestSuite) entry(
 	return out
 }
 
-func (s *RoutingTestSuite) TestNamesAnInputTheDeviceDidNot() {
-	got := routingOf(wire.DevicePreset{Routing: []wire.DeviceRouting{{
-		Slot: "inputA", Select: 1, HasSelect: true,
-		Values: []any{false, -48.0, 0.5},
-	}}}, s.cat)
-
-	in := s.entry(got, "dsp0.inputA")
-	s.Require().Equal("HelixStomp_AppDSPFlowInput", in["@model"])
-	s.Require().InDelta(1.0, in["@input"], 0.001)
-
-	// Named by position, from the same table that names a block's parameters.
-	s.Require().Equal(false, in["noiseGate"])
-	s.Require().InDelta(-48.0, in["threshold"], 0.001)
-	s.Require().InDelta(0.5, in["decay"], 0.001)
-}
-
-func (s *RoutingTestSuite) TestNamesEachOutput() {
-	got := routingOf(wire.DevicePreset{Routing: []wire.DeviceRouting{
-		{Slot: "outputA", Select: 1, HasSelect: true, Values: []any{0.5, 0.0}},
-		{Slot: "outputB", Select: 0, HasSelect: true},
-	}}, s.cat)
-
-	s.Require().Equal("HelixStomp_AppDSPFlowOutputMain",
-		s.entry(got, "dsp0.outputA")["@model"])
-	s.Require().Equal("HelixStomp_AppDSPFlowOutputSend",
-		s.entry(got, "dsp0.outputB")["@model"])
-}
-
-func (s *RoutingTestSuite) TestASplitNamesItself() {
-	// A split and a join carry their own model number, because more than one
-	// kind of split exists and the device has to say which.
-	split := indexOf(s.cat, "HD2_AppDSPFlowSplitY")
-
-	got := routingOf(wire.DevicePreset{Routing: []wire.DeviceRouting{{
-		Slot: "split", Model: split, HasModel: true,
-		Position: 3, Enabled: true, Values: []any{0.5, 0.5, false},
-	}}}, s.cat)
-
-	e := s.entry(got, "dsp0.split")
-	s.Require().Equal("HD2_AppDSPFlowSplitY", e["@model"])
-	s.Require().Equal(true, e["@enabled"])
-	s.Require().InDelta(3.0, e["@position"], 0.001)
-	s.Require().InDelta(0.5, e["BalanceA"], 0.001)
-	s.Require().Equal(false, e["bypass"])
-}
-
-func (s *RoutingTestSuite) TestSkipsWhatItCannotName() {
-	for _, tc := range []struct {
-		name string
-		in   wire.DeviceRouting
-	}{
-		{"a slot nothing recognises", wire.DeviceRouting{Slot: "elsewhere"}},
-		{
-			"a model the table does not reach",
-			wire.DeviceRouting{Slot: "split", Model: 99999, HasModel: true},
-		},
-	} {
-		s.Run(tc.name, func() {
-			s.Require().Nil(
-				routingOf(wire.DevicePreset{Routing: []wire.DeviceRouting{tc.in}}, s.cat))
-		})
-	}
-}
-
-func (s *RoutingTestSuite) TestADeviceThatSentNoRouting() {
-	s.Require().Nil(routingOf(wire.DevicePreset{}, s.cat))
-	s.Require().Nil(deviceStateOf(wire.DevicePreset{}, s.cat))
-}
-
-func (s *RoutingTestSuite) TestACatalogThatNamesNoFlow() {
-	// Generated before this existed. A rig that carried half the routing
-	// would rebuild into a preset that routes differently from the one it
-	// came from, which is worse than carrying none.
-	bare := &catalog.Catalog{DeviceID: s.cat.DeviceID}
-
-	s.Require().Nil(routingOf(wire.DevicePreset{Routing: []wire.DeviceRouting{
-		{Slot: "inputA"},
-	}}, bare))
-}
-
-func (s *RoutingTestSuite) TestAModelWithNoNamesForItsValues() {
-	// The values are dropped rather than guessed at, and what is known about
-	// the slot is still recorded.
-	bare := &catalog.Catalog{
-		DeviceID: s.cat.DeviceID,
-		Flow:     catalog.Flow{Input: "HD2_Unknown"},
-	}
-
-	e := s.entry(routingOf(wire.DevicePreset{Routing: []wire.DeviceRouting{
-		{Slot: "inputA", Values: []any{1.0}},
-	}}, bare), "dsp0.inputA")
-
-	s.Require().Equal("HD2_Unknown", e["@model"])
-	s.Require().Len(e, 1)
-}
-
-func (s *RoutingTestSuite) TestRecordsWhichDeviceAnswered() {
-	got := deviceStateOf(wire.DevicePreset{Routing: []wire.DeviceRouting{
-		{Slot: "inputA"},
-	}}, s.cat)
-
-	s.Require().NotNil(got)
-	s.Require().Equal(s.cat.DeviceID, *got.Id)
-}
-
-func (s *RoutingTestSuite) TestPairedCabinets() {
-	// A device stores an amp and its cabinet as one block. A preset stores
-	// the amp with a `@cab` and the cabinet as a sibling, and 304 of 721 HX
-	// Stomp presets in the corpus have one.
+// TestRoutingOf names what the device keeps to itself.
+func (s *RoutingTestSuite) TestRoutingOf() {
 	amp := indexOf(s.cat, "HD2_AmpTucknGo")
 
 	tests := []struct {
-		name  string
-		block wire.DeviceBlock
-		want  map[string]any
+		name    string
+		routing []wire.DeviceRouting
+		blocks  []wire.DeviceBlock
+		// a catalog with no flow models, or one naming a model whose
+		// parameters have no names.
+		bare    bool
+		unnamed bool
+
+		// what each slot must carry, must not carry, and how many fields it
+		// holds in all.
+		want   map[string]map[string]any
+		absent map[string][]string
+		sizes  map[string]int
+		// nothing worth recording.
+		none bool
 	}{
 		{
-			name: "named from the amp's own pairing",
-			block: wire.DeviceBlock{
+			name: "an input the device did not name",
+			routing: []wire.DeviceRouting{{
+				Slot: "inputA", Select: 1, HasSelect: true,
+				Values: []any{false, -48.0, 0.5},
+			}},
+			want: map[string]map[string]any{"dsp0.inputA": {
+				"@model": "HelixStomp_AppDSPFlowInput",
+				"@input": 1.0,
+				// Named by position, from the same table that names a block's
+				// parameters.
+				"noiseGate": false,
+				"threshold": -48.0,
+				"decay":     0.5,
+			}},
+		},
+		{
+			name: "each output",
+			routing: []wire.DeviceRouting{
+				{Slot: "outputA", Select: 1, HasSelect: true, Values: []any{0.5, 0.0}},
+				{Slot: "outputB", Select: 0, HasSelect: true},
+			},
+			want: map[string]map[string]any{
+				"dsp0.outputA": {"@model": "HelixStomp_AppDSPFlowOutputMain"},
+				"dsp0.outputB": {"@model": "HelixStomp_AppDSPFlowOutputSend"},
+			},
+		},
+		{
+			// A split and a join carry their own model number, because more
+			// than one kind of split exists and the device has to say which.
+			name: "a split, which names itself",
+			routing: []wire.DeviceRouting{{
+				Slot: "split", Model: indexOf(s.cat, "HD2_AppDSPFlowSplitY"),
+				HasModel: true,
+				Position: 3, Enabled: true, Values: []any{0.5, 0.5, false},
+			}},
+			want: map[string]map[string]any{"dsp0.split": {
+				"@model":    "HD2_AppDSPFlowSplitY",
+				"@enabled":  true,
+				"@position": 3.0,
+				"BalanceA":  0.5,
+				"bypass":    false,
+			}},
+		},
+		{
+			// The values are dropped rather than guessed at, and what is
+			// known about the slot is still recorded.
+			name:    "a model with no names for its values",
+			routing: []wire.DeviceRouting{{Slot: "inputA", Values: []any{1.0}}},
+			unnamed: true,
+			want:    map[string]map[string]any{"dsp0.inputA": {"@model": "HD2_Unknown"}},
+			sizes:   map[string]int{"dsp0.inputA": 1},
+		},
+		{
+			// A device stores an amp and its cabinet as one block. A preset
+			// stores the amp with a `@cab` and the cabinet as a sibling, and
+			// 304 of 721 HX Stomp presets in the corpus have one.
+			name: "a cabinet an amplifier carries",
+			blocks: []wire.DeviceBlock{{
 				Model: amp, CabNamed: 5,
 				Cab: []any{3.0, 20.0, 15000.0, 0.2, 2.0, int64(10)},
-			},
-			want: map[string]any{
+			}},
+			want: map[string]map[string]any{"dsp0.cab0": {
 				"@model": "HD2_Cab1x15TucknGo", "@enabled": true, "@mic": 10.0,
 				"Distance": 3.0, "LowCut": 20.0, "HighCut": 15000.0,
 				"EarlyReflections": 0.2, "Level": 2.0,
-			},
+			}},
 		},
 		{
-			// Anything past what the model has names for is the microphone.
-			// A device that sent no more than the names says nothing about
-			// one.
-			name: "no microphone reported",
-			block: wire.DeviceBlock{
+			// Anything past what the model has names for is the microphone. A
+			// device that sent no more than the names says nothing about one.
+			name: "a cabinet with no microphone reported",
+			blocks: []wire.DeviceBlock{{
 				Model: amp, CabNamed: 5,
 				Cab: []any{3.0, 20.0, 15000.0, 0.2, 2.0},
+			}},
+			want: map[string]map[string]any{"dsp0.cab0": {
+				"@model": "HD2_Cab1x15TucknGo", "Distance": 3.0,
+			}},
+			absent: map[string][]string{"dsp0.cab0": {"@mic"}},
+		},
+		{
+			name:    "a slot nothing recognises",
+			routing: []wire.DeviceRouting{{Slot: "elsewhere"}},
+			none:    true,
+		},
+		{
+			name: "a routing model the table does not reach",
+			routing: []wire.DeviceRouting{
+				{Slot: "split", Model: 99999, HasModel: true},
 			},
-			want: map[string]any{"@model": "HD2_Cab1x15TucknGo", "Distance": 3.0},
+			none: true,
+		},
+		{name: "a device that sent no routing at all", none: true},
+		{
+			// Generated before this existed. A rig that carried half the
+			// routing would rebuild into a preset that routes differently
+			// from the one it came from, which is worse than carrying none.
+			name:    "a catalog that names no flow",
+			routing: []wire.DeviceRouting{{Slot: "inputA"}},
+			bare:    true,
+			none:    true,
+		},
+		{
+			name:   "a block carrying no cabinet",
+			blocks: []wire.DeviceBlock{{Model: amp}},
+			none:   true,
+		},
+		{
+			name:   "a cabinet on a model the table does not reach",
+			blocks: []wire.DeviceBlock{{Model: 99999, Cab: []any{1.0}}},
+			none:   true,
+		},
+		{
+			name: "a model that names no pairing",
+			blocks: []wire.DeviceBlock{{
+				Model: indexOf(s.cat, "HD2_DistTeemahMono"), Cab: []any{1.0},
+			}},
+			none: true,
+		},
+		{
+			// Symbols cover every Helix; a Stomp has no second effects loop.
+			name: "hardware this device does not have",
+			blocks: []wire.DeviceBlock{{
+				Model: indexOf(s.cat, "HD2_FXLoopMono3"), Cab: []any{1.0},
+			}},
+			none: true,
 		},
 	}
 
-	for _, tc := range tests {
-		s.Run(tc.name, func() {
-			got := s.entry(routingOf(
-				wire.DevicePreset{Blocks: []wire.DeviceBlock{tc.block}}, s.cat),
-				"dsp0.cab0")
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			cat := s.cat
 
-			for k, want := range tc.want {
-				s.Require().Equal(want, got[k], k)
+			switch {
+			case tt.bare:
+				cat = &catalog.Catalog{DeviceID: s.cat.DeviceID}
+			case tt.unnamed:
+				cat = &catalog.Catalog{
+					DeviceID: s.cat.DeviceID,
+					Flow:     catalog.Flow{Input: "HD2_Unknown"},
+				}
 			}
 
-			if _, ok := tc.want["@mic"]; !ok {
-				s.Require().NotContains(got, "@mic")
+			got := routingOf(
+				wire.DevicePreset{Routing: tt.routing, Blocks: tt.blocks}, cat)
+
+			if tt.none {
+				s.Require().Nil(got)
+
+				return
+			}
+
+			for slot, want := range tt.want {
+				e := s.entry(got, slot)
+
+				for key, value := range want {
+					s.Require().Equal(value, e[key], "%s of %s", key, slot)
+				}
+
+				for _, key := range tt.absent[slot] {
+					s.Require().NotContains(e, key)
+				}
+
+				if size, ok := tt.sizes[slot]; ok {
+					s.Require().Len(e, size)
+				}
 			}
 		})
 	}
 }
 
-func (s *RoutingTestSuite) TestABlockCarryingNoCabinet() {
-	for _, tc := range []struct {
-		name  string
-		block wire.DeviceBlock
+// TestDeviceStateOf records which device answered.
+func (s *RoutingTestSuite) TestDeviceStateOf() {
+	tests := []struct {
+		name    string
+		routing []wire.DeviceRouting
+		want    bool
 	}{
-		{"a block with none", wire.DeviceBlock{Model: indexOf(s.cat, "HD2_AmpTucknGo")}},
 		{
-			"a model the table does not reach",
-			wire.DeviceBlock{Model: 99999, Cab: []any{1.0}},
+			name:    "a device that sent its routing",
+			routing: []wire.DeviceRouting{{Slot: "inputA"}},
+			want:    true,
 		},
-		{
-			"a model that names no pairing",
-			wire.DeviceBlock{
-				Model: indexOf(s.cat, "HD2_DistTeemahMono"), Cab: []any{1.0},
-			},
-		},
-		{
-			// Symbols cover every Helix; a Stomp has no second effects loop.
-			"hardware this device does not have",
-			wire.DeviceBlock{
-				Model: indexOf(s.cat, "HD2_FXLoopMono3"), Cab: []any{1.0},
-			},
-		},
-	} {
-		s.Run(tc.name, func() {
-			s.Require().Nil(routingOf(
-				wire.DevicePreset{Blocks: []wire.DeviceBlock{tc.block}}, s.cat))
+		{name: "one that sent none"},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			got := deviceStateOf(wire.DevicePreset{Routing: tt.routing}, s.cat)
+
+			if !tt.want {
+				s.Require().Nil(got)
+
+				return
+			}
+
+			s.Require().NotNil(got)
+			s.Require().Equal(s.cat.DeviceID, *got.Id)
 		})
 	}
 }

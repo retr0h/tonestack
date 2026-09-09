@@ -24,6 +24,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"errors"
+	"io"
 	"strings"
 	"testing"
 
@@ -37,127 +38,225 @@ type CorpusPublicTestSuite struct {
 	suite.Suite
 }
 
-func (s *CorpusPublicTestSuite) TestBuiltInIsUsable() {
-	st, err := corpus.BuiltIn()
+// TestBuiltIn covers the measurement this binary ships.
+func (s *CorpusPublicTestSuite) TestBuiltIn() {
+	got, err := corpus.BuiltIn()
 
 	s.Require().NoError(err)
-	s.Require().Greater(st.Presets, 1000, "the shipped measurement is a real one")
-	s.Require().NotEmpty(st.Models)
-	s.Require().Contains(st.Grammar, "bass")
-	s.Require().Contains(st.Grammar, "guitar")
+	s.Require().Greater(got.Presets, 1000, "the shipped measurement is a real one")
+	s.Require().NotEmpty(got.Models)
+	s.Require().Contains(got.Grammar, "bass")
+	s.Require().Contains(got.Grammar, "guitar")
 }
 
-func (s *CorpusPublicTestSuite) TestBuiltInMeasuresAKnownAmp() {
-	st, err := corpus.BuiltIn()
-	s.Require().NoError(err)
-
-	p, ok := st.Param("HD2_AmpSVBeastNrm", "Treble")
-
-	s.Require().True(ok)
-	s.Require().Positive(p.N)
-	s.Require().Positive(p.Median)
-}
-
-func (s *CorpusPublicTestSuite) TestParamReportsWhatWasNeverMeasured() {
-	st, err := corpus.BuiltIn()
-	s.Require().NoError(err)
-
+// TestParam reads what the corpus measured about one knob.
+func (s *CorpusPublicTestSuite) TestParam() {
 	tests := []struct {
 		name  string
-		model string
+		model catalog.ModelID
 		key   string
+		ok    bool
 	}{
-		{"a model nobody used", "HD2_NoSuchModel", "Drive"},
-		{"a parameter that model does not have", "HD2_AmpSVBeastNrm", "Nonsense"},
+		{
+			name:  "a parameter of an amp people use",
+			model: "HD2_AmpSVBeastNrm",
+			key:   "Treble",
+			ok:    true,
+		},
+		{name: "a model nobody used", model: "HD2_NoSuchModel", key: "Drive"},
+		{
+			name:  "a parameter that model does not have",
+			model: "HD2_AmpSVBeastNrm",
+			key:   "Nonsense",
+		},
 	}
 
-	for _, tc := range tests {
-		s.Run(tc.name, func() {
-			_, ok := st.Param(catalog.ModelID(tc.model), tc.key)
+	st, err := corpus.BuiltIn()
+	s.Require().NoError(err)
 
-			s.Require().False(ok)
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			got, ok := st.Param(tt.model, tt.key)
+
+			s.Require().Equal(tt.ok, ok)
+
+			if !tt.ok {
+				return
+			}
+
+			s.Require().Positive(got.N)
+			s.Require().Positive(got.Median)
 		})
 	}
 }
 
-func (s *CorpusPublicTestSuite) TestSpreadIsTheInterquartileRange() {
-	s.Require().InDelta(0.3,
-		corpus.ParamStats{P25: 0.2, P75: 0.5}.Spread(), 1e-9)
+// TestSpread is the interquartile range: how far apart people set a knob.
+func (s *CorpusPublicTestSuite) TestSpread() {
+	tests := []struct {
+		name string
+		in   corpus.ParamStats
+		want float64
+	}{
+		{
+			name: "a quarter either side of the middle",
+			in:   corpus.ParamStats{P25: 0.2, P75: 0.5},
+			want: 0.3,
+		},
+		{name: "a knob nobody moved", in: corpus.ParamStats{P25: 0.5, P75: 0.5}},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			s.Require().InDelta(tt.want, tt.in.Spread(), 1e-9)
+		})
+	}
 }
 
+// TestFrequency is the share of chains a category appears in.
 func (s *CorpusPublicTestSuite) TestFrequency() {
-	c := corpus.CategoryStats{Chains: 89}
-
-	s.Require().InDelta(0.89, c.Frequency(100), 1e-9)
-	s.Require().Zero(c.Frequency(0), "nothing measured is not a frequency of one")
-}
-
-func (s *CorpusPublicTestSuite) TestBeforeAmp() {
-	s.Require().InDelta(0.8,
-		corpus.CategoryStats{Before: 8, After: 2}.BeforeAmp(), 1e-9)
-	s.Require().Zero(corpus.CategoryStats{}.BeforeAmp(),
-		"a category nobody used sits nowhere")
-}
-
-func (s *CorpusPublicTestSuite) TestLoadRejectsWhatIsNotStatistics() {
-	_, err := corpus.Load(strings.NewReader("{ not json"))
-
-	s.Require().Error(err)
-	s.Require().Contains(err.Error(), "decoding corpus statistics")
-}
-
-func (s *CorpusPublicTestSuite) TestLoadAcceptsPlainJSONAndGzip() {
-	// The generator writes gzip because the file is embedded, but somebody
-	// inspecting a copy will have plain JSON. Both are statistics.
-	plain := `{"device":"HX Stomp","presets":3,"models":{},"grammar":{}}`
-
-	got, err := corpus.Load(strings.NewReader(plain))
-	s.Require().NoError(err)
-	s.Require().Equal(3, got.Presets)
-
-	var packed bytes.Buffer
-
-	zw := gzip.NewWriter(&packed)
-	_, err = zw.Write([]byte(plain))
-	s.Require().NoError(err)
-	s.Require().NoError(zw.Close())
-
-	got, err = corpus.Load(&packed)
-	s.Require().NoError(err)
-	s.Require().Equal(3, got.Presets)
-}
-
-func (s *CorpusPublicTestSuite) TestDecodeRejectsWhatIsNotStatistics() {
 	tests := []struct {
 		name   string
-		packed []byte
-		want   string
+		in     corpus.CategoryStats
+		chains int
+		want   float64
 	}{
-		{"bytes that are neither", []byte("not gzip at all"), "decoding"},
 		{
-			"a gzip header with nothing after it",
-			[]byte{0x1f, 0x8b, 0x08, 0, 0, 0, 0, 0, 0, 0xff},
-			"decoding",
+			name:   "a category most chains have",
+			in:     corpus.CategoryStats{Chains: 89},
+			chains: 100,
+			want:   0.89,
 		},
-		{"a truncated gzip header", []byte{0x1f, 0x8b}, "opening"},
-		{"nothing at all", nil, "decoding"},
+		{
+			// Nothing measured is not a frequency of one.
+			name: "no chains measured at all",
+			in:   corpus.CategoryStats{Chains: 89},
+		},
 	}
 
-	for _, tc := range tests {
-		s.Run(tc.name, func() {
-			_, err := corpus.Decode(tc.packed)
-
-			s.Require().Error(err)
-			s.Require().Contains(err.Error(), tc.want)
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			s.Require().InDelta(tt.want, tt.in.Frequency(tt.chains), 1e-9)
 		})
 	}
 }
 
-func (s *CorpusPublicTestSuite) TestLoadReportsAReaderThatFails() {
-	_, err := corpus.Load(&failingReader{})
+// TestBeforeAmp is the share of uses that sit ahead of the amplifier.
+func (s *CorpusPublicTestSuite) TestBeforeAmp() {
+	tests := []struct {
+		name string
+		in   corpus.CategoryStats
+		want float64
+	}{
+		{
+			name: "a category usually ahead of it",
+			in:   corpus.CategoryStats{Before: 8, After: 2},
+			want: 0.8,
+		},
+		{name: "a category nobody used, which sits nowhere"},
+	}
 
-	s.Require().Error(err)
-	s.Require().Contains(err.Error(), "reading corpus statistics")
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			s.Require().InDelta(tt.want, tt.in.BeforeAmp(), 1e-9)
+		})
+	}
+}
+
+// TestLoad reads statistics off a reader.
+func (s *CorpusPublicTestSuite) TestLoad() {
+	// The generator writes gzip because the file is embedded, but somebody
+	// inspecting a copy will have plain JSON. Both are statistics.
+	const plain = `{"device":"HX Stomp","presets":3,"models":{},"grammar":{}}`
+
+	tests := []struct {
+		name    string
+		in      string
+		packed  bool
+		deaf    bool
+		want    int
+		errText string
+	}{
+		{name: "plain JSON", in: plain, want: 3},
+		{name: "the same, gzipped", in: plain, packed: true, want: 3},
+		{
+			name:    "something that is not statistics",
+			in:      "{ not json",
+			errText: "decoding corpus statistics",
+		},
+		{
+			name:    "a reader that fails",
+			deaf:    true,
+			errText: "reading corpus statistics",
+		},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			in := io.Reader(strings.NewReader(tt.in))
+
+			if tt.packed {
+				var buf bytes.Buffer
+
+				zw := gzip.NewWriter(&buf)
+				_, err := zw.Write([]byte(tt.in))
+				s.Require().NoError(err)
+				s.Require().NoError(zw.Close())
+
+				in = &buf
+			}
+
+			if tt.deaf {
+				in = &failingReader{}
+			}
+
+			got, err := corpus.Load(in)
+
+			if tt.errText != "" {
+				s.Require().Error(err)
+				s.Require().Contains(err.Error(), tt.errText)
+
+				return
+			}
+
+			s.Require().NoError(err)
+			s.Require().Equal(tt.want, got.Presets)
+		})
+	}
+}
+
+// TestDecode reads statistics out of bytes already in hand.
+func (s *CorpusPublicTestSuite) TestDecode() {
+	tests := []struct {
+		name    string
+		packed  []byte
+		errText string
+	}{
+		{
+			name:    "bytes that are neither JSON nor gzip",
+			packed:  []byte("not gzip at all"),
+			errText: "decoding",
+		},
+		{
+			name:    "a gzip header with nothing after it",
+			packed:  []byte{0x1f, 0x8b, 0x08, 0, 0, 0, 0, 0, 0, 0xff},
+			errText: "decoding",
+		},
+		{
+			name:    "a truncated gzip header",
+			packed:  []byte{0x1f, 0x8b},
+			errText: "opening",
+		},
+		{name: "nothing at all", errText: "decoding"},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			_, err := corpus.Decode(tt.packed)
+
+			s.Require().Error(err)
+			s.Require().Contains(err.Error(), tt.errText)
+		})
+	}
 }
 
 // failingReader fails outright rather than reaching the end of its input, so

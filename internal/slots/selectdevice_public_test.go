@@ -24,6 +24,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"io"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
@@ -66,99 +67,142 @@ func (s *SelectDevicePublicTestSuite) listing() []wire.Preset {
 	return []wire.Preset{{Slot: 0, Name: "Chunky Monkey"}, {Slot: 4, Name: "Montana"}}
 }
 
-func (s *SelectDevicePublicTestSuite) TestLoadsAPresetAndNamesIt() {
-	s.dev.MockEditor.EXPECT().Presets(gomock.Any(), 0).Return(s.listing(), nil)
-	s.dev.MockSelector.EXPECT().SelectPreset(gomock.Any(), 0, 4).Return(nil)
-
-	var out bytes.Buffer
-
-	s.Require().NoError(slots.SelectWith(context.Background(), &out, s.dev,
-		slots.DeviceOptions{Slot: 4}))
-
-	s.Require().Contains(out.String(), "02B")
-	s.Require().Contains(out.String(), "Montana")
-	s.Require().Contains(out.String(), "loaded")
-}
-
-func (s *SelectDevicePublicTestSuite) TestReportsWhatStopsIt() {
+// TestSelectWith loads a preset on a session.
+func (s *SelectDevicePublicTestSuite) TestSelectWith() {
 	tests := []struct {
-		name   string
-		expect func()
-		want   string
+		name string
+		// whether the listing comes back, and whether the device switches. An
+		// empty outcome means the call is never reached.
+		listed   bool
+		selects  string
+		readOnly bool
+		deaf     bool
+
+		contains []string
+		errText  string
 	}{
 		{
-			name: "a device that will not say what it holds",
-			expect: func() {
-				s.dev.MockEditor.EXPECT().Presets(gomock.Any(), 0).
-					Return(nil, errors.New("no answer"))
-			},
-			want: "listing setlist 0",
+			name:     "a preset the device holds",
+			listed:   true,
+			selects:  "loaded",
+			contains: []string{"02B", "Montana", "loaded"},
 		},
 		{
-			name: "a device that will not switch",
-			expect: func() {
-				s.dev.MockEditor.EXPECT().Presets(gomock.Any(), 0).
-					Return(s.listing(), nil)
-				s.dev.MockSelector.EXPECT().
-					SelectPreset(gomock.Any(), 0, 4).
-					Return(errors.New("still switching"))
-			},
-			want: "selecting slot 02B",
+			name:    "a device that will not say what it holds",
+			errText: "listing setlist 0",
+		},
+		{
+			name:    "a device that will not switch",
+			listed:  true,
+			selects: "refused",
+			errText: "selecting slot 02B",
+		},
+		{
+			// A reading session must not be handed the ability to change what
+			// somebody is hearing.
+			name:     "a session that cannot select",
+			readOnly: true,
+			errText:  "cannot select",
+		},
+		{
+			name:    "a writer with nowhere for the result to go",
+			listed:  true,
+			selects: "loaded",
+			deaf:    true,
+			errText: "boom",
 		},
 	}
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			tt.expect()
+			dev := sdk.Editor(s.dev)
 
-			err := slots.SelectWith(context.Background(), &bytes.Buffer{}, s.dev,
-				slots.DeviceOptions{Slot: 4})
+			if tt.readOnly {
+				dev = mocks.NewMockEditor(s.ctrl)
+			} else if tt.listed {
+				s.dev.MockEditor.EXPECT().Presets(gomock.Any(), 0).
+					Return(s.listing(), nil)
+			} else {
+				s.dev.MockEditor.EXPECT().Presets(gomock.Any(), 0).
+					Return(nil, errors.New("no answer"))
+			}
 
-			s.Require().ErrorContains(err, tt.want)
+			switch tt.selects {
+			case "loaded":
+				s.dev.MockSelector.EXPECT().
+					SelectPreset(gomock.Any(), 0, 4).Return(nil)
+			case "refused":
+				s.dev.MockSelector.EXPECT().
+					SelectPreset(gomock.Any(), 0, 4).
+					Return(errors.New("still switching"))
+			}
+
+			var out bytes.Buffer
+
+			w := io.Writer(&out)
+			if tt.deaf {
+				w = &brokenWriter{}
+			}
+
+			err := slots.SelectWith(
+				context.Background(), w, dev, slots.DeviceOptions{Slot: 4})
+
+			if tt.errText != "" {
+				s.Require().ErrorContains(err, tt.errText)
+
+				return
+			}
+
+			s.Require().NoError(err)
+
+			for _, want := range tt.contains {
+				s.Require().Contains(out.String(), want)
+			}
 		})
 	}
 }
 
-// TestNeedsASessionThatCanSelect keeps a reading session from being handed
-// the ability to change what somebody is hearing.
-func (s *SelectDevicePublicTestSuite) TestNeedsASessionThatCanSelect() {
-	err := slots.SelectWith(context.Background(), &bytes.Buffer{},
-		mocks.NewMockEditor(s.ctrl), slots.DeviceOptions{Slot: 4})
+// TestSelectDevice covers the entry point somebody runs, which is one line:
+// find a session, hand it on, release it.
+func (s *SelectDevicePublicTestSuite) TestSelectDevice() {
+	tests := []struct {
+		name     string
+		attached bool
+		contains string
+		errText  string
+	}{
+		{name: "a device on the bus", attached: true, contains: "loaded"},
+		{name: "nothing on the bus", errText: "nothing on the bus"},
+	}
 
-	s.Require().ErrorContains(err, "cannot select")
-}
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			if tt.attached {
+				s.dev.MockEditor.EXPECT().Presets(gomock.Any(), 0).
+					Return(s.listing(), nil)
+				s.dev.MockSelector.EXPECT().
+					SelectPreset(gomock.Any(), 0, 4).Return(nil)
 
-// TestReportsAFailingWriter covers somewhere for the result to go.
-func (s *SelectDevicePublicTestSuite) TestReportsAFailingWriter() {
-	s.dev.MockEditor.EXPECT().Presets(gomock.Any(), 0).Return(s.listing(), nil)
-	s.dev.MockSelector.EXPECT().SelectPreset(gomock.Any(), 0, 4).Return(nil)
+				defer s.stand(s.dev, nil)()
+			} else {
+				defer s.stand(nil, errors.New("nothing on the bus"))()
+			}
 
-	s.Require().Error(slots.SelectWith(context.Background(), &brokenWriter{},
-		s.dev, slots.DeviceOptions{Slot: 4}))
-}
+			var out bytes.Buffer
 
-// TestSelectFindsItsOwnDevice covers the entry point somebody runs, which is
-// one line: find a session, hand it on, release it.
-func (s *SelectDevicePublicTestSuite) TestSelectFindsItsOwnDevice() {
-	s.dev.MockEditor.EXPECT().Presets(gomock.Any(), 0).Return(s.listing(), nil)
-	s.dev.MockSelector.EXPECT().SelectPreset(gomock.Any(), 0, 4).Return(nil)
+			err := slots.SelectDevice(
+				context.Background(), &out, slots.DeviceOptions{Slot: 4})
 
-	defer s.stand(s.dev, nil)()
+			if tt.errText != "" {
+				s.Require().ErrorContains(err, tt.errText)
 
-	var out bytes.Buffer
+				return
+			}
 
-	s.Require().NoError(slots.SelectDevice(context.Background(), &out,
-		slots.DeviceOptions{Slot: 4}))
-
-	s.Require().Contains(out.String(), "loaded")
-}
-
-// TestSelectReportsNoDeviceAttached covers finding none.
-func (s *SelectDevicePublicTestSuite) TestSelectReportsNoDeviceAttached() {
-	defer s.stand(nil, errors.New("nothing on the bus"))()
-
-	s.Require().ErrorContains(slots.SelectDevice(context.Background(),
-		&bytes.Buffer{}, slots.DeviceOptions{Slot: 4}), "nothing on the bus")
+			s.Require().NoError(err)
+			s.Require().Contains(out.String(), tt.contains)
+		})
+	}
 }
 
 // stand puts a session in place of the one that needs hardware, and takes it

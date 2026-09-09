@@ -122,8 +122,10 @@ func (s *WritePublicTestSuite) TestWriteSurvivesAReadBack() {
 // TestSetSpec replaces the chain and leaves everything else alone.
 func (s *WritePublicTestSuite) TestSetSpec() {
 	tests := []struct {
-		name     string
-		doc      *preset.Document
+		name string
+		doc  *preset.Document
+		// a document read from this, for shapes the fixture does not have.
+		raw      string
 		spec     chain.Chain
 		contains []string
 		absent   []string
@@ -151,14 +153,36 @@ func (s *WritePublicTestSuite) TestSetSpec() {
 			},
 			contains: []string{"HD2_AmpX"},
 		},
+		{
+			// The entries beside the chain are a device's own, and a chain
+			// says nothing about them.
+			name: "the routing, which survives a chain replacement",
+			raw: `{"schema":"L6Preset","data":{"tone":{"dsp0":{` +
+				`"block0":{"@model":"Old","@position":0},` +
+				`"split":{"@model":"HD2_Split"}}}}}`,
+			spec: chain.Chain{
+				Blocks: []chain.Block{{Model: "New", Enabled: true}},
+			},
+			contains: []string{"HD2_Split"},
+			absent:   []string{`"Old"`},
+		},
 	}
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			s.Require().NoError(tt.doc.SetSpec(tt.spec))
+			doc := tt.doc
+
+			if tt.raw != "" {
+				got, err := preset.Read(strings.NewReader(tt.raw))
+				s.Require().NoError(err)
+
+				doc = got
+			}
+
+			s.Require().NoError(doc.SetSpec(tt.spec))
 
 			var buf bytes.Buffer
-			s.Require().NoError(preset.Write(&buf, tt.doc))
+			s.Require().NoError(preset.Write(&buf, doc))
 
 			for _, want := range tt.contains {
 				s.Require().Contains(buf.String(), want)
@@ -169,27 +193,6 @@ func (s *WritePublicTestSuite) TestSetSpec() {
 			}
 		})
 	}
-}
-
-// TestSetSpecKeepsWhatIsNotABlock covers the entries beside the chain, which
-// a device owns and a chain says nothing about.
-func (s *WritePublicTestSuite) TestSetSpecKeepsWhatIsNotABlock() {
-	d, err := preset.Read(strings.NewReader(
-		`{"schema":"L6Preset","data":{"tone":{"dsp0":{` +
-			`"block0":{"@model":"Old","@position":0},` +
-			`"split":{"@model":"HD2_Split"}}}}}`))
-	s.Require().NoError(err)
-
-	s.Require().NoError(d.SetSpec(chain.Chain{
-		Blocks: []chain.Block{{Model: "New", Enabled: true}},
-	}))
-
-	var buf bytes.Buffer
-	s.Require().NoError(preset.Write(&buf, d))
-
-	s.Require().Contains(buf.String(), "HD2_Split",
-		"routing survives a chain replacement")
-	s.Require().NotContains(buf.String(), `"Old"`)
 }
 
 // TestNew builds a preset from a chain and nothing else.

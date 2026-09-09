@@ -24,6 +24,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -47,100 +48,9 @@ func (s *CorpusgenPublicTestSuite) opts(out string) corpusgen.Options {
 	}
 }
 
-func (s *CorpusgenPublicTestSuite) TestRunMeasuresACorpus() {
-	out := filepath.Join(s.T().TempDir(), "stats.json.gz")
-
-	var log bytes.Buffer
-	s.Require().NoError(corpusgen.Run(&log, s.opts(out)))
-
-	s.Require().FileExists(out)
-	s.Require().Contains(log.String(), "presets measured")
-	s.Require().Contains(log.String(), "bass")
-}
-
-func (s *CorpusgenPublicTestSuite) TestMeasuredValuesAreTheMiddleOfWhatPeopleDo() {
-	stats := s.measure(s.opts(filepath.Join(s.T().TempDir(), "s.gz")))
-
-	p, ok := stats.Param("HD2_AmpSVBeastNrm", "Drive")
-
-	s.Require().True(ok)
-	s.Require().Equal(14, p.N)
-	// Eleven presets sit between 0.40 and 0.47, two outliers at 0.95, and one
-	// belongs to another device entirely. The median ignores the outliers;
-	// the spread records that they exist.
-	s.Require().InDelta(0.44, p.Median, 1e-9)
-	s.Require().Positive(p.Spread())
-}
-
-func (s *CorpusgenPublicTestSuite) TestPresetsForOtherDevicesAreMeasuredToo() {
-	// An Ampeg SVT is the same model with the same controls whichever Helix
-	// carries it, so excluding those presets would only shrink the sample.
-	stats := s.measure(s.opts(filepath.Join(s.T().TempDir(), "s.gz")))
-
-	p, _ := stats.Param("HD2_AmpSVBeastNrm", "Drive")
-
-	s.Require().Equal(14, p.N,
-		"every preset using this amp counts, including one for another device")
-}
-
-func (s *CorpusgenPublicTestSuite) TestGrammarRecordsWhereBlocksSit() {
-	stats := s.measure(s.opts(filepath.Join(s.T().TempDir(), "s.gz")))
-
-	g, ok := stats.Grammar["bass"]
-
-	s.Require().True(ok)
-	s.Require().Equal(14, g.Chains,
-		"a chain with no amp says nothing about ordering and is not counted")
-	s.Require().InDelta(1.0, g.Categories["drive"].BeforeAmp(), 1e-9,
-		"every drive in the fixture sits ahead of the amp")
-	s.Require().Zero(g.Categories["cab"].BeforeAmp(),
-		"a cabinet belongs after the amp")
-}
-
-func (s *CorpusgenPublicTestSuite) TestSwitchesAreNotAveraged() {
-	// A median over an enumeration is meaningless, and the average of a
-	// switch is a value the device will not accept.
-	stats := s.measure(s.opts(filepath.Join(s.T().TempDir(), "s.gz")))
-
-	for _, key := range []string{"Bright", "Voicing"} {
-		s.Run(key, func() {
-			_, ok := stats.Param("HD2_AmpSVBeastNrm", key)
-
-			s.Require().False(ok)
-		})
-	}
-}
-
-func (s *CorpusgenPublicTestSuite) TestPlumbingIsNotPartOfTheGrammar() {
-	// A volume block in most chains says nothing about how a tone is built.
-	stats := s.measure(s.opts(filepath.Join(s.T().TempDir(), "s.gz")))
-
-	s.Require().NotContains(stats.Grammar["bass"].Categories, catalog.CategoryUtility)
-}
-
-func (s *CorpusgenPublicTestSuite) TestAnAmpForNeitherInstrumentIsSkipped() {
-	// Line 6 tags amps Guitar or Bass; a mic preamp is tagged neither, and a
-	// chain built around one belongs to no instrument's habits.
-	stats := s.measure(s.opts(filepath.Join(s.T().TempDir(), "s.gz")))
-
-	s.Require().NotContains(stats.Grammar, "preamp > mic")
-	s.Require().Len(stats.Grammar, 1, "only bass chains are in this fixture")
-}
-
-func (s *CorpusgenPublicTestSuite) TestParametersSeenTooRarelyAreNotRecorded() {
-	o := s.opts(filepath.Join(s.T().TempDir(), "s.gz"))
-	o.MinSamples = 99
-	stats := s.measure(o)
-
-	_, ok := stats.Param("HD2_AmpSVBeastNrm", "Drive")
-
-	s.Require().False(ok,
-		"a median over too few presets is an anecdote with a decimal point")
-}
-
-func (s *CorpusgenPublicTestSuite) TestAPresetThatCannotBeOpenedIsSkipped() {
-	// One unreadable file among thousands is a fact about that file, not a
-	// reason to abandon the measurement.
+// partLocked returns a directory holding one readable preset and one nobody
+// can open.
+func (s *CorpusgenPublicTestSuite) partLocked() string {
 	dir := s.T().TempDir()
 
 	src, err := os.ReadFile(filepath.Join("testdata", "corpus", "bass0.hlx"))
@@ -152,76 +62,210 @@ func (s *CorpusgenPublicTestSuite) TestAPresetThatCannotBeOpenedIsSkipped() {
 	s.Require().NoError(os.WriteFile(locked, src, 0o600))
 	s.Require().NoError(os.Chmod(locked, 0o000))
 
-	o := s.opts(filepath.Join(s.T().TempDir(), "s.gz"))
-	o.CorpusDir = dir
-	o.MinSamples = 1
-
-	stats := s.measure(o)
-
-	s.Require().Equal(1, stats.Presets, "the readable one was still measured")
+	return dir
 }
 
-func (s *CorpusgenPublicTestSuite) TestRunReportsProblems() {
-	dir := s.T().TempDir()
-
+// TestRun measures a body of presets other people made.
+func (s *CorpusgenPublicTestSuite) TestRun() {
 	tests := []struct {
-		name    string
-		mutate  func(*corpusgen.Options)
-		want    error
-		message string
+		name string
+		// which corpus to read: this suite's fixture unless a case says
+		// otherwise.
+		corpus     string
+		catalog    string
+		out        string
+		minSamples int
+		deaf       bool
+
+		logs []string
+		// what the measurement must say about one parameter of the amp.
+		param      string
+		wantN      int
+		wantMedian float64
+		// parameters of that amp which must not be recorded at all.
+		absent []string
+		// what the grammar must say.
+		chains     int
+		before     map[catalog.Category]float64
+		noCategory []catalog.Category
+		grammars   int
+		presets    int
+
+		err     error
+		errText string
 	}{
 		{
-			"a corpus directory that is not there",
-			func(o *corpusgen.Options) { o.CorpusDir = filepath.Join("testdata", "nope") },
-			nil, "searching",
+			name: "a corpus of presets",
+			logs: []string{"presets measured", "bass"},
+
+			// Eleven presets sit between 0.40 and 0.47, two outliers at 0.95,
+			// and one belongs to another device entirely. The median ignores
+			// the outliers; the spread records that they exist. An Ampeg SVT
+			// is the same model with the same controls whichever Helix
+			// carries it, so excluding that preset would only shrink the
+			// sample.
+			param:      "Drive",
+			wantN:      14,
+			wantMedian: 0.44,
+
+			// A median over an enumeration is meaningless, and the average of
+			// a switch is a value the device will not accept.
+			absent: []string{"Bright", "Voicing"},
+
+			// A chain with no amp says nothing about ordering and is not
+			// counted.
+			chains: 14,
+			before: map[catalog.Category]float64{
+				catalog.CategoryDrive: 1,
+				catalog.CategoryCab:   0,
+			},
+			// A volume block in most chains says nothing about how a tone is
+			// built. And Line 6 tag amps Guitar or Bass; a mic preamp is
+			// tagged neither, so a chain built around one belongs to no
+			// instrument's habits.
+			noCategory: []catalog.Category{catalog.CategoryUtility},
+			grammars:   1,
 		},
 		{
-			"a directory holding no presets",
-			func(o *corpusgen.Options) { o.CorpusDir = dir },
-			corpusgen.ErrNoPresets, "no presets",
+			// A median over too few presets is an anecdote with a decimal
+			// point.
+			name:       "parameters seen too rarely to mean anything",
+			minSamples: 99,
+			absent:     []string{"Drive"},
 		},
 		{
-			"a catalog that is not there",
-			func(o *corpusgen.Options) { o.CatalogPath = filepath.Join("testdata", "no.json") },
-			nil, "catalog",
+			// One unreadable file among thousands is a fact about that file,
+			// not a reason to abandon the measurement.
+			name:       "a preset nobody can open",
+			corpus:     "part-locked",
+			minSamples: 1,
+			presets:    1,
 		},
 		{
-			"a destination directory that is not there",
-			func(o *corpusgen.Options) { o.OutputPath = filepath.Join(dir, "no", "s.gz") },
-			nil, "writing",
+			name:    "a corpus directory that is not there",
+			corpus:  "missing",
+			errText: "searching",
 		},
+		{
+			name:    "a directory holding no presets",
+			corpus:  "empty",
+			err:     corpusgen.ErrNoPresets,
+			errText: "no presets",
+		},
+		{
+			name:    "a catalog that is not there",
+			catalog: filepath.Join("testdata", "no.json"),
+			errText: "catalog",
+		},
+		{
+			name:    "a destination directory that is not there",
+			out:     filepath.Join("no", "s.gz"),
+			errText: "writing",
+		},
+		{name: "a writer that fails", deaf: true, errText: "reporting"},
 	}
 
-	for _, tc := range tests {
-		s.Run(tc.name, func() {
-			o := s.opts(filepath.Join(dir, "s.gz"))
-			tc.mutate(&o)
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			dir := s.T().TempDir()
 
-			err := corpusgen.Run(&bytes.Buffer{}, o)
+			out := filepath.Join(dir, "s.gz")
+			if tt.out != "" {
+				out = filepath.Join(dir, tt.out)
+			}
 
-			s.Require().Error(err)
-			s.Require().Contains(err.Error(), tc.message)
+			o := s.opts(out)
+			o.MinSamples = tt.minSamples
 
-			if tc.want != nil {
-				s.Require().ErrorIs(err, tc.want)
+			switch tt.corpus {
+			case "":
+			case "missing":
+				o.CorpusDir = filepath.Join("testdata", "nope")
+			case "empty":
+				o.CorpusDir = s.T().TempDir()
+			case "part-locked":
+				o.CorpusDir = s.partLocked()
+			}
+
+			if tt.catalog != "" {
+				o.CatalogPath = tt.catalog
+			}
+
+			var log bytes.Buffer
+
+			w := io.Writer(&log)
+			if tt.deaf {
+				w = &failingWriter{}
+			}
+
+			err := corpusgen.Run(w, o)
+
+			if tt.err != nil || tt.errText != "" {
+				s.Require().Error(err)
+
+				if tt.err != nil {
+					s.Require().ErrorIs(err, tt.err)
+				}
+
+				s.Require().Contains(err.Error(), tt.errText)
+
+				return
+			}
+
+			s.Require().NoError(err)
+			s.Require().FileExists(out)
+
+			for _, want := range tt.logs {
+				s.Require().Contains(log.String(), want)
+			}
+
+			stats := s.read(out)
+
+			if tt.param != "" {
+				p, ok := stats.Param("HD2_AmpSVBeastNrm", tt.param)
+
+				s.Require().True(ok)
+				s.Require().Equal(tt.wantN, p.N)
+				s.Require().InDelta(tt.wantMedian, p.Median, 1e-9)
+				s.Require().Positive(p.Spread())
+			}
+
+			for _, key := range tt.absent {
+				_, ok := stats.Param("HD2_AmpSVBeastNrm", key)
+
+				s.Require().False(ok, "%s must not be recorded", key)
+			}
+
+			if tt.chains > 0 {
+				g, ok := stats.Grammar["bass"]
+
+				s.Require().True(ok)
+				s.Require().Equal(tt.chains, g.Chains)
+
+				for cat, want := range tt.before {
+					s.Require().InDelta(want, g.Categories[cat].BeforeAmp(), 1e-9,
+						"where a %s sits", cat)
+				}
+
+				for _, cat := range tt.noCategory {
+					s.Require().NotContains(g.Categories, cat)
+				}
+			}
+
+			if tt.grammars > 0 {
+				s.Require().Len(stats.Grammar, tt.grammars)
+			}
+
+			if tt.presets > 0 {
+				s.Require().Equal(tt.presets, stats.Presets)
 			}
 		})
 	}
 }
 
-func (s *CorpusgenPublicTestSuite) TestRunReportsAWriterThatFails() {
-	err := corpusgen.Run(&failingWriter{},
-		s.opts(filepath.Join(s.T().TempDir(), "s.gz")))
-
-	s.Require().Error(err)
-	s.Require().Contains(err.Error(), "reporting")
-}
-
-// measure runs a generation and reads the result back.
-func (s *CorpusgenPublicTestSuite) measure(o corpusgen.Options) *corpus.Stats {
-	s.Require().NoError(corpusgen.Run(&bytes.Buffer{}, o))
-
-	f, err := os.Open(o.OutputPath) //nolint:gosec // a path this test chose
+// read loads statistics this suite generated.
+func (s *CorpusgenPublicTestSuite) read(path string) *corpus.Stats {
+	f, err := os.Open(path) //nolint:gosec // a path this test chose
 	s.Require().NoError(err)
 
 	defer func() { s.Require().NoError(f.Close()) }()

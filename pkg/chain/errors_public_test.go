@@ -34,19 +34,32 @@ type ErrorsPublicTestSuite struct {
 	suite.Suite
 }
 
+// TestUnknownBlockError names the model nothing carries.
 func (s *ErrorsPublicTestSuite) TestUnknownBlockError() {
-	err := &chain.UnknownBlockError{Model: "HD2_Nope"}
+	tests := []struct {
+		name string
+		err  error
+	}{
+		{name: "on its own", err: &chain.UnknownBlockError{Model: "HD2_Nope"}},
+		{
+			// The model has to survive the wrapping every layer adds, or a
+			// caller cannot say which block it was.
+			name: "wrapped by a caller",
+			err: fmt.Errorf("resolving: %w",
+				&chain.UnknownBlockError{Model: "HD2_Nope"}),
+		},
+	}
 
-	s.Require().Contains(err.Error(), "HD2_Nope")
-	s.Require().ErrorIs(err, chain.ErrUnknownBlock)
-}
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			s.Require().ErrorIs(tt.err, chain.ErrUnknownBlock)
+			s.Require().Contains(tt.err.Error(), "HD2_Nope")
 
-func (s *ErrorsPublicTestSuite) TestUnknownBlockErrorSurvivesWrapping() {
-	err := fmt.Errorf("resolving: %w", &chain.UnknownBlockError{Model: "HD2_Nope"})
-
-	var target *chain.UnknownBlockError
-	s.Require().True(errors.As(err, &target))
-	s.Require().Equal("HD2_Nope", target.Model)
+			var target *chain.UnknownBlockError
+			s.Require().True(errors.As(tt.err, &target))
+			s.Require().Equal("HD2_Nope", string(target.Model))
+		})
+	}
 }
 
 func (s *ErrorsPublicTestSuite) TestOverBudgetErrorNamesChipAndCost() {

@@ -22,6 +22,7 @@ package recipes_test
 
 import (
 	"bytes"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -49,186 +50,271 @@ func (s *NewPublicTestSuite) opts(dir string) recipes.NewOptions {
 	}
 }
 
-func (s *NewPublicTestSuite) TestWritesARecipeThatLoads() {
-	dir := s.T().TempDir()
-
-	var log bytes.Buffer
-	s.Require().NoError(recipes.New(&log, s.opts(dir)))
-
-	// The point of scaffolding is a file the loader accepts, not a template.
-	all, err := recipes.Load(dir)
-	s.Require().NoError(err)
-	s.Require().Len(all, 1)
-	s.Require().Equal("test-player", all[0].ID)
-	s.Require().Equal("Ampeg SVT", rig.GearName(all[0], gen.RoleAmp))
-
-	s.Require().Contains(log.String(), "Test Player")
-	s.Require().Contains(log.String(), "presets make")
-}
-
-func (s *NewPublicTestSuite) TestWritesEverythingItWasGiven() {
-	dir := s.T().TempDir()
-
-	o := s.opts(dir)
-	o.Band = "A Band"
-	o.Cab = "Ampeg SVT 410HLF"
-	o.Pedals = []string{"Klon Centaur"}
-
-	var log bytes.Buffer
-	s.Require().NoError(recipes.New(&log, o))
-
-	all, err := recipes.Load(dir)
-	s.Require().NoError(err)
-	s.Require().Equal("Ampeg SVT 410HLF", rig.GearName(all[0], gen.RoleCab))
-
-	// The pedal is written ahead of the amp, because that is where a pedal
-	// goes and a chain is ordered by what the signal does.
-	s.Require().Equal("Klon Centaur", all[0].Chain[0].Gear)
-	s.Require().Equal(gen.RoleAmp, all[0].Chain[1].Role)
-	s.Require().Contains(log.String(), "Klon Centaur")
-}
-
-func (s *NewPublicTestSuite) TestRefusesGearNoDeviceModels() {
-	// Checking before writing is the point. A recipe naming an amplifier
-	// nothing models is otherwise only discovered at build time, by which
-	// point the name has usually been copied somewhere else too.
-	o := s.opts(s.T().TempDir())
-	o.Amp = "Ampeg SVQ"
-
-	err := recipes.New(&bytes.Buffer{}, o)
-
-	s.Require().ErrorIs(err, recipes.ErrNoSuchGear)
-	s.Require().Contains(err.Error(), "did you mean")
-	s.Require().Contains(err.Error(), "Ampeg SVT")
-}
-
-func (s *NewPublicTestSuite) TestRefusesGearInAnyPosition() {
-	tests := []struct {
-		name   string
-		mutate func(*recipes.NewOptions)
-	}{
-		{"a cabinet", func(o *recipes.NewOptions) { o.Cab = "Nonesuch 9x9" }},
-		{"a pedal", func(o *recipes.NewOptions) { o.Pedals = []string{"Nonesuch Fuzz"} }},
-	}
-
-	for _, tc := range tests {
-		s.Run(tc.name, func() {
-			o := s.opts(s.T().TempDir())
-			tc.mutate(&o)
-
-			s.Require().ErrorIs(recipes.New(&bytes.Buffer{}, o), recipes.ErrNoSuchGear)
-		})
-	}
-}
-
-func (s *NewPublicTestSuite) TestSuggestsNothingWhenNothingIsClose() {
-	o := s.opts(s.T().TempDir())
-	o.Amp = "Zzz"
-
-	err := recipes.New(&bytes.Buffer{}, o)
-
-	s.Require().ErrorIs(err, recipes.ErrNoSuchGear)
-	s.Require().NotContains(err.Error(), "did you mean",
-		"a weak suggestion is worse than none when somebody is deciding "+
-			"whether they got a name wrong")
-}
-
-func (s *NewPublicTestSuite) TestRefusesAnIdentifierThatIsNotOne() {
-	tests := []string{"Test Player", "test_player", "", "-leading", "trailing-"}
-
-	for _, id := range tests {
-		s.Run(id, func() {
-			o := s.opts(s.T().TempDir())
-			o.ID = id
-
-			err := recipes.New(&bytes.Buffer{}, o)
-
-			s.Require().ErrorIs(err, recipes.ErrBadID)
-			s.Require().Contains(err.Error(), "hyphens")
-		})
-	}
-}
-
-func (s *NewPublicTestSuite) TestRefusesToOverwrite() {
-	dir := s.T().TempDir()
-	s.Require().NoError(recipes.New(&bytes.Buffer{}, s.opts(dir)))
-
-	err := recipes.New(&bytes.Buffer{}, s.opts(dir))
-
-	s.Require().ErrorIs(err, recipes.ErrExists)
-	s.Require().Contains(err.Error(), "test-player.yaml")
-}
-
-func (s *NewPublicTestSuite) TestSuggestsAtMostAHandful() {
-	// Against the real catalog "ampeg" matches far more than anybody wants
-	// listed in an error message.
-	o := s.opts(s.T().TempDir())
-	o.CatalogPath = ""
-	o.Amp = "Ampeg Nonesuch"
-
-	err := recipes.New(&bytes.Buffer{}, o)
-
-	s.Require().ErrorIs(err, recipes.ErrNoSuchGear)
-	s.Require().LessOrEqual(strings.Count(err.Error(), ","), 5)
-}
-
-func (s *NewPublicTestSuite) TestReportsADirectoryItCannotWriteInto() {
-	dir := s.T().TempDir()
-	artists := filepath.Join(dir, "artists")
-	s.Require().NoError(os.MkdirAll(artists, 0o750))
-	s.Require().NoError(os.Chmod(artists, 0o500))
-
-	defer func() { s.Require().NoError(os.Chmod(artists, 0o750)) }()
-
-	err := recipes.New(&bytes.Buffer{}, s.opts(dir))
-
-	s.Require().Error(err)
-	s.Require().Contains(err.Error(), "writing")
-}
-
-func (s *NewPublicTestSuite) TestReportsProblems() {
-	tests := []struct {
-		name    string
-		mutate  func(*recipes.NewOptions)
-		message string
-	}{
-		{
-			"a catalog that is not there",
-			func(o *recipes.NewOptions) {
-				o.CatalogPath = filepath.Join("testdata", "nope.json")
-			},
-			"catalog",
-		},
-		{
-			"a directory that cannot be made",
-			func(o *recipes.NewOptions) { o.Dir = s.file() },
-			"making room",
-		},
-	}
-
-	for _, tc := range tests {
-		s.Run(tc.name, func() {
-			o := s.opts(s.T().TempDir())
-			tc.mutate(&o)
-
-			err := recipes.New(&bytes.Buffer{}, o)
-
-			s.Require().Error(err)
-			s.Require().Contains(err.Error(), tc.message)
-		})
-	}
-}
-
-func (s *NewPublicTestSuite) TestReportsAWriterThatFails() {
-	s.Require().Error(recipes.New(&failingWriter{}, s.opts(s.T().TempDir())))
-}
-
 // file returns a path that is a file, so making a directory under it fails.
 func (s *NewPublicTestSuite) file() string {
 	path := filepath.Join(s.T().TempDir(), "not-a-directory")
 	s.Require().NoError(os.WriteFile(path, []byte("x"), 0o600))
 
 	return path
+}
+
+// readOnly returns a directory a recipe cannot be written into.
+func (s *NewPublicTestSuite) readOnly() string {
+	dir := s.T().TempDir()
+
+	artists := filepath.Join(dir, "artists")
+	s.Require().NoError(os.MkdirAll(artists, 0o750))
+	s.Require().NoError(os.Chmod(artists, 0o500))
+
+	s.T().Cleanup(func() { s.Require().NoError(os.Chmod(artists, 0o750)) })
+
+	return dir
+}
+
+// TestNew scaffolds a recipe.
+func (s *NewPublicTestSuite) TestNew() {
+	tests := []struct {
+		name string
+		id   string
+		// an identifier nobody gave.
+		noID   bool
+		amp    string
+		cab    string
+		band   string
+		pedals []string
+		// the catalog to check gear against: this suite's fixture unless a
+		// case says otherwise.
+		catalog string
+		// the real catalog this binary ships.
+		builtIn bool
+		// which directory to write into.
+		dir string
+		// write the recipe once first, so the call under test finds it there.
+		twice bool
+		deaf  bool
+
+		// the gear the written recipe must name, by role and by position.
+		wantAmp   string
+		wantCab   string
+		wantFirst string
+		wantRoles []gen.Role
+		logs      []string
+
+		err     error
+		errText string
+		absent  string
+		atMost  int
+	}{
+		{
+			// The point of scaffolding is a file the loader accepts, not a
+			// template.
+			name:    "a recipe naming an amplifier",
+			wantAmp: "Ampeg SVT",
+			logs:    []string{"Test Player", "presets make"},
+		},
+		{
+			name:   "everything somebody named",
+			band:   "A Band",
+			cab:    "Ampeg SVT 410HLF",
+			pedals: []string{"Klon Centaur"},
+			// The pedal is written ahead of the amp, because that is where a
+			// pedal goes and a chain is ordered by what the signal does.
+			wantFirst: "Klon Centaur",
+			wantRoles: []gen.Role{gen.RoleDrive, gen.RoleAmp},
+			wantAmp:   "Ampeg SVT",
+			wantCab:   "Ampeg SVT 410HLF",
+			logs:      []string{"Klon Centaur"},
+		},
+		{
+			// Checking before writing is the point. A recipe naming an
+			// amplifier nothing models is otherwise only discovered at build
+			// time, by which point the name has usually been copied somewhere
+			// else too.
+			name:    "an amplifier nothing models",
+			amp:     "Ampeg SVQ",
+			err:     recipes.ErrNoSuchGear,
+			errText: "did you mean",
+		},
+		{
+			name: "a cabinet nothing models",
+			cab:  "Nonesuch 9x9",
+			err:  recipes.ErrNoSuchGear,
+		},
+		{
+			name:   "a pedal nothing models",
+			pedals: []string{"Nonesuch Fuzz"},
+			err:    recipes.ErrNoSuchGear,
+		},
+		{
+			// A weak suggestion is worse than none when somebody is deciding
+			// whether they got a name wrong.
+			name:   "a name nothing is close to",
+			amp:    "Zzz",
+			err:    recipes.ErrNoSuchGear,
+			absent: "did you mean",
+		},
+		{
+			// Against the real catalog "ampeg" matches far more than anybody
+			// wants listed in an error message.
+			name:    "a name matching far too much",
+			builtIn: true,
+			amp:     "Ampeg Nonesuch",
+			err:     recipes.ErrNoSuchGear,
+			atMost:  5,
+		},
+		{
+			name:    "an identifier with a space in it",
+			id:      "Test Player",
+			err:     recipes.ErrBadID,
+			errText: "hyphens",
+		},
+		{
+			name:    "an identifier with an underscore",
+			id:      "test_player",
+			err:     recipes.ErrBadID,
+			errText: "hyphens",
+		},
+		{
+			name:    "no identifier at all",
+			noID:    true,
+			err:     recipes.ErrBadID,
+			errText: "hyphens",
+		},
+		{
+			name:    "an identifier starting with a hyphen",
+			id:      "-leading",
+			err:     recipes.ErrBadID,
+			errText: "hyphens",
+		},
+		{
+			name:    "an identifier ending with one",
+			id:      "trailing-",
+			err:     recipes.ErrBadID,
+			errText: "hyphens",
+		},
+		{
+			name:    "a recipe already written",
+			twice:   true,
+			err:     recipes.ErrExists,
+			errText: "test-player.yaml",
+		},
+		{
+			name:    "a directory it cannot write into",
+			dir:     "read-only",
+			errText: "writing",
+		},
+		{
+			name:    "a catalog that is not there",
+			catalog: filepath.Join("testdata", "nope.json"),
+			errText: "catalog",
+		},
+		{
+			name:    "a directory that cannot be made",
+			dir:     "a file",
+			errText: "making room",
+		},
+		{name: "a writer that fails", deaf: true},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			dir := s.T().TempDir()
+
+			switch tt.dir {
+			case "read-only":
+				dir = s.readOnly()
+			case "a file":
+				dir = s.file()
+			}
+
+			o := s.opts(dir)
+			o.Band = tt.band
+			o.Cab = tt.cab
+			o.Pedals = tt.pedals
+
+			if tt.id != "" {
+				o.ID = tt.id
+			}
+
+			if tt.noID {
+				o.ID = ""
+			}
+
+			if tt.amp != "" {
+				o.Amp = tt.amp
+			}
+
+			if tt.catalog != "" {
+				o.CatalogPath = tt.catalog
+			}
+
+			if tt.builtIn {
+				o.CatalogPath = ""
+			}
+
+			if tt.twice {
+				s.Require().NoError(recipes.New(&bytes.Buffer{}, s.opts(dir)))
+			}
+
+			var log bytes.Buffer
+
+			w := io.Writer(&log)
+			if tt.deaf {
+				w = &failingWriter{}
+			}
+
+			err := recipes.New(w, o)
+
+			if tt.err != nil || tt.errText != "" || tt.deaf {
+				s.Require().Error(err)
+
+				if tt.err != nil {
+					s.Require().ErrorIs(err, tt.err)
+				}
+
+				if tt.errText != "" {
+					s.Require().Contains(err.Error(), tt.errText)
+				}
+
+				if tt.absent != "" {
+					s.Require().NotContains(err.Error(), tt.absent)
+				}
+
+				if tt.atMost > 0 {
+					s.Require().LessOrEqual(strings.Count(err.Error(), ","), tt.atMost)
+				}
+
+				return
+			}
+
+			s.Require().NoError(err)
+
+			all, err := recipes.Load(dir)
+			s.Require().NoError(err)
+			s.Require().Len(all, 1)
+			s.Require().Equal("test-player", all[0].ID)
+
+			if tt.wantAmp != "" {
+				s.Require().Equal(tt.wantAmp, rig.GearName(all[0], gen.RoleAmp))
+			}
+
+			if tt.wantCab != "" {
+				s.Require().Equal(tt.wantCab, rig.GearName(all[0], gen.RoleCab))
+			}
+
+			if tt.wantFirst != "" {
+				s.Require().Equal(tt.wantFirst, all[0].Chain[0].Gear)
+			}
+
+			for i, want := range tt.wantRoles {
+				s.Require().Equal(want, all[0].Chain[i].Role)
+			}
+
+			for _, want := range tt.logs {
+				s.Require().Contains(log.String(), want)
+			}
+		})
+	}
 }
 
 func TestNewPublicTestSuite(t *testing.T) {

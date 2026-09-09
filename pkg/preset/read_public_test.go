@@ -28,7 +28,6 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/retr0h/tonestack/pkg/catalog"
-	"github.com/retr0h/tonestack/pkg/chain"
 	"github.com/retr0h/tonestack/pkg/preset"
 )
 
@@ -61,10 +60,25 @@ func (s *ReadPublicTestSuite) TestRead() {
 		name string
 		doc  string
 		file string
+		// the envelope around the chain, which is one document rather than a
+		// set of cases.
+		schema  string
+		version int
+		device  int
+		preset  string
+
 		err  bool
 		is   error
 		says string
 	}{
+		{
+			name:    "a preset a device wrote",
+			file:    "testdata/minimal.hlx",
+			schema:  "L6Preset",
+			version: 6,
+			device:  2162694,
+			preset:  "Test Preset",
+		},
 		{
 			// A device always writes a number. Hand-made templates in the
 			// wild do not, and refusing to read one because of a field
@@ -137,6 +151,13 @@ func (s *ReadPublicTestSuite) TestRead() {
 				s.Require().NoError(err)
 				s.Require().NotNil(got)
 
+				if tt.schema != "" {
+					s.Require().Equal(tt.schema, got.Schema)
+					s.Require().Equal(tt.version, got.Version)
+					s.Require().Equal(tt.device, got.Data.Device)
+					s.Require().Equal(tt.preset, got.Data.Meta.Name)
+				}
+
 				return
 			}
 
@@ -153,60 +174,52 @@ func (s *ReadPublicTestSuite) TestRead() {
 	}
 }
 
-// TestReadDecodesTheEnvelope covers the fields around the chain, which are
-// one document rather than a set of cases.
-func (s *ReadPublicTestSuite) TestReadDecodesTheEnvelope() {
-	d := s.doc()
-
-	s.Require().Equal("L6Preset", d.Schema)
-	s.Require().Equal(6, d.Version)
-	s.Require().Equal(2162694, d.Data.Device)
-	s.Require().Equal("Test Preset", d.Data.Meta.Name)
-}
-
 // TestSpec extracts the signal chain a preset describes.
 func (s *ReadPublicTestSuite) TestSpec() {
 	tests := []struct {
-		name  string
-		doc   string
-		check func(chain.Chain)
-		says  string
+		name string
+		doc  string
+		// the blocks the chain must hold, and the parameters of the first.
+		blocks int
+		params int
+		err    bool
+		says   string
 	}{
 		{
 			name: "an entry naming no model is not a block",
 			doc:  `{"schema":"L6Preset","data":{"tone":{"dsp0":{"block0":{"Gain":0.5}}}}}`,
-			check: func(c chain.Chain) {
-				s.Require().Empty(c.Blocks)
-			},
 		},
 		{
 			name: "an attribute nothing models is not a parameter",
 			doc: `{"schema":"L6Preset","data":{"tone":{"dsp0":{"block0":` +
 				`{"@model":"X","@position":0,"@no_snapshot_bypass":false,"Gain":0.5}}}}}`,
-			check: func(c chain.Chain) {
-				s.Require().Len(c.Blocks[0].Params, 1)
-			},
+			blocks: 1,
+			params: 1,
 		},
 		{
 			name: "a processor key nothing can number",
 			doc:  `{"schema":"L6Preset","data":{"tone":{"dspX":{}}}}`,
+			err:  true,
 			says: "dspX",
 		},
 		{
 			name: "a block that is not an object",
 			doc:  `{"schema":"L6Preset","data":{"tone":{"dsp0":{"block0":"nope"}}}}`,
+			err:  true,
 			says: "block0",
 		},
 		{
 			name: "a parameter of no kind at all",
 			doc: `{"schema":"L6Preset","data":{"tone":{"dsp0":{"block0":` +
 				`{"@model":"X","Gain":{"nested":1}}}}}}`,
+			err:  true,
 			says: "Gain",
 		},
 		{
 			name: "an attribute of the wrong kind",
 			doc: `{"schema":"L6Preset","data":{"tone":{"dsp0":{"block0":` +
 				`{"@model":"X","@position":"first"}}}}}`,
+			err: true,
 		},
 	}
 
@@ -217,7 +230,7 @@ func (s *ReadPublicTestSuite) TestSpec() {
 
 			got, err := d.Spec()
 
-			if tt.check == nil {
+			if tt.err {
 				s.Require().Error(err)
 
 				if tt.says != "" {
@@ -228,7 +241,11 @@ func (s *ReadPublicTestSuite) TestSpec() {
 			}
 
 			s.Require().NoError(err)
-			tt.check(got)
+			s.Require().Len(got.Blocks, tt.blocks)
+
+			if tt.params > 0 {
+				s.Require().Len(got.Blocks[0].Params, tt.params)
+			}
 		})
 	}
 }

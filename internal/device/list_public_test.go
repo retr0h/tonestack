@@ -17,12 +17,14 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
+
 package device_test
 
 import (
 	"bytes"
 	"context"
 	"errors"
+	"io"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
@@ -50,70 +52,86 @@ func stomp() sdk.Descriptor {
 	return sdk.Descriptor{Vendor: 0x0e41, Product: 0x4246, Bus: 2, Address: 1}
 }
 
-func (s *ListPublicTestSuite) TestListsARecognisedDevice() {
-	var out bytes.Buffer
+// TestListWith prints what is attached.
+func (s *ListPublicTestSuite) TestListWith() {
+	tests := []struct {
+		name     string
+		descs    []sdk.Descriptor
+		listErr  error
+		deaf     bool
+		contains []string
+		errText  string
+	}{
+		{
+			name:  "a device this project knows",
+			descs: []sdk.Descriptor{stomp()},
+			contains: []string{
+				"HX Stomp",
+				"0e41:4246",
+				// The preset device id is what a caller actually needs.
+				"2162694",
+			},
+		},
+		{
+			name:     "nothing attached",
+			contains: []string{"no Helix devices attached"},
+		},
+		{
+			name:     "somebody else's hardware",
+			descs:    []sdk.Descriptor{{Vendor: 0x05ac, Product: 0x1234}},
+			contains: []string{"no Helix devices attached"},
+		},
+		{
+			name:    "a bus that will not answer",
+			listErr: errors.New("bus unavailable"),
+			errText: "finding devices",
+		},
+		{
+			// A tabwriter buffers, so the flush is where a failing writer
+			// surfaces.
+			name:    "a writer that fails, with a device to print",
+			descs:   []sdk.Descriptor{stomp()},
+			deaf:    true,
+			errText: "boom",
+		},
+		{
+			name:    "a writer that fails, with nothing to print",
+			deaf:    true,
+			errText: "boom",
+		},
+	}
 
-	err := device.ListWith(context.Background(), &out,
-		&lister{descs: []sdk.Descriptor{stomp()}})
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			var buf bytes.Buffer
 
-	s.Require().NoError(err)
-	s.Require().Contains(out.String(), "HX Stomp")
-	s.Require().Contains(out.String(), "0e41:4246")
-	s.Require().Contains(out.String(), "2162694",
-		"the preset device id is what a caller actually needs")
+			out := io.Writer(&buf)
+			if tt.deaf {
+				out = &failingWriter{}
+			}
+
+			err := device.ListWith(context.Background(), out,
+				&lister{descs: tt.descs, err: tt.listErr})
+
+			if tt.errText != "" {
+				s.Require().Error(err)
+				s.Require().Contains(err.Error(), tt.errText)
+
+				return
+			}
+
+			s.Require().NoError(err)
+
+			for _, want := range tt.contains {
+				s.Require().Contains(buf.String(), want)
+			}
+		})
+	}
 }
 
-func (s *ListPublicTestSuite) TestSaysSoWhenNothingIsAttached() {
-	var out bytes.Buffer
-
-	err := device.ListWith(context.Background(), &out, &lister{})
-
-	s.Require().NoError(err)
-	s.Require().Contains(out.String(), "no Helix devices attached")
-}
-
-func (s *ListPublicTestSuite) TestIgnoresOtherVendors() {
-	var out bytes.Buffer
-
-	err := device.ListWith(context.Background(), &out, &lister{
-		descs: []sdk.Descriptor{{Vendor: 0x05ac, Product: 0x1234}},
-	})
-
-	s.Require().NoError(err)
-	s.Require().Contains(out.String(), "no Helix devices attached")
-}
-
-func (s *ListPublicTestSuite) TestReportsAFailingBus() {
-	var out bytes.Buffer
-
-	err := device.ListWith(context.Background(), &out,
-		&lister{err: errors.New("bus unavailable")})
-
-	s.Require().Error(err)
-	s.Require().Contains(err.Error(), "finding devices")
-}
-
-func (s *ListPublicTestSuite) TestReportsAFailingWriter() {
-	// A tabwriter buffers, so the flush is where a failing writer surfaces.
-	err := device.ListWith(context.Background(), &failingWriter{},
-		&lister{descs: []sdk.Descriptor{stomp()}})
-	s.Require().Error(err)
-
-	err = device.ListWith(context.Background(), &failingWriter{}, &lister{})
-	s.Require().Error(err, "the empty case reports too")
-}
-
-type failingWriter struct{}
-
-func (*failingWriter) Write([]byte) (int, error) { return 0, errors.New("boom") }
-
-func TestListPublicTestSuite(t *testing.T) {
-	suite.Run(t, new(ListPublicTestSuite))
-}
-
-func (s *ListPublicTestSuite) TestListFindsItsOwnBus() {
-	// One line — find a bus, hand it on, release it — and the only line in
-	// this package that needs hardware.
+// TestList finds its own bus. One line — find a bus, hand it on, release it —
+// and the only line in this package that needs hardware.
+func (s *ListPublicTestSuite) TestList() {
 	restore := *device.NewLister
 	defer func() { *device.NewLister = restore }()
 
@@ -124,4 +142,12 @@ func (s *ListPublicTestSuite) TestListFindsItsOwnBus() {
 	var out bytes.Buffer
 	s.Require().NoError(device.List(context.Background(), &out))
 	s.Require().Contains(out.String(), "HX Stomp")
+}
+
+type failingWriter struct{}
+
+func (*failingWriter) Write([]byte) (int, error) { return 0, errors.New("boom") }
+
+func TestListPublicTestSuite(t *testing.T) {
+	suite.Run(t, new(ListPublicTestSuite))
 }

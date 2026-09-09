@@ -35,132 +35,188 @@ type WirePublicTestSuite struct {
 	suite.Suite
 }
 
-func (s *WirePublicTestSuite) TestEncodeLaysOutTheHeader() {
-	got := wire.EncodeEnvelope(wire.Envelope{
-		Originator: wire.FromHost,
-		Service:    5,
-		Body:       []byte{0xde, 0xad},
-	})
-
-	// originator 1, service 5, length 2, then the body — all little endian.
-	s.Require().Equal("01000500020000 00dead",
-		hex.EncodeToString(got[:7])+" "+hex.EncodeToString(got[7:]))
-}
-
-func (s *WirePublicTestSuite) TestEncodeAndDecodeAgree() {
-	want := wire.Envelope{Originator: wire.FromHost, Service: 2, Body: []byte("hello")}
-
-	got, rest, err := wire.DecodeEnvelope(wire.EncodeEnvelope(want))
-
-	s.Require().NoError(err)
-	s.Require().Equal(want, got)
-	s.Require().Empty(rest)
-}
-
-func (s *WirePublicTestSuite) TestDecodeReturnsWhatFollows() {
-	// A bulk read can carry more than one frame, so the remainder has to come
-	// back rather than be dropped.
-	raw := append(
-		wire.EncodeEnvelope(wire.Envelope{Originator: wire.FromDevice, Body: []byte("one")}),
-		wire.EncodeEnvelope(wire.Envelope{Originator: wire.FromDevice, Body: []byte("two")})...,
-	)
-
-	first, rest, err := wire.DecodeEnvelope(raw)
-	s.Require().NoError(err)
-	s.Require().Equal([]byte("one"), first.Body)
-
-	second, rest, err := wire.DecodeEnvelope(rest)
-	s.Require().NoError(err)
-	s.Require().Equal([]byte("two"), second.Body)
-	s.Require().Empty(rest)
-}
-
-func (s *WirePublicTestSuite) TestOriginatorSaysWhichEndSpoke() {
-	// Host frames always carry 1 and device frames always 0, which is the
-	// cheapest check that a stream is still aligned.
-	f, _, err := wire.DecodeEnvelope(
-		wire.EncodeEnvelope(wire.Envelope{Originator: wire.FromDevice}),
-	)
-
-	s.Require().NoError(err)
-	s.Require().Equal(wire.FromDevice, f.Originator)
-}
-
-func (s *WirePublicTestSuite) TestDecodeRefusesWhatCannotBeAFrame() {
+// TestEncodeEnvelope lays out the header a device reads.
+func (s *WirePublicTestSuite) TestEncodeEnvelope() {
 	tests := []struct {
 		name string
-		raw  []byte
-		want error
+		env  wire.Envelope
+		want string
 	}{
-		{"nothing at all", nil, wire.ErrShortFrame},
-		{"half a header", []byte{1, 0, 5, 0}, wire.ErrShortFrame},
 		{
-			"a header promising more body than arrived",
-			[]byte{1, 0, 5, 0, 0x10, 0, 0, 0, 0xde},
-			wire.ErrShortFrame,
+			// Originator 1, service 5, length 2, then the body — all little
+			// endian.
+			name: "a frame from the host",
+			env: wire.Envelope{
+				Originator: wire.FromHost,
+				Service:    5,
+				Body:       []byte{0xde, 0xad},
+			},
+			want: "0100050002000000dead",
 		},
 		{
-			"a length no real frame carries",
-			[]byte{1, 0, 5, 0, 0xff, 0xff, 0xff, 0xff},
-			wire.ErrBodyTooLarge,
+			// Host frames always carry 1 and device frames always 0, which is
+			// the cheapest check that a stream is still aligned.
+			name: "one from the device, carrying nothing",
+			env:  wire.Envelope{Originator: wire.FromDevice},
+			want: "00000000000000 00",
 		},
 	}
 
-	for _, tc := range tests {
-		s.Run(tc.name, func() {
-			_, _, err := wire.DecodeEnvelope(tc.raw)
-
-			s.Require().ErrorIs(err, tc.want)
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			s.Require().Equal(
+				strip(tt.want), hex.EncodeToString(wire.EncodeEnvelope(tt.env)))
 		})
 	}
 }
 
-func (s *WirePublicTestSuite) TestReadTakesOneFrameFromAStream() {
-	stream := bytes.NewReader(append(
-		wire.EncodeEnvelope(
-			wire.Envelope{Originator: wire.FromDevice, Service: 5, Body: []byte("a")},
-		),
-		wire.EncodeEnvelope(wire.Envelope{Originator: wire.FromDevice, Body: []byte("b")})...,
-	))
+// strip removes the spaces used to group a hex fixture.
+func strip(in string) string {
+	out := make([]byte, 0, len(in))
 
-	first, err := wire.ReadEnvelope(stream)
-	s.Require().NoError(err)
-	s.Require().Equal([]byte("a"), first.Body)
+	for i := range len(in) {
+		if in[i] != ' ' {
+			out = append(out, in[i])
+		}
+	}
 
-	second, err := wire.ReadEnvelope(stream)
-	s.Require().NoError(err)
-	s.Require().Equal([]byte("b"), second.Body)
-
-	_, err = wire.ReadEnvelope(stream)
-	s.Require().ErrorIs(err, io.EOF)
+	return string(out)
 }
 
-func (s *WirePublicTestSuite) TestReadRefusesWhatCannotBeAFrame() {
+// TestDecodeEnvelope reads a frame back, and says what follows it.
+func (s *WirePublicTestSuite) TestDecodeEnvelope() {
 	tests := []struct {
-		name    string
-		raw     []byte
-		want    error
-		message string
+		name string
+		// frames to encode and read back, or bytes written by hand.
+		frames []wire.Envelope
+		raw    []byte
+		err    error
 	}{
-		{"a truncated header", []byte{1, 0, 5}, io.ErrUnexpectedEOF, "header"},
 		{
-			"a body that never arrives",
-			[]byte{1, 0, 5, 0, 0x10, 0, 0, 0},
-			io.EOF, "body",
+			name: "a frame from the host",
+			frames: []wire.Envelope{
+				{Originator: wire.FromHost, Service: 2, Body: []byte("hello")},
+			},
 		},
 		{
-			"a length no real frame carries",
-			[]byte{1, 0, 5, 0, 0xff, 0xff, 0xff, 0xff},
-			wire.ErrBodyTooLarge, "too large",
+			// A bulk read can carry more than one frame, so the remainder has
+			// to come back rather than be dropped.
+			name: "two frames in one transfer",
+			frames: []wire.Envelope{
+				{Originator: wire.FromDevice, Body: []byte("one")},
+				{Originator: wire.FromDevice, Body: []byte("two")},
+			},
+		},
+		{name: "nothing at all", raw: []byte{}, err: wire.ErrShortFrame},
+		{
+			name: "half a header",
+			raw:  []byte{1, 0, 5, 0},
+			err:  wire.ErrShortFrame,
+		},
+		{
+			name: "a header promising more body than arrived",
+			raw:  []byte{1, 0, 5, 0, 0x10, 0, 0, 0, 0xde},
+			err:  wire.ErrShortFrame,
+		},
+		{
+			name: "a length no real frame carries",
+			raw:  []byte{1, 0, 5, 0, 0xff, 0xff, 0xff, 0xff},
+			err:  wire.ErrBodyTooLarge,
 		},
 	}
 
-	for _, tc := range tests {
-		s.Run(tc.name, func() {
-			_, err := wire.ReadEnvelope(bytes.NewReader(tc.raw))
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			if tt.err != nil {
+				_, _, err := wire.DecodeEnvelope(tt.raw)
 
-			s.Require().ErrorIs(err, tc.want)
-			s.Require().Contains(err.Error(), tc.message)
+				s.Require().ErrorIs(err, tt.err)
+
+				return
+			}
+
+			var raw []byte
+			for _, env := range tt.frames {
+				raw = append(raw, wire.EncodeEnvelope(env)...)
+			}
+
+			for _, want := range tt.frames {
+				got, rest, err := wire.DecodeEnvelope(raw)
+
+				s.Require().NoError(err)
+				s.Require().Equal(want, got)
+
+				raw = rest
+			}
+
+			s.Require().Empty(raw)
+		})
+	}
+}
+
+// TestReadEnvelope takes one frame at a time from a stream.
+func (s *WirePublicTestSuite) TestReadEnvelope() {
+	tests := []struct {
+		name    string
+		frames  []wire.Envelope
+		raw     []byte
+		err     error
+		errText string
+	}{
+		{
+			name: "two frames one after the other",
+			frames: []wire.Envelope{
+				{Originator: wire.FromDevice, Service: 5, Body: []byte("a")},
+				{Originator: wire.FromDevice, Body: []byte("b")},
+			},
+		},
+		{
+			name:    "a truncated header",
+			raw:     []byte{1, 0, 5},
+			err:     io.ErrUnexpectedEOF,
+			errText: "header",
+		},
+		{
+			name:    "a body that never arrives",
+			raw:     []byte{1, 0, 5, 0, 0x10, 0, 0, 0},
+			err:     io.EOF,
+			errText: "body",
+		},
+		{
+			name:    "a length no real frame carries",
+			raw:     []byte{1, 0, 5, 0, 0xff, 0xff, 0xff, 0xff},
+			err:     wire.ErrBodyTooLarge,
+			errText: "too large",
+		},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			if tt.err != nil {
+				_, err := wire.ReadEnvelope(bytes.NewReader(tt.raw))
+
+				s.Require().ErrorIs(err, tt.err)
+				s.Require().Contains(err.Error(), tt.errText)
+
+				return
+			}
+
+			var raw []byte
+			for _, env := range tt.frames {
+				raw = append(raw, wire.EncodeEnvelope(env)...)
+			}
+
+			stream := bytes.NewReader(raw)
+
+			for _, want := range tt.frames {
+				got, err := wire.ReadEnvelope(stream)
+
+				s.Require().NoError(err)
+				s.Require().Equal(want, got)
+			}
+
+			_, err := wire.ReadEnvelope(stream)
+			s.Require().ErrorIs(err, io.EOF)
 		})
 	}
 }

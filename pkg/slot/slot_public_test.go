@@ -32,50 +32,77 @@ type SlotPublicTestSuite struct {
 	suite.Suite
 }
 
-func (s *SlotPublicTestSuite) TestLabelsAPosition() {
-	for _, tc := range []struct {
+// TestLabel names a position the way the pedal prints it.
+func (s *SlotPublicTestSuite) TestLabel() {
+	tests := []struct {
+		name string
 		slot int
 		want string
 	}{
-		{0, "01A"},
-		{1, "01B"},
-		{2, "01C"},
-		{3, "02A"},
-		{90, "31A"},
-		{125, "42C"},
-	} {
-		s.Require().Equal(tc.want, slot.Label(tc.slot))
+		{name: "the first", slot: 0, want: "01A"},
+		{name: "the second in a bank", slot: 1, want: "01B"},
+		{name: "the third", slot: 2, want: "01C"},
+		{name: "the first of the next bank", slot: 3, want: "02A"},
+		{name: "one well into the setlist", slot: 90, want: "31A"},
+		{name: "the last", slot: 125, want: "42C"},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			s.Require().Equal(tt.want, slot.Label(tt.slot))
+		})
 	}
 }
 
-func (s *SlotPublicTestSuite) TestReadsALabelThePedalShows() {
-	for _, tc := range []struct {
+// TestParse reads whatever somebody types.
+func (s *SlotPublicTestSuite) TestParse() {
+	tests := []struct {
+		name string
 		in   string
 		want int
+		err  bool
 	}{
-		{"01A", 0},
-		{"01C", 2},
-		{"31A", 90},
-		{"31a", 90 /* whatever case somebody types */},
-		{"  02B  ", 4},
-		{"42C", 125},
-	} {
-		got, err := slot.Parse(tc.in)
+		{name: "a label the pedal shows", in: "01A", want: 0},
+		{name: "the third in a bank", in: "01C", want: 2},
+		{name: "one further in", in: "31A", want: 90},
+		{name: "whatever case somebody types", in: "31a", want: 90},
+		{name: "one somebody pasted with spaces", in: "  02B  ", want: 4},
+		{name: "the last", in: "42C", want: 125},
+		{
+			// Scripts count, and a number is what they have. It is an index
+			// rather than a bank, which is why it needs no letter.
+			name: "a bare index",
+			in:   "90",
+			want: 90,
+		},
+		{name: "nothing at all", in: "", err: true},
+		{name: "only spaces", in: "   ", err: true},
+		{name: "a negative index", in: "-1", err: true},
+		{name: "a letter no bank has", in: "01D", err: true},
+		{name: "a bank below the first", in: "00A", err: true},
+		{name: "a letter with no bank", in: "A", err: true},
+		{name: "a bank that is not a number", in: "xxA", err: true},
+		{name: "a bank of one digit", in: "0A", err: true},
+	}
 
-		s.Require().NoError(err)
-		s.Require().Equal(tc.want, got, tc.in)
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			got, err := slot.Parse(tt.in)
+
+			if tt.err {
+				s.Require().ErrorIs(err, slot.ErrBadSlot)
+
+				return
+			}
+
+			s.Require().NoError(err)
+			s.Require().Equal(tt.want, got)
+		})
 	}
 }
 
-func (s *SlotPublicTestSuite) TestReadsABareIndex() {
-	// Scripts count, and a number is what they have. It is an index rather
-	// than a bank, which is why it needs no letter.
-	got, err := slot.Parse("90")
-
-	s.Require().NoError(err)
-	s.Require().Equal(90, got)
-}
-
+// TestALabelAndItsIndexAgree is a property of the pair rather than a case of
+// either. Every slot a device has, both ways round.
 func (s *SlotPublicTestSuite) TestALabelAndItsIndexAgree() {
 	for i := range 126 {
 		got, err := slot.Parse(slot.Label(i))
@@ -85,31 +112,56 @@ func (s *SlotPublicTestSuite) TestALabelAndItsIndexAgree() {
 	}
 }
 
-func (s *SlotPublicTestSuite) TestRefusesWhatNamesNoSlot() {
-	for _, in := range []string{"", "   ", "-1", "01D", "00A", "A", "xxA", "0A"} {
-		_, err := slot.Parse(in)
+// TestValue covers the flag, which takes either form.
+func (s *SlotPublicTestSuite) TestValue() {
+	tests := []struct {
+		name  string
+		set   string
+		want  int
+		shown string
+		err   bool
+	}{
+		{
+			name:  "a label",
+			set:   "31A",
+			want:  90,
+			shown: "31A",
+		},
+		{
+			name:  "an index, shown the way the pedal shows it",
+			set:   "7",
+			want:  7,
+			shown: "03B",
+		},
+		{
+			name: "something that names no slot",
+			set:  "nowhere",
+			err:  true,
+		},
+	}
 
-		s.Require().ErrorIs(err, slot.ErrBadSlot, "%q", in)
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			var got int
+
+			v := slot.NewValue(&got)
+
+			if tt.err {
+				s.Require().Error(v.Set(tt.set))
+
+				return
+			}
+
+			s.Require().NoError(v.Set(tt.set))
+			s.Require().Equal(tt.want, got)
+			s.Require().Equal(tt.shown, v.String())
+			s.Require().Equal("slot", v.Type())
+		})
 	}
 }
 
-func (s *SlotPublicTestSuite) TestTheFlagTakesEitherForm() {
-	var got int
-
-	v := slot.NewValue(&got)
-
-	s.Require().NoError(v.Set("31A"))
-	s.Require().Equal(90, got)
-	s.Require().Equal("31A", v.String(), "shown the way the pedal shows it")
-
-	s.Require().NoError(v.Set("7"))
-	s.Require().Equal(7, got)
-
-	s.Require().Error(v.Set("nowhere"))
-	s.Require().Equal("slot", v.Type())
-}
-
-func (s *SlotPublicTestSuite) TestTheFlagWithNowhereToWrite() {
+// TestValueWithNowhereToWrite covers a flag nobody wired up.
+func (s *SlotPublicTestSuite) TestValueWithNowhereToWrite() {
 	s.Require().Empty((&slot.Value{}).String())
 }
 

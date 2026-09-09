@@ -22,6 +22,7 @@ package slots
 
 import (
 	"bytes"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -99,125 +100,176 @@ func (s *DeviceReadTestSuite) unknownModel() []byte {
 	return s.encode(map[int8]any{0: map[int8]any{22: []any{block(99999)}}})
 }
 
-func (s *DeviceReadTestSuite) TestADeviceAnswerBecomesARig() {
-	var out bytes.Buffer
+// TestWriteDeviceRig turns what a device answered into a rig.
+func (s *DeviceReadTestSuite) TestWriteDeviceRig() {
+	tests := []struct {
+		name string
+		// which answer to read: the capture unless a case says otherwise.
+		answer string
+		opts   DeviceOptions
+		// a writer that fails, so a rig nobody can read is an error.
+		deaf bool
 
-	s.Require().NoError(writeDeviceRig(&out, s.capture(),
-		DeviceOptions{Slot: 79, Name: "BAS:SVT Nrm"}))
+		contains []string
+		absent   []string
+		err      bool
+		errText  string
+	}{
+		{
+			name: "a slot the device holds",
+			opts: DeviceOptions{Slot: 79, Name: "BAS:SVT Nrm"},
+			contains: []string{
+				"schema: RigSpec",
+				"name: BAS:SVT Nrm",
 
-	got := out.String()
-	s.Require().Contains(got, "schema: RigSpec")
-	s.Require().Contains(got, "name: BAS:SVT Nrm")
+				// The slot is a factory preset, so what it holds is known
+				// before it is decoded.
+				"gear: Ampeg SVT® (normal channel)",
+				"gear: 8x10 Ampeg SVT-E",
+				"role: amp",
 
-	// The slot is a factory preset, so what it holds is known before it is
-	// decoded.
-	s.Require().Contains(got, "gear: Ampeg SVT® (normal channel)")
-	s.Require().Contains(got, "gear: 8x10 Ampeg SVT-E")
-	s.Require().Contains(got, "role: amp")
+				// Read from the device, and nothing else in a rig records
+				// them.
+				"snapshots:",
+				"SNAPSHOT 1",
 
-	// Read from the device, and nothing else in a rig records them.
-	s.Require().Contains(got, "snapshots:")
-	s.Require().Contains(got, "SNAPSHOT 1")
+				// What the device wraps the chain in, named the way a preset
+				// names it. The models come from the catalog, because a
+				// device knows which inputs and outputs are its own and does
+				// not say.
+				"dsp0.inputA",
+				"'@model': HelixStomp_AppDSPFlowInput",
+				"threshold: -48",
+				"dsp0.split",
+				"'@model': HD2_AppDSPFlowSplitY",
+				"dsp0.join",
 
-	// What the device wraps the chain in, named the way a preset names it.
-	// The models come from the catalog, because a device knows which inputs
-	// and outputs are its own and does not say.
-	s.Require().Contains(got, "dsp0.inputA")
-	s.Require().Contains(got, "'@model': HelixStomp_AppDSPFlowInput")
-	s.Require().Contains(got, "threshold: -48")
-	s.Require().Contains(got, "dsp0.split")
-	s.Require().Contains(got, "'@model': HD2_AppDSPFlowSplitY")
-	s.Require().Contains(got, "dsp0.join")
+				// What the expression pedal moves, named rather than
+				// numbered. The device stores parameter 0 of the block at
+				// grid position 2, and only the catalog turns that into the
+				// volume block's Pedal.
+				"controllers:",
+				"controller: 2",
+				"parameter: Pedal",
+				"block: 1",
+			},
+		},
+		{
+			// The device stores the two as one block. A preset stores the amp
+			// with a `@cab` and the cabinet as a sibling, so both have to
+			// come out.
+			name:   "an amp carrying its own cabinet",
+			answer: "switches.bin",
+			opts:   DeviceOptions{Slot: 24},
+			contains: []string{
+				"dsp0.cab0",
+				"dsp0.cab1",
+				"'@model': HD2_Cab1x15TucknGo",
+				"'@cab': cab0",
+				"'@type': 3",
+				"'@mic': 10",
+			},
+		},
+		{
+			name:     "a slot the device did not name",
+			contains: []string{"slot 01A"},
+		},
+		{
+			// A slot holding nothing is not a rig: it names no gear, and a
+			// rig holds at least one thing.
+			name:     "a slot holding nothing",
+			answer:   "empty",
+			opts:     DeviceOptions{Slot: 4},
+			contains: []string{"is empty"},
+		},
+		{
+			name:     "a chain with no snapshots and no switches",
+			answer:   "bare",
+			contains: []string{"schema: RigSpec"},
+			absent:   []string{"snapshots:", "footswitches:"},
+		},
+		{
+			name:    "an answer that is not a preset",
+			answer:  "nonsense",
+			opts:    DeviceOptions{Slot: 3},
+			errText: "slot 02A",
+		},
+		{
+			name: "a catalog it cannot open",
+			opts: DeviceOptions{
+				Slot: 0, CatalogPath: filepath.Join("testdata", "nope.json"),
+			},
+			err: true,
+		},
+		{
+			name:   "a model the catalog cannot name",
+			answer: "unknown",
+			err:    true,
+		},
+		{
+			// A catalog whose model table names an empty model produces a
+			// chain with no gear in it, which is not a rig. Saying so beats
+			// writing a document that claims to be one.
+			name:   "a chain that is not a rig",
+			answer: "bare",
+			opts: DeviceOptions{
+				Slot:        0,
+				CatalogPath: filepath.Join("testdata", "unnamed.catalog.json"),
+			},
+			errText: "slot 01A",
+		},
+		{name: "a writer that fails", deaf: true, err: true},
+	}
 
-	// What the expression pedal moves, named rather than numbered. The device
-	// stores parameter 0 of the block at grid position 2, and only the
-	// catalog turns that into the volume block's Pedal.
-	s.Require().Contains(got, "controllers:")
-	s.Require().Contains(got, "controller: 2")
-	s.Require().Contains(got, "parameter: Pedal")
-	s.Require().Contains(got, "block: 1")
-}
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			var answer []byte
 
-func (s *DeviceReadTestSuite) TestAnAmpCarryingItsOwnCabinet() {
-	// The device stores the two as one block. A preset stores the amp with a
-	// `@cab` and the cabinet as a sibling, so both have to come out.
-	var out bytes.Buffer
+			switch tt.answer {
+			case "":
+				answer = s.capture()
+			case "empty":
+				answer = s.empty()
+			case "bare":
+				answer = s.bare()
+			case "unknown":
+				answer = s.unknownModel()
+			case "nonsense":
+				answer = []byte("nonsense")
+			default:
+				answer = s.answerFrom(tt.answer)
+			}
 
-	s.Require().NoError(writeDeviceRig(&out, s.answerFrom("switches.bin"),
-		DeviceOptions{Slot: 24}))
+			var out bytes.Buffer
 
-	got := out.String()
-	s.Require().Contains(got, "dsp0.cab0")
-	s.Require().Contains(got, "dsp0.cab1", "two amps, two cabinets")
-	s.Require().Contains(got, "'@model': HD2_Cab1x15TucknGo")
-	s.Require().Contains(got, "'@cab': cab0")
-	s.Require().Contains(got, "'@type': 3", "an amp carrying a cabinet")
-	s.Require().Contains(got, "'@mic': 10")
-}
+			w := io.Writer(&out)
+			if tt.deaf {
+				w = &brokenWriter{}
+			}
 
-func (s *DeviceReadTestSuite) TestASlotWithNoNameIsCalledBySlot() {
-	var out bytes.Buffer
+			err := writeDeviceRig(w, answer, tt.opts)
 
-	s.Require().NoError(writeDeviceRig(&out, s.capture(), DeviceOptions{Slot: 0}))
-	s.Require().Contains(out.String(), "slot 01A")
-}
+			if tt.err || tt.errText != "" {
+				s.Require().Error(err)
 
-func (s *DeviceReadTestSuite) TestReportsAnAnswerThatIsNotAPreset() {
-	err := writeDeviceRig(&bytes.Buffer{}, []byte("nonsense"), DeviceOptions{Slot: 3})
+				if tt.errText != "" {
+					s.Require().Contains(err.Error(), tt.errText)
+				}
 
-	s.Require().Error(err)
-	s.Require().Contains(err.Error(), "slot 02A")
-}
+				return
+			}
 
-func (s *DeviceReadTestSuite) TestReportsACatalogItCannotOpen() {
-	err := writeDeviceRig(&bytes.Buffer{}, s.capture(),
-		DeviceOptions{Slot: 0, CatalogPath: filepath.Join("testdata", "nope.json")})
+			s.Require().NoError(err)
 
-	s.Require().Error(err)
-}
+			for _, want := range tt.contains {
+				s.Require().Contains(out.String(), want)
+			}
 
-func (s *DeviceReadTestSuite) TestReportsAWriterThatFails() {
-	err := writeDeviceRig(&brokenWriter{}, s.capture(), DeviceOptions{Slot: 0})
-
-	s.Require().Error(err)
-}
-
-func (s *DeviceReadTestSuite) TestAnEmptySlotSaysSo() {
-	// A slot holding nothing is not a rig: it names no gear, and a rig holds
-	// at least one thing.
-	var out bytes.Buffer
-
-	s.Require().NoError(writeDeviceRig(&out, s.empty(), DeviceOptions{Slot: 4}))
-	s.Require().Contains(out.String(), "is empty")
-}
-
-func (s *DeviceReadTestSuite) TestASlotWithNoSnapshotsOrSwitches() {
-	var out bytes.Buffer
-
-	s.Require().NoError(writeDeviceRig(&out, s.bare(), DeviceOptions{Slot: 0}))
-
-	got := out.String()
-	s.Require().NotContains(got, "snapshots:")
-	s.Require().NotContains(got, "footswitches:")
-	s.Require().Contains(got, "schema: RigSpec")
-}
-
-func (s *DeviceReadTestSuite) TestReportsAModelTheCatalogCannotName() {
-	s.Require().Error(writeDeviceRig(&bytes.Buffer{}, s.unknownModel(),
-		DeviceOptions{Slot: 0}))
-}
-
-func (s *DeviceReadTestSuite) TestReportsAChainThatIsNotARig() {
-	// A catalog whose model table names an empty model produces a chain with
-	// no gear in it, which is not a rig. Saying so beats writing a document
-	// that claims to be one.
-	err := writeDeviceRig(&bytes.Buffer{}, s.bare(), DeviceOptions{
-		Slot:        0,
-		CatalogPath: filepath.Join("testdata", "unnamed.catalog.json"),
-	})
-
-	s.Require().Error(err)
-	s.Require().Contains(err.Error(), "slot 01A")
+			for _, unwanted := range tt.absent {
+				s.Require().NotContains(out.String(), unwanted)
+			}
+		})
+	}
 }
 
 func (s *DeviceReadTestSuite) TestARigReadOffTheDeviceRebuildsItsRouting() {

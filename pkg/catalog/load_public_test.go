@@ -21,6 +21,7 @@
 package catalog_test
 
 import (
+	"io"
 	"os"
 	"strings"
 	"testing"
@@ -48,54 +49,87 @@ func (s *LoadPublicTestSuite) loadMinimal() *catalog.Catalog {
 	return c
 }
 
-func (s *LoadPublicTestSuite) TestLoadReadsDeviceIdentity() {
-	c := s.loadMinimal()
+// TestLoad reads a catalog off a reader.
+func (s *LoadPublicTestSuite) TestLoad() {
+	tests := []struct {
+		name string
+		in   io.Reader
+		file string
+		err  bool
+	}{
+		{name: "a catalog", file: "testdata/minimal.json"},
+		{name: "something that is not JSON", in: strings.NewReader("{not json"), err: true},
+		{name: "a reader that fails", in: &failingReader{}, err: true},
+	}
 
-	s.Require().Equal("HX Stomp", c.Device)
-	s.Require().Equal(2162689, c.DeviceID)
-	s.Require().Equal(6, c.SchemaVersion)
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			in := tt.in
+
+			if tt.file != "" {
+				f, err := os.Open(tt.file)
+				s.Require().NoError(err)
+
+				defer func() { s.Require().NoError(f.Close()) }()
+
+				in = f
+			}
+
+			got, err := catalog.Load(in)
+
+			if tt.err {
+				s.Require().Error(err)
+
+				return
+			}
+
+			s.Require().NoError(err)
+			s.Require().Equal("HX Stomp", got.Device)
+			s.Require().Equal(2162689, got.DeviceID)
+			s.Require().Equal(6, got.SchemaVersion)
+		})
+	}
 }
 
-func (s *LoadPublicTestSuite) TestLoadReadsBlockAndParams() {
-	c := s.loadMinimal()
+// TestBlock looks a model up by the name a device knows it as.
+func (s *LoadPublicTestSuite) TestBlock() {
+	tests := []struct {
+		name string
+		id   catalog.ModelID
+		ok   bool
+	}{
+		{name: "an amp the catalog models", id: "HD2_AmpTest", ok: true},
+		{name: "a model nobody has", id: "HD2_Nope"},
+	}
 
-	b, ok := c.Block("HD2_AmpTest")
-	s.Require().True(ok)
-	s.Require().Equal("Test Amp", b.Name)
-	s.Require().Equal(catalog.CategoryAmp, b.Category)
-	s.Require().False(b.Stereo)
-	s.Require().Equal(catalog.ProvObserved, b.Prov)
-	s.Require().InDelta(0.30, b.DSP.Mono, 1e-9)
-	s.Require().Equal(catalog.ProvMeasured, b.DSP.Prov)
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			b, ok := s.loadMinimal().Block(tt.id)
 
-	gain, ok := b.Params["Gain"]
-	s.Require().True(ok)
-	s.Require().Equal(catalog.ParamFloat, gain.Type)
-	s.Require().InDelta(1.0, gain.Max, 1e-9)
+			s.Require().Equal(tt.ok, ok)
 
-	mode, ok := b.Params["Mode"]
-	s.Require().True(ok)
-	s.Require().Equal(catalog.ParamEnum, mode.Type)
-	s.Require().Equal([]string{"Normal", "Bright"}, mode.Enum)
-}
+			if !tt.ok {
+				return
+			}
 
-func (s *LoadPublicTestSuite) TestBlockReportsFalseForUnknownModel() {
-	c := s.loadMinimal()
+			s.Require().Equal("Test Amp", b.Name)
+			s.Require().Equal(catalog.CategoryAmp, b.Category)
+			s.Require().False(b.Stereo)
+			s.Require().Equal(catalog.ProvObserved, b.Prov)
+			s.Require().InDelta(0.30, b.DSP.Mono, 1e-9)
+			s.Require().Equal(catalog.ProvMeasured, b.DSP.Prov)
 
-	_, ok := c.Block("HD2_Nope")
-	s.Require().False(ok)
-}
+			gain, ok := b.Params["Gain"]
+			s.Require().True(ok)
+			s.Require().Equal(catalog.ParamFloat, gain.Type)
+			s.Require().InDelta(1.0, gain.Max, 1e-9)
 
-func (s *LoadPublicTestSuite) TestLoadRejectsMalformedJSON() {
-	_, err := catalog.Load(strings.NewReader("{not json"))
-
-	s.Require().Error(err)
-}
-
-func (s *LoadPublicTestSuite) TestLoadRejectsAReaderThatFails() {
-	_, err := catalog.Load(&failingReader{})
-
-	s.Require().Error(err)
+			mode, ok := b.Params["Mode"]
+			s.Require().True(ok)
+			s.Require().Equal(catalog.ParamEnum, mode.Type)
+			s.Require().Equal([]string{"Normal", "Bright"}, mode.Enum)
+		})
+	}
 }
 
 type failingReader struct{}

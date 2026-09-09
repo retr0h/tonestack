@@ -54,47 +54,36 @@ func (s *RoundTripPublicTestSuite) SetupSuite() {
 	s.Require().NoError(err)
 }
 
-func (s *RoundTripPublicTestSuite) TestAPresetSurvivesBecomingARigAndBack() {
+// TestLiftAndLower covers the three claims the format rests on, over every
+// preset committed with this test.
+//
+// A preset read into a rig and written back must say the same thing. A rig
+// built into a preset and read back must be the rig that went in — anything
+// RigSpec models but does not write is invisible to the first claim and
+// obvious in the second. And a rig must rebuild its preset with the original
+// gone, which is the path a shared rig takes: it reaches somebody else
+// without the preset it came from, so lowering into that preset proves
+// nothing about what the rig carries.
+func (s *RoundTripPublicTestSuite) TestLiftAndLower() {
 	for _, path := range s.fixtures() {
 		s.Run(filepath.Base(path), func() {
-			s.Require().Equal(s.canonical(s.read(path)), s.canonical(s.roundTrip(path)),
+			raw := s.canonical(s.read(path))
+
+			s.Require().Equal(raw, s.canonical(s.roundTrip(path)),
 				"a preset read into a rig and written back must say the same thing")
-		})
-	}
-}
 
-// TestARigRebuildsAPresetOnItsOwn is the claim the format rests on.
-//
-// A rig that reaches somebody else arrives without the preset it came from,
-// so lowering into that preset proves nothing about what the rig carries.
-// Building from an untouched preset does: whatever survives came out of the
-// rig, and whatever a rig cannot say is visible here as a difference.
-// TestARigSurvivesBecomingAPresetAndBack is the second direction.
-//
-// A rig built into a preset and read back must be the rig that went in.
-// Anything RigSpec models but does not write is invisible to the other test
-// and obvious here.
-func (s *RoundTripPublicTestSuite) TestARigSurvivesBecomingAPresetAndBack() {
-	for _, path := range s.fixtures() {
-		s.Run(filepath.Base(path), func() {
+			s.Require().Equal(raw, s.canonical(s.fromNothing(path)),
+				"a rig must rebuild its preset with the original gone")
+
 			was, now := s.backAgain(s.read(path))
-
 			s.Require().Equal(was, now,
 				"every field a rig models must be written as well as read")
 		})
 	}
 }
 
-func (s *RoundTripPublicTestSuite) TestARigRebuildsAPresetOnItsOwn() {
-	for _, path := range s.fixtures() {
-		s.Run(filepath.Base(path), func() {
-			s.Require().Equal(s.canonical(s.read(path)), s.canonical(s.fromNothing(path)),
-				"a rig must rebuild its preset with the original gone")
-		})
-	}
-}
-
-func (s *RoundTripPublicTestSuite) TestALiftedRigRecordsTheExactModel() {
+// TestLift records what a block actually was.
+func (s *RoundTripPublicTestSuite) TestLift() {
 	// A gear name does not identify a model: 665 of them share 469 names, and
 	// "Ampeg SVT" matches both channels. Without the identifier a rig rebuilds
 	// into a different preset.

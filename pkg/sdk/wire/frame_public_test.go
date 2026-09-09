@@ -36,7 +36,8 @@ type FramePublicTestSuite struct {
 	suite.Suite
 }
 
-func (s *FramePublicTestSuite) TestEncodesTheCapturedHandshake() {
+// TestEncodeFrame writes what the device was actually sent.
+func (s *FramePublicTestSuite) TestEncodeFrame() {
 	tests := []struct {
 		name  string
 		frame wire.Frame
@@ -95,51 +96,87 @@ func (s *FramePublicTestSuite) TestEncodesTheCapturedHandshake() {
 	}
 }
 
-func (s *FramePublicTestSuite) TestDecodesWhatItEncodes() {
-	want := wire.Frame{
-		Flags: wire.FlagNormal, DeviceNode: 0x1001, HostNode: 0x03ef,
-		Seq: 7, Type: wire.MsgData, Ack: wire.AckBase + 42,
-		Payload: []byte{1, 2, 3},
+// TestDecodeFrame reads frames back out of a transfer.
+func (s *FramePublicTestSuite) TestDecodeFrame() {
+	tests := []struct {
+		name string
+		// frames to encode and read back, or bytes written by hand.
+		frames []wire.Frame
+		raw    []byte
+		// bytes dropped off the end of what was encoded.
+		trim int
+		err  bool
+	}{
+		{
+			name: "a frame it encoded, padding and all",
+			frames: []wire.Frame{{
+				Flags: wire.FlagNormal, DeviceNode: 0x1001, HostNode: 0x03ef,
+				Seq: 7, Type: wire.MsgData, Ack: wire.AckBase + 42,
+				Payload: []byte{1, 2, 3},
+			}},
+		},
+		{
+			// The device coalesces frames into one bulk transfer, so a reader
+			// that decodes only the first silently loses the rest.
+			name: "several from one transfer",
+			frames: []wire.Frame{
+				{DeviceNode: 0x1001, Payload: []byte("one")},
+				{DeviceNode: 0x1002, Payload: []byte("two")},
+			},
+		},
+		{
+			// Padding is what the host sends. A transfer that simply ends on
+			// an unaligned boundary must not be read past.
+			name:   "a frame that was not padded",
+			frames: []wire.Frame{{DeviceNode: 0x1001, Payload: []byte{1, 2, 3}}},
+			trim:   1,
+		},
+		{name: "nothing at all", err: true},
+		{name: "less than two headers", raw: make([]byte, 12), err: true},
+		{
+			name: "a frame declaring less than a channel header",
+			raw:  []byte{0x04, 0, 0, 0x18, 1, 0x10, 0xef, 3, 0, 0, 0, 0, 0, 0, 0, 0},
+			err:  true,
+		},
+		{
+			name: "a frame declaring more than arrived",
+			raw:  []byte{0xff, 0, 0, 0x18, 1, 0x10, 0xef, 3, 0, 0, 0, 0, 0, 0, 0, 0},
+			err:  true,
+		},
 	}
 
-	got, rest, err := wire.DecodeFrame(wire.EncodeFrame(want))
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			if tt.err {
+				_, _, err := wire.DecodeFrame(tt.raw)
 
-	s.Require().NoError(err)
-	s.Require().Equal(want, got)
-	s.Require().Empty(rest, "padding is skipped, not returned as another frame")
+				s.Require().ErrorIs(err, wire.ErrShortTransfer)
+
+				return
+			}
+
+			var raw []byte
+			for _, f := range tt.frames {
+				raw = append(raw, wire.EncodeFrame(f)...)
+			}
+
+			raw = raw[:len(raw)-tt.trim]
+
+			for _, want := range tt.frames {
+				got, rest, err := wire.DecodeFrame(raw)
+
+				s.Require().NoError(err)
+				s.Require().Equal(want, got)
+
+				raw = rest
+			}
+
+			s.Require().Empty(raw, "padding is skipped, not read as another frame")
+		})
+	}
 }
 
-func (s *FramePublicTestSuite) TestDecodesSeveralFromOneTransfer() {
-	// The device coalesces frames into one bulk transfer, so a reader that
-	// decodes only the first silently loses the rest.
-	raw := append(
-		wire.EncodeFrame(wire.Frame{DeviceNode: 0x1001, Payload: []byte("one")}),
-		wire.EncodeFrame(wire.Frame{DeviceNode: 0x1002, Payload: []byte("two")})...,
-	)
-
-	first, rest, err := wire.DecodeFrame(raw)
-	s.Require().NoError(err)
-	s.Require().Equal([]byte("one"), first.Payload)
-
-	second, rest, err := wire.DecodeFrame(rest)
-	s.Require().NoError(err)
-	s.Require().Equal([]byte("two"), second.Payload)
-	s.Require().Empty(rest)
-}
-
-func (s *FramePublicTestSuite) TestToleratesAFrameThatWasNotPadded() {
-	// Padding is what the host sends. A transfer that simply ends on an
-	// unaligned boundary must not be read past.
-	raw := wire.EncodeFrame(wire.Frame{DeviceNode: 0x1001, Payload: []byte{1, 2, 3}})
-
-	got, rest, err := wire.DecodeFrame(raw[:len(raw)-1])
-
-	s.Require().NoError(err)
-	s.Require().Equal([]byte{1, 2, 3}, got.Payload)
-	s.Require().Empty(rest)
-}
-
-func (s *FramePublicTestSuite) TestCarriesDataIsTestedAsABit() {
+func (s *FramePublicTestSuite) TestCarriesData() {
 	// The device sets the data bit alongside an acknowledgement and alongside
 	// a keep-alive. Comparing for equality drops both.
 	tests := []struct {
@@ -157,32 +194,6 @@ func (s *FramePublicTestSuite) TestCarriesDataIsTestedAsABit() {
 	for _, tc := range tests {
 		s.Run(tc.name, func() {
 			s.Require().Equal(tc.want, wire.Frame{Type: tc.typ}.CarriesData())
-		})
-	}
-}
-
-func (s *FramePublicTestSuite) TestRefusesWhatCannotBeAFrame() {
-	tests := []struct {
-		name string
-		raw  []byte
-	}{
-		{"nothing at all", nil},
-		{"less than two headers", make([]byte, 12)},
-		{
-			"a frame declaring less than a channel header",
-			[]byte{0x04, 0, 0, 0x18, 1, 0x10, 0xef, 3, 0, 0, 0, 0, 0, 0, 0, 0},
-		},
-		{
-			"a frame declaring more than arrived",
-			[]byte{0xff, 0, 0, 0x18, 1, 0x10, 0xef, 3, 0, 0, 0, 0, 0, 0, 0, 0},
-		},
-	}
-
-	for _, tc := range tests {
-		s.Run(tc.name, func() {
-			_, _, err := wire.DecodeFrame(tc.raw)
-
-			s.Require().ErrorIs(err, wire.ErrShortTransfer)
 		})
 	}
 }

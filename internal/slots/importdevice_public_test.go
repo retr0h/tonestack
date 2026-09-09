@@ -25,6 +25,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -74,150 +75,8 @@ func (s *ImportDevicePublicTestSuite) preset() string {
 	return filepath.Join("..", "lift", "testdata", "preset0.hlx")
 }
 
-func (s *ImportDevicePublicTestSuite) TestImportWritesTheChainToTheSlot() {
-	var sent []byte
-
-	s.dev.MockWriter.EXPECT().
-		WriteNamedPreset(gomock.Any(), 0, 7, gomock.Any(), gomock.Any()).
-		DoAndReturn(func(_ context.Context, _, _ int, _ string, doc []byte) error {
-			sent = doc
-
-			return nil
-		})
-
-	var out bytes.Buffer
-
-	s.Require().NoError(slots.ImportWith(
-		s.T().Context(), &out, s.dev,
-		slots.ImportOptions{File: s.preset(), Slot: 7}))
-
-	got, err := wire.DecodePreset(sent)
-	s.Require().NoError(err)
-	s.Require().NotEmpty(got.Blocks, "the file's chain reached the device")
-	s.Require().Len(got.Snapshots, 3, "and the snapshots came with it")
-	s.Require().NotEmpty(got.Routing, "and the routing the blank carried")
-
-	s.Require().Contains(out.String(), "03B")
-	s.Require().Contains(out.String(), "written")
-}
-
-func (s *ImportDevicePublicTestSuite) TestImportReportsWhatStopsIt() {
-	tests := []struct {
-		name   string
-		opts   slots.ImportOptions
-		expect func()
-		want   string
-	}{
-		{
-			name: "a preset file that is not there",
-			opts: slots.ImportOptions{File: "nowhere.hlx", Slot: 7},
-			want: "nowhere.hlx",
-		},
-		{
-			name: "a catalog that is not there",
-			opts: slots.ImportOptions{
-				File:        s.preset(),
-				Slot:        7,
-				CatalogPath: "nowhere.json",
-			},
-			want: "nowhere.json",
-		},
-		{
-			name: "a device that refuses the write",
-			opts: slots.ImportOptions{File: s.preset(), Slot: 7},
-			expect: func() {
-				s.dev.MockWriter.EXPECT().
-					WriteNamedPreset(
-						gomock.Any(), gomock.Any(), gomock.Any(),
-						gomock.Any(), gomock.Any()).
-					Return(errors.New("the device said no"))
-			},
-			want: "writing slot 03B",
-		},
-	}
-
-	for _, tt := range tests {
-		s.Run(tt.name, func() {
-			if tt.expect != nil {
-				tt.expect()
-			}
-
-			err := slots.ImportWith(
-				s.T().Context(), &bytes.Buffer{}, s.dev, tt.opts)
-
-			s.Require().Error(err)
-			s.Require().Contains(err.Error(), tt.want)
-		})
-	}
-}
-
-// TestImportNeedsASessionThatCanWrite keeps a reading session from being
-// handed the ability to overwrite somebody's work.
-func (s *ImportDevicePublicTestSuite) TestImportNeedsASessionThatCanWrite() {
-	err := slots.ImportWith(
-		s.T().Context(), &bytes.Buffer{}, mocks.NewMockEditor(s.ctrl),
-		slots.ImportOptions{File: s.preset(), Slot: 7})
-
-	s.Require().ErrorContains(err, "cannot write")
-}
-
-// TestImportReportsAFailingWriter covers somewhere for the result to go.
-func (s *ImportDevicePublicTestSuite) TestImportReportsAFailingWriter() {
-	s.dev.MockWriter.EXPECT().
-		WriteNamedPreset(
-			gomock.Any(), gomock.Any(), gomock.Any(),
-			gomock.Any(), gomock.Any()).
-		Return(nil)
-
-	s.Require().Error(slots.ImportWith(
-		s.T().Context(), &brokenWriter{}, s.dev,
-		slots.ImportOptions{File: s.preset(), Slot: 7}))
-}
-
-// TestImportFindsItsOwnDevice covers the entry point somebody actually runs.
-//
-// One line: find a session, hand it on, release it. The only line in this
-// file that needs hardware, so the session is stood in for.
-func (s *ImportDevicePublicTestSuite) TestImportFindsItsOwnDevice() {
-	s.dev.MockWriter.EXPECT().
-		WriteNamedPreset(
-			gomock.Any(), gomock.Any(), gomock.Any(),
-			gomock.Any(), gomock.Any()).
-		Return(nil)
-
-	restore := *slots.OpenDevice
-	*slots.OpenDevice = func(context.Context) (sdk.Editor, error) {
-		return s.dev, nil
-	}
-
-	defer func() { *slots.OpenDevice = restore }()
-
-	var out bytes.Buffer
-
-	s.Require().NoError(slots.ImportDevice(
-		s.T().Context(), &out,
-		slots.ImportOptions{File: s.preset(), Slot: 7}))
-
-	s.Require().Contains(out.String(), "written")
-}
-
-// TestImportReportsNoDeviceAttached covers finding none.
-func (s *ImportDevicePublicTestSuite) TestImportReportsNoDeviceAttached() {
-	restore := *slots.OpenDevice
-	*slots.OpenDevice = func(context.Context) (sdk.Editor, error) {
-		return nil, errors.New("nothing on the bus")
-	}
-
-	defer func() { *slots.OpenDevice = restore }()
-
-	s.Require().ErrorContains(slots.ImportDevice(
-		s.T().Context(), &bytes.Buffer{},
-		slots.ImportOptions{File: s.preset(), Slot: 7}), "nothing on the bus")
-}
-
-// TestImportReportsAPresetItCannotWrite covers a file naming gear the
-// catalog's model table does not carry.
-func (s *ImportDevicePublicTestSuite) TestImportReportsAPresetItCannotWrite() {
+// unknownGear writes a preset naming a model no catalog carries.
+func (s *ImportDevicePublicTestSuite) unknownGear() string {
 	path := filepath.Join(s.T().TempDir(), "unknown.hlx")
 	s.Require().NoError(os.WriteFile(path, []byte(`{
 	  "version": 6,
@@ -227,16 +86,12 @@ func (s *ImportDevicePublicTestSuite) TestImportReportsAPresetItCannotWrite() {
 	  "schema": "L6Preset"
 	}`), 0o600))
 
-	err := slots.ImportWith(
-		s.T().Context(), &bytes.Buffer{}, s.dev,
-		slots.ImportOptions{File: path, Slot: 7})
-
-	s.Require().ErrorContains(err, "does not carry")
+	return path
 }
 
-// TestImportReportsAChainThatRunsIntoTheRouting covers a file whose blocks
-// reach past the eight positions a device gives a path.
-func (s *ImportDevicePublicTestSuite) TestImportReportsAChainThatRunsIntoTheRouting() {
+// crowded writes a preset whose blocks reach past the eight positions a
+// device gives a path.
+func (s *ImportDevicePublicTestSuite) crowded() string {
 	blocks := make([]string, 0, 17)
 	for i := range 17 {
 		blocks = append(blocks, fmt.Sprintf(
@@ -251,11 +106,200 @@ func (s *ImportDevicePublicTestSuite) TestImportReportsAChainThatRunsIntoTheRout
 	  "schema": "L6Preset"
 	}`, strings.Join(blocks, ",")), 0o600))
 
-	err := slots.ImportWith(
-		s.T().Context(), &bytes.Buffer{}, s.dev,
-		slots.ImportOptions{File: path, Slot: 7})
+	return path
+}
 
-	s.Require().ErrorContains(err, "the device keeps its routing there")
+// TestImportWith puts a preset file into a slot on a session.
+func (s *ImportDevicePublicTestSuite) TestImportWith() {
+	tests := []struct {
+		name string
+		// which file to import: a corpus preset unless a case says otherwise.
+		file    string
+		catalog string
+		// what the device does with the write.
+		writes  bool
+		refuses bool
+		// a session that can read but not write.
+		readOnly bool
+		deaf     bool
+
+		// the document that left for the device must hold the file's chain.
+		sent     bool
+		contains []string
+		errText  string
+	}{
+		{
+			name:     "the chain a file describes",
+			writes:   true,
+			sent:     true,
+			contains: []string{"03B", "written"},
+		},
+		{
+			name:    "a preset file that is not there",
+			file:    "nowhere.hlx",
+			errText: "nowhere.hlx",
+		},
+		{
+			name:    "a catalog that is not there",
+			catalog: "nowhere.json",
+			errText: "nowhere.json",
+		},
+		{
+			name:    "a device that refuses the write",
+			refuses: true,
+			errText: "writing slot 03B",
+		},
+		{
+			// A reading session must not be handed the ability to overwrite
+			// somebody's work.
+			name:     "a session that cannot write",
+			readOnly: true,
+			errText:  "cannot write",
+		},
+		{
+			name:    "a writer with nowhere for the result to go",
+			writes:  true,
+			deaf:    true,
+			errText: "boom",
+		},
+		{
+			name:    "gear the model table does not carry",
+			file:    "unknown",
+			errText: "does not carry",
+		},
+		{
+			name:    "a chain that runs into the routing",
+			file:    "crowded",
+			errText: "the device keeps its routing there",
+		},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			var sent []byte
+
+			switch {
+			case tt.writes:
+				s.dev.MockWriter.EXPECT().
+					WriteNamedPreset(gomock.Any(), 0, 7, gomock.Any(), gomock.Any()).
+					DoAndReturn(func(_ context.Context, _, _ int, _ string, doc []byte) error {
+						sent = doc
+
+						return nil
+					})
+			case tt.refuses:
+				s.dev.MockWriter.EXPECT().
+					WriteNamedPreset(
+						gomock.Any(), gomock.Any(), gomock.Any(),
+						gomock.Any(), gomock.Any()).
+					Return(errors.New("the device said no"))
+			}
+
+			file := s.preset()
+
+			switch tt.file {
+			case "":
+			case "unknown":
+				file = s.unknownGear()
+			case "crowded":
+				file = s.crowded()
+			default:
+				file = tt.file
+			}
+
+			dev := sdk.Editor(s.dev)
+			if tt.readOnly {
+				dev = mocks.NewMockEditor(s.ctrl)
+			}
+
+			var out bytes.Buffer
+
+			w := io.Writer(&out)
+			if tt.deaf {
+				w = &brokenWriter{}
+			}
+
+			err := slots.ImportWith(s.T().Context(), w, dev, slots.ImportOptions{
+				File: file, Slot: 7, CatalogPath: tt.catalog,
+			})
+
+			if tt.errText != "" {
+				s.Require().Error(err)
+				s.Require().Contains(err.Error(), tt.errText)
+
+				return
+			}
+
+			s.Require().NoError(err)
+
+			for _, want := range tt.contains {
+				s.Require().Contains(out.String(), want)
+			}
+
+			if !tt.sent {
+				return
+			}
+
+			got, err := wire.DecodePreset(sent)
+			s.Require().NoError(err)
+			s.Require().NotEmpty(got.Blocks, "the file's chain reached the device")
+			s.Require().Len(got.Snapshots, 3, "and the snapshots came with it")
+			s.Require().NotEmpty(got.Routing, "and the routing the blank carried")
+		})
+	}
+}
+
+// TestImportDevice covers the entry point somebody actually runs.
+//
+// One line: find a session, hand it on, release it. The only line in this
+// file that needs hardware, so the session is stood in for.
+func (s *ImportDevicePublicTestSuite) TestImportDevice() {
+	tests := []struct {
+		name     string
+		attached bool
+		contains string
+		errText  string
+	}{
+		{name: "a device on the bus", attached: true, contains: "written"},
+		{name: "nothing on the bus", errText: "nothing on the bus"},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			restore := *slots.OpenDevice
+			defer func() { *slots.OpenDevice = restore }()
+
+			if tt.attached {
+				s.dev.MockWriter.EXPECT().
+					WriteNamedPreset(
+						gomock.Any(), gomock.Any(), gomock.Any(),
+						gomock.Any(), gomock.Any()).
+					Return(nil)
+
+				*slots.OpenDevice = func(context.Context) (sdk.Editor, error) {
+					return s.dev, nil
+				}
+			} else {
+				*slots.OpenDevice = func(context.Context) (sdk.Editor, error) {
+					return nil, errors.New("nothing on the bus")
+				}
+			}
+
+			var out bytes.Buffer
+
+			err := slots.ImportDevice(s.T().Context(), &out,
+				slots.ImportOptions{File: s.preset(), Slot: 7})
+
+			if tt.errText != "" {
+				s.Require().ErrorContains(err, tt.errText)
+
+				return
+			}
+
+			s.Require().NoError(err)
+			s.Require().Contains(out.String(), tt.contains)
+		})
+	}
 }
 
 type brokenWriter struct{}

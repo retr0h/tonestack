@@ -69,62 +69,126 @@ func (s *FootswitchesPublicTestSuite) presetWith(body string) *preset.Document {
 	return doc
 }
 
-func (s *FootswitchesPublicTestSuite) TestReadsASwitchAndWritesItBack() {
-	doc := s.presetWith(`{"dsp0": {"block1": {
-		"@fs_index": 2, "@fs_label": "Fuzz", "@fs_ledcolor": 16711683,
-		"@fs_enabled": true, "@fs_momentary": false, "@fs_primary": true,
-		"@fs_unknown": 7
-	}}}`)
+// TestLiftFootswitches reads what a preset says about the pedal.
+func (s *FootswitchesPublicTestSuite) TestLiftFootswitches() {
+	tests := []struct {
+		name string
+		body string
+		// what the one switch must say.
+		wantSwitch int
+		wantBlock  int
+		wantPath   int
+		wantLabel  string
+		wantColour int
+		primary    bool
+		// fields this does not model, which it must not drop either.
+		rest bool
+		// what writing the rig back must put in the preset.
+		writes []string
+		// a switch naming no block at all.
+		none bool
+	}{
+		{
+			name: "a switch on the first processor",
+			body: `{"dsp0": {"block1": {
+				"@fs_index": 2, "@fs_label": "Fuzz", "@fs_ledcolor": 16711683,
+				"@fs_enabled": true, "@fs_momentary": false, "@fs_primary": true,
+				"@fs_unknown": 7
+			}}}`,
+			wantSwitch: 2,
+			wantBlock:  1,
+			wantLabel:  "Fuzz",
+			wantColour: 16711683,
+			primary:    true,
+			rest:       true,
+			writes: []string{
+				`"@fs_label": "Fuzz"`,
+				`"@fs_index": 2`,
+				`"@fs_unknown": 7`,
+			},
+		},
+		{
+			name:       "one on the second",
+			body:       `{"dsp1": {"block3": {"@fs_index": 1, "@fs_label": "X"}}}`,
+			wantSwitch: 1,
+			wantBlock:  3,
+			wantPath:   1,
+			wantLabel:  "X",
+		},
+		{
+			name: "a processor no preset has",
+			body: `{"variax": {"block1": {"@fs_index": 1}}}`,
+			none: true,
+		},
+		{
+			name: "a block key nothing can number",
+			body: `{"dsp0": {"nonsense": {"@fs_index": 1}}}`,
+			none: true,
+		},
+		{
+			name: "a processor that is not an object",
+			body: `{"dsp0": "not an object"}`,
+			none: true,
+		},
+		{
+			name: "a switch that is not an object",
+			body: `{"dsp0": {"block1": "not an object"}}`,
+			none: true,
+		},
+	}
 
-	spec, err := lift.Lift(doc, s.cat)
-	s.Require().NoError(err)
-	s.Require().NotNil(spec.Footswitches)
-	s.Require().Len(*spec.Footswitches, 1)
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			spec, err := lift.Lift(s.presetWith(tt.body), s.cat)
+			s.Require().NoError(err)
 
-	fs := (*spec.Footswitches)[0]
-	s.Require().Equal(2, *fs.Switch)
-	s.Require().Equal(1, *fs.Block, "a switch acts on a block, and says which")
-	s.Require().Equal("Fuzz", *fs.Label)
-	s.Require().Equal(16711683, *fs.Colour)
-	s.Require().True(*fs.Primary)
-	s.Require().NotNil(fs.Rest, "a field this does not model is not one it drops")
+			if tt.none {
+				s.Require().Nil(spec.Footswitches)
 
-	back, err := preset.Blank()
-	s.Require().NoError(err)
-	s.Require().NoError(lift.Lower(back, spec, s.cat))
+				return
+			}
 
-	var out bytes.Buffer
-	s.Require().NoError(preset.Write(&out, back))
+			s.Require().NotNil(spec.Footswitches)
+			s.Require().Len(*spec.Footswitches, 1)
 
-	got := out.String()
-	s.Require().Contains(got, `"@fs_label": "Fuzz"`)
-	s.Require().Contains(got, `"@fs_index": 2`)
-	s.Require().Contains(got, `"@fs_unknown": 7`)
-}
+			fs := (*spec.Footswitches)[0]
+			s.Require().Equal(tt.wantSwitch, *fs.Switch)
+			s.Require().Equal(tt.wantBlock, *fs.Block,
+				"a switch acts on a block, and says which")
+			s.Require().Equal(tt.wantLabel, *fs.Label)
 
-func (s *FootswitchesPublicTestSuite) TestASwitchOnTheSecondProcessor() {
-	doc := s.presetWith(`{"dsp1": {"block3": {"@fs_index": 1, "@fs_label": "X"}}}`)
+			if tt.wantPath > 0 {
+				s.Require().Equal(tt.wantPath, *fs.Path)
+			}
 
-	spec, err := lift.Lift(doc, s.cat)
-	s.Require().NoError(err)
+			if tt.wantColour > 0 {
+				s.Require().Equal(tt.wantColour, *fs.Colour)
+			}
 
-	fs := (*spec.Footswitches)[0]
-	s.Require().Equal(1, *fs.Path)
-	s.Require().Equal(3, *fs.Block)
-}
+			if tt.primary {
+				s.Require().True(*fs.Primary)
+			}
 
-func (s *FootswitchesPublicTestSuite) TestIgnoresWhatNamesNoBlock() {
-	for _, body := range []string{
-		`{"variax": {"block1": {"@fs_index": 1}}}`,
-		`{"dsp0": {"nonsense": {"@fs_index": 1}}}`,
-		`{"dsp0": "not an object"}`,
-		`{"dsp0": {"block1": "not an object"}}`,
-	} {
-		doc := s.presetWith(body)
+			if tt.rest {
+				s.Require().NotNil(fs.Rest,
+					"a field this does not model is not one it drops")
+			}
 
-		spec, err := lift.Lift(doc, s.cat)
-		s.Require().NoError(err)
-		s.Require().Nil(spec.Footswitches, body)
+			if tt.writes == nil {
+				return
+			}
+
+			back, err := preset.Blank()
+			s.Require().NoError(err)
+			s.Require().NoError(lift.Lower(back, spec, s.cat))
+
+			var out bytes.Buffer
+			s.Require().NoError(preset.Write(&out, back))
+
+			for _, want := range tt.writes {
+				s.Require().Contains(out.String(), want)
+			}
+		})
 	}
 }
 

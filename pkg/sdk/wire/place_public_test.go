@@ -82,11 +82,35 @@ func (s *PlacePublicTestSuite) read(doc *wire.Document) wire.DevicePreset {
 	return got
 }
 
+// capture returns a document a device wrote, optionally rebuilt holding only
+// the given sections.
+func (s *PlacePublicTestSuite) capture(sections ...int8) *wire.Document {
+	raw, err := os.ReadFile(filepath.Join("testdata", "preset.bin"))
+	s.Require().NoError(err)
+
+	doc, err := wire.DecodeDocument(raw)
+	s.Require().NoError(err)
+
+	if len(sections) == 0 {
+		return doc
+	}
+
+	return wire.NewDocument(doc, sections)
+}
+
+// TestPlace writes a chain into a preset.
 func (s *PlacePublicTestSuite) TestPlace() {
 	tests := []struct {
 		name   string
 		blocks []wire.Placement
-		err    error
+		// which document to write into: a blank slot unless a case says
+		// otherwise.
+		doc string
+		// the routing must survive untouched.
+		routing bool
+		// every snapshot must agree about every block.
+		snapshots bool
+		err       error
 	}{
 		{
 			name:   "one effect",
@@ -101,8 +125,7 @@ func (s *PlacePublicTestSuite) TestPlace() {
 			blocks: []wire.Placement{s.drive(), s.amp(), s.at(s.drive(), 13)},
 		},
 		{
-			name:   "nothing at all",
-			blocks: nil,
+			name: "nothing at all",
 		},
 		{
 			name:   "the last position a block may take",
@@ -134,10 +157,8 @@ func (s *PlacePublicTestSuite) TestPlace() {
 			err:    wire.ErrNoRoom,
 		},
 		{
-			name: "a block with more parameters than a short array counts",
-			blocks: []wire.Placement{
-				s.wide(s.drive(), 20),
-			},
+			name:   "a block with more parameters than a short array counts",
+			blocks: []wire.Placement{s.wide(s.drive(), 20)},
 		},
 		{
 			name: "a value with no encoding",
@@ -153,11 +174,56 @@ func (s *PlacePublicTestSuite) TestPlace() {
 			},
 			err: wire.ErrBadValue,
 		},
+		{
+			// Whatever the slot held is gone, which keeps a preset saying one
+			// thing.
+			name:   "a slot already holding six blocks",
+			blocks: []wire.Placement{s.drive()},
+			doc:    "capture",
+		},
+		{
+			name:   "a preset carrying no snapshot section",
+			blocks: []wire.Placement{s.drive()},
+			doc:    "snapshotless",
+		},
+		{
+			name: "a document with no chain in it, which no device would send",
+			doc:  "chainless",
+			err:  wire.ErrNotADocument,
+		},
+		{
+			// This is why a preset is written into rather than built. The
+			// input, split, join and output are the device's own and nothing
+			// here understands them well enough to write one.
+			name:    "the routing, which the device keeps to itself",
+			blocks:  []wire.Placement{s.drive(), s.amp()},
+			routing: true,
+		},
+		{
+			// The coupling that would otherwise be missed. Each snapshot
+			// holds a record of which grid position is switched on, so a
+			// chain written without them recalls the wrong blocks.
+			name:      "every snapshot, and not only the chain",
+			blocks:    []wire.Placement{s.drive(), s.amp()},
+			snapshots: true,
+		},
 	}
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
 			doc := s.blank()
+
+			switch tt.doc {
+			case "capture":
+				doc = s.capture()
+				s.Require().Len(s.read(doc).Blocks, 6, "the capture has six blocks")
+			case "chainless":
+				doc = s.capture(1)
+			case "snapshotless":
+				doc = s.capture(0)
+			}
+
+			before := s.read(doc).Routing
 
 			err := wire.Place(doc, tt.blocks)
 
@@ -180,123 +246,85 @@ func (s *PlacePublicTestSuite) TestPlace() {
 				s.Require().Equal(s.asDevice(want.Cab), got.Blocks[i].Cab)
 				s.Require().Equal(want.CabNamed, got.Blocks[i].CabNamed)
 			}
+
+			if tt.routing {
+				s.Require().NotEmpty(before)
+				s.Require().Equal(before, got.Routing)
+			}
+
+			if !tt.snapshots {
+				return
+			}
+
+			body, ok := doc.Section(10)
+			s.Require().True(ok)
+
+			for snap := range got.Snapshots {
+				for _, b := range tt.blocks {
+					start, end, err := wire.Locate(body, wire.Path{10, snap, 3, b.Position, 1})
+					s.Require().NoError(err, "snapshot %d position %d", snap, b.Position)
+					s.Require().Equal(s.messagePackBool(b.Enabled), []byte(body[start:end]),
+						"snapshot %d disagrees about position %d", snap, b.Position)
+				}
+			}
 		})
 	}
 }
 
-// TestPlaceLeavesTheRoutingAlone is why a preset is written into rather than
-// built. The input, split, join and output are the device's own and nothing
-// here understands them well enough to write one.
-func (s *PlacePublicTestSuite) TestPlaceLeavesTheRoutingAlone() {
+// TestBlank checks the embedded copy every call starts from. A build shipping
+// a broken one should say so rather than write half a preset to somebody's
+// hardware.
+func (s *PlacePublicTestSuite) TestBlank() {
 	doc := s.blank()
-	before := s.read(doc).Routing
-
-	s.Require().NoError(wire.Place(doc, []wire.Placement{s.amp(), s.drive()}))
-
-	s.Require().Equal(before, s.read(doc).Routing)
-	s.Require().NotEmpty(before)
-}
-
-// TestPlaceWritesEverySnapshot is the coupling that would otherwise be
-// missed. Each snapshot holds a record of which grid position is switched
-// on, so a chain written without them recalls the wrong blocks.
-func (s *PlacePublicTestSuite) TestPlaceWritesEverySnapshot() {
-	doc := s.blank()
-
-	s.Require().NoError(wire.Place(doc, []wire.Placement{s.amp(), s.drive()}))
-
-	for snap := range s.read(doc).Snapshots {
-		for _, b := range []wire.Placement{s.amp(), s.drive()} {
-			path := wire.Path{10, snap, 3, b.Position, 1}
-			body, ok := doc.Section(10)
-			s.Require().True(ok)
-
-			start, end, err := wire.Locate(body, path)
-			s.Require().NoError(err, "snapshot %d position %d", snap, b.Position)
-			s.Require().Equal(s.messagePackBool(b.Enabled), []byte(body[start:end]),
-				"snapshot %d disagrees about position %d", snap, b.Position)
-		}
-	}
-}
-
-// TestPlaceEmptiesWhatTheChainDoesNotName keeps a preset saying one thing.
-func (s *PlacePublicTestSuite) TestPlaceEmptiesWhatTheChainDoesNotName() {
-	raw, err := os.ReadFile(filepath.Join("testdata", "preset.bin"))
-	s.Require().NoError(err)
-
-	doc, err := wire.DecodeDocument(raw)
-	s.Require().NoError(err)
-	s.Require().Len(s.read(doc).Blocks, 6, "the capture has six blocks")
-
-	s.Require().NoError(wire.Place(doc, []wire.Placement{s.drive()}))
-
-	got := s.read(doc)
-	s.Require().Len(got.Blocks, 1)
-	s.Require().Equal(302, got.Blocks[0].Model)
-}
-
-// TestPlaceReportsADocumentWithNoChain covers bytes no device would send.
-func (s *PlacePublicTestSuite) TestPlaceReportsADocumentWithNoChain() {
-	raw, err := os.ReadFile(filepath.Join("testdata", "preset.bin"))
-	s.Require().NoError(err)
-
-	full, err := wire.DecodeDocument(raw)
-	s.Require().NoError(err)
-
-	s.Require().ErrorIs(
-		wire.Place(wire.NewDocument(full, []int8{1}), nil), wire.ErrNotADocument)
-}
-
-// TestPlaceWithoutSnapshots covers a preset carrying no snapshot section.
-func (s *PlacePublicTestSuite) TestPlaceWithoutSnapshots() {
-	raw, err := os.ReadFile(filepath.Join("testdata", "preset.bin"))
-	s.Require().NoError(err)
-
-	full, err := wire.DecodeDocument(raw)
-	s.Require().NoError(err)
-
-	doc := wire.NewDocument(full, []int8{0})
-	s.Require().NoError(wire.Place(doc, []wire.Placement{s.drive()}))
-}
-
-// TestBlankIsAPresetADeviceWrote checks the embedded copy every call starts
-// from. A build shipping a broken one should say so rather than write half a
-// preset to somebody's hardware.
-func (s *PlacePublicTestSuite) TestBlankIsAPresetADeviceWrote() {
-	doc, err := wire.Blank()
-	s.Require().NoError(err)
 
 	got := s.read(doc)
 	s.Require().Empty(got.Blocks, "an unused slot holds no blocks")
 	s.Require().Len(got.Snapshots, 3, "a device ships three snapshots")
 	s.Require().NotEmpty(got.Routing, "and the routing a chain sits in")
 
-	other, err := wire.Blank()
-	s.Require().NoError(err)
-	s.Require().NoError(wire.Place(other, []wire.Placement{s.drive()}))
+	s.Require().NoError(wire.Place(s.blank(), []wire.Placement{s.drive()}))
 	s.Require().Empty(s.read(doc).Blocks, "each call gets its own document")
 }
 
 // TestOpen covers which grid positions a chain may use.
 func (s *PlacePublicTestSuite) TestOpen() {
-	got, err := wire.Open(s.blank())
+	tests := []struct {
+		name      string
+		chainless bool
+		want      []int
+		err       error
+	}{
+		{
+			name: "an unused slot",
+			// The input, split, join and output take the other four.
+			want: []int{1, 2, 3, 4, 5, 6, 7, 8, 11, 12, 13, 14, 15, 16, 17, 18},
+		},
+		{
+			name:      "a document with no chain, which no device would send",
+			chainless: true,
+			err:       wire.ErrNotADocument,
+		},
+	}
 
-	s.Require().NoError(err)
-	s.Require().Equal(
-		[]int{1, 2, 3, 4, 5, 6, 7, 8, 11, 12, 13, 14, 15, 16, 17, 18}, got,
-		"the input, split, join and output take the other four")
-}
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			doc := s.blank()
+			if tt.chainless {
+				doc = s.capture(1)
+			}
 
-// TestOpenOnADocumentWithNoChain covers bytes no device would send.
-func (s *PlacePublicTestSuite) TestOpenOnADocumentWithNoChain() {
-	raw, err := os.ReadFile(filepath.Join("testdata", "preset.bin"))
-	s.Require().NoError(err)
+			got, err := wire.Open(doc)
 
-	full, err := wire.DecodeDocument(raw)
-	s.Require().NoError(err)
+			if tt.err != nil {
+				s.Require().ErrorIs(err, tt.err)
 
-	_, err = wire.Open(wire.NewDocument(full, []int8{1}))
-	s.Require().ErrorIs(err, wire.ErrNotADocument)
+				return
+			}
+
+			s.Require().NoError(err)
+			s.Require().Equal(tt.want, got)
+		})
+	}
 }
 
 // TestPlaceAsWritten covers putting a chain where the preset says it goes.
@@ -306,10 +334,11 @@ func (s *PlacePublicTestSuite) TestOpenOnADocumentWithNoChain() {
 // the document the device sent puts the same six at 2 through 7.
 func (s *PlacePublicTestSuite) TestPlaceAsWritten() {
 	tests := []struct {
-		name   string
-		blocks []wire.Placement
-		want   []int
-		err    error
+		name      string
+		blocks    []wire.Placement
+		chainless bool
+		want      []int
+		err       error
 	}{
 		{
 			name: "the six blocks of the bass preset",
@@ -325,9 +354,8 @@ func (s *PlacePublicTestSuite) TestPlaceAsWritten() {
 			want:   []int{1},
 		},
 		{
-			name:   "nothing at all",
-			blocks: nil,
-			want:   []int{},
+			name: "nothing at all",
+			want: []int{},
 		},
 		{
 			name:   "a position the device keeps its split on",
@@ -339,11 +367,19 @@ func (s *PlacePublicTestSuite) TestPlaceAsWritten() {
 			blocks: []wire.Placement{s.at(s.drive(), wire.GridSize)},
 			err:    wire.ErrNoRoom,
 		},
+		{
+			name:      "a document with no chain, which no device would send",
+			chainless: true,
+			err:       wire.ErrNotADocument,
+		},
 	}
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
 			doc := s.blank()
+			if tt.chainless {
+				doc = s.capture(1)
+			}
 
 			err := wire.PlaceAsWritten(doc, tt.blocks)
 
@@ -366,21 +402,8 @@ func (s *PlacePublicTestSuite) TestPlaceAsWritten() {
 	}
 }
 
-// TestPlaceAsWrittenOnADocumentWithNoChain covers bytes no device would send.
-func (s *PlacePublicTestSuite) TestPlaceAsWrittenOnADocumentWithNoChain() {
-	raw, err := os.ReadFile(filepath.Join("testdata", "preset.bin"))
-	s.Require().NoError(err)
-
-	full, err := wire.DecodeDocument(raw)
-	s.Require().NoError(err)
-
-	s.Require().ErrorIs(
-		wire.PlaceAsWritten(wire.NewDocument(full, []int8{1}), nil),
-		wire.ErrNotADocument)
-}
-
-// TestNoRoomErrorNamesThePosition covers what a caller reads.
-func (s *PlacePublicTestSuite) TestNoRoomErrorNamesThePosition() {
+// TestNoRoomError covers what a caller reads.
+func (s *PlacePublicTestSuite) TestNoRoomError() {
 	err := &wire.NoRoomError{Position: 9, Why: "the device keeps its routing there"}
 
 	s.Require().Contains(err.Error(), "position 9")

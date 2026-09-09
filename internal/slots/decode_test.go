@@ -49,118 +49,189 @@ func (s *DecodeTestSuite) SetupSuite() {
 	s.Require().NoError(err)
 }
 
-func (s *DecodeTestSuite) TestCountsBlocksTheWayAPresetDoes() {
-	// A device lays blocks out on a grid holding its routing as well, so a
-	// chain of two can sit at 5 and 13 with the gaps kept. A preset counts
-	// along the path instead, and the two differ by one: slot 27B exported
-	// from HX Edit holds its six blocks at 1 to 6 where the device sent the
-	// same six at 2 to 7.
-	got, err := chainOf("x", wire.DevicePreset{Blocks: []wire.DeviceBlock{
-		{Index: 5, Model: 5},
-		{Index: 13, Model: 74},
-	}}, s.cat)
+// TestChainOf turns a device's answer into a chain.
+func (s *DecodeTestSuite) TestChainOf() {
+	tests := []struct {
+		name string
+		// what the slot is called, and the blocks the device sent.
+		title  string
+		blocks []wire.DeviceBlock
+		// a catalog with no model table at all.
+		bare bool
 
-	s.Require().NoError(err)
-	s.Require().Equal(4, got.Blocks[0].Pos)
-	s.Require().Equal(12, got.Blocks[1].Pos)
-}
+		wantName string
+		// where each block sits along the path, and which model it names.
+		wantPos    map[int]int
+		wantModels map[int]catalog.ModelID
+		// the parameters a block must carry, must not, and how many in all.
+		params  map[int]map[string]catalog.ParamValue
+		absent  map[int][]string
+		howMany map[int]int
+		// blocks that must read as switched on, and as switched off.
+		on      []int
+		off     []int
+		errText string
+	}{
+		{
+			// A device lays blocks out on a grid holding its routing as well,
+			// so a chain of two can sit at 5 and 13 with the gaps kept. A
+			// preset counts along the path instead, and the two differ by
+			// one: slot 27B exported from HX Edit holds its six blocks at 1
+			// to 6 where the device sent the same six at 2 to 7.
+			name: "blocks counted the way a preset counts them",
+			blocks: []wire.DeviceBlock{
+				{Index: 5, Model: 5},
+				{Index: 13, Model: 74},
+			},
+			wantPos: map[int]int{0: 4, 1: 12},
+		},
+		{
+			name:  "what the device numbered",
+			title: "BAS:SVT Nrm",
+			blocks: []wire.DeviceBlock{
+				{Model: 5, Values: []any{0.27, 0.65}, Enabled: true},
+				{Model: 74, Values: []any{1.0}, Enabled: false},
+			},
+			wantName: "BAS:SVT Nrm",
+			wantModels: map[int]catalog.ModelID{
+				0: "HD2_AmpSVBeastNrm",
+				1: "HD2_Cab8x10SVBeast",
+			},
+			params: map[int]map[string]catalog.ParamValue{
+				0: {"Drive": catalog.Float(0.27), "Bass": catalog.Float(0.65)},
+			},
+			on: []int{0},
+			// A bypassed block is still a block.
+			off: []int{1},
+		},
+		{
+			// A device names a mono and a stereo instance separately; the
+			// catalog names the model once, the way Line 6's own model files
+			// do.
+			name:       "a mono instance of a model named once",
+			blocks:     []wire.DeviceBlock{{Model: 120, Enabled: true}},
+			wantModels: map[int]catalog.ModelID{0: "HD2_CompressorLAStudioComp"},
+		},
+		{
+			// Symbols cover every Helix; a Stomp has no second effects loop.
+			// Keeping the device's own name means the rig still rebuilds it
+			// exactly.
+			name:       "a model this device does not have",
+			blocks:     []wire.DeviceBlock{{Model: -1}},
+			wantModels: map[int]catalog.ModelID{0: "HD2_FXLoopMono3"},
+		},
+		{
+			// A device mixes numbers, switches and enumerated positions in
+			// one array, and narrowing them all to numbers turns every switch
+			// off. The wire layer has already reduced them to those three
+			// kinds.
+			name: "a value of every kind, in the shape it arrived in",
+			blocks: []wire.DeviceBlock{
+				{Model: 5, Values: []any{0.27, true, int64(2), "unreadable"}},
+			},
+			params: map[int]map[string]catalog.ParamValue{0: {
+				"Drive": catalog.Float(0.27),
+				"Bass":  catalog.Bool(true),
+				"Mid":   catalog.Int(2),
+				// An amp, and one carrying no cabinet of its own.
+				"@type": catalog.Int(1),
+			}},
+			// A value of no known kind is left out.
+			absent: map[int][]string{0: {"MidFreq", "@cab"}},
+		},
+		{
+			// A device says less than the table names when it has nothing to
+			// say. The one value it sent, plus the kind of block a preset
+			// would call this.
+			name:    "a truncated run of values",
+			blocks:  []wire.DeviceBlock{{Model: 5, Values: []any{0.27}}},
+			params:  map[int]map[string]catalog.ParamValue{0: {"Drive": catalog.Float(0.27)}},
+			howMany: map[int]int{0: 2},
+		},
+		{
+			name:    "a model the table does not reach",
+			blocks:  []wire.DeviceBlock{{Model: 99999}},
+			errText: "different release",
+		},
+		{
+			name:    "a catalog with no model table",
+			blocks:  []wire.DeviceBlock{{Model: 5}},
+			bare:    true,
+			errText: "catalog generate",
+		},
+	}
 
-func (s *DecodeTestSuite) TestNamesWhatTheDeviceNumbered() {
-	got, err := chainOf("BAS:SVT Nrm", wire.DevicePreset{Blocks: []wire.DeviceBlock{
-		{Model: 5, Values: []any{0.27, 0.65}, Enabled: true},
-		{Model: 74, Values: []any{1.0}, Enabled: false},
-	}}, s.cat)
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			cat := s.cat
+			if tt.bare {
+				cat = &catalog.Catalog{}
+			}
 
-	s.Require().NoError(err)
-	s.Require().Equal("BAS:SVT Nrm", got.Name)
-	s.Require().Len(got.Blocks, 2)
+			blocks := tt.blocks
+			for i, b := range blocks {
+				// A model this device does not have, named rather than
+				// numbered because where it sits is a fact about the
+				// catalog.
+				if b.Model == -1 {
+					blocks[i].Model = indexOf(s.cat, "HD2_FXLoopMono3")
+				}
+			}
 
-	s.Require().Equal(catalog.ModelID("HD2_AmpSVBeastNrm"), got.Blocks[0].Model)
-	s.Require().Equal(catalog.Float(0.27), got.Blocks[0].Params["Drive"])
-	s.Require().Equal(catalog.Float(0.65), got.Blocks[0].Params["Bass"])
-	s.Require().True(got.Blocks[0].Enabled)
+			title := tt.title
+			if title == "" {
+				title = "x"
+			}
 
-	s.Require().Equal(catalog.ModelID("HD2_Cab8x10SVBeast"), got.Blocks[1].Model)
-	s.Require().False(got.Blocks[1].Enabled, "a bypassed block is still a block")
-}
+			got, err := chainOf(title, wire.DevicePreset{Blocks: blocks}, cat)
 
-func (s *DecodeTestSuite) TestJoinsAMonoInstanceToItsModel() {
-	// A device names a mono and a stereo instance separately; the catalog
-	// names the model once, the way Line 6's own model files do.
-	got, err := chainOf("x", wire.DevicePreset{Blocks: []wire.DeviceBlock{
-		{Model: 120, Enabled: true},
-	}}, s.cat)
+			if tt.errText != "" {
+				s.Require().Error(err)
+				s.Require().Contains(err.Error(), tt.errText)
 
-	s.Require().NoError(err)
-	s.Require().Equal(
-		catalog.ModelID("HD2_CompressorLAStudioComp"), got.Blocks[0].Model)
-}
+				return
+			}
 
-func (s *DecodeTestSuite) TestKeepsAModelThisDeviceDoesNotHave() {
-	// Symbols cover every Helix; a Stomp has no second effects loop. Keeping
-	// the device's own name means the rig still rebuilds it exactly.
-	sym, ok := s.cat.Symbol(indexOf(s.cat, "HD2_FXLoopMono3"))
-	s.Require().True(ok)
-	s.Require().Equal(catalog.ModelID("HD2_FXLoopMono3"), sym.ID)
+			s.Require().NoError(err)
+			s.Require().Len(got.Blocks, len(tt.blocks))
 
-	got, err := chainOf("x", wire.DevicePreset{Blocks: []wire.DeviceBlock{
-		{Model: indexOf(s.cat, "HD2_FXLoopMono3")},
-	}}, s.cat)
+			if tt.wantName != "" {
+				s.Require().Equal(tt.wantName, got.Name)
+			}
 
-	s.Require().NoError(err)
-	s.Require().Equal(catalog.ModelID("HD2_FXLoopMono3"), got.Blocks[0].Model)
-}
+			for at, want := range tt.wantPos {
+				s.Require().Equal(want, got.Blocks[at].Pos)
+			}
 
-func (s *DecodeTestSuite) TestReportsAModelTheTableDoesNotReach() {
-	_, err := chainOf("x", wire.DevicePreset{Blocks: []wire.DeviceBlock{
-		{Model: 99999},
-	}}, s.cat)
+			for at, want := range tt.wantModels {
+				s.Require().Equal(want, got.Blocks[at].Model)
+			}
 
-	s.Require().Error(err)
-	s.Require().Contains(err.Error(), "different release")
-}
+			for at, want := range tt.params {
+				for key, value := range want {
+					s.Require().Equal(value, got.Blocks[at].Params[key], key)
+				}
+			}
 
-func (s *DecodeTestSuite) TestReportsACatalogWithNoTable() {
-	_, err := chainOf("x", wire.DevicePreset{Blocks: []wire.DeviceBlock{
-		{Model: 5},
-	}}, &catalog.Catalog{})
+			for at, keys := range tt.absent {
+				for _, key := range keys {
+					s.Require().NotContains(got.Blocks[at].Params, key)
+				}
+			}
 
-	s.Require().Error(err)
-	s.Require().Contains(err.Error(), "catalog generate")
-}
+			for at, want := range tt.howMany {
+				s.Require().Len(got.Blocks[at].Params, want)
+			}
 
-func (s *DecodeTestSuite) TestKeepsEachValueInTheShapeItArrivedIn() {
-	// A device mixes numbers, switches and enumerated positions in one array,
-	// and narrowing them all to numbers turns every switch off. The wire
-	// layer has already reduced them to those three kinds.
-	got, err := chainOf("x", wire.DevicePreset{Blocks: []wire.DeviceBlock{
-		{Model: 5, Values: []any{0.27, true, int64(2), "unreadable"}},
-	}}, s.cat)
+			for _, at := range tt.on {
+				s.Require().True(got.Blocks[at].Enabled)
+			}
 
-	s.Require().NoError(err)
-
-	p := got.Blocks[0].Params
-	s.Require().Equal(catalog.Float(0.27), p["Drive"])
-	s.Require().Equal(catalog.Bool(true), p["Bass"])
-	s.Require().Equal(catalog.Int(2), p["Mid"])
-	s.Require().NotContains(p, "MidFreq", "a value of no known kind is left out")
-
-	// An amp, and one carrying no cabinet of its own.
-	s.Require().Equal(catalog.Int(1), p["@type"])
-	s.Require().NotContains(p, "@cab")
-}
-
-func (s *DecodeTestSuite) TestATruncatedRunOfValues() {
-	// A device says less than the table names when it has nothing to say.
-	got, err := chainOf("x", wire.DevicePreset{Blocks: []wire.DeviceBlock{
-		{Model: 5, Values: []any{0.27}},
-	}}, s.cat)
-
-	s.Require().NoError(err)
-
-	// The one value it sent, plus the kind of block a preset would call this.
-	s.Require().Len(got.Blocks[0].Params, 2)
-	s.Require().Equal(catalog.Float(0.27), got.Blocks[0].Params["Drive"])
+			for _, at := range tt.off {
+				s.Require().False(got.Blocks[at].Enabled)
+			}
+		})
+	}
 }
 
 // indexOf finds where a model sits in the device's own table.

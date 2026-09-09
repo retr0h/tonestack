@@ -34,168 +34,187 @@ type ValidateParamsPublicTestSuite struct {
 	suite.Suite
 }
 
-func (*ValidateParamsPublicTestSuite) specWith(
-	params map[string]catalog.ParamValue,
-) chain.Chain {
-	return chain.Chain{
-		Blocks: []chain.Block{{Model: "HD2_AmpTest", Params: params}},
-	}
-}
-
-func (s *ValidateParamsPublicTestSuite) TestAcceptsValuesInRange() {
-	spec := s.specWith(map[string]catalog.ParamValue{
-		"Gain": catalog.Float(0.5),
-		"Mode": catalog.Enum("Bright"),
-	})
-
-	s.Require().NoError(chain.ValidateParams(newCatalog(testAmp()), spec))
-}
-
-func (s *ValidateParamsPublicTestSuite) TestAcceptsValuesOnTheBoundary() {
-	for _, v := range []float64{0.0, 1.0} {
-		spec := s.specWith(
-			map[string]catalog.ParamValue{"Gain": catalog.Float(v)},
-		)
-		s.Require().NoError(chain.ValidateParams(newCatalog(testAmp()), spec))
-	}
-}
-
-func (s *ValidateParamsPublicTestSuite) TestRejectsAnUnknownParameter() {
-	spec := s.specWith(
-		map[string]catalog.ParamValue{"Nope": catalog.Float(0.5)},
-	)
-
-	err := chain.ValidateParams(newCatalog(testAmp()), spec)
-
-	s.Require().ErrorIs(err, catalog.ErrBadParam)
-
-	var target *catalog.BadParamError
-	s.Require().True(errors.As(err, &target))
-	s.Require().Equal("Nope", target.Key)
-}
-
-func (s *ValidateParamsPublicTestSuite) TestRejectsAWrongType() {
-	spec := s.specWith(
-		map[string]catalog.ParamValue{"Gain": catalog.Enum("loud")},
-	)
-
-	err := chain.ValidateParams(newCatalog(testAmp()), spec)
-
-	s.Require().ErrorIs(err, catalog.ErrBadParam)
-	s.Require().Contains(err.Error(), "expected float")
-}
-
-func (s *ValidateParamsPublicTestSuite) TestRejectsAFloatOutOfRange() {
-	for _, v := range []float64{-0.01, 1.01} {
-		spec := s.specWith(
-			map[string]catalog.ParamValue{"Gain": catalog.Float(v)},
-		)
-
-		err := chain.ValidateParams(newCatalog(testAmp()), spec)
-
-		s.Require().ErrorIs(err, catalog.ErrBadParam)
-		s.Require().Contains(err.Error(), "out of range")
-	}
-}
-
-func (s *ValidateParamsPublicTestSuite) TestRejectsAnIntOutOfRange() {
-	blk := testAmp()
-	blk.Params["Taps"] = catalog.Param{
-		Key: "Taps", Type: catalog.ParamInt, Min: 1, Max: 4, Default: catalog.Int(1),
-	}
-
-	spec := s.specWith(map[string]catalog.ParamValue{"Taps": catalog.Int(9)})
-
-	err := chain.ValidateParams(newCatalog(blk), spec)
-
-	s.Require().ErrorIs(err, catalog.ErrBadParam)
-}
-
-func (s *ValidateParamsPublicTestSuite) TestAcceptsABoolWithoutRangeChecking() {
-	blk := testAmp()
-	blk.Params["Bright"] = catalog.Param{
-		Key: "Bright", Type: catalog.ParamBool, Default: catalog.Bool(false),
-	}
-
-	spec := s.specWith(
-		map[string]catalog.ParamValue{"Bright": catalog.Bool(true)},
-	)
-
-	s.Require().NoError(chain.ValidateParams(newCatalog(blk), spec))
-}
-
-func (s *ValidateParamsPublicTestSuite) TestRejectsAnEnumMemberNotDeclared() {
-	spec := s.specWith(
-		map[string]catalog.ParamValue{"Mode": catalog.Enum("Sparkle")},
-	)
-
-	err := chain.ValidateParams(newCatalog(testAmp()), spec)
-
-	s.Require().ErrorIs(err, catalog.ErrBadParam)
-	s.Require().Contains(err.Error(), "Sparkle")
-}
-
-func (s *ValidateParamsPublicTestSuite) TestRejectsAKindTheCatalogInvented() {
-	blk := testAmp()
-	blk.Params["Weird"] = catalog.Param{Key: "Weird", Type: catalog.ParamType("wat")}
-
-	spec := s.specWith(map[string]catalog.ParamValue{"Weird": catalog.Float(1)})
-
-	err := chain.ValidateParams(newCatalog(blk), spec)
-
-	s.Require().ErrorIs(err, catalog.ErrBadParam)
-	s.Require().Contains(err.Error(), "unknown kind")
-}
-
-func (s *ValidateParamsPublicTestSuite) TestRejectsEachKindMismatch() {
-	blk := testAmp()
-	blk.Params["Taps"] = catalog.Param{Key: "Taps", Type: catalog.ParamInt, Min: 0, Max: 9}
-	blk.Params["Bright"] = catalog.Param{Key: "Bright", Type: catalog.ParamBool}
-
+// TestValidateParams checks every knob a chain sets against the catalog.
+func (s *ValidateParamsPublicTestSuite) TestValidateParams() {
 	tests := []struct {
 		name string
-		key  string
-		val  catalog.ParamValue
+		// the model the chain names, an amp the catalog has unless a case
+		// says otherwise.
+		model catalog.ModelID
+		// parameters the block carries beside the ones the fixture declares.
+		declared map[string]catalog.Param
+		params   map[string]catalog.ParamValue
+
+		err error
+		// the parameter the failure must name.
+		badKey  string
+		errText string
+		// run the case twenty times, for a failure that must name the same
+		// parameter every run.
+		stable bool
 	}{
-		{"float declared, enum given", "Gain", catalog.Enum("loud")},
-		{"int declared, float given", "Taps", catalog.Float(1)},
-		{"bool declared, int given", "Bright", catalog.Int(1)},
-		{"enum declared, bool given", "Mode", catalog.Bool(true)},
+		{
+			name: "values in range",
+			params: map[string]catalog.ParamValue{
+				"Gain": catalog.Float(0.5),
+				"Mode": catalog.Enum("Bright"),
+			},
+		},
+		{
+			name:   "a float at the bottom of its range",
+			params: map[string]catalog.ParamValue{"Gain": catalog.Float(0)},
+		},
+		{
+			name:   "a float at the top of it",
+			params: map[string]catalog.ParamValue{"Gain": catalog.Float(1)},
+		},
+		{
+			name: "a switch, which has no range to check",
+			declared: map[string]catalog.Param{
+				"Bright": {
+					Key: "Bright", Type: catalog.ParamBool,
+					Default: catalog.Bool(false),
+				},
+			},
+			params: map[string]catalog.ParamValue{"Bright": catalog.Bool(true)},
+		},
+		{
+			name:   "a parameter the block does not have",
+			params: map[string]catalog.ParamValue{"Nope": catalog.Float(0.5)},
+			err:    catalog.ErrBadParam,
+			badKey: "Nope",
+		},
+		{
+			name:    "a float below its range",
+			params:  map[string]catalog.ParamValue{"Gain": catalog.Float(-0.01)},
+			err:     catalog.ErrBadParam,
+			errText: "out of range",
+		},
+		{
+			name:    "a float above it",
+			params:  map[string]catalog.ParamValue{"Gain": catalog.Float(1.01)},
+			err:     catalog.ErrBadParam,
+			errText: "out of range",
+		},
+		{
+			name: "an integer out of range",
+			declared: map[string]catalog.Param{
+				"Taps": {
+					Key: "Taps", Type: catalog.ParamInt,
+					Min: 1, Max: 4, Default: catalog.Int(1),
+				},
+			},
+			params: map[string]catalog.ParamValue{"Taps": catalog.Int(9)},
+			err:    catalog.ErrBadParam,
+		},
+		{
+			name:    "an enum member nobody declared",
+			params:  map[string]catalog.ParamValue{"Mode": catalog.Enum("Sparkle")},
+			err:     catalog.ErrBadParam,
+			errText: "Sparkle",
+		},
+		{
+			name: "a kind the catalog invented",
+			declared: map[string]catalog.Param{
+				"Weird": {Key: "Weird", Type: catalog.ParamType("wat")},
+			},
+			params:  map[string]catalog.ParamValue{"Weird": catalog.Float(1)},
+			err:     catalog.ErrBadParam,
+			errText: "unknown kind",
+		},
+		{
+			name:    "a float declared and an enum given",
+			params:  map[string]catalog.ParamValue{"Gain": catalog.Enum("loud")},
+			err:     catalog.ErrBadParam,
+			errText: "expected float",
+		},
+		{
+			name: "an integer declared and a float given",
+			declared: map[string]catalog.Param{
+				"Taps": {Key: "Taps", Type: catalog.ParamInt, Min: 0, Max: 9},
+			},
+			params:  map[string]catalog.ParamValue{"Taps": catalog.Float(1)},
+			err:     catalog.ErrBadParam,
+			errText: "expected",
+		},
+		{
+			name: "a switch declared and an integer given",
+			declared: map[string]catalog.Param{
+				"Bright": {Key: "Bright", Type: catalog.ParamBool},
+			},
+			params:  map[string]catalog.ParamValue{"Bright": catalog.Int(1)},
+			err:     catalog.ErrBadParam,
+			errText: "expected",
+		},
+		{
+			name:    "an enum declared and a switch given",
+			params:  map[string]catalog.ParamValue{"Mode": catalog.Bool(true)},
+			err:     catalog.ErrBadParam,
+			errText: "expected",
+		},
+		{
+			name:  "a model the catalog does not have",
+			model: "HD2_Nope",
+			err:   chain.ErrUnknownBlock,
+		},
+		{
+			name: "two parameters the block does not have",
+			params: map[string]catalog.ParamValue{
+				"Zebra": catalog.Float(0.5),
+				"Alpha": catalog.Float(0.5),
+			},
+			err:    catalog.ErrBadParam,
+			badKey: "Alpha",
+			stable: true,
+		},
 	}
 
-	for _, tc := range tests {
-		s.Run(tc.name, func() {
-			spec := s.specWith(map[string]catalog.ParamValue{tc.key: tc.val})
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			blk := testAmp()
+			for key, p := range tt.declared {
+				blk.Params[key] = p
+			}
 
-			err := chain.ValidateParams(newCatalog(blk), spec)
+			model := tt.model
+			if model == "" {
+				model = "HD2_AmpTest"
+			}
 
-			s.Require().ErrorIs(err, catalog.ErrBadParam)
-			s.Require().Contains(err.Error(), "expected")
+			spec := chain.Chain{
+				Blocks: []chain.Block{{Model: model, Params: tt.params}},
+			}
+
+			runs := 1
+			if tt.stable {
+				runs = 20
+			}
+
+			for range runs {
+				err := chain.ValidateParams(newCatalog(blk), spec)
+
+				if tt.err == nil {
+					s.Require().NoError(err)
+
+					continue
+				}
+
+				s.Require().ErrorIs(err, tt.err)
+
+				if tt.errText != "" {
+					s.Require().Contains(err.Error(), tt.errText)
+				}
+
+				if tt.badKey == "" {
+					continue
+				}
+
+				var target *catalog.BadParamError
+				s.Require().True(errors.As(err, &target))
+				s.Require().Equal(tt.badKey, target.Key,
+					"and it must name the same one every run")
+			}
 		})
-	}
-}
-
-func (s *ValidateParamsPublicTestSuite) TestRejectsAnUnknownModel() {
-	spec := chain.Chain{Blocks: []chain.Block{{Model: "HD2_Nope"}}}
-
-	err := chain.ValidateParams(newCatalog(testAmp()), spec)
-
-	s.Require().ErrorIs(err, chain.ErrUnknownBlock)
-}
-
-func (s *ValidateParamsPublicTestSuite) TestReportsTheFirstBadParameterInSortedOrder() {
-	spec := s.specWith(map[string]catalog.ParamValue{
-		"Zebra": catalog.Float(0.5),
-		"Alpha": catalog.Float(0.5),
-	})
-
-	for range 20 {
-		err := chain.ValidateParams(newCatalog(testAmp()), spec)
-
-		var target *catalog.BadParamError
-		s.Require().True(errors.As(err, &target))
-		s.Require().
-			Equal("Alpha", target.Key, "must be deterministic across runs")
 	}
 }
 

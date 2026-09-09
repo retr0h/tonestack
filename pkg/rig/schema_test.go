@@ -42,83 +42,137 @@ type SchemaTestSuite struct {
 	suite.Suite
 }
 
-func (s *SchemaTestSuite) TestTheShippedContractLoads() {
-	got, err := rig.LoadSchema(schemas.RigSpec)
-
-	s.Require().NoError(err)
-	s.Require().NotNil(got)
-}
-
-func (s *SchemaTestSuite) TestReportsADocumentItCannotRead() {
-	_, err := rig.LoadSchema([]byte("not a schema"))
-
-	s.Require().Error(err)
-	s.Require().Contains(err.Error(), "RigSpec schema")
-}
-
-func (s *SchemaTestSuite) TestReportsADocumentDescribingNoRig() {
-	_, err := rig.LoadSchema([]byte(`
+// TestLoadSchema reads the contract out of an OpenAPI document.
+func (s *SchemaTestSuite) TestLoadSchema() {
+	tests := []struct {
+		name    string
+		doc     []byte
+		errText string
+	}{
+		{name: "the contract this binary ships", doc: schemas.RigSpec},
+		{
+			name:    "a document it cannot read",
+			doc:     []byte("not a schema"),
+			errText: "RigSpec schema",
+		},
+		{
+			name: "a document describing no rig",
+			doc: []byte(`
 openapi: 3.0.3
 info: { title: Something Else, version: "1.0.0" }
 paths: {}
 components:
   schemas:
     NotARig: { type: object }
-`))
+`),
+			errText: "describes no RigSpec",
+		},
+	}
 
-	s.Require().Error(err)
-	s.Require().Contains(err.Error(), "describes no RigSpec")
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			got, err := rig.LoadSchema(tt.doc)
+
+			if tt.errText != "" {
+				s.Require().Error(err)
+				s.Require().Contains(err.Error(), tt.errText)
+
+				return
+			}
+
+			s.Require().NoError(err)
+			s.Require().NotNil(got)
+		})
+	}
 }
 
-func (s *SchemaTestSuite) TestARigCannotBeCheckedWithoutAContract() {
-	// Nothing reaches this in a shipped binary. It is here so that if the
-	// contract ever could not be read, a rig would be reported as unchecked
-	// rather than passed as valid.
+// TestValidate covers a rig checked against a contract nobody can read.
+//
+// Nothing reaches this in a shipped binary. It is here so that if the contract
+// ever could not be read, a rig would be reported as unchecked rather than
+// passed as valid.
+func (s *SchemaTestSuite) TestValidate() {
 	restore := *rig.Contract
 	defer func() { *rig.Contract = restore }()
 
 	boom := errors.New("no contract")
 	*rig.Contract = func() (*openapi3.Schema, error) { return nil, boom }
 
-	err := rig.Validate(gen.RigSpec{})
-
-	s.Require().ErrorIs(err, boom)
+	s.Require().ErrorIs(rig.Validate(gen.RigSpec{}), boom)
 }
 
-func (s *SchemaTestSuite) TestAFailureWithNothingToPointAt() {
-	// A document that is not an object at all fails the contract as a whole
-	// rather than at a field, so there is nothing to name but the contract.
-	err := rig.Against("not a rig")
+// TestAgainst checks a document against the contract.
+func (s *SchemaTestSuite) TestAgainst() {
+	tests := []struct {
+		name     string
+		doc      any
+		contains string
+	}{
+		{
+			// A document that is not an object at all fails the contract as a
+			// whole rather than at a field, so there is nothing to name but
+			// the contract.
+			name:     "a failure with nothing to point at",
+			doc:      "not a rig",
+			contains: "RigSpec",
+		},
+		{
+			// A rig missing everything fails in more ways than a person can
+			// act on at once. The first is the one worth showing.
+			name: "several failures at once",
+			doc:  map[string]any{},
+		},
+	}
 
-	s.Require().ErrorIs(err, rig.ErrInvalid)
-	s.Require().Contains(err.Error(), "RigSpec")
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			err := rig.Against(tt.doc)
+
+			s.Require().ErrorIs(err, rig.ErrInvalid)
+
+			if tt.contains != "" {
+				s.Require().Contains(err.Error(), tt.contains)
+			}
+		})
+	}
 }
 
-func (s *SchemaTestSuite) TestSeveralFailuresReportTheFirst() {
-	// A rig missing everything fails in more ways than a person can act on
-	// at once. The first is the one worth showing.
-	err := rig.Against(map[string]any{})
+// TestInvalid says what went wrong, whatever the library handed it.
+func (s *SchemaTestSuite) TestInvalid() {
+	tests := []struct {
+		name     string
+		in       error
+		contains string
+	}{
+		{
+			// The library reports a failed field today. If it ever reports
+			// something else, that has to reach somebody rather than be
+			// swallowed.
+			name:     "a failure of some other kind",
+			in:       errors.New("something else went wrong"),
+			contains: "something else went wrong",
+		},
+		{
+			name: "a failure that gives no reason",
+			in: &openapi3.SchemaError{
+				Schema: openapi3.NewStringSchema(),
+				Value:  1,
+			},
+		},
+	}
 
-	s.Require().ErrorIs(err, rig.ErrInvalid)
-}
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			err := rig.Invalid(tt.in)
 
-func (s *SchemaTestSuite) TestAFailureOfSomeOtherKind() {
-	// The library reports a failed field today. If it ever reports something
-	// else, that has to reach somebody rather than be swallowed.
-	err := rig.Invalid(errors.New("something else went wrong"))
+			s.Require().ErrorIs(err, rig.ErrInvalid)
+			s.Require().NotEmpty(err.Error())
 
-	s.Require().ErrorIs(err, rig.ErrInvalid)
-	s.Require().Contains(err.Error(), "something else went wrong")
-}
-
-func (s *SchemaTestSuite) TestAFailureThatGivesNoReason() {
-	err := rig.Invalid(&openapi3.SchemaError{
-		Schema: openapi3.NewStringSchema(),
-		Value:  1,
-	})
-
-	s.Require().ErrorIs(err, rig.ErrInvalid)
-	s.Require().NotEmpty(err.Error())
+			if tt.contains != "" {
+				s.Require().Contains(err.Error(), tt.contains)
+			}
+		})
+	}
 }
 
 func TestSchemaTestSuite(t *testing.T) {

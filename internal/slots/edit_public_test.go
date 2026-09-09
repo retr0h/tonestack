@@ -22,6 +22,7 @@ package slots_test
 
 import (
 	"bytes"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -55,21 +56,97 @@ func (s *EditPublicTestSuite) opts(out string) slots.EditOptions {
 	}
 }
 
-func (s *EditPublicTestSuite) TestCopyLeavesTheSourceAlone() {
-	out := filepath.Join(s.T().TempDir(), "out.hls")
+// TestCopy writes one slot over another.
+func (s *EditPublicTestSuite) TestCopy() {
+	tests := []struct {
+		name string
+		path string
+		from int
+		to   int
+		// where to write, under this case's own directory.
+		out string
+		// a writer that fails, so a report nobody can read is an error.
+		deaf bool
 
-	var log bytes.Buffer
-	s.Require().NoError(slots.Copy(&log, s.opts(out)))
+		// what the two slots must hold afterwards.
+		want     []string
+		contains []string
+		errText  string
+	}{
+		{
+			name:     "a copy, which leaves the source alone",
+			to:       1,
+			want:     []string{"First", "First"},
+			contains: []string{"copied", "01A", "01B"},
+		},
+		{
+			name:    "a file that is not there",
+			path:    fixture("nope.hls"),
+			to:      1,
+			errText: "opening",
+		},
+		{name: "a source that is not there", from: 99, to: 1, errText: "no such slot"},
+		{name: "a destination that is not there", to: 99, errText: "no such slot"},
+		{
+			name:    "a destination directory that is not there",
+			to:      1,
+			out:     filepath.Join("no", "out.hls"),
+			errText: "writing",
+		},
+		{name: "a writer that fails", to: 1, deaf: true},
+	}
 
-	doc := s.reread(out)
-	s.Require().Equal("First", doc.Setlists[0].Slots[0].Meta.Name)
-	s.Require().Equal("First", doc.Setlists[0].Slots[1].Meta.Name)
-	s.Require().Contains(log.String(), "copied")
-	s.Require().Contains(log.String(), "01A")
-	s.Require().Contains(log.String(), "01B")
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			dir := s.T().TempDir()
+
+			out := filepath.Join(dir, "out.hls")
+			if tt.out != "" {
+				out = filepath.Join(dir, tt.out)
+			}
+
+			o := s.opts(out)
+			o.FromSlot, o.ToSlot = tt.from, tt.to
+
+			if tt.path != "" {
+				o.Path = tt.path
+			}
+
+			var log bytes.Buffer
+
+			w := io.Writer(&log)
+			if tt.deaf {
+				w = &failingWriter{}
+			}
+
+			err := slots.Copy(w, o)
+
+			if tt.errText != "" || tt.deaf {
+				s.Require().Error(err)
+
+				if tt.errText != "" {
+					s.Require().Contains(err.Error(), tt.errText)
+				}
+
+				return
+			}
+
+			s.Require().NoError(err)
+
+			doc := s.reread(out)
+			for i, want := range tt.want {
+				s.Require().Equal(want, doc.Setlists[0].Slots[i].Meta.Name)
+			}
+
+			for _, want := range tt.contains {
+				s.Require().Contains(log.String(), want)
+			}
+		})
+	}
 }
 
-func (s *EditPublicTestSuite) TestSwapExchangesBothSlots() {
+// TestSwap exchanges two slots.
+func (s *EditPublicTestSuite) TestSwap() {
 	out := filepath.Join(s.T().TempDir(), "out.hls")
 
 	var log bytes.Buffer
@@ -81,286 +158,278 @@ func (s *EditPublicTestSuite) TestSwapExchangesBothSlots() {
 	s.Require().Contains(log.String(), "swapped")
 }
 
-func (s *EditPublicTestSuite) TestEditsReportProblems() {
-	dir := s.T().TempDir()
-
+// TestExport writes one slot to a file of its own.
+func (s *EditPublicTestSuite) TestExport() {
 	tests := []struct {
 		name    string
-		mutate  func(*slots.EditOptions)
-		message string
+		path    string
+		slot    int
+		as      slots.Format
+		catalog string
+		out     string
+		deaf    bool
+
+		// what the written file must say.
+		wrote []string
+		// what showing the written file must say, for the device's own
+		// format.
+		shows []string
+		// what the report must say.
+		logs    []string
+		errText string
 	}{
 		{
-			"a file that is not there",
-			func(o *slots.EditOptions) { o.Path = fixture("nope.hls") },
-			"opening",
-		},
-		{
-			"a source that is not there",
-			func(o *slots.EditOptions) { o.FromSlot = 99 },
-			"no such slot",
-		},
-		{
-			"a destination that is not there",
-			func(o *slots.EditOptions) { o.ToSlot = 99 },
-			"no such slot",
-		},
-		{
-			"a destination directory that is not there",
-			func(o *slots.EditOptions) { o.OutputPath = filepath.Join(dir, "no", "out.hls") },
-			"writing",
-		},
-	}
-
-	for _, tc := range tests {
-		s.Run(tc.name, func() {
-			opts := s.opts(filepath.Join(dir, "out.hls"))
-			tc.mutate(&opts)
-
-			err := slots.Copy(&bytes.Buffer{}, opts)
-
-			s.Require().Error(err)
-			s.Require().Contains(err.Error(), tc.message)
-		})
-	}
-}
-
-func (s *EditPublicTestSuite) TestEditReportsAWriterThatFails() {
-	out := filepath.Join(s.T().TempDir(), "out.hls")
-
-	s.Require().Error(slots.Copy(&failingWriter{}, s.opts(out)))
-}
-
-func (s *EditPublicTestSuite) TestExportWritesARigByDefault() {
-	// A rig is what this project speaks, and the format that reads on other
-	// hardware. The device's own file is a faithful copy, which is a
-	// different thing and has to be asked for.
-	out := filepath.Join(s.T().TempDir(), "one.yaml")
-
-	var log bytes.Buffer
-	s.Require().NoError(slots.Export(&log, slots.ExportOptions{
-		Path: fixture("setlist.hls"), Slot: 0, OutputPath: out,
-		CatalogPath: catalogPath(),
-	}))
-
-	raw, err := os.ReadFile(out) //nolint:gosec // a path this test chose
-	s.Require().NoError(err)
-	s.Require().Contains(string(raw), "schema: RigSpec")
-	s.Require().Contains(string(raw), "gear:")
-	s.Require().Contains(string(raw), "models:",
-		"a lifted rig records the exact model, since a name does not identify one")
-}
-
-func (s *EditPublicTestSuite) TestExportCanWriteTheDevicesOwnFile() {
-	out := filepath.Join(s.T().TempDir(), "one.hlx")
-
-	var log bytes.Buffer
-	s.Require().NoError(slots.Export(&log, slots.ExportOptions{
-		Path: fixture("setlist.hls"), Slot: 0, OutputPath: out,
-		As: slots.FormatPreset,
-	}))
-
-	var show bytes.Buffer
-	s.Require().NoError(slots.Show(&show, slots.ShowOptions{
-		File: out, CatalogPath: catalogPath(),
-	}))
-
-	s.Require().Contains(show.String(), "First")
-	s.Require().Contains(show.String(), "Ampeg SVT")
-	s.Require().Contains(log.String(), "wrote")
-}
-
-func (s *EditPublicTestSuite) TestExportReportsProblems() {
-	dir := s.T().TempDir()
-
-	tests := []struct {
-		name    string
-		opts    slots.ExportOptions
-		message string
-	}{
-		{
-			"a file that is not there",
-			slots.ExportOptions{Path: fixture("nope.hls"), OutputPath: dir + "/x.hlx"},
-			"opening",
-		},
-		{
-			"a slot that is not there",
-			slots.ExportOptions{
-				Path: fixture("setlist.hls"), Slot: 99, OutputPath: dir + "/x.hlx",
-				As: slots.FormatPreset,
+			// A rig is what this project speaks, and the format that reads on
+			// other hardware. The device's own file is a faithful copy, which
+			// is a different thing and has to be asked for.
+			name:    "a rig, which is what somebody gets by default",
+			catalog: catalogPath(),
+			out:     "one.yaml",
+			wrote: []string{
+				"schema: RigSpec",
+				"gear:",
+				// A lifted rig records the exact model, since a name does not
+				// identify one.
+				"models:",
 			},
-			"no such slot",
 		},
 		{
-			"a destination directory that is not there",
-			slots.ExportOptions{
-				Path: fixture("setlist.hls"), OutputPath: filepath.Join(dir, "no", "x.hlx"),
-				As: slots.FormatPreset,
-			},
-			"writing",
-		},
-	}
-
-	for _, tc := range tests {
-		s.Run(tc.name, func() {
-			err := slots.Export(&bytes.Buffer{}, tc.opts)
-
-			s.Require().Error(err)
-			s.Require().Contains(err.Error(), tc.message)
-		})
-	}
-}
-
-func (s *EditPublicTestSuite) TestExportReportsProblemsWritingARig() {
-	dir := s.T().TempDir()
-
-	tests := []struct {
-		name    string
-		mutate  func(*slots.ExportOptions)
-		message string
-	}{
-		{
-			"a catalog that is not there",
-			func(o *slots.ExportOptions) { o.CatalogPath = fixture("nope.json") },
-			"catalog",
+			name:  "the device's own file, when asked for",
+			as:    slots.FormatPreset,
+			out:   "one.hlx",
+			shows: []string{"First", "Ampeg SVT"},
+			logs:  []string{"wrote"},
 		},
 		{
-			"a slot holding nothing, which is not a rig",
-			func(o *slots.ExportOptions) { o.Slot = 2 },
-			"chain minimum number of items is 1",
+			name:    "a file that is not there",
+			path:    fixture("nope.hls"),
+			errText: "opening",
 		},
+		{
+			name:    "a slot that is not there",
+			slot:    99,
+			as:      slots.FormatPreset,
+			errText: "no such slot",
+		},
+		{
+			name:    "a destination directory that is not there",
+			as:      slots.FormatPreset,
+			out:     filepath.Join("no", "x.hlx"),
+			errText: "writing",
+		},
+		{
+			name:    "a catalog that is not there",
+			catalog: fixture("nope.json"),
+			out:     "x.yaml",
+			errText: "catalog",
+		},
+		{
+			name:    "a slot holding nothing, which is not a rig",
+			slot:    2,
+			catalog: catalogPath(),
+			out:     "x.yaml",
+			errText: "chain minimum number of items is 1",
+		},
+		{name: "a writer that fails", as: slots.FormatPreset, deaf: true},
 	}
 
-	for _, tc := range tests {
-		s.Run(tc.name, func() {
-			o := slots.ExportOptions{
-				Path: fixture("setlist.hls"), Slot: 0,
-				OutputPath: filepath.Join(dir, "x.yaml"), CatalogPath: catalogPath(),
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			dir := s.T().TempDir()
+
+			out := filepath.Join(dir, "x.hlx")
+			if tt.out != "" {
+				out = filepath.Join(dir, tt.out)
 			}
-			tc.mutate(&o)
 
-			err := slots.Export(&bytes.Buffer{}, o)
+			o := slots.ExportOptions{
+				Path: fixture("setlist.hls"), Slot: tt.slot, OutputPath: out,
+				As: tt.as, CatalogPath: tt.catalog,
+			}
+			if tt.path != "" {
+				o.Path = tt.path
+			}
 
-			s.Require().Error(err)
-			s.Require().Contains(err.Error(), tc.message)
+			var log bytes.Buffer
+
+			w := io.Writer(&log)
+			if tt.deaf {
+				w = &failingWriter{}
+			}
+
+			err := slots.Export(w, o)
+
+			if tt.errText != "" || tt.deaf {
+				s.Require().Error(err)
+
+				if tt.errText != "" {
+					s.Require().Contains(err.Error(), tt.errText)
+				}
+
+				return
+			}
+
+			s.Require().NoError(err)
+
+			if tt.wrote != nil {
+				raw, err := os.ReadFile(out) //nolint:gosec // a path this test chose
+				s.Require().NoError(err)
+
+				for _, want := range tt.wrote {
+					s.Require().Contains(string(raw), want)
+				}
+			}
+
+			if tt.shows != nil {
+				var show bytes.Buffer
+				s.Require().NoError(slots.Show(&show, slots.ShowOptions{
+					File: out, CatalogPath: catalogPath(),
+				}))
+
+				for _, want := range tt.shows {
+					s.Require().Contains(show.String(), want)
+				}
+			}
+
+			for _, want := range tt.logs {
+				s.Require().Contains(log.String(), want)
+			}
 		})
 	}
 }
 
-func (s *EditPublicTestSuite) TestExportReportsAWriterThatFails() {
-	s.Require().Error(slots.Export(&failingWriter{}, slots.ExportOptions{
-		Path:       fixture("setlist.hls"),
-		OutputPath: filepath.Join(s.T().TempDir(), "x.hlx"),
-		As:         slots.FormatPreset,
-	}))
-}
-
-func (s *EditPublicTestSuite) TestImportPlacesAPreset() {
-	dir := s.T().TempDir()
-	pre := filepath.Join(dir, "one.hlx")
-
-	s.Require().NoError(slots.Export(&bytes.Buffer{}, slots.ExportOptions{
-		Path: fixture("setlist.hls"), Slot: 0, OutputPath: pre,
-		As: slots.FormatPreset,
-	}))
-
-	out := filepath.Join(dir, "out.hls")
-
-	var log bytes.Buffer
-	s.Require().NoError(slots.Import(&log, slots.ImportOptions{
-		Path: fixture("setlist.hls"), File: pre, Slot: 1, OutputPath: out,
-	}))
-
-	doc := s.reread(out)
-	s.Require().Equal("First", doc.Setlists[0].Slots[1].Meta.Name)
-	s.Require().Contains(log.String(), "replaced")
-	s.Require().Contains(log.String(), "Second")
-}
-
-func (s *EditPublicTestSuite) TestImportWarnsAboutAnotherDevice() {
-	out := filepath.Join(s.T().TempDir(), "out.hls")
-
-	var log bytes.Buffer
-	s.Require().NoError(slots.Import(&log, slots.ImportOptions{
-		Path: fixture("setlist.hls"), File: fixture("otherdevice.hlx"),
-		Slot: 1, OutputPath: out,
-	}))
-
-	s.Require().Contains(log.String(), "different device")
-}
-
-func (s *EditPublicTestSuite) TestImportReportsProblems() {
-	dir := s.T().TempDir()
-	good := slots.ImportOptions{
-		Path: fixture("setlist.hls"), File: fixture("preset.hlx"),
-		OutputPath: filepath.Join(dir, "out.hls"),
-	}
-
-	tests := []struct {
-		name    string
-		mutate  func(*slots.ImportOptions)
-		message string
-	}{
-		{
-			"a setlist that is not there",
-			func(o *slots.ImportOptions) { o.Path = fixture("nope.hls") },
-			"opening",
-		},
-		{
-			"a preset that is not there",
-			func(o *slots.ImportOptions) { o.File = fixture("nope.hlx") },
-			"opening",
-		},
-		{
-			"a file that is not a preset",
-			func(o *slots.ImportOptions) { o.File = fixture("notapreset.hlx") },
-			"not a preset",
-		},
-		{
-			"a slot that is not there",
-			func(o *slots.ImportOptions) { o.Slot = 99 },
-			"no such slot",
-		},
-		{
-			"a destination directory that is not there",
-			func(o *slots.ImportOptions) { o.OutputPath = filepath.Join(dir, "no", "o.hls") },
-			"writing",
-		},
-	}
-
-	for _, tc := range tests {
-		s.Run(tc.name, func() {
-			opts := good
-			tc.mutate(&opts)
-
-			err := slots.Import(&bytes.Buffer{}, opts)
-
-			s.Require().Error(err)
-			s.Require().Contains(err.Error(), tc.message)
-		})
-	}
-}
-
-func (s *EditPublicTestSuite) TestImportReportsAWriterThatFails() {
-	dir := s.T().TempDir()
-
+// TestImport puts a preset file into a slot.
+func (s *EditPublicTestSuite) TestImport() {
 	tests := []struct {
 		name string
-		w    interface{ Write([]byte) (int, error) }
+		path string
 		file string
+		slot int
+		out  string
+		// export slot 0 first and import that, rather than a fixture.
+		exported bool
+		deaf     bool
+		// a writer that takes one write before failing, for a report with a
+		// warning above it.
+		partial bool
+
+		// what the destination slot must hold afterwards.
+		want     string
+		contains []string
+		errText  string
 	}{
-		{"with no warning", &failingWriter{}, fixture("preset.hlx")},
-		{"on the warning", &failingWriter{}, fixture("otherdevice.hlx")},
-		{"after the warning", &oneGoodWrite{}, fixture("otherdevice.hlx")},
+		{
+			name:     "a preset this setlist itself wrote",
+			exported: true,
+			slot:     1,
+			want:     "First",
+			contains: []string{"replaced", "Second"},
+		},
+		{
+			name:     "a preset from another device",
+			file:     fixture("otherdevice.hlx"),
+			slot:     1,
+			contains: []string{"different device"},
+		},
+		{
+			name:    "a setlist that is not there",
+			path:    fixture("nope.hls"),
+			errText: "opening",
+		},
+		{
+			name:    "a preset that is not there",
+			file:    fixture("nope.hlx"),
+			errText: "opening",
+		},
+		{
+			name:    "a file that is not a preset",
+			file:    fixture("notapreset.hlx"),
+			errText: "not a preset",
+		},
+		{name: "a slot that is not there", slot: 99, errText: "no such slot"},
+		{
+			name:    "a destination directory that is not there",
+			out:     filepath.Join("no", "o.hls"),
+			errText: "writing",
+		},
+		{name: "a writer that fails", slot: 1, deaf: true},
+		{
+			name: "a writer that fails on the warning",
+			file: fixture("otherdevice.hlx"),
+			slot: 1,
+			deaf: true,
+		},
+		{
+			name:    "a writer that fails after the warning",
+			file:    fixture("otherdevice.hlx"),
+			slot:    1,
+			partial: true,
+		},
 	}
 
-	for _, tc := range tests {
-		s.Run(tc.name, func() {
-			err := slots.Import(tc.w, slots.ImportOptions{
-				Path: fixture("setlist.hls"), File: tc.file, Slot: 1,
-				OutputPath: filepath.Join(dir, "out.hls"),
-			})
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			dir := s.T().TempDir()
 
-			s.Require().Error(err)
+			out := filepath.Join(dir, "out.hls")
+			if tt.out != "" {
+				out = filepath.Join(dir, tt.out)
+			}
+
+			file := tt.file
+			if file == "" {
+				file = fixture("preset.hlx")
+			}
+
+			if tt.exported {
+				file = filepath.Join(dir, "one.hlx")
+				s.Require().NoError(slots.Export(&bytes.Buffer{}, slots.ExportOptions{
+					Path: fixture("setlist.hls"), Slot: 0, OutputPath: file,
+					As: slots.FormatPreset,
+				}))
+			}
+
+			o := slots.ImportOptions{
+				Path: fixture("setlist.hls"), File: file,
+				Slot: tt.slot, OutputPath: out,
+			}
+			if tt.path != "" {
+				o.Path = tt.path
+			}
+
+			var log bytes.Buffer
+
+			w := io.Writer(&log)
+
+			switch {
+			case tt.deaf:
+				w = &failingWriter{}
+			case tt.partial:
+				w = &oneGoodWrite{}
+			}
+
+			err := slots.Import(w, o)
+
+			if tt.errText != "" || tt.deaf || tt.partial {
+				s.Require().Error(err)
+
+				if tt.errText != "" {
+					s.Require().Contains(err.Error(), tt.errText)
+				}
+
+				return
+			}
+
+			s.Require().NoError(err)
+
+			if tt.want != "" {
+				s.Require().Equal(
+					tt.want, s.reread(out).Setlists[0].Slots[tt.slot].Meta.Name)
+			}
+
+			for _, want := range tt.contains {
+				s.Require().Contains(log.String(), want)
+			}
 		})
 	}
 }

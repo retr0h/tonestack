@@ -173,6 +173,12 @@ func (s *EncodeTestSuite) TestPlacementsOfReportsWhatItCannotWrite() {
 			},
 			want: "does not carry",
 		},
+		{
+			name: "a chain that cannot be read at all",
+			tone: map[string]json.RawMessage{
+				"block0": json.RawMessage(`"not a block"`),
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -192,21 +198,12 @@ func (s *EncodeTestSuite) TestPlacementsOfReportsWhatItCannotWrite() {
 			_, err = placementsOf(doc, cat)
 
 			s.Require().Error(err)
-			s.Require().Contains(err.Error(), tt.want)
+
+			if tt.want != "" {
+				s.Require().Contains(err.Error(), tt.want)
+			}
 		})
 	}
-}
-
-// TestPlacementsOfReportsAnUnreadablePreset covers a document whose chain
-// cannot be read at all.
-func (s *EncodeTestSuite) TestPlacementsOfReportsAnUnreadablePreset() {
-	doc, err := preset.Blank()
-	s.Require().NoError(err)
-
-	doc.Data.Tone[processorKey]["block0"] = json.RawMessage(`"not a block"`)
-
-	_, err = placementsOf(doc, s.cat)
-	s.Require().Error(err)
 }
 
 // TestValuesFollowTheCatalogsWord covers the typing JSON cannot carry.
@@ -220,7 +217,9 @@ func (s *EncodeTestSuite) TestValuesFollowTheCatalogsWord() {
 	}
 
 	tests := []struct {
-		name   string
+		name string
+		// a model the table names but gives nothing to set.
+		bare   bool
 		params map[string]catalog.ParamValue
 		want   []any
 	}{
@@ -250,19 +249,20 @@ func (s *EncodeTestSuite) TestValuesFollowTheCatalogsWord() {
 			},
 			want: []any{0.25, int64(7), false, int64(1), true},
 		},
+		{name: "a model with no parameters at all", bare: true},
 	}
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
+			if tt.bare {
+				s.Require().Nil(valuesOf(catalog.Symbol{}, nil, nil, nil))
+
+				return
+			}
+
 			s.Require().Equal(tt.want, valuesOf(sym, tt.params, types, nil))
 		})
 	}
-}
-
-// TestValuesOfAModelWithNoParameters covers a block the table names but
-// gives nothing to set.
-func (s *EncodeTestSuite) TestValuesOfAModelWithNoParameters() {
-	s.Require().Nil(valuesOf(catalog.Symbol{}, nil, nil, nil))
 }
 
 // TestMicOf covers the value a cabinet sends past its named ones.

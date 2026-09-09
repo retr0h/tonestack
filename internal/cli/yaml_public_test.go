@@ -35,53 +35,67 @@ type YAMLPublicTestSuite struct {
 	suite.Suite
 }
 
-// plain paints for a sink that takes no colour, which is what a buffer and a
-// redirected file both are.
-func (s *YAMLPublicTestSuite) plain(body string) string {
-	return cli.YAML(&bytes.Buffer{}, body)
-}
+// TestYAML paints a document for a sink that takes no colour, which is what a
+// buffer and a redirected file both are. The whole point: a rig redirected to
+// a file is still the rig, byte for byte. Painting happens only where a
+// terminal can show it.
+func (s *YAMLPublicTestSuite) TestYAML() {
+	tests := []struct {
+		name string
+		body string
+	}{
+		{
+			name: "a document",
+			body: strings.Join([]string{
+				"# a rig",
+				"schema: RigSpec",
+				"chain:",
+				"- gear: Ampeg SVT",
+				"  role: amp",
+				"",
+				"target:",
+				"  device: HX Stomp",
+			}, "\n"),
+		},
+		{name: "a line that is not a field", body: "just words"},
+		{name: "a colour a switch can show", body: "  led: violet"},
+		{
+			// `auto` is not a colour — the light follows the block.
+			name: "a switch following its block",
+			body: "  led: auto color",
+		},
+		{
+			// A name this does not know gets no colour rather than a wrong
+			// one.
+			name: "a colour nobody has",
+			body: "  led: chartreuse",
+		},
+	}
 
-func (s *YAMLPublicTestSuite) TestADocumentSurvivesBeingPainted() {
-	// The whole point: a rig redirected to a file is still the rig. Painting
-	// happens only where a terminal can show it.
-	body := strings.Join([]string{
-		"# a rig",
-		"schema: RigSpec",
-		"chain:",
-		"- gear: Ampeg SVT",
-		"  role: amp",
-		"",
-		"target:",
-		"  device: HX Stomp",
-	}, "\n")
-
-	s.Require().Equal(body, s.plain(body))
-}
-
-func (s *YAMLPublicTestSuite) TestALineThatIsNotAField() {
-	s.Require().Equal("just words", s.plain("just words"))
-}
-
-func (s *YAMLPublicTestSuite) TestAColourIsShownLit() {
-	// Painted in the colour it names where a terminal can show it, and left
-	// exactly as written where one cannot.
-	s.Require().Equal("  led: violet", s.plain("  led: violet"))
-
-	// `auto` is not a colour — the light follows the block — and a name this
-	// does not know gets no colour rather than a wrong one.
-	s.Require().Equal("  led: auto color", s.plain("  led: auto color"))
-	s.Require().Equal("  led: chartreuse", s.plain("  led: chartreuse"))
-}
-
-func (s *YAMLPublicTestSuite) TestSwatchRefusesWhatIsNotAColour() {
-	for _, rgb := range []int{-1, 0x1000000} {
-		s.Require().Equal("x", cli.Swatch(&bytes.Buffer{}, rgb, "x"))
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			s.Require().Equal(tt.body, cli.YAML(&bytes.Buffer{}, tt.body))
+		})
 	}
 }
 
-func (s *YAMLPublicTestSuite) TestSwatchOnBlack() {
-	// A switch that lights nothing has no hue to raise.
-	s.Require().Equal("x", cli.Swatch(&bytes.Buffer{}, 0, "x"))
+// TestSwatch raises the hue of what it is given, where it can.
+func (s *YAMLPublicTestSuite) TestSwatch() {
+	tests := []struct {
+		name string
+		rgb  int
+	}{
+		{name: "a colour below the range", rgb: -1},
+		{name: "a colour above it", rgb: 0x1000000},
+		// A switch that lights nothing has no hue to raise.
+		{name: "black", rgb: 0},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			s.Require().Equal("x", cli.Swatch(&bytes.Buffer{}, tt.rgb, "x"))
+		})
+	}
 }
 
 func TestYAMLPublicTestSuite(t *testing.T) {
