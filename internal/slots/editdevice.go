@@ -183,18 +183,17 @@ func slotBytes(
 	s sdk.Editor,
 	setlist, slot int,
 ) ([]byte, error) {
-	got, err := s.ReadPreset(ctx, setlist, slot)
+	body, err := s.ReadPreset(ctx, setlist, slot)
 	if err != nil {
 		return nil, fmt.Errorf("reading slot %s: %w", slotpkg.Label(slot), err)
 	}
 
-	body, ok := got.(string)
-	if !ok {
+	if body == nil {
 		return nil, fmt.Errorf("slot %s did not answer with a preset",
 			slotpkg.Label(slot))
 	}
 
-	return []byte(body), nil
+	return body, nil
 }
 
 // names reads what the device calls both slots, before either is changed.

@@ -147,6 +147,15 @@ func (s *Session) awaitReply(
 	deadline := time.Now().Add(replyBudget)
 
 	for time.Now().Before(deadline) {
+		// receive reports a failed read as the device having nothing to say,
+		// which is right for a timeout and wrong for a cancelled context: a
+		// read that returns instantly turns this into a spin, and the caller
+		// is told the device never answered rather than that they stopped
+		// waiting.
+		if err := ctx.Err(); err != nil {
+			return wire.Response{}, err
+		}
+
 		got := s.receive(ctx, replyReadWait)
 
 		for {
@@ -211,8 +220,11 @@ func (s *Session) Presets(ctx context.Context, setlist int) ([]wire.Preset, erro
 // channel, or without it, a device answers successfully with nothing at all.
 //
 // An empty slot answers with nothing too, which is a slot holding no preset
-// rather than a failure.
-func (s *Session) ReadPreset(ctx context.Context, setlist, slot int) (any, error) {
+// rather than a failure: no bytes and no error.
+func (s *Session) ReadPreset(
+	ctx context.Context,
+	setlist, slot int,
+) ([]byte, error) {
 	resp, err := s.Call(ctx, channelData, opReadPreset, []wire.Arg{
 		{Key: argSetlist, Value: uint64(setlist)},
 		{Key: argSlot, Value: uint64(slot)},
@@ -222,5 +234,5 @@ func (s *Session) ReadPreset(ctx context.Context, setlist, slot int) (any, error
 		return nil, err
 	}
 
-	return resp.Result, nil
+	return document(resp.Result)
 }

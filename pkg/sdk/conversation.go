@@ -44,13 +44,16 @@ const (
 const (
 	openReadWait   = 800 * time.Millisecond
 	replyReadWait  = 300 * time.Millisecond
-	replyBudget    = 6 * time.Second
 	drainReadWait  = 150 * time.Millisecond
 	drainBudget    = 3 * time.Second
 	drainQuietRuns = 3
 	claimAttempts  = 7
 	claimBackoff   = 50 * time.Millisecond
 )
+
+// replyBudget is how long a device is given to answer. A variable rather than
+// a constant so a test can shorten it; nothing else writes to it.
+var replyBudget = 6 * time.Second
 
 // Opcodes this package uses.
 const (

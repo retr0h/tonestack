@@ -46,6 +46,8 @@ func (s *TransportTestSuite) TestDrain() {
 		name   string
 		device func() *device
 		opened bool
+		// somebody who stopped waiting, who is not owed a drained endpoint.
+		cancelled bool
 	}{
 		{
 			name:   "a device with nothing to say",
@@ -72,6 +74,13 @@ func (s *TransportTestSuite) TestDrain() {
 			},
 			opened: true,
 		},
+		{
+			// A cancelled read returns instantly, so draining on regardless
+			// would spin for the whole budget rather than stop.
+			name:      "a session nobody is waiting on any more",
+			device:    func() *device { return answers() },
+			cancelled: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -83,7 +92,14 @@ func (s *TransportTestSuite) TestDrain() {
 				session.OpenChannels()
 			}
 
-			session.Drain(context.Background())
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			if tt.cancelled {
+				cancel()
+			}
+
+			session.Drain(ctx)
 
 			s.Require().Empty(d.replies, "everything the device had was read")
 		})

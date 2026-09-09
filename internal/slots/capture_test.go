@@ -138,36 +138,22 @@ func (s *CaptureTestSuite) TestDump() {
 // TestDescribe says what arrived when nothing here can decode it.
 func (s *CaptureTestSuite) TestDescribe() {
 	tests := []struct {
-		name string
-		got  any
-		to   io.Writer
-		want string
-		err  bool
+		name  string
+		shape string
+		to    io.Writer
+		want  string
+		err   bool
 	}{
 		{
-			name: "a document",
-			got:  map[any]any{1: "a", 2: "b"},
-			want: "map with 2 keys",
+			name:  "what the device answered with",
+			shape: "map with 2 keys",
+			want:  "map with 2 keys",
 		},
 		{
-			name: "a blob",
-			got:  []byte{1, 2, 3},
-			want: "3 bytes",
-		},
-		{
-			name: "a preset, which arrives as opaque bytes",
-			got:  "l6-helix\x00\xff",
-			want: "10 bytes",
-		},
-		{
-			name: "something else entirely",
-			got:  42,
-			want: "int",
-		},
-		{
-			name: "nowhere to say it",
-			to:   &brokenWriter{},
-			err:  true,
+			name:  "nowhere to say it",
+			shape: "map with 2 keys",
+			to:    &brokenWriter{},
+			err:   true,
 		},
 	}
 
@@ -180,7 +166,7 @@ func (s *CaptureTestSuite) TestDescribe() {
 				to = &buf
 			}
 
-			err := describe(to, "HX Stomp", 3, tt.got)
+			err := describe(to, "HX Stomp", 3, tt.shape)
 
 			if tt.err {
 				s.Require().Error(err)

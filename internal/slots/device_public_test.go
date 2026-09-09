@@ -60,12 +60,12 @@ func (s *DevicePublicTestSuite) SetupTest() {
 func (s *DevicePublicTestSuite) TearDownTest() { s.ctrl.Finish() }
 
 // answer returns one slot as the hardware sent it.
-func (s *DevicePublicTestSuite) answer(name string) string {
+func (s *DevicePublicTestSuite) answer(name string) []byte {
 	raw, err := os.ReadFile(
 		filepath.Join("..", "..", "pkg", "sdk", "wire", "testdata", name))
 	s.Require().NoError(err)
 
-	return string(raw)
+	return raw
 }
 
 // listing is what the device says a setlist holds.
@@ -140,10 +140,11 @@ func (s *DevicePublicTestSuite) TestListWith() {
 			// One unreadable preset should not hide the hundred that read.
 			name: "a preset that will not decode",
 			expect: func() {
-				s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 0).Return("not a preset", nil)
-				s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 24).Return(42, nil)
-				s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 79).
-					Return(s.answer("empty.bin"), nil)
+				s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 0).
+					Return([]byte("not a preset"), nil)
+				s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 24).
+					Return(nil, &sdk.NotAPresetError{Result: 42})
+				s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 79).Return(nil, nil)
 			},
 			opts:     slots.DeviceOptions{All: true},
 			contains: []string{"0 in use"},
@@ -193,13 +194,16 @@ func (s *DevicePublicTestSuite) TestListWithReportsAListingItCannotGet() {
 // TestShowWith writes out one slot.
 func (s *DevicePublicTestSuite) TestShowWith() {
 	tests := []struct {
-		name     string
-		slot     int
-		answer   any
-		listing  error
-		contains []string
-		is       error
-		says     string
+		name string
+		slot int
+		// what the device answered with: a preset, or something that is not
+		// one.
+		answer    []byte
+		notPreset any
+		listing   error
+		contains  []string
+		is        error
+		says      string
 	}{
 		{
 			name:   "a preset, as a rig",
@@ -239,10 +243,10 @@ func (s *DevicePublicTestSuite) TestShowWith() {
 		{
 			// Nothing guarantees what comes off a wire. Saying what arrived
 			// beats printing a rig that would be wrong.
-			name:     "an answer that is not a preset",
-			slot:     0,
-			answer:   map[any]any{1: 2},
-			contains: []string{"map with 1 keys"},
+			name:      "an answer that is not a preset",
+			slot:      0,
+			notPreset: map[any]any{1: 2},
+			contains:  []string{"map with 1 keys"},
 		},
 		{
 			// A device answers an empty slot with no document at all. That
@@ -264,10 +268,14 @@ func (s *DevicePublicTestSuite) TestShowWith() {
 		s.Run(tt.name, func() {
 			s.dev.EXPECT().Presets(gomock.Any(), 0).Return(s.listing(), tt.listing)
 
-			if tt.says != "" {
+			switch {
+			case tt.says != "":
 				s.dev.EXPECT().ReadPreset(gomock.Any(), 0, tt.slot).
 					Return(nil, errors.New("boom"))
-			} else {
+			case tt.notPreset != nil:
+				s.dev.EXPECT().ReadPreset(gomock.Any(), 0, tt.slot).
+					Return(nil, &sdk.NotAPresetError{Result: tt.notPreset})
+			default:
 				s.dev.EXPECT().ReadPreset(gomock.Any(), 0, tt.slot).
 					Return(tt.answer, nil)
 			}
@@ -304,7 +312,10 @@ func (s *DevicePublicTestSuite) TestShowWithKeepsTheAnswer() {
 	tests := []struct {
 		name string
 		path func() string
-		err  bool
+		// a device answering with something that is not a preset, which is
+		// the answer most worth keeping.
+		notPreset bool
+		err       bool
 	}{
 		{
 			name: "somewhere it can write",
@@ -317,6 +328,19 @@ func (s *DevicePublicTestSuite) TestShowWithKeepsTheAnswer() {
 			},
 			err: true,
 		},
+		{
+			name:      "an answer nobody could decode",
+			path:      func() string { return filepath.Join(s.T().TempDir(), "slot.bin") },
+			notPreset: true,
+		},
+		{
+			name: "one nowhere to keep",
+			path: func() string {
+				return filepath.Join(s.T().TempDir(), "no", "such", "dir.bin")
+			},
+			notPreset: true,
+			err:       true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -325,8 +349,14 @@ func (s *DevicePublicTestSuite) TestShowWithKeepsTheAnswer() {
 			s.T().Setenv("TONESTACK_USB_DUMP", path)
 
 			s.dev.EXPECT().Presets(gomock.Any(), 0).Return(s.listing(), nil)
-			s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 0).
-				Return(s.answer("preset.bin"), nil)
+
+			if tt.notPreset {
+				s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 0).
+					Return(nil, &sdk.NotAPresetError{Result: map[any]any{1: 2}})
+			} else {
+				s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 0).
+					Return(s.answer("preset.bin"), nil)
+			}
 
 			err := slots.ShowWith(context.Background(), &bytes.Buffer{}, s.dev,
 				slots.DeviceOptions{Slot: 0})
@@ -341,7 +371,16 @@ func (s *DevicePublicTestSuite) TestShowWithKeepsTheAnswer() {
 
 			body, readErr := os.ReadFile(path) //nolint:gosec // a path this test wrote
 			s.Require().NoError(readErr)
-			s.Require().Equal(s.answer("preset.bin"), string(body), "kept verbatim")
+
+			if tt.notPreset {
+				// A decoded document is kept as JSON, since there are no
+				// original bytes to keep.
+				s.Require().Contains(string(body), "1")
+
+				return
+			}
+
+			s.Require().Equal(s.answer("preset.bin"), body, "kept verbatim")
 		})
 	}
 }
@@ -351,7 +390,7 @@ func (s *DevicePublicTestSuite) TestExportWith() {
 	tests := []struct {
 		name     string
 		opts     slots.ExportOptions
-		answer   any
+		answer   []byte
 		out      string
 		contains []string
 		is       error
@@ -539,7 +578,7 @@ func (s *DevicePublicTestSuite) TestTheCommandsThatFindTheirOwnDevice() {
 func (s *DevicePublicTestSuite) TestShowDeviceOnAnEmptySlot() {
 	tests := []struct {
 		name     string
-		answer   any
+		answer   []byte
 		fails    error
 		contains string
 		says     string

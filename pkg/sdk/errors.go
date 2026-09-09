@@ -44,3 +44,61 @@ func (e *UnknownModelError) Error() string {
 
 // Unwrap returns ErrUnknownModel so callers can match with errors.Is.
 func (*UnknownModelError) Unwrap() error { return ErrUnknownModel }
+
+// ErrNotAPreset reports a device answering a read with something other than a
+// preset document.
+var ErrNotAPreset = errors.New("the device did not answer with a preset")
+
+// NotAPresetError carries what arrived instead.
+//
+// The reply is kept rather than described, because a device answering
+// something nobody expected is the one case worth looking at whole: this is
+// how a protocol change becomes visible, and `any` is the honest type for a
+// value nothing could interpret.
+type NotAPresetError struct {
+	// Result is what the device sent.
+	Result any
+}
+
+// Shape describes the answer in whatever detail can be had.
+func (e *NotAPresetError) Shape() string {
+	switch v := e.Result.(type) {
+	case map[any]any:
+		return fmt.Sprintf("map with %d keys", len(v))
+	case []byte:
+		return fmt.Sprintf("%d bytes", len(v))
+	default:
+		return fmt.Sprintf("%T", e.Result)
+	}
+}
+
+// Error implements the error interface.
+func (e *NotAPresetError) Error() string {
+	return fmt.Sprintf(
+		"the device did not answer with a preset, but with %s", e.Shape())
+}
+
+// Unwrap returns ErrNotAPreset so callers can match with errors.Is.
+func (*NotAPresetError) Unwrap() error { return ErrNotAPreset }
+
+// document reads the preset out of a reply.
+//
+// A device answers an empty slot with nothing at all, which is a slot holding
+// no preset rather than a failure, so that comes back as no bytes and no
+// error. Anything else that is not a document is a failure, and saying so
+// here — where the wire format is known — keeps a protocol change from
+// reading as an empty slot at every call site.
+func document(result any) ([]byte, error) {
+	if result == nil {
+		return nil, nil
+	}
+
+	// A preset arrives as an opaque run of bytes that MessagePack's string
+	// type happens to carry.
+	body, ok := result.(string)
+	if !ok {
+		return nil, &NotAPresetError{Result: result}
+	}
+
+	return []byte(body), nil
+}

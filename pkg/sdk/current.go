@@ -33,11 +33,11 @@ const opReadCurrent = 22
 // whatever they have changed since it was loaded. A stored slot is what
 // ReadPreset answers with, and the two differ — a loaded document carries the
 // firmware build string a stored one does not.
-func (s *Session) ReadCurrent(ctx context.Context) (any, error) {
+func (s *Session) ReadCurrent(ctx context.Context) ([]byte, error) {
 	resp, err := s.Call(ctx, channelData, opReadCurrent, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	return resp.Result, nil
+	return document(resp.Result)
 }

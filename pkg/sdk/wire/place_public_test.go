@@ -391,13 +391,22 @@ func (s *PlacePublicTestSuite) TestPlaceAsWritten() {
 
 			s.Require().NoError(err)
 
+			// Where the blocks landed, read back out of the document. The
+			// chain handed over is the caller's and comes back unshifted.
+			read := s.read(doc)
+
 			got := []int{}
-			for _, b := range tt.blocks {
-				got = append(got, b.Position)
+			for _, b := range read.Blocks {
+				got = append(got, b.Index)
 			}
 
 			s.Require().Equal(tt.want, got)
-			s.Require().Len(s.read(doc).Blocks, len(tt.blocks))
+			s.Require().Len(read.Blocks, len(tt.blocks))
+
+			for i, b := range tt.blocks {
+				s.Require().Equal(tt.want[i]-wire.GridOffset, b.Position,
+					"the caller's chain must come back as it went in")
+			}
 		})
 	}
 }
