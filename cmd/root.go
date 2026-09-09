@@ -24,8 +24,10 @@
 package cmd
 
 import (
-	"fmt"
+	"context"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/spf13/cobra"
 
@@ -42,10 +44,7 @@ Line 6 Helix device.
 Everything needed ships in this binary: the curated gear knowledge, and the
 catalog of what the device can do. Nothing else has to be installed, and no
 device has to be attached, to describe a chain and write a preset.`,
-	// Cobra prints its own "Error: …" line. Ours is the themed one, so
-	// cobra's is silenced rather than shown alongside it.
-	SilenceErrors: true,
-	Args:          cobra.NoArgs,
+	Args: cobra.NoArgs,
 }
 
 // Execute is called by main.main(). It only needs to happen once to the
@@ -57,8 +56,21 @@ func Execute() {
 
 	styleHelp(rootCmd)
 
-	if err := rootCmd.Execute(); err != nil {
-		fmt.Fprintln(os.Stderr, cli.Failure(os.Stderr, err.Error()))
+	// Cobra prints what went wrong and the flags for the command that would
+	// not run. The mark this tool puts in front of a failure goes with it, so
+	// what cobra prints reads like everything else this tool says.
+	rootCmd.SetErrPrefix(cli.FailurePrefix(os.Stderr))
+
+	// A device command holds a USB interface and gives it back on the way
+	// out. Ctrl-C has to reach it: without a context to cancel, the process
+	// dies where it stands, the interface is released by teardown rather
+	// than by the session that claimed it, and the pedal is left needing a
+	// power cycle. See docs/protocol.md.
+	ctx, stop := signal.NotifyContext(
+		context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	if err := rootCmd.ExecuteContext(ctx); err != nil {
 		os.Exit(1)
 	}
 }

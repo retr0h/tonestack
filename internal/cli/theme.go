@@ -227,17 +227,29 @@ func Failure(w io.Writer, msg string) string {
 	return marked(Err(w, "✗"), "[err]", msg)
 }
 
-// marked prefixes a message with a symbol, falling back to a word when
-// lipgloss decided not to colour.
+// FailurePrefix is the mark Failure puts in front of a message, on its own.
+//
+// Cobra prints an error itself and takes a prefix rather than a finished line,
+// so the mark has to be available without a message behind it.
+func FailurePrefix(w io.Writer) string {
+	return mark(Err(w, "✗"), "[err]")
+}
+
+// mark picks the symbol or the word, depending on whether lipgloss coloured.
 //
 // An uncoloured ✓ is just a character in the text with nothing to say it
 // means success, so a bracketed word carries the meaning instead.
-func marked(symbol, fallback, msg string) string {
+func mark(symbol, fallback string) string {
 	if !strings.ContainsRune(symbol, 0x1b) {
-		return fallback + " " + msg
+		return fallback
 	}
 
-	return symbol + " " + msg
+	return symbol
+}
+
+// marked prefixes a message with that mark.
+func marked(symbol, fallback, msg string) string {
+	return mark(symbol, fallback) + " " + msg
 }
 
 // Swatch renders s in a colour a device chose rather than one this theme did.

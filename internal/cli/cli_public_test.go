@@ -118,6 +118,12 @@ func (s *ThemePublicTestSuite) TestSuccessAndFailure() {
 	}
 }
 
+// TestFailurePrefix is the mark on its own, for cobra to print an error
+// behind.
+func (s *ThemePublicTestSuite) TestFailurePrefix() {
+	s.Require().Equal("[err]", cli.FailurePrefix(&bytes.Buffer{}))
+}
+
 // TestSetTheme picks a theme by name.
 func (s *ThemePublicTestSuite) TestSetTheme() {
 	tests := []struct {
