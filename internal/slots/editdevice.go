@@ -53,7 +53,7 @@ func editDevice(
 	w io.Writer,
 	opts EditOptions,
 	verb string,
-	apply func(context.Context, sdk.Editor, EditOptions) (string, string, error),
+	apply func(context.Context, sdk.Editor, EditOptions) (string, string, []string, error),
 ) error {
 	s, err := openDevice(ctx)
 	if err != nil {
@@ -82,10 +82,14 @@ func editWith(
 	s sdk.Editor,
 	opts EditOptions,
 	verb string,
-	apply func(context.Context, sdk.Editor, EditOptions) (string, string, error),
+	apply func(context.Context, sdk.Editor, EditOptions) (string, string, []string, error),
 ) error {
-	fromName, toName, err := apply(ctx, s, opts)
+	fromName, toName, kept, err := apply(ctx, s, opts)
 	if err != nil {
+		return err
+	}
+
+	if err := said(w, kept...); err != nil {
 		return err
 	}
 
@@ -104,20 +108,35 @@ func copyOne(
 	ctx context.Context,
 	s sdk.Editor,
 	opts EditOptions,
-) (string, string, error) {
+) (string, string, []string, error) {
 	from, to, err := names(ctx, s, opts)
 	if err != nil {
-		return "", "", err
+		return "", "", nil, err
 	}
 
 	body, err := slotBytes(ctx, s, opts.FromSetlist, opts.FromSlot)
 	if err != nil {
-		return "", "", err
+		return "", "", nil, err
 	}
 
+	// Before the backup: a session that cannot write is not going to
+	// replace anything, so reading the destination to keep it would be a
+	// round trip to the device for nothing.
 	w, err := writerFor(s)
 	if err != nil {
-		return "", "", err
+		return "", "", nil, err
+	}
+
+	// The destination is about to stop being what it was, and unlike the
+	// source nobody has read it yet.
+	replaced, err := holds(ctx, s, opts.ToSetlist, opts.ToSlot)
+	if err != nil {
+		return "", "", nil, err
+	}
+
+	kept, err := keep(replaced, opts, opts.ToSlot)
+	if err != nil {
+		return "", "", nil, err
 	}
 
 	// Named, because the destination takes the source's name along with its
@@ -125,11 +144,11 @@ func copyOne(
 	// was, which is not what copying a preset means.
 	if err := w.WriteNamedPreset(
 		ctx, opts.ToSetlist, opts.ToSlot, from, body); err != nil {
-		return "", "", fmt.Errorf("writing slot %s: %w",
+		return "", "", nil, fmt.Errorf("writing slot %s: %w",
 			slotpkg.Label(opts.ToSlot), err)
 	}
 
-	return from, to, nil
+	return from, to, kept, nil
 }
 
 // swapTwo exchanges what two slots hold.
@@ -141,40 +160,54 @@ func swapTwo(
 	ctx context.Context,
 	s sdk.Editor,
 	opts EditOptions,
-) (string, string, error) {
+) (string, string, []string, error) {
 	from, to, err := names(ctx, s, opts)
 	if err != nil {
-		return "", "", err
+		return "", "", nil, err
 	}
 
 	source, err := slotBytes(ctx, s, opts.FromSetlist, opts.FromSlot)
 	if err != nil {
-		return "", "", err
+		return "", "", nil, err
 	}
 
 	destination, err := slotBytes(ctx, s, opts.ToSetlist, opts.ToSlot)
 	if err != nil {
-		return "", "", err
+		return "", "", nil, err
 	}
 
 	w, err := writerFor(s)
 	if err != nil {
-		return "", "", err
+		return "", "", nil, err
 	}
+
+	// Both of them, because a swap replaces both. No extra reads: a swap has
+	// already read what it is about to move.
+	kept, err := keep(destination, opts, opts.ToSlot)
+	if err != nil {
+		return "", "", nil, err
+	}
+
+	also, err := keep(source, opts, opts.FromSlot)
+	if err != nil {
+		return "", "", nil, err
+	}
+
+	kept = append(kept, also...)
 
 	if err := w.WriteNamedPreset(
 		ctx, opts.ToSetlist, opts.ToSlot, from, source); err != nil {
-		return "", "", fmt.Errorf("writing slot %s: %w",
+		return "", "", nil, fmt.Errorf("writing slot %s: %w",
 			slotpkg.Label(opts.ToSlot), err)
 	}
 
 	if err := w.WriteNamedPreset(
 		ctx, opts.FromSetlist, opts.FromSlot, to, destination); err != nil {
-		return "", "", fmt.Errorf("writing slot %s: %w",
+		return "", "", nil, fmt.Errorf("writing slot %s: %w",
 			slotpkg.Label(opts.FromSlot), err)
 	}
 
-	return from, to, nil
+	return from, to, kept, nil
 }
 
 // slotBytes reads one slot as the bytes the device holds.

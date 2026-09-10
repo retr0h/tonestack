@@ -48,6 +48,12 @@ type EditOptions struct {
 	ToSlot    int
 	// OutputPath is where the edited file is written.
 	OutputPath string
+	// BackupDir is where a device slot's old contents are kept. Empty uses
+	// the state directory.
+	BackupDir string
+	// CatalogPath is the generated catalog, needed to read a slot before
+	// replacing it.
+	CatalogPath string
 }
 
 // Copy overwrites one slot with another and writes the result.

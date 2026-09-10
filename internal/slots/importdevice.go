@@ -67,7 +67,25 @@ func ImportWith(
 		return err
 	}
 
+	// Before the backup rather than after it: a session that cannot write
+	// is not going to replace anything, so reading the slot to keep it would
+	// be a round trip to the device for nothing.
 	writer, err := writerFor(s)
+	if err != nil {
+		return err
+	}
+
+	// What the slot holds now, before it stops holding it.
+	replaced, err := holds(ctx, s, opts.Setlist, opts.Slot)
+	if err != nil {
+		return err
+	}
+
+	kept, err := backup(replaced, DeviceOptions{
+		Deps:        opts.Deps,
+		Slot:        opts.Slot,
+		CatalogPath: opts.CatalogPath,
+	}, opts.BackupDir)
 	if err != nil {
 		return err
 	}
@@ -77,6 +95,10 @@ func ImportWith(
 	if err := writer.WriteNamedPreset(
 		ctx, opts.Setlist, opts.Slot, name, body); err != nil {
 		return fmt.Errorf("writing slot %s: %w", slotpkg.Label(opts.Slot), err)
+	}
+
+	if err := said(w, kept); err != nil {
+		return err
 	}
 
 	_, err = fmt.Fprintf(w, "\n%s%s %s %s\n\n%s%s\n\n",

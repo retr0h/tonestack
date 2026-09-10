@@ -212,6 +212,13 @@ func (s *ImportDevicePublicTestSuite) TestImportWith() {
 				dev = mocks.NewMockEditor(s.ctrl)
 			}
 
+			// The destination is read before it is replaced, so that what it
+			// held is kept. An empty answer is a slot with nothing in it,
+			// which is nothing to lose rather than a reason to stop.
+			s.dev.MockEditor.EXPECT().
+				ReadPreset(gomock.Any(), 0, 7).
+				Return(nil, nil).AnyTimes()
+
 			var out bytes.Buffer
 
 			w := io.Writer(&out)
@@ -221,6 +228,7 @@ func (s *ImportDevicePublicTestSuite) TestImportWith() {
 
 			err := slots.ImportWith(s.T().Context(), w, dev, slots.ImportOptions{
 				File: file, Slot: 7, CatalogPath: tt.catalog,
+				BackupDir: s.T().TempDir(),
 			})
 
 			if tt.errText != "" {
@@ -270,6 +278,11 @@ func (s *ImportDevicePublicTestSuite) TestImportDevice() {
 			defer func() { *slots.OpenDevice = restore }()
 
 			if tt.attached {
+				// The destination is read first, so what it held is kept.
+				s.dev.MockEditor.EXPECT().
+					ReadPreset(gomock.Any(), 0, 7).
+					Return(nil, nil)
+
 				s.dev.MockWriter.EXPECT().
 					WriteNamedPreset(
 						gomock.Any(), gomock.Any(), gomock.Any(),
@@ -288,7 +301,9 @@ func (s *ImportDevicePublicTestSuite) TestImportDevice() {
 			var out bytes.Buffer
 
 			err := slots.ImportDevice(s.T().Context(), &out,
-				slots.ImportOptions{File: s.preset(), Slot: 7})
+				slots.ImportOptions{
+					File: s.preset(), Slot: 7, BackupDir: s.T().TempDir(),
+				})
 
 			if tt.errText != "" {
 				s.Require().ErrorContains(err, tt.errText)

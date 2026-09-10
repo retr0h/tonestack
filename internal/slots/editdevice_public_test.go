@@ -210,6 +210,14 @@ func (s *EditDevicePublicTestSuite) TestCopyWith() {
 				s.expectRead(reader, 0, tt.read)
 			}
 
+			// The destination is read as well now, so that what it held can
+			// be kept before it stops holding it. A swap needs no such read:
+			// it has already read both slots to move them. A session that
+			// cannot write never gets that far.
+			if tt.read == "answered" && !tt.readOnly {
+				s.expectRead(reader, 3, "answered")
+			}
+
 			if tt.write != "" {
 				s.expectWrite(3, "Chunky Monkey", tt.write == "landed")
 			}
@@ -217,7 +225,9 @@ func (s *EditDevicePublicTestSuite) TestCopyWith() {
 			var out bytes.Buffer
 
 			err := slots.CopyWith(context.Background(), &out, dev,
-				slots.EditOptions{FromSlot: 0, ToSlot: 3})
+				slots.EditOptions{
+					FromSlot: 0, ToSlot: 3, BackupDir: s.T().TempDir(),
+				})
 
 			if tt.errText != "" {
 				s.Require().Error(err)
@@ -333,7 +343,9 @@ func (s *EditDevicePublicTestSuite) TestSwapWith() {
 			var out bytes.Buffer
 
 			err := slots.SwapWith(context.Background(), &out, dev,
-				slots.EditOptions{FromSlot: 0, ToSlot: 3})
+				slots.EditOptions{
+					FromSlot: 0, ToSlot: 3, BackupDir: s.T().TempDir(),
+				})
 
 			if tt.errText != "" {
 				s.Require().Error(err)
@@ -375,8 +387,11 @@ func (s *EditDevicePublicTestSuite) TestCopyDeviceAndSwapDevice() {
 
 				s.dev.MockEditor.EXPECT().Presets(gomock.Any(), 0).
 					Return(s.listing(), nil).Times(2)
+				// Four: a copy reads its source and the destination it is
+				// about to replace, a swap reads both of the slots it moves
+				// and keeps them from those same reads.
 				s.dev.MockEditor.EXPECT().ReadPreset(gomock.Any(), 0, gomock.Any()).
-					Return(s.answer(), nil).Times(3)
+					Return(s.answer(), nil).Times(4)
 				s.dev.MockWriter.EXPECT().
 					WriteNamedPreset(
 						gomock.Any(), 0, gomock.Any(), gomock.Any(), gomock.Any()).
@@ -384,7 +399,9 @@ func (s *EditDevicePublicTestSuite) TestCopyDeviceAndSwapDevice() {
 			}
 
 			ctx := context.Background()
-			opts := slots.EditOptions{FromSlot: 0, ToSlot: 3}
+			opts := slots.EditOptions{
+				FromSlot: 0, ToSlot: 3, BackupDir: s.T().TempDir(),
+			}
 
 			if !tt.attached {
 				s.Require().Error(slots.CopyDevice(ctx, &bytes.Buffer{}, opts))

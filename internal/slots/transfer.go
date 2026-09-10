@@ -132,6 +132,10 @@ func writeRig(
 
 // ImportOptions says which preset file to put in which slot.
 type ImportOptions struct {
+	// BackupDir is where the destination slot's old contents are kept.
+	// Empty uses the state directory.
+	BackupDir string
+
 	// Deps are the collaborators this command works through.
 	Deps
 
