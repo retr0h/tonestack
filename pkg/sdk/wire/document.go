@@ -67,8 +67,8 @@ type Document struct {
 	sections map[int8]msgpack.RawMessage
 }
 
-// DecodeDocument reads a preset without interpreting it.
-func DecodeDocument(raw []byte) (*Document, error) {
+// decodeDocument reads a preset without interpreting it.
+func decodeDocument(raw []byte) (*Document, error) {
 	dec := msgpack.NewDecoder(bytes.NewReader(raw))
 
 	magic, err := decodeRawString(dec)

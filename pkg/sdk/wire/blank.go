@@ -44,4 +44,4 @@ var blank []byte
 //
 // Each call returns its own document, because the caller is about to write
 // into it.
-func Blank() (*Document, error) { return DecodeDocument(blank) }
+func Blank() (*Document, error) { return decodeDocument(blank) }

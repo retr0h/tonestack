@@ -18,28 +18,15 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-package rig
+package compile
 
-// LoadSchema is the contract reader, exported for tests that hand it a
-// document other than the one this binary ships.
-var LoadSchema = load
-
-// Contract is the cached schema, exported so a test can stand in a failure
-// for it. The real one is embedded and cannot fail; what needs covering is
-// what happens to a rig if it ever did.
-var Contract = &contract
-
-// Against checks a document against the contract, exported so a test can
-// hand it something a generated type could never produce.
-var Against = against
-
-// Invalid turns a schema failure into one that names the field, exported so
-// a test can hand it a failure the library does not currently produce.
-var Invalid = invalid
-
-// Gear is gear, exposed to this package's external tests.
+// Exposed to this package's external tests.
 //
-// GearName is the exported half and answers with a name. This answers with
-// the whole entry and with whether there was one, which is the part a test of
-// the lookup itself needs.
-var Gear = gear
+// Both are steps Lower takes rather than things a caller reaches, and each
+// has a contract of its own that Lower's test does not reach: check reports
+// which value a device has no such thing for, and gear reports the near
+// misses when a name matches no model.
+var (
+	Check = check
+	Gear  = gear
+)

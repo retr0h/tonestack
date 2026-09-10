@@ -73,7 +73,7 @@ var commitBudget = 10 * time.Second
 // wire.Document, which keeps a preset's own bytes and rebuilds the table.
 //
 // Waits for the device to say it finished, not merely that it accepted.
-func (s *Session) WritePreset(
+func (s *session) WritePreset(
 	ctx context.Context,
 	setlist, slot int,
 	document []byte,
@@ -90,7 +90,7 @@ func (s *Session) WritePreset(
 // What a paste or an import does. Writing without the name leaves whatever
 // the slot was called, which is right for editing a preset in place and wrong
 // for putting a different one there.
-func (s *Session) WriteNamedPreset(
+func (s *session) WriteNamedPreset(
 	ctx context.Context,
 	setlist, slot int,
 	name string,
@@ -106,7 +106,7 @@ func (s *Session) WriteNamedPreset(
 
 // write sends one request too large for a single frame, and waits for the
 // device to finish acting on it.
-func (s *Session) write(
+func (s *session) write(
 	ctx context.Context,
 	opcode uint64,
 	args []wire.Arg,
@@ -160,7 +160,7 @@ var flashBudget = 750 * time.Millisecond
 
 // stream sends a message in the size a device takes, reading between frames
 // so it can pace the sender.
-func (s *Session) stream(ctx context.Context, c *channel, body []byte) error {
+func (s *session) stream(ctx context.Context, c *channel, body []byte) error {
 	for len(body) > 0 {
 		n := min(len(body), streamChunk)
 

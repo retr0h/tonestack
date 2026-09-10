@@ -38,8 +38,8 @@ import (
 // each position is switched on. A chain written without them recalls the
 // wrong blocks the moment anybody presses a snapshot.
 
-// GridSize is how many positions a device lays a chain out on.
-const GridSize = 20
+// gridSize is how many positions a device lays a chain out on.
+const gridSize = 20
 
 // kindEmpty is a grid position holding nothing. The other kinds a position
 // declares itself as are named in preset.go.
@@ -115,12 +115,12 @@ type Placement struct {
 	CabModel int
 }
 
-// Place writes a chain into a preset, snapshots included.
+// place writes a chain into a preset, snapshots included.
 //
 // Every position that can hold a block is written: one the chain names gets
 // that block, and one it does not gets emptied. A preset therefore says the
 // same thing whatever it held before.
-func Place(
+func place(
 	doc *Document,
 	blocks []Placement,
 ) error {
@@ -144,7 +144,7 @@ func Place(
 	}
 
 	// Backwards, so a replacement never moves a position not yet written.
-	for i := GridSize - 1; i >= 0; i-- {
+	for i := gridSize - 1; i >= 0; i-- {
 		start, end, ok := openAt(body, i)
 		if !ok {
 			continue
@@ -165,12 +165,12 @@ func Place(
 	return snapshots(doc, body, at)
 }
 
-// Open lists the grid positions a block may take, in order.
+// open lists the grid positions a block may take, in order.
 //
 // Read off the document rather than assumed. A device decides where it keeps
 // the input, the split, the join and the output, and everything left over is
 // what a chain can use.
-func Open(doc *Document) ([]int, error) {
+func open(doc *Document) ([]int, error) {
 	body, ok := doc.Section(int8(keyTone))
 	if !ok {
 		return nil, fmt.Errorf("%w: it has no chain", ErrNotADocument)
@@ -178,7 +178,7 @@ func Open(doc *Document) ([]int, error) {
 
 	out := []int(nil)
 
-	for i := range GridSize {
+	for i := range gridSize {
 		if _, _, ok := openAt(body, i); ok {
 			out = append(out, i)
 		}
@@ -212,7 +212,7 @@ func PlaceAsWritten(
 		shifted[i].Position += GridOffset
 	}
 
-	return Place(doc, shifted)
+	return place(doc, shifted)
 }
 
 // roomFor rejects a position that is not the device's to give.
@@ -220,10 +220,10 @@ func roomFor(
 	body []byte,
 	position int,
 ) error {
-	if position < 0 || position >= GridSize {
+	if position < 0 || position >= gridSize {
 		return &NoRoomError{
 			Position: position,
-			Why:      fmt.Sprintf("a device lays out %d", GridSize),
+			Why:      fmt.Sprintf("a device lays out %d", gridSize),
 		}
 	}
 
@@ -246,14 +246,14 @@ func openAt(
 	body []byte,
 	position int,
 ) (int, int, bool) {
-	start, end, err := Locate(body, Path{keyBlocks, position})
+	start, end, err := locate(body, path{keyBlocks, position})
 	if err != nil {
 		return 0, 0, false
 	}
 
 	entry := body[start:end]
 
-	kindAt, _, err := Locate(entry, Path{keyBlockKind})
+	kindAt, _, err := locate(entry, path{keyBlockKind})
 	if err != nil {
 		return 0, 0, false
 	}
@@ -283,21 +283,21 @@ func snapshots(
 		return nil
 	}
 
-	count, err := countOf(body, Path{keySnapList})
+	count, err := countOf(body, path{keySnapList})
 	if err != nil {
 		return err
 	}
 
 	for snap := range count {
-		for i := GridSize - 1; i >= 0; i-- {
+		for i := gridSize - 1; i >= 0; i-- {
 			if _, _, ok := openAt(tone, i); !ok {
 				continue
 			}
 
 			// A snapshot keeping a shorter record than the grid has nothing
 			// to say about the rest of it.
-			start, end, err := Locate(
-				body, Path{keySnapList, snap, keySnapBypass, i, snapBypassOn})
+			start, end, err := locate(
+				body, path{keySnapList, snap, keySnapBypass, i, snapBypassOn})
 			if err != nil {
 				continue
 			}
@@ -398,9 +398,9 @@ func values(
 // countOf reports how many entries an array at path holds.
 func countOf(
 	body []byte,
-	path Path,
+	path path,
 ) (int, error) {
-	start, _, err := Locate(body, path)
+	start, _, err := locate(body, path)
 	if err != nil {
 		return 0, err
 	}

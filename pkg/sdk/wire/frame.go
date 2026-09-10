@@ -55,8 +55,8 @@ const (
 	MsgData uint16 = 0x0004
 	// MsgAck is a bare acknowledgement.
 	MsgAck uint16 = 0x0008
-	// MsgKeepAlive holds a channel open.
-	MsgKeepAlive uint16 = 0x0010
+	// msgKeepAlive holds a channel open.
+	msgKeepAlive uint16 = 0x0010
 )
 
 // AckBase is what an acknowledgement counts up from.

@@ -47,12 +47,12 @@ import (
 // EnvelopeSize is the fixed prefix on every envelope.
 const EnvelopeSize = 8
 
-// MaxBody is the largest body this package will decode.
+// maxBody is the largest body this package will decode.
 //
 // A frame arrives over a 512-byte bulk endpoint and a preset document runs to
 // tens of kilobytes, so the ceiling exists to bound a corrupted length field
 // rather than to reflect a limit the device has.
-const MaxBody = 1 << 20
+const maxBody = 1 << 20
 
 // Originator says which end of the link sent a frame.
 //
@@ -92,7 +92,7 @@ type BodyTooLargeError struct {
 
 func (e *BodyTooLargeError) Error() string {
 	return fmt.Sprintf(
-		"frame body is too large: %d bytes, limit is %d", e.Length, MaxBody)
+		"frame body is too large: %d bytes, limit is %d", e.Length, maxBody)
 }
 
 func (*BodyTooLargeError) Unwrap() error { return ErrBodyTooLarge }
@@ -126,7 +126,7 @@ func DecodeEnvelope(raw []byte) (Envelope, []byte, error) {
 	}
 
 	n := binary.LittleEndian.Uint32(raw[4:8])
-	if n > MaxBody {
+	if n > maxBody {
 		return Envelope{}, nil, &BodyTooLargeError{Length: n}
 	}
 
@@ -143,15 +143,15 @@ func DecodeEnvelope(raw []byte) (Envelope, []byte, error) {
 	}, raw[end:], nil
 }
 
-// ReadEnvelope decodes one envelope from a stream.
-func ReadEnvelope(r io.Reader) (Envelope, error) {
+// readEnvelope decodes one envelope from a stream.
+func readEnvelope(r io.Reader) (Envelope, error) {
 	head := make([]byte, EnvelopeSize)
 	if _, err := io.ReadFull(r, head); err != nil {
 		return Envelope{}, fmt.Errorf("reading frame header: %w", err)
 	}
 
 	n := binary.LittleEndian.Uint32(head[4:8])
-	if n > MaxBody {
+	if n > maxBody {
 		return Envelope{}, &BodyTooLargeError{Length: n}
 	}
 

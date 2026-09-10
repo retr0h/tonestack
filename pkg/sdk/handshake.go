@@ -33,7 +33,7 @@ import (
 // Once per session and never again. Answering a timeout by repeating this is
 // the single most reliable way to wedge a device: every failure amplifies
 // into a burst of them, and recovery needs the power supply pulled.
-func (s *Session) handshake(ctx context.Context) error {
+func (s *session) handshake(ctx context.Context) error {
 	s.drain(ctx)
 
 	for _, spec := range channelSpecs {
@@ -72,7 +72,7 @@ func (s *Session) handshake(ctx context.Context) error {
 }
 
 // openService performs the three frames that bring one service up.
-func (s *Session) openService(ctx context.Context, c *channel, service uint16) error {
+func (s *session) openService(ctx context.Context, c *channel, service uint16) error {
 	if err := s.send(c, wire.MsgHello, helloTail); err != nil {
 		return err
 	}
@@ -102,7 +102,7 @@ func (s *Session) openService(ctx context.Context, c *channel, service uint16) e
 // closeChannel sends the bare frame that releases a service.
 //
 // The device will not answer on a new service without it.
-func (s *Session) closeChannel(c *channel) error {
+func (s *session) closeChannel(c *channel) error {
 	return s.send(c, wire.MsgHello, nil)
 }
 
@@ -112,7 +112,7 @@ func (s *Session) closeChannel(c *channel) error {
 // the device stops feeding a reply partway through: it holds a window of
 // about four kilobytes unacknowledged and then goes quiet, which looks
 // exactly like a device that has stopped working.
-func (s *Session) Call(
+func (s *session) Call(
 	ctx context.Context,
 	channelName string,
 	opcode uint64,
@@ -139,7 +139,7 @@ func (s *Session) Call(
 }
 
 // awaitReply reads until the reply to one transaction arrives.
-func (s *Session) awaitReply(
+func (s *session) awaitReply(
 	ctx context.Context,
 	c *channel,
 	txn, opcode uint64,
@@ -198,7 +198,7 @@ func (s *Session) awaitReply(
 }
 
 // Presets lists what the device holds.
-func (s *Session) Presets(ctx context.Context, setlist int) ([]wire.Preset, error) {
+func (s *session) Presets(ctx context.Context, setlist int) ([]wire.Preset, error) {
 	resp, err := s.Call(ctx, channelControl, opListPresets, []wire.Arg{
 		{Key: argSetlist, Value: uint64(setlist)},
 		{Key: argListKind, Value: listKind},
@@ -221,7 +221,7 @@ func (s *Session) Presets(ctx context.Context, setlist int) ([]wire.Preset, erro
 //
 // An empty slot answers with nothing too, which is a slot holding no preset
 // rather than a failure: no bytes and no error.
-func (s *Session) ReadPreset(
+func (s *session) ReadPreset(
 	ctx context.Context,
 	setlist, slot int,
 ) ([]byte, error) {

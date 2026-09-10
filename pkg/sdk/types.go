@@ -31,9 +31,9 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk/wire"
 )
 
-// VendorID is Line 6's USB vendor identifier. Every device this package
+// vendorID is Line 6's USB vendor identifier. Every device this package
 // recognises reports it.
-const VendorID uint16 = 0x0e41
+const vendorID uint16 = 0x0e41
 
 // Model names one Line 6 device by its USB product identifier.
 type Model struct {
@@ -46,12 +46,12 @@ type Model struct {
 	DeviceID int
 }
 
-// Models are the devices this package recognises.
+// models are the devices this package recognises.
 //
 // Product identifiers come from observing the bus; device identifiers come
 // from the preset corpus. A device absent here is still reachable over USB but
 // will not be named, and presets cannot be written for it.
-var Models = []Model{
+var models = []Model{
 	{Name: "HX Stomp", ProductID: 0x4246, DeviceID: 2162694},
 	{Name: "HX Stomp XL", ProductID: 0x4253, DeviceID: 2162699},
 	{Name: "Helix Floor", ProductID: 0x4248, DeviceID: 2162689},
@@ -125,7 +125,7 @@ type Selector interface {
 // Editor is a session with an attached device.
 //
 // What everything above this package needs from one: what it is, what it
-// holds, and one preset at a time. *Session satisfies it, and so does a mock,
+// holds, and one preset at a time. *session satisfies it, and so does a mock,
 // which is what lets the code that reads a device be tested without one.
 type Editor interface {
 	// Model is which device answered.

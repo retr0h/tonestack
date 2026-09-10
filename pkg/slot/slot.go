@@ -31,20 +31,20 @@ import (
 	"strings"
 )
 
-// PerBank is how many presets share a bank letter.
-const PerBank = 3
+// perBank is how many presets share a bank letter.
+const perBank = 3
 
 // Label renders a position the way the hardware labels it — 01A through 42C.
 func Label(slot int) string {
-	return fmt.Sprintf("%02d%c", slot/PerBank+1, rune('A'+slot%PerBank))
+	return fmt.Sprintf("%02d%c", slot/perBank+1, rune('A'+slot%perBank))
 }
 
-// Parse reads either form: a label the pedal shows, or a bare index.
+// parse reads either form: a label the pedal shows, or a bare index.
 //
 // A label is what somebody has in front of them, and it is what this project
 // prints, so refusing it would mean printing addresses nothing accepts. A bare
 // number stays valid because scripts count.
-func Parse(s string) (int, error) {
+func parse(s string) (int, error) {
 	s = strings.TrimSpace(s)
 	if s == "" {
 		return 0, fmt.Errorf("%w: no slot given", ErrBadSlot)
@@ -64,9 +64,9 @@ func Parse(s string) (int, error) {
 	// Unsigned, so a letter before A wraps rather than going negative and is
 	// caught by the same test.
 	offset := int(letter[0] - 'A')
-	if offset >= PerBank {
+	if offset >= perBank {
 		return 0, fmt.Errorf(
-			"%w: %q — a bank runs A to %c", ErrBadSlot, s, 'A'+PerBank-1)
+			"%w: %q — a bank runs A to %c", ErrBadSlot, s, 'A'+perBank-1)
 	}
 
 	n, err := strconv.Atoi(bank)
@@ -76,5 +76,5 @@ func Parse(s string) (int, error) {
 			ErrBadSlot, s)
 	}
 
-	return (n-1)*PerBank + offset, nil
+	return (n-1)*perBank + offset, nil
 }

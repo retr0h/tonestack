@@ -99,7 +99,7 @@ func Resolve(
 
 	// What the rig claims beside its chain: a colour, a parameter, a device.
 	// Checked here because the answer is a fact about this catalog.
-	if err := Check(spec, built.Blocks, cat); err != nil {
+	if err := check(spec, built.Blocks, cat); err != nil {
 		return chain.Chain{}, nil, err
 	}
 
@@ -150,7 +150,7 @@ func impliedCab(cat *catalog.Catalog, blocks []catalog.Block) *catalog.Block {
 	return nil
 }
 
-// Gear finds the model a chain entry names, the way this package resolves
+// gear finds the model a chain entry names, the way this package resolves
 // every other one.
 //
 // Exported because lowering a rig into a preset asks the same question and
@@ -158,7 +158,7 @@ func impliedCab(cat *catalog.Catalog, blocks []catalog.Block) *catalog.Block {
 // answered a different model each run and would answer with a cabinet for an
 // amplifier. Two resolvers cannot both be right about which Ampeg SVT is
 // meant.
-func Gear(
+func gear(
 	cat *catalog.Catalog,
 	gear string,
 	role riggen.Role,

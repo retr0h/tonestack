@@ -40,24 +40,17 @@ import (
 
 // Schemas this package reads.
 const (
-	// SchemaSetlist is one setlist.
-	SchemaSetlist = "L6Setlist"
-	// SchemaBundle is every setlist on a device.
-	SchemaBundle = "L6PresetBundle"
+	// schemaSetlist is one setlist.
+	schemaSetlist = "L6Setlist"
+	// schemaBundle is every setlist on a device.
+	schemaBundle = "L6PresetBundle"
 )
 
-// Encoding is the only encoding seen in the wild.
-const Encoding = "Base64"
+// encoding is the only encoding seen in the wild.
+const encoding = "Base64"
 
-// CompressionZlib is the only compression seen in the wild.
-const CompressionZlib = "zlib"
-
-// SlotsPerSetlist is how many slots a setlist holds.
-//
-// Every device-written file holds exactly this many, including the empty
-// ones. A slot is a position, not a preset, so a setlist with a gap in the
-// middle still has 128 entries.
-const SlotsPerSetlist = 128
+// compressionZlib is the only compression seen in the wild.
+const compressionZlib = "zlib"
 
 // Document is a setlist or bundle file, decoded.
 //

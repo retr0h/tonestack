@@ -49,3 +49,25 @@ func NewDocument(from *Document, keep []int8) *Document {
 
 	return out
 }
+
+// Exposed to this package's external tests. None of it is reachable from
+// outside the package: a caller works in presets and documents, and these are
+// the steps underneath. Each has a contract of its own, and the tests that
+// hold it are older and more thorough than the ones on the callers.
+type Path = path
+
+var (
+	DecodeDocument = decodeDocument
+	Flag           = flag
+	Locate         = locate
+	Open           = open
+	Place          = place
+	ReadEnvelope   = readEnvelope
+	Splice         = splice
+	SpliceRaw      = spliceRaw
+)
+
+const (
+	GridSize     = gridSize
+	MsgKeepAlive = msgKeepAlive
+)

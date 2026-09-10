@@ -129,11 +129,11 @@ type channel struct {
 // Not a bare count: the device ignores a client that sends one.
 func (c *channel) ack() uint32 { return wire.AckBase + c.rxBytes }
 
-// Session is an open conversation with a device.
+// session is an open conversation with a device.
 //
 // Not safe for concurrent use. The protocol is a sequence of exchanges with
 // per-channel counters, and two callers sharing one would desynchronise them.
-type Session struct {
+type session struct {
 	// holds is what the session took to reach the device, released in the
 	// order it was taken. Kept as an interface so that a session is a
 	// conversation rather than a piece of hardware: everything below this is
@@ -167,14 +167,14 @@ type receiver interface {
 }
 
 // Model returns what the device is.
-func (s *Session) Model() Model { return s.model }
+func (s *session) Model() Model { return s.model }
 
 // Close ends the session.
 //
 // Whatever the device sent is drained and acknowledged first. Dropping the
 // interface with bytes unacknowledged carries a debt into later sessions,
 // until an otherwise innocent write stops the device.
-func (s *Session) Close() {
+func (s *session) Close() {
 	if s.in != nil {
 		ctx := context.Background()
 
