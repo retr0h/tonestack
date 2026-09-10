@@ -98,6 +98,36 @@ func (s *TypesPublicTestSuite) TestCompiler() {
 	s.Require().ErrorIs(err, want)
 }
 
+// TestExportOnARigThatDoesNotValidate covers a lift that produced something
+// the contract refuses.
+//
+// A rig is validated on the way out, so an export that could not write one has
+// to say so rather than leave an empty file where somebody expects a preset.
+func (s *TypesPublicTestSuite) TestExportOnARigThatDoesNotValidate() {
+	built, err := catalog.BuiltIn()
+	s.Require().NoError(err)
+
+	cat := slotmocks.NewMockCatalogs(s.ctrl)
+	cat.EXPECT().Open(gomock.Any()).Return(built, nil)
+
+	// A rig with no chain in it, which lifting a real preset never produces
+	// and the contract does not accept.
+	comp := slotmocks.NewMockCompiler(s.ctrl)
+	comp.EXPECT().Lift(gomock.Any(), gomock.Any()).
+		Return(riggen.RigSpec{}, nil)
+
+	out := filepath.Join(s.T().TempDir(), "rig.yaml")
+
+	_, err = slots.Export(slots.ExportOptions{
+		Deps:       slots.Deps{Catalogs: cat, Compiler: comp},
+		Path:       fixture("setlist.hls"),
+		OutputPath: out,
+	})
+
+	s.Require().ErrorContains(err, "writing the rig")
+	s.Require().NoFileExists(out)
+}
+
 // TestTranslator covers a listing reading each slot's chain through a double.
 func (s *TypesPublicTestSuite) TestTranslator() {
 	built, err := catalog.BuiltIn()

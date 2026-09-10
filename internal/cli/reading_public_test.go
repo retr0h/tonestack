@@ -95,8 +95,17 @@ func (s *ReadingPublicTestSuite) TestReading() {
 			err:  true,
 		},
 		{
-			name: "nowhere to write it",
+			name: "nowhere to say a slot holds nothing",
 			read: sdk.Reading{Name: "Empty"},
+			to:   &brokenWriter{},
+			err:  true,
+		},
+		{
+			// The rig validated and rendered; the sink is what failed. That
+			// is the one thing left that can go wrong here, so it is the one
+			// thing worth reporting.
+			name: "nowhere to write the rig",
+			read: sdk.Reading{Name: "Lead", Doc: &preset.Document{}, Rig: valid()},
 			to:   &brokenWriter{},
 			err:  true,
 		},
