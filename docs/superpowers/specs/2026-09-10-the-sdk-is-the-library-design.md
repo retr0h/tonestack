@@ -62,31 +62,49 @@ The two requirements look incompatible and are not.
 
 If the implementation sat in root `internal/`, `pkg/sdk` would import it, and
 lifting the SDK out would leave the implementation behind. Go's nested internal
-solves it exactly: `pkg/sdk/internal/x` is importable from `pkg/sdk/...` and
-from nowhere else, enforced by the compiler. The library gets a private half
-that travels with it.
+solves it exactly, and the rule is not the one people remember. It is not that
+`internal` must sit at the top. It is that a package whose path contains an
+element named `internal` may be imported only by packages rooted at that
+directory's parent:
+
+| package                     | importable from      |
+| --------------------------- | -------------------- |
+| `internal/cli`              | the whole module     |
+| `pkg/sdk/internal/x`        | `pkg/sdk/...`        |
+| `pkg/sdk/device/internal/x` | `pkg/sdk/device/...` |
+
+Top level is not a special case. It is the one where the parent happens to be
+the module root, which is why root `internal/` is the widest fence there is, not
+the only one. The library gets a private half the compiler keeps private, and it
+travels with the library.
 
 Extraction becomes one directory move.
+
+So root `internal/` stops being where implementation goes and becomes what its
+scope actually says: what belongs to no package here. Rendering, and the
+generators. Everything a package owns lives in that package's own `internal`.
 
 ## The names
 
 ```text
 pkg/sdk/              the library. One import root.
   sdk.go              Client, Options, and the operations
-  rig/  rig/gen/      RigSpec: the format a TUI and a service both need
+  internal/           shared private half. Invisible outside pkg/sdk.
+    slots/  presets/  recipes/   the flows, once they no longer render
+    compile/                     a rig to a preset and back
+    setlist/                     .hls and .hlb
+  rig/                RigSpec: the format a TUI and a service both need
+    internal/gen/     generated types, once rig owns the ones a caller holds
+  device/             USB: discovery, session, transport   (was pkg/sdk)
+    internal/wire/    framing and the device's own document (was pkg/sdk/wire)
+    internal/editor/  a device's document to a chain and back
   catalog/            what a device can do
   corpus/             what real presets say, measured
   chain/              a resolved chain
   preset/             .hlx
-  setlist/            .hls and .hlb
   slot/               addressing, 01A to 42C
-  device/             USB: discovery, session, transport   (was pkg/sdk)
-  device/wire/        framing and the device's own document (was pkg/sdk/wire)
-  compile/            a rig to a preset and back
-  editor/             a device's document to a chain and back
-  internal/           how the operations are done. Invisible outside pkg/sdk.
 
-internal/             this program, not the library
+internal/             belongs to no package here
   cli/                rendering: tables, colour, the visual language
   catalogen/  corpusgen/  specdoc/    generators, run by go generate
 
@@ -94,7 +112,42 @@ cmd/                  cobra wiring: flags to a Client call to a renderer
 ```
 
 `device` rather than `usb` because a session is not a transport. `wire` stays
-under it: it is the device's own vocabulary and means nothing without one.
+under it, now as its private half: it is the device's own vocabulary and means
+nothing without one. `editor` joins it there for the same reason. It translates
+the document a device hands back, so it is that device's business and nobody
+else's.
+
+### How far down the private half goes
+
+The rule is that a package's implementation lives in *its* `internal`, and the
+measurement says where that lands. Counting who imports what, with the flows
+already moved in:
+
+| package                        | imported by                  |
+| ------------------------------ | ---------------------------- |
+| `catalog`, `chain`, `preset`   | several domains, plus `cli`  |
+| `corpus`, `rig`, `slot`        | one domain, plus a generator |
+| `rig/gen`                      | `rig`, `compile`, `editor`   |
+| `device/wire`                  | `device`, `editor`           |
+| `compile`, `editor`, `setlist` | nothing inside the SDK       |
+
+Two of those cannot go where they belong yet, and the table is why. `rig/gen`
+under `rig/internal` is unreachable from `compile`, and `wire` under
+`device/internal` is unreachable from `editor`. Both are fixed by work already
+planned rather than by a weaker fence:
+
+- `rig/gen` becomes `rig/internal/gen` once `rig` owns the types a caller holds
+  and `compile` stops reaching past it. That is stage 5.
+- `wire` becomes `device/internal/wire` once `editor` moves under `device`,
+  which is where it belonged anyway.
+
+Until each lands, the package sits in the shared `pkg/sdk/internal` instead. A
+shared private half is still private; it is only a wider fence than the tightest
+one available.
+
+What stays public is what a consumer holds: the `Client`, and the types it hands
+back. Roughly three thousand lines of the thirteen thousand there are today.
+Everything else is how, not what.
 
 ### Why the domains sit under `sdk` rather than beside it
 
@@ -188,13 +241,21 @@ Each stage lands on its own and leaves the tree working.
    moves to `internal/cli`; `cmd/` calls both. One command at a time, starting
    with `presets list`, because it has a device path, a file path and a table.
 
-3. **Give the library its internal.** The flows move to `pkg/sdk/internal`.
+3. **Give the library its internal.** Two moves, and the second is the one
+   originally missed.
 
-   These two were written the other way round and cannot be. A flow that still
-   renders imports `internal/cli`, and moving it under `pkg/` would put `pkg/`
-   importing `internal/`, which `main_test.go` refuses and which would weld the
-   SDK to this program. The rendering comes out first; the move is what is left
-   once nothing in the flow knows what a colour is.
+   The flows move to `pkg/sdk/internal`. Then the domain packages nothing
+   outside the SDK imports follow them: `compile`, `setlist`, `editor`,
+   `device/wire`, and `rig/gen`. Six packages, two hundred and sixteen exported
+   identifiers, public today for no reason anybody can name. Demoting is the
+   direction that has to happen now: promoting a package later costs nothing,
+   and demoting one later breaks every caller.
+
+   Stages 2 and 3 were first written the other way round and cannot be. A flow
+   that still renders imports `internal/cli`, and moving it under `pkg/` would
+   put `pkg/` importing `internal/`, which `main_test.go` refuses and which
+   would weld the SDK to this program. The rendering comes out first; the move
+   is what is left once nothing in the flow knows what a colour is.
 
 4. **Put the Client in front.** Once the operations return values, `sdk.Client`
    is a thin thing over them, and `cmd/` stops importing anything else.
