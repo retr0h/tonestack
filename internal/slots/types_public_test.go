@@ -21,7 +21,6 @@
 package slots_test
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"os"
@@ -68,7 +67,7 @@ func (s *TypesPublicTestSuite) TestCatalogs() {
 	cat := slotmocks.NewMockCatalogs(s.ctrl)
 	cat.EXPECT().Open("somewhere.json").Return(nil, want)
 
-	err := slots.Show(&bytes.Buffer{}, slots.ShowOptions{
+	_, err := slots.Show(slots.ShowOptions{
 		Deps:        slots.Deps{Catalogs: cat},
 		File:        s.preset(),
 		CatalogPath: "somewhere.json",
@@ -91,7 +90,7 @@ func (s *TypesPublicTestSuite) TestCompiler() {
 	comp.EXPECT().Lift(gomock.Any(), gomock.Any()).
 		Return(riggen.RigSpec{}, want)
 
-	err = slots.Show(&bytes.Buffer{}, slots.ShowOptions{
+	_, err = slots.Show(slots.ShowOptions{
 		Deps: slots.Deps{Catalogs: cat, Compiler: comp},
 		File: s.preset(),
 	})

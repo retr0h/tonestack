@@ -27,11 +27,14 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/retr0h/tonestack/internal/catalogview"
 	"github.com/retr0h/tonestack/internal/cli"
 	"github.com/retr0h/tonestack/internal/slots"
+	"github.com/retr0h/tonestack/pkg/sdk"
+	"github.com/retr0h/tonestack/pkg/sdk/rig"
 )
 
 type SlotsPublicTestSuite struct {
@@ -41,6 +44,29 @@ type SlotsPublicTestSuite struct {
 func fixture(name string) string { return filepath.Join("testdata", name) }
 
 func catalogPath() string { return fixture("catalog.json") }
+
+// said renders a reading the way something displaying one would.
+//
+// The assertions here are about what was read, and what was read is a rig.
+// Rendering it in the test rather than importing the one renderer keeps these
+// operations free of anything that knows what a terminal is.
+func said(t *testing.T, r sdk.Reading) string {
+	t.Helper()
+
+	if r.Answer != nil {
+		return r.Answer.Shape
+	}
+
+	if r.Empty() {
+		return "# " + r.Name + " is empty"
+	}
+
+	var buf bytes.Buffer
+
+	require.NoError(t, rig.Write(&buf, r.Rig))
+
+	return r.Name + "\n" + buf.String()
+}
 
 // TestList prints what a setlist holds.
 func (s *SlotsPublicTestSuite) TestList() {
@@ -187,7 +213,7 @@ func (s *SlotsPublicTestSuite) TestListReportsAWriterThatFails() {
 	}
 }
 
-// TestShow prints one slot as a rig.
+// TestShow reads one slot as a rig.
 func (s *SlotsPublicTestSuite) TestShow() {
 	tests := []struct {
 		name     string
@@ -277,9 +303,7 @@ func (s *SlotsPublicTestSuite) TestShow() {
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			var out bytes.Buffer
-
-			err := slots.Show(&out, tt.opts)
+			read, err := slots.Show(tt.opts)
 
 			if tt.errText != "" {
 				s.Require().Error(err)
@@ -290,30 +314,27 @@ func (s *SlotsPublicTestSuite) TestShow() {
 
 			s.Require().NoError(err)
 
+			got := said(s.T(), read)
+
 			for _, want := range tt.contains {
-				s.Require().Contains(out.String(), want)
+				s.Require().Contains(got, want)
 			}
 		})
 	}
 }
 
-// TestShowReportsAWriterThatFails covers a rig nobody can read.
-func (s *SlotsPublicTestSuite) TestShowReportsAWriterThatFails() {
-	tests := []struct {
-		name string
-		slot int
-	}{
-		{name: "on the rig"},
-		{name: "on an empty slot", slot: 2},
-	}
+// TestShowOnASlotHoldingNothing covers a slot that is not a rig.
+//
+// It names no gear, and a rig holds at least one thing. The slot still has a
+// name, which is what somebody looking at it is told.
+func (s *SlotsPublicTestSuite) TestShowOnASlotHoldingNothing() {
+	read, err := slots.Show(slots.ShowOptions{
+		Path: fixture("setlist.hls"), Slot: 2, CatalogPath: catalogPath(),
+	})
 
-	for _, tt := range tests {
-		s.Run(tt.name, func() {
-			s.Require().Error(slots.Show(&failingWriter{}, slots.ShowOptions{
-				Path: fixture("setlist.hls"), Slot: tt.slot, CatalogPath: catalogPath(),
-			}))
-		})
-	}
+	s.Require().NoError(err)
+	s.Require().True(read.Empty())
+	s.Require().NotEmpty(read.Name)
 }
 
 type failingWriter struct{}

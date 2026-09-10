@@ -27,6 +27,7 @@ import (
 	"os"
 
 	"github.com/retr0h/tonestack/internal/cli"
+	"github.com/retr0h/tonestack/pkg/sdk"
 	"github.com/retr0h/tonestack/pkg/sdk/preset"
 	"github.com/retr0h/tonestack/pkg/sdk/rig"
 	slotpkg "github.com/retr0h/tonestack/pkg/sdk/slot"
@@ -65,21 +66,21 @@ type ExportOptions struct {
 	CatalogPath string
 }
 
-// Export writes one slot out.
+// Export reads one slot out to a file.
 //
 // A rig by default, because that is the format this project speaks and the
 // one that reads on other hardware. The device's own file is available for a
 // faithful copy, which is a different thing: it carries the routing and
 // snapshots a rig models but nobody chooses.
-func Export(w io.Writer, opts ExportOptions) error {
+func Export(opts ExportOptions) (sdk.Written, error) {
 	doc, err := open(opts.Path)
 	if err != nil {
-		return err
+		return sdk.Written{}, err
 	}
 
 	data, err := doc.Slot(opts.Setlist, opts.Slot)
 	if err != nil {
-		return err
+		return sdk.Written{}, err
 	}
 
 	out := &preset.Document{
@@ -88,46 +89,51 @@ func Export(w io.Writer, opts ExportOptions) error {
 		Data:    *data,
 	}
 
+	read := sdk.Reading{Name: data.Meta.Name, Doc: out}
+
+	// Only the device's own file was asked for, so the lift is work nobody
+	// wants.
+	if opts.As != FormatPreset {
+		cat, err := opts.catalogs().Open(opts.CatalogPath)
+		if err != nil {
+			return sdk.Written{}, err
+		}
+
+		spec, err := opts.compiler().Lift(out, cat)
+		if err != nil {
+			return sdk.Written{}, err
+		}
+
+		read.Rig = spec
+	}
+
+	return write(read, opts)
+}
+
+// write puts a reading on disk in the format that was asked for.
+//
+// One place, so a slot read off the hardware and one read out of a backup
+// land as the same bytes. They describe the same preset, and an export that
+// depended on which end it came from would be saying otherwise.
+func write(read sdk.Reading, opts ExportOptions) (sdk.Written, error) {
 	var buf bytes.Buffer
 
 	if opts.As == FormatPreset {
 		// A payload that decoded encodes again.
-		_ = preset.Write(&buf, out)
-	} else {
-		if err := writeRig(opts.Deps, &buf, out, opts.CatalogPath); err != nil {
-			return err
-		}
+		_ = preset.Write(&buf, read.Doc)
+	} else if err := rig.Write(&buf, read.Rig); err != nil {
+		return sdk.Written{}, fmt.Errorf("writing the rig: %w", err)
 	}
 
 	if err := os.WriteFile(opts.OutputPath, buf.Bytes(), 0o600); err != nil {
-		return fmt.Errorf("writing %s: %w", opts.OutputPath, err)
+		return sdk.Written{}, fmt.Errorf("writing %s: %w", opts.OutputPath, err)
 	}
 
-	_, err = fmt.Fprintf(w, "\n%s%s %s\n\n%s%s\n\n",
-		cli.Indent, cli.Accent(w, slotpkg.Label(opts.Slot)), data.Meta.Name,
-		cli.Indent, cli.Success(w, "wrote "+opts.OutputPath))
-
-	return err
-}
-
-// writeRig renders a preset as a rig.
-func writeRig(
-	deps Deps,
-	buf *bytes.Buffer,
-	doc *preset.Document,
-	catalogPath string,
-) error {
-	cat, err := deps.catalogs().Open(catalogPath)
-	if err != nil {
-		return err
-	}
-
-	spec, err := deps.compiler().Lift(doc, cat)
-	if err != nil {
-		return err
-	}
-
-	return rig.Write(buf, spec)
+	return sdk.Written{
+		Slot: opts.Slot,
+		Name: read.Name,
+		Path: opts.OutputPath,
+	}, nil
 }
 
 // ImportOptions says which preset file to put in which slot.

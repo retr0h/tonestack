@@ -22,7 +22,9 @@ package cmd
 import (
 	"github.com/spf13/cobra"
 
+	"github.com/retr0h/tonestack/internal/cli"
 	"github.com/retr0h/tonestack/internal/slots"
+	"github.com/retr0h/tonestack/pkg/sdk"
 	"github.com/retr0h/tonestack/pkg/sdk/slot"
 )
 
@@ -42,14 +44,14 @@ than a reading — it carries the routing and snapshots a rig models but nobody
 chooses.`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		// No file means the device itself, which is what somebody with one
-		// plugged in almost always wants.
-		if presetsExportOptions.Path == "" {
-			return slots.ExportDevice(
-				cmd.Context(), cmd.OutOrStdout(), presetsExportOptions)
+		// The operation answers with what it wrote; saying so is decided
+		// here, which is all this command does.
+		written, err := exported(cmd)
+		if err != nil {
+			return err
 		}
 
-		return slots.Export(cmd.OutOrStdout(), presetsExportOptions)
+		return cli.Written(cmd.OutOrStdout(), written)
 	},
 }
 
@@ -81,4 +83,16 @@ func init() {
 		"a generated catalog to use instead of the built-in one")
 	_ = presetsExportCmd.MarkFlagRequired("slot")
 	_ = presetsExportCmd.MarkFlagRequired("out")
+}
+
+// exported writes one slot out, from the device or from a file.
+//
+// No file means the device itself, which is what somebody with one plugged in
+// almost always wants.
+func exported(cmd *cobra.Command) (sdk.Written, error) {
+	if presetsExportOptions.Path == "" {
+		return slots.ExportDevice(cmd.Context(), presetsExportOptions)
+	}
+
+	return slots.Export(presetsExportOptions)
 }

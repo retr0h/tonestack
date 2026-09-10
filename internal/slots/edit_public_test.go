@@ -167,15 +167,14 @@ func (s *EditPublicTestSuite) TestExport() {
 		as      slots.Format
 		catalog string
 		out     string
-		deaf    bool
 
 		// what the written file must say.
 		wrote []string
 		// what showing the written file must say, for the device's own
 		// format.
 		shows []string
-		// what the report must say.
-		logs    []string
+		// what the answer must name.
+		named   string
 		errText string
 	}{
 		{
@@ -198,7 +197,7 @@ func (s *EditPublicTestSuite) TestExport() {
 			as:    slots.FormatPreset,
 			out:   "one.hlx",
 			shows: []string{"First", "Ampeg SVT"},
-			logs:  []string{"wrote"},
+			named: "First",
 		},
 		{
 			name:    "a file that is not there",
@@ -230,7 +229,6 @@ func (s *EditPublicTestSuite) TestExport() {
 			out:     "x.yaml",
 			errText: "chain minimum number of items is 1",
 		},
-		{name: "a writer that fails", as: slots.FormatPreset, deaf: true},
 	}
 
 	for _, tt := range tests {
@@ -250,16 +248,9 @@ func (s *EditPublicTestSuite) TestExport() {
 				o.Path = tt.path
 			}
 
-			var log bytes.Buffer
+			written, err := slots.Export(o)
 
-			w := io.Writer(&log)
-			if tt.deaf {
-				w = &failingWriter{}
-			}
-
-			err := slots.Export(w, o)
-
-			if tt.errText != "" || tt.deaf {
+			if tt.errText != "" {
 				s.Require().Error(err)
 
 				if tt.errText != "" {
@@ -281,18 +272,18 @@ func (s *EditPublicTestSuite) TestExport() {
 			}
 
 			if tt.shows != nil {
-				var show bytes.Buffer
-				s.Require().NoError(slots.Show(&show, slots.ShowOptions{
+				read, err := slots.Show(slots.ShowOptions{
 					File: out, CatalogPath: catalogPath(),
-				}))
+				})
+				s.Require().NoError(err)
 
 				for _, want := range tt.shows {
-					s.Require().Contains(show.String(), want)
+					s.Require().Contains(said(s.T(), read), want)
 				}
 			}
 
-			for _, want := range tt.logs {
-				s.Require().Contains(log.String(), want)
+			if tt.named != "" {
+				s.Require().Equal(tt.named, written.Name)
 			}
 		})
 	}
@@ -383,10 +374,11 @@ func (s *EditPublicTestSuite) TestImport() {
 
 			if tt.exported {
 				file = filepath.Join(dir, "one.hlx")
-				s.Require().NoError(slots.Export(&bytes.Buffer{}, slots.ExportOptions{
+				_, err := slots.Export(slots.ExportOptions{
 					Path: fixture("setlist.hls"), Slot: 0, OutputPath: file,
 					As: slots.FormatPreset,
-				}))
+				})
+				s.Require().NoError(err)
 			}
 
 			o := slots.ImportOptions{

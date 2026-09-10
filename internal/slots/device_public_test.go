@@ -289,9 +289,7 @@ func (s *DevicePublicTestSuite) TestShowWith() {
 					Return(tt.answer, nil)
 			}
 
-			var out bytes.Buffer
-
-			err := slots.ShowWith(context.Background(), &out, s.dev,
+			read, err := slots.ShowWith(context.Background(), s.dev,
 				slots.DeviceOptions{Slot: tt.slot})
 
 			if tt.is != nil {
@@ -308,8 +306,10 @@ func (s *DevicePublicTestSuite) TestShowWith() {
 
 			s.Require().NoError(err)
 
+			got := said(s.T(), read)
+
 			for _, want := range tt.contains {
-				s.Require().Contains(out.String(), want)
+				s.Require().Contains(got, want)
 			}
 		})
 	}
@@ -367,7 +367,7 @@ func (s *DevicePublicTestSuite) TestShowWithKeepsTheAnswer() {
 					Return(s.answer("preset.bin"), nil)
 			}
 
-			err := slots.ShowWith(context.Background(), &bytes.Buffer{}, s.dev,
+			_, err := slots.ShowWith(context.Background(), s.dev,
 				slots.DeviceOptions{Slot: 0})
 
 			if tt.err {
@@ -453,9 +453,7 @@ func (s *DevicePublicTestSuite) TestExportWith() {
 					Return(tt.answer, nil)
 			}
 
-			var log bytes.Buffer
-
-			err := slots.ExportWith(context.Background(), &log, s.dev, opts)
+			written, err := slots.ExportWith(context.Background(), s.dev, opts)
 
 			if tt.is != nil {
 				s.Require().ErrorIs(err, tt.is)
@@ -471,7 +469,7 @@ func (s *DevicePublicTestSuite) TestExportWith() {
 			}
 
 			s.Require().NoError(err)
-			s.Require().Contains(log.String(), "wrote "+path)
+			s.Require().Equal(path, written.Path)
 
 			body, readErr := os.ReadFile(path) //nolint:gosec // a path this test chose
 			s.Require().NoError(readErr)
@@ -497,8 +495,9 @@ func (s *DevicePublicTestSuite) TestExportWithWritesTheDevicesOwnFile() {
 	s.dev.EXPECT().Presets(gomock.Any(), 0).Return(s.listing(), nil)
 	s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 0).Return(s.answer("preset.bin"), nil)
 
-	s.Require().NoError(slots.ExportWith(context.Background(), &bytes.Buffer{},
-		s.dev, slots.ExportOptions{Slot: 0, As: "hlx", OutputPath: out}))
+	_, err := slots.ExportWith(context.Background(), s.dev,
+		slots.ExportOptions{Slot: 0, As: "hlx", OutputPath: out})
+	s.Require().NoError(err)
 
 	body, err := os.ReadFile(out) //nolint:gosec // a path this test chose
 	s.Require().NoError(err)
@@ -578,9 +577,12 @@ func (s *DevicePublicTestSuite) TestTheCommandsThatFindTheirOwnDevice() {
 
 	_, err := slots.ListDevice(ctx, slots.DeviceOptions{})
 	s.Require().NoError(err)
-	s.Require().NoError(slots.ShowDevice(ctx, &bytes.Buffer{}, slots.DeviceOptions{}))
-	s.Require().NoError(slots.ExportDevice(ctx, &bytes.Buffer{},
-		slots.ExportOptions{OutputPath: out}))
+
+	_, err = slots.ShowDevice(ctx, slots.DeviceOptions{})
+	s.Require().NoError(err)
+
+	_, err = slots.ExportDevice(ctx, slots.ExportOptions{OutputPath: out})
+	s.Require().NoError(err)
 }
 
 // TestShowDeviceOnAnEmptySlot covers the entry point somebody runs, where a
@@ -612,9 +614,7 @@ func (s *DevicePublicTestSuite) TestShowDeviceOnAnEmptySlot() {
 
 			defer s.stand(s.dev, nil)()
 
-			var out bytes.Buffer
-
-			err := slots.ShowDevice(context.Background(), &out,
+			read, err := slots.ShowDevice(context.Background(),
 				slots.DeviceOptions{Slot: 4})
 
 			if tt.says != "" {
@@ -624,7 +624,7 @@ func (s *DevicePublicTestSuite) TestShowDeviceOnAnEmptySlot() {
 			}
 
 			s.Require().NoError(err)
-			s.Require().Contains(out.String(), tt.contains)
+			s.Require().Contains(said(s.T(), read), tt.contains)
 		})
 	}
 }
@@ -636,12 +636,10 @@ func (s *DevicePublicTestSuite) TestReportsADeviceItCannotOpen() {
 	ctx := context.Background()
 
 	_, listing := slots.ListDevice(ctx, slots.DeviceOptions{})
+	_, showing := slots.ShowDevice(ctx, slots.DeviceOptions{})
+	_, exporting := slots.ExportDevice(ctx, slots.ExportOptions{})
 
-	for _, err := range []error{
-		listing,
-		slots.ShowDevice(ctx, &bytes.Buffer{}, slots.DeviceOptions{}),
-		slots.ExportDevice(ctx, &bytes.Buffer{}, slots.ExportOptions{}),
-	} {
+	for _, err := range []error{listing, showing, exporting} {
 		s.Require().ErrorContains(err, "no device found")
 	}
 }

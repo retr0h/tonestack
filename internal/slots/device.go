@@ -21,14 +21,10 @@
 package slots
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
-	"io"
-	"os"
 
-	"github.com/retr0h/tonestack/internal/cli"
 	"github.com/retr0h/tonestack/pkg/sdk"
 	"github.com/retr0h/tonestack/pkg/sdk/catalog"
 	"github.com/retr0h/tonestack/pkg/sdk/chain"
@@ -66,27 +62,23 @@ type DeviceOptions struct {
 //
 // Read-only: the device hands back the preset and goes on playing whatever it
 // was. Nothing is selected, loaded or written.
-func ShowDevice(ctx context.Context, w io.Writer, opts DeviceOptions) error {
+func ShowDevice(ctx context.Context, opts DeviceOptions) (sdk.Reading, error) {
 	s, err := openDevice(ctx)
 	if err != nil {
-		return err
+		return sdk.Reading{}, err
 	}
 
 	defer s.Close()
 
-	// Somebody who asked to look at a slot is told it holds nothing. Somebody
-	// exporting one gets the error, because there is no file to write.
-	if err := ShowWith(ctx, w, s, opts); err != nil {
-		if !errors.Is(err, ErrEmptySlot) {
-			return err
-		}
-
-		_, err := fmt.Fprintf(w, "# %s is empty\n", slotpkg.Label(opts.Slot))
-
-		return err
+	// Somebody who asked to look at a slot is answered that it holds nothing.
+	// Somebody exporting one gets the error, because there is no file to
+	// write.
+	read, err := ShowWith(ctx, s, opts)
+	if errors.Is(err, ErrEmptySlot) {
+		return sdk.Reading{Name: slotpkg.Label(opts.Slot)}, nil
 	}
 
-	return nil
+	return read, err
 }
 
 // ShowWith reads one slot off the given session.
@@ -95,10 +87,9 @@ func ShowDevice(ctx context.Context, w io.Writer, opts DeviceOptions) error {
 // which is the only part of this that needs hardware.
 func ShowWith(
 	ctx context.Context,
-	w io.Writer,
 	s device.Editor,
 	opts DeviceOptions,
-) error {
+) (sdk.Reading, error) {
 	// The name comes from the listing rather than the preset: what the device
 	// hands back for one slot does not carry it.
 	if opts.Name == "" {
@@ -110,33 +101,42 @@ func ShowWith(
 	body, err := s.ReadPreset(ctx, opts.Setlist, opts.Slot)
 
 	// A device that answered with something else is not a failure to report
-	// as one: what arrived is worth keeping and showing, because it is how a
-	// protocol change becomes visible.
+	// as one: what arrived is worth keeping and reporting, because it is how
+	// a protocol change becomes visible.
 	var answer *device.NotAPresetError
 	if errors.As(err, &answer) {
 		if err := dump(answer.Result); err != nil {
-			return err
+			return sdk.Reading{}, err
 		}
 
-		return describe(w, s.Model().Name, opts.Slot, answer.Shape())
+		return sdk.Reading{
+			Name: opts.Name,
+			Answer: &sdk.Answer{
+				Model: s.Model().Name,
+				Slot:  opts.Slot,
+				Shape: answer.Shape(),
+			},
+		}, nil
 	}
 
 	if err != nil {
-		return fmt.Errorf("reading slot %s: %w", slotpkg.Label(opts.Slot), err)
+		return sdk.Reading{}, fmt.Errorf(
+			"reading slot %s: %w", slotpkg.Label(opts.Slot), err)
 	}
 
 	if err := dump(body); err != nil {
-		return err
+		return sdk.Reading{}, err
 	}
 
 	// A device answers an empty slot with no document at all. That is a slot
 	// holding nothing rather than a failure, and a backup has to know the
 	// difference to put a pedal back the way it was found.
 	if body == nil {
-		return fmt.Errorf("%w: %s", ErrEmptySlot, slotpkg.Label(opts.Slot))
+		return sdk.Reading{}, fmt.Errorf(
+			"%w: %s", ErrEmptySlot, slotpkg.Label(opts.Slot))
 	}
 
-	return writeDeviceRig(w, body, opts)
+	return deviceReading(body, opts)
 }
 
 // ErrEmptySlot is returned for a slot holding no preset.
@@ -164,44 +164,34 @@ func nameOf(found []wire.Preset, slot int) string {
 //
 // The same rig `presets show` prints, which is the point: a slot read off the
 // hardware and one read out of a backup are the same document.
-func ExportDevice(ctx context.Context, w io.Writer, opts ExportOptions) error {
+func ExportDevice(ctx context.Context, opts ExportOptions) (sdk.Written, error) {
 	s, err := openDevice(ctx)
 	if err != nil {
-		return err
+		return sdk.Written{}, err
 	}
 
 	defer s.Close()
 
-	return ExportWith(ctx, w, s, opts)
+	return ExportWith(ctx, s, opts)
 }
 
 // ExportWith writes one slot off the given session to a file.
 func ExportWith(
 	ctx context.Context,
-	w io.Writer,
 	s device.Editor,
 	opts ExportOptions,
-) error {
-	var buf bytes.Buffer
-
-	err := ShowWith(ctx, &buf, s, DeviceOptions{
+) (sdk.Written, error) {
+	read, err := ShowWith(ctx, s, DeviceOptions{
 		Setlist:     opts.Setlist,
 		Slot:        opts.Slot,
 		As:          opts.As,
 		CatalogPath: opts.CatalogPath,
 	})
 	if err != nil {
-		return err
+		return sdk.Written{}, err
 	}
 
-	if err := os.WriteFile(opts.OutputPath, buf.Bytes(), 0o600); err != nil {
-		return fmt.Errorf("writing %s: %w", opts.OutputPath, err)
-	}
-
-	_, err = fmt.Fprintf(w, "\n%s%s\n\n",
-		cli.Indent, cli.Success(w, "wrote "+opts.OutputPath))
-
-	return err
+	return write(read, opts)
 }
 
 // ListDevice prints what an attached device holds.

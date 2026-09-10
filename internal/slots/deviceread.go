@@ -22,28 +22,28 @@ package slots
 
 import (
 	"fmt"
-	"io"
 
+	"github.com/retr0h/tonestack/pkg/sdk"
 	"github.com/retr0h/tonestack/pkg/sdk/device/wire"
-	"github.com/retr0h/tonestack/pkg/sdk/preset"
 	slotpkg "github.com/retr0h/tonestack/pkg/sdk/slot"
 )
 
-// writeDeviceRig turns a device's answer into a rig and writes it.
+// deviceReading turns a device's answer into a rig.
 //
 // The same rig a backup would produce, because the device and a file describe
 // the same preset. What arrives here names nothing — a model is a number and
 // parameters are a bare array — so the catalog's model table is what makes it
 // readable.
-func writeDeviceRig(w io.Writer, body []byte, opts DeviceOptions) error {
+func deviceReading(body []byte, opts DeviceOptions) (sdk.Reading, error) {
 	got, err := wire.DecodePreset(body)
 	if err != nil {
-		return fmt.Errorf("reading slot %s: %w", slotpkg.Label(opts.Slot), err)
+		return sdk.Reading{}, fmt.Errorf(
+			"reading slot %s: %w", slotpkg.Label(opts.Slot), err)
 	}
 
 	cat, err := opts.catalogs().Open(opts.CatalogPath)
 	if err != nil {
-		return err
+		return sdk.Reading{}, err
 	}
 
 	name := opts.Name
@@ -53,24 +53,24 @@ func writeDeviceRig(w io.Writer, body []byte, opts DeviceOptions) error {
 
 	doc, empty, err := opts.translator().Document(got, cat, name)
 	if err != nil {
-		return err
+		return sdk.Reading{}, err
 	}
 
 	if empty {
-		_, err := fmt.Fprintf(w, "# %s is empty\n", name)
-
-		return err
+		return sdk.Reading{Name: name}, nil
 	}
 
-	// The device's own file, when that is what was asked for. A rig is the
-	// default because it reads on other hardware; this is the faithful copy.
+	// Only the device's own file was asked for, so the lift is work nobody
+	// wants. A rig is the default because it reads on other hardware; this is
+	// the faithful copy.
 	if opts.As == FormatPreset {
-		return preset.Write(w, doc)
+		return sdk.Reading{Name: name, Doc: doc}, nil
 	}
 
 	spec, err := opts.compiler().Lift(doc, cat)
 	if err != nil {
-		return fmt.Errorf("reading slot %s: %w", slotpkg.Label(opts.Slot), err)
+		return sdk.Reading{}, fmt.Errorf(
+			"reading slot %s: %w", slotpkg.Label(opts.Slot), err)
 	}
 
 	// Everything else in that section would be the untouched preset this was
@@ -84,5 +84,5 @@ func writeDeviceRig(w io.Writer, body []byte, opts DeviceOptions) error {
 	spec.Footswitches = opts.translator().Footswitches(got, cat)
 	spec.Controllers = opts.translator().Controllers(got, cat)
 
-	return writeRigTo(w, spec)
+	return sdk.Reading{Name: name, Doc: doc, Rig: spec}, nil
 }

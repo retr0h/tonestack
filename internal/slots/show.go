@@ -21,15 +21,11 @@
 package slots
 
 import (
-	"bytes"
 	"fmt"
-	"io"
 	"os"
 
-	"github.com/retr0h/tonestack/internal/cli"
+	"github.com/retr0h/tonestack/pkg/sdk"
 	"github.com/retr0h/tonestack/pkg/sdk/preset"
-	"github.com/retr0h/tonestack/pkg/sdk/rig"
-	riggen "github.com/retr0h/tonestack/pkg/sdk/rig/gen"
 	slotpkg "github.com/retr0h/tonestack/pkg/sdk/slot"
 )
 
@@ -54,36 +50,36 @@ type ShowOptions struct {
 	CatalogPath string
 }
 
-// Show writes the rig a preset describes.
+// Show reads the rig a preset describes.
 //
 // A rig, not a rendering of one. RigSpec is what this project reads, writes
 // and exchanges, so it is what looking at a preset produces — and what comes
 // out here compiles back into the preset it came from, unchanged.
-func Show(w io.Writer, opts ShowOptions) error {
+func Show(opts ShowOptions) (sdk.Reading, error) {
 	doc, err := document(opts)
 	if err != nil {
-		return err
+		return sdk.Reading{}, err
 	}
 
 	cat, err := opts.catalogs().Open(opts.CatalogPath)
 	if err != nil {
-		return err
+		return sdk.Reading{}, err
 	}
 
 	// An empty slot is not a rig: it names no gear, and a rig holds at least
-	// one thing. Saying so beats an error about a contract nobody broke.
+	// one thing. Answering with the name and nothing else beats an error
+	// about a contract nobody broke.
 	if c, err := doc.Spec(); err == nil && len(c.Blocks) == 0 {
-		_, err := fmt.Fprintf(w, "# %s is empty\n", doc.Data.Meta.Name)
-
-		return err
+		return sdk.Reading{Name: doc.Data.Meta.Name}, nil
 	}
 
 	spec, err := opts.compiler().Lift(doc, cat)
 	if err != nil {
-		return fmt.Errorf("reading slot %s: %w", slotpkg.Label(opts.Slot), err)
+		return sdk.Reading{}, fmt.Errorf(
+			"reading slot %s: %w", slotpkg.Label(opts.Slot), err)
 	}
 
-	return writeRigTo(w, spec)
+	return sdk.Reading{Name: doc.Data.Meta.Name, Doc: doc, Rig: spec}, nil
 }
 
 // document resolves the options to the preset they name.
@@ -124,22 +120,4 @@ func readFile(path string) (*preset.Document, error) {
 	}
 
 	return doc, nil
-}
-
-// writeRigTo writes a rig for reading.
-//
-// Painted for a terminal and plain for anything else, which is what makes it
-// safe to redirect: the bytes are the same document either way.
-func writeRigTo(w io.Writer, spec riggen.RigSpec) error {
-	var buf bytes.Buffer
-
-	// The rig was validated on the way here and a buffer cannot fail, so the
-	// only thing that can go wrong is the sink.
-	_ = rig.Write(&buf, spec)
-
-	if _, err := io.WriteString(w, cli.YAML(w, buf.String())); err != nil {
-		return fmt.Errorf("writing the rig: %w", err)
-	}
-
-	return nil
 }
