@@ -24,12 +24,10 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"time"
 
-	"github.com/retr0h/tonestack/internal/cli"
 	"github.com/retr0h/tonestack/pkg/sdk/device"
 	"github.com/retr0h/tonestack/pkg/sdk/preset"
 	slotpkg "github.com/retr0h/tonestack/pkg/sdk/slot"
@@ -111,25 +109,6 @@ func backup(body []byte, opts DeviceOptions, dir string) (string, error) {
 	}
 
 	return path, nil
-}
-
-// said names the file a slot's old contents went to.
-//
-// Printed rather than kept quiet, because a backup nobody knows about is a
-// backup nobody restores from.
-func said(w io.Writer, kept ...string) error {
-	for _, path := range kept {
-		if path == "" {
-			continue
-		}
-
-		if _, err := fmt.Fprintf(w, "\n%s%s %s",
-			cli.Indent, cli.Mute(w, "kept"), path); err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
 // holds returns what a slot has in it, or nothing at all.

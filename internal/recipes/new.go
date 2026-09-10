@@ -23,7 +23,6 @@ package recipes
 import (
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -31,7 +30,7 @@ import (
 	"strings"
 
 	"github.com/retr0h/tonestack/internal/catalogview"
-	"github.com/retr0h/tonestack/internal/cli"
+	"github.com/retr0h/tonestack/pkg/sdk"
 	"github.com/retr0h/tonestack/pkg/sdk/catalog"
 )
 
@@ -127,30 +126,38 @@ type NewOptions struct {
 // Checking first is the point. A recipe naming gear no device models is only
 // discovered when somebody tries to build from it, and by then the name has
 // usually been copied somewhere else too.
-func New(w io.Writer, opts NewOptions) error {
+func New(opts NewOptions) (sdk.Scaffolded, error) {
 	if !idPattern.MatchString(opts.ID) {
-		return &BadIDError{ID: opts.ID}
+		return sdk.Scaffolded{}, &BadIDError{ID: opts.ID}
 	}
 
 	body, err := scaffoldFor(opts)
 	if err != nil {
-		return err
+		return sdk.Scaffolded{}, err
 	}
 
 	path := filepath.Join(opts.Dir, "artists", opts.ID+".yaml")
 	if _, err := os.Stat(path); err == nil {
-		return &ExistsError{Path: path}
+		return sdk.Scaffolded{}, &ExistsError{Path: path}
 	}
 
 	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
-		return fmt.Errorf("making room for %s: %w", path, err)
+		return sdk.Scaffolded{}, fmt.Errorf("making room for %s: %w", path, err)
 	}
 
 	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
-		return fmt.Errorf("writing %s: %w", path, err)
+		return sdk.Scaffolded{}, fmt.Errorf("writing %s: %w", path, err)
 	}
 
-	return report(w, opts, path)
+	return sdk.Scaffolded{
+		ID:         opts.ID,
+		Name:       opts.Name,
+		Instrument: opts.Instrument,
+		Amp:        opts.Amp,
+		Cab:        opts.Cab,
+		Pedals:     opts.Pedals,
+		Path:       path,
+	}, nil
 }
 
 // checkGear refuses a recipe naming gear the device has no model for.
@@ -228,35 +235,6 @@ func near(cat *catalog.Catalog, want string) []string {
 	}
 
 	return out
-}
-
-// report says what was written and what to do with it.
-func report(w io.Writer, opts NewOptions, path string) error {
-	rows := [][]string{
-		{cli.Mute(w, "id"), cli.Accent(w, opts.ID)},
-		{cli.Mute(w, "instrument"), opts.Instrument},
-		{cli.Mute(w, "amp"), opts.Amp},
-	}
-
-	if opts.Cab != "" {
-		rows = append(rows, []string{cli.Mute(w, "cab"), opts.Cab})
-	}
-
-	if len(opts.Pedals) > 0 {
-		rows = append(rows,
-			[]string{cli.Mute(w, "pedals"), strings.Join(opts.Pedals, ", ")})
-	}
-
-	if err := (cli.Section{
-		Title: opts.Name, Detail: path, Rows: rows,
-		Summary: fmt.Sprintf(
-			"every gear name resolves — next: tonestack presets make --id %s --out %s.hlx",
-			opts.ID, opts.ID),
-	}).Render(w); err != nil {
-		return fmt.Errorf("reporting: %w", err)
-	}
-
-	return nil
 }
 
 // scaffoldFor decides what goes in the new file.

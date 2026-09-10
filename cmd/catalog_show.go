@@ -23,6 +23,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/retr0h/tonestack/internal/catalogview"
+	"github.com/retr0h/tonestack/internal/cli"
 )
 
 var catalogShowModel string
@@ -33,7 +34,12 @@ var catalogShowCmd = &cobra.Command{
 	Short: "Show one block's parameters",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		return catalogview.Show(cmd.OutOrStdout(), catalogPath, catalogShowModel)
+		block, err := catalogview.Show(catalogPath, catalogShowModel)
+		if err != nil {
+			return err
+		}
+
+		return cli.Block(cmd.OutOrStdout(), block)
 	},
 }
 

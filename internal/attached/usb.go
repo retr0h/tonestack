@@ -22,7 +22,8 @@ package attached
 
 import (
 	"context"
-	"io"
+
+	"github.com/retr0h/tonestack/pkg/sdk"
 
 	"github.com/retr0h/tonestack/pkg/sdk/device"
 )
@@ -33,10 +34,10 @@ import (
 // through it takes the lister as an argument instead.
 var newLister = device.NewUSBLister
 
-// List writes every recognised device to w.
-func List(ctx context.Context, w io.Writer) error {
+// List reports every recognised device on the bus.
+func List(ctx context.Context) (sdk.Attached, error) {
 	l := newLister()
 	defer func() { _ = l.Close() }()
 
-	return ListWith(ctx, w, l)
+	return ListWith(ctx, l)
 }

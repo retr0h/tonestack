@@ -25,6 +25,7 @@ import (
 	"errors"
 	"io"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -35,6 +36,7 @@ import (
 	"github.com/retr0h/tonestack/internal/slots"
 	"github.com/retr0h/tonestack/pkg/sdk"
 	"github.com/retr0h/tonestack/pkg/sdk/rig"
+	slotpkg "github.com/retr0h/tonestack/pkg/sdk/slot"
 )
 
 type SlotsPublicTestSuite struct {
@@ -44,6 +46,22 @@ type SlotsPublicTestSuite struct {
 func fixture(name string) string { return filepath.Join("testdata", name) }
 
 func catalogPath() string { return fixture("catalog.json") }
+
+// did flattens what a write reported, so a test can assert on the facts of it
+// without also asserting on how a terminal paints them.
+func did(c sdk.Change) string {
+	parts := []string{
+		string(c.Action),
+		slotpkg.Label(c.To.Slot), c.To.Name,
+		c.Replaced, c.Path,
+	}
+
+	if c.From != nil {
+		parts = append(parts, slotpkg.Label(c.From.Slot), c.From.Name)
+	}
+
+	return strings.Join(append(parts, c.Kept...), " ")
+}
 
 // said renders a reading the way something displaying one would.
 //

@@ -21,10 +21,8 @@
 package slots_test
 
 import (
-	"bytes"
 	"context"
 	"errors"
-	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -101,12 +99,6 @@ func (s *EditDevicePublicTestSuite) backupDir(bad bool) string {
 	return filepath.Join(path, "under-it")
 }
 
-// deafWriter is a writer nothing can be written to. It stands in for a
-// standard library interface, so it is written by hand.
-type deafWriter struct{}
-
-func (*deafWriter) Write([]byte) (int, error) { return 0, errors.New("no") }
-
 // expectListing sets up the listing every edit starts from.
 func (s *EditDevicePublicTestSuite) expectListing(reader *mocks.MockEditor, ok bool) {
 	if !ok {
@@ -174,7 +166,6 @@ func (s *EditDevicePublicTestSuite) TestCopyWith() {
 		// somewhere a backup cannot be written.
 		badBackup bool
 		// a writer nothing can be written to.
-		deaf bool
 
 		contains []string
 		errText  string
@@ -188,7 +179,7 @@ func (s *EditDevicePublicTestSuite) TestCopyWith() {
 				"01A", "02A", "Chunky Monkey",
 				// The destination is overwritten and there is no undo on a
 				// device.
-				"replacing Black Rusty",
+				"Black Rusty",
 			},
 		},
 		{name: "a listing it cannot get", errText: "listing presets"},
@@ -210,14 +201,6 @@ func (s *EditDevicePublicTestSuite) TestCopyWith() {
 			read:      "answered",
 			badBackup: true,
 			errText:   "making room for a backup",
-		},
-		{
-			name:    "a reader nobody can be told about it through",
-			listed:  true,
-			read:    "answered",
-			write:   "landed",
-			deaf:    true,
-			errText: "no",
 		},
 		{
 			name:    "a slot it cannot read",
@@ -282,14 +265,7 @@ func (s *EditDevicePublicTestSuite) TestCopyWith() {
 				s.expectWrite(3, "Chunky Monkey", tt.write == "landed")
 			}
 
-			var out bytes.Buffer
-
-			w := io.Writer(&out)
-			if tt.deaf {
-				w = &deafWriter{}
-			}
-
-			err := slots.CopyWith(context.Background(), w, dev,
+			change, err := slots.CopyWith(context.Background(), dev,
 				slots.EditOptions{
 					FromSlot: 0, ToSlot: 3, BackupDir: s.backupDir(tt.badBackup),
 				})
@@ -304,7 +280,7 @@ func (s *EditDevicePublicTestSuite) TestCopyWith() {
 			s.Require().NoError(err)
 
 			for _, want := range tt.contains {
-				s.Require().Contains(out.String(), want)
+				s.Require().Contains(did(change), want)
 			}
 		})
 	}
@@ -416,9 +392,7 @@ func (s *EditDevicePublicTestSuite) TestSwapWith() {
 				}
 			}
 
-			var out bytes.Buffer
-
-			err := slots.SwapWith(context.Background(), &out, dev,
+			change, err := slots.SwapWith(context.Background(), dev,
 				slots.EditOptions{
 					FromSlot: 0, ToSlot: 3, BackupDir: s.backupDir(tt.badBackup),
 				})
@@ -431,7 +405,7 @@ func (s *EditDevicePublicTestSuite) TestSwapWith() {
 			}
 
 			s.Require().NoError(err)
-			s.Require().Contains(out.String(), tt.contains)
+			s.Require().Contains(did(change), tt.contains)
 		})
 	}
 }
@@ -480,14 +454,19 @@ func (s *EditDevicePublicTestSuite) TestCopyDeviceAndSwapDevice() {
 			}
 
 			if !tt.attached {
-				s.Require().Error(slots.CopyDevice(ctx, &bytes.Buffer{}, opts))
-				s.Require().Error(slots.SwapDevice(ctx, &bytes.Buffer{}, opts))
+				_, copyErr := slots.CopyDevice(ctx, opts)
+				_, swapErr := slots.SwapDevice(ctx, opts)
+				s.Require().Error(copyErr)
+				s.Require().Error(swapErr)
 
 				return
 			}
 
-			s.Require().NoError(slots.CopyDevice(ctx, &bytes.Buffer{}, opts))
-			s.Require().NoError(slots.SwapDevice(ctx, &bytes.Buffer{}, opts))
+			_, err := slots.CopyDevice(ctx, opts)
+			s.Require().NoError(err)
+
+			_, err = slots.SwapDevice(ctx, opts)
+			s.Require().NoError(err)
 		})
 	}
 }

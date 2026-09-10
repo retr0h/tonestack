@@ -23,6 +23,7 @@ package cmd
 import (
 	"github.com/spf13/cobra"
 
+	"github.com/retr0h/tonestack/internal/cli"
 	"github.com/retr0h/tonestack/internal/corpusview"
 )
 
@@ -42,7 +43,12 @@ The spread is the useful column. A parameter everybody sets the same way is one
 this tool can be confident about; one nobody agrees on belongs to the player.`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		return corpusview.Show(cmd.OutOrStdout(), corpusShowOptions)
+		measured, err := corpusview.Show(corpusShowOptions)
+		if err != nil {
+			return err
+		}
+
+		return cli.Measured(cmd.OutOrStdout(), measured)
 	},
 }
 

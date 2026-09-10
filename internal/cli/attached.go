@@ -17,41 +17,37 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
-package attached
+
+package cli
 
 import (
-	"context"
 	"fmt"
+	"io"
 
 	"github.com/retr0h/tonestack/pkg/sdk"
-	"github.com/retr0h/tonestack/pkg/sdk/device"
 )
 
-// Lister reports the devices currently attached. device.Lister satisfies it.
-type Lister interface {
-	List(ctx context.Context) ([]device.Descriptor, error)
-}
+// Attached prints what is on the bus, one device to a row.
+func Attached(w io.Writer, a sdk.Attached) error {
+	rows := make([][]string, 0, len(a.Devices))
 
-// ListWith reports every device the lister returns and this package
-// recognises. Taking the lister makes this testable without hardware.
-func ListWith(ctx context.Context, l Lister) (sdk.Attached, error) {
-	found, err := device.Devices(ctx, l)
-	if err != nil {
-		return sdk.Attached{}, fmt.Errorf("finding devices: %w", err)
-	}
-
-	out := make([]sdk.Attachment, 0, len(found))
-
-	for _, d := range found {
-		out = append(out, sdk.Attachment{
-			Model:    d.Model,
-			DeviceID: d.DeviceID,
-			Vendor:   d.Descriptor.Vendor,
-			Product:  d.Descriptor.Product,
-			Bus:      d.Descriptor.Bus,
-			Address:  d.Descriptor.Address,
+	for _, d := range a.Devices {
+		rows = append(rows, []string{
+			Accent(w, d.Model),
+			Mute(w, fmt.Sprintf("%04x:%04x", d.Vendor, d.Product)),
+			Mute(w, fmt.Sprintf("%d.%d", d.Bus, d.Address)),
+			fmt.Sprintf("%d", d.DeviceID),
 		})
 	}
 
-	return sdk.Attached{Devices: out}, nil
+	if err := (Section{
+		Title:   "Attached",
+		Headers: []string{"device", "usb", "bus", "preset device id"},
+		Rows:    rows,
+		Empty:   "no Helix devices attached",
+	}).Render(w); err != nil {
+		return fmt.Errorf("reporting: %w", err)
+	}
+
+	return nil
 }

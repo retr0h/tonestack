@@ -23,14 +23,11 @@ package slots
 import (
 	"bytes"
 	"fmt"
-	"io"
 	"os"
 
-	"github.com/retr0h/tonestack/internal/cli"
 	"github.com/retr0h/tonestack/pkg/sdk"
 	"github.com/retr0h/tonestack/pkg/sdk/preset"
 	"github.com/retr0h/tonestack/pkg/sdk/rig"
-	slotpkg "github.com/retr0h/tonestack/pkg/sdk/slot"
 )
 
 // Format is what an export is written as.
@@ -162,20 +159,20 @@ type ImportOptions struct {
 // Import puts a standalone preset into a slot.
 //
 // Whatever the slot held is gone, which is why the result goes to a new file.
-func Import(w io.Writer, opts ImportOptions) error {
+func Import(opts ImportOptions) (sdk.Change, error) {
 	doc, err := open(opts.Path)
 	if err != nil {
-		return err
+		return sdk.Change{}, err
 	}
 
 	src, err := readPreset(opts.File)
 	if err != nil {
-		return err
+		return sdk.Change{}, err
 	}
 
 	dst, err := doc.Slot(opts.Setlist, opts.Slot)
 	if err != nil {
-		return err
+		return sdk.Change{}, err
 	}
 
 	replaced := dst.Meta.Name
@@ -184,24 +181,16 @@ func Import(w io.Writer, opts ImportOptions) error {
 	*dst = src.Data
 
 	if err := save(opts.OutputPath, doc); err != nil {
-		return err
+		return sdk.Change{}, err
 	}
 
-	if mismatch {
-		_, err = fmt.Fprintf(w, "\n%s%s\n", cli.Indent, cli.Info(w,
-			"this preset was made for a different device; it may not load"))
-		if err != nil {
-			return err
-		}
-	}
-
-	_, err = fmt.Fprintf(w, "\n%s%s %s %s %s\n\n%s%s\n\n",
-		cli.Indent, cli.Accent(w, slotpkg.Label(opts.Slot)),
-		src.Data.Meta.Name,
-		cli.Mute(w, "replaced"), replaced,
-		cli.Indent, cli.Success(w, "wrote "+opts.OutputPath))
-
-	return err
+	return sdk.Change{
+		Action:   sdk.Imported,
+		To:       sdk.At{Slot: opts.Slot, Name: src.Data.Meta.Name},
+		Replaced: replaced,
+		Mismatch: mismatch,
+		Path:     opts.OutputPath,
+	}, nil
 }
 
 // readPreset reads a standalone preset file.

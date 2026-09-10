@@ -23,9 +23,8 @@ package slots
 import (
 	"context"
 	"fmt"
-	"io"
 
-	"github.com/retr0h/tonestack/internal/cli"
+	"github.com/retr0h/tonestack/pkg/sdk"
 	"github.com/retr0h/tonestack/pkg/sdk/device"
 	slotpkg "github.com/retr0h/tonestack/pkg/sdk/slot"
 )
@@ -38,69 +37,81 @@ import (
 // to keep those right is to change nothing.
 //
 // The destination is overwritten. There is no undo on a device.
-func CopyDevice(ctx context.Context, w io.Writer, opts EditOptions) error {
-	return editDevice(ctx, w, opts, "copied", copyOne)
+func CopyDevice(ctx context.Context, opts EditOptions) (sdk.Change, error) {
+	return editDevice(ctx, opts, sdk.Copied, copyOne)
 }
 
 // SwapDevice exchanges what two slots hold.
-func SwapDevice(ctx context.Context, w io.Writer, opts EditOptions) error {
-	return editDevice(ctx, w, opts, "swapped", swapTwo)
+func SwapDevice(ctx context.Context, opts EditOptions) (sdk.Change, error) {
+	return editDevice(ctx, opts, sdk.Swapped, swapTwo)
 }
 
 // editDevice opens a session and hands it to one of the two above.
 func editDevice(
 	ctx context.Context,
-	w io.Writer,
 	opts EditOptions,
-	verb string,
-	apply func(context.Context, device.Editor, EditOptions) (string, string, []string, error),
-) error {
+	action sdk.Action,
+	apply applier,
+) (sdk.Change, error) {
 	s, err := openDevice(ctx)
 	if err != nil {
-		return err
+		return sdk.Change{}, err
 	}
 
 	defer s.Close()
 
-	return editWith(ctx, w, s, opts, verb, apply)
+	return editWith(ctx, s, opts, action, apply)
+}
+
+// applier performs one edit against a session and says what it did.
+type applier func(context.Context, device.Editor, EditOptions) (edited, error)
+
+// edited is what an edit found and kept on the way past.
+type edited struct {
+	// from and to are what the two slots were called before the write.
+	from, to string
+	// kept are the backups written before anything was overwritten.
+	kept []string
 }
 
 // CopyWith puts what one slot holds into another, on the given session.
-func CopyWith(ctx context.Context, w io.Writer, s device.Editor, opts EditOptions) error {
-	return editWith(ctx, w, s, opts, "copied", copyOne)
+func CopyWith(
+	ctx context.Context,
+	s device.Editor,
+	opts EditOptions,
+) (sdk.Change, error) {
+	return editWith(ctx, s, opts, sdk.Copied, copyOne)
 }
 
 // SwapWith exchanges what two slots hold, on the given session.
-func SwapWith(ctx context.Context, w io.Writer, s device.Editor, opts EditOptions) error {
-	return editWith(ctx, w, s, opts, "swapped", swapTwo)
+func SwapWith(
+	ctx context.Context,
+	s device.Editor,
+	opts EditOptions,
+) (sdk.Change, error) {
+	return editWith(ctx, s, opts, sdk.Swapped, swapTwo)
 }
 
 // editWith performs one edit against the given session.
 func editWith(
 	ctx context.Context,
-	w io.Writer,
 	s device.Editor,
 	opts EditOptions,
-	verb string,
-	apply func(context.Context, device.Editor, EditOptions) (string, string, []string, error),
-) error {
-	fromName, toName, kept, err := apply(ctx, s, opts)
+	action sdk.Action,
+	apply applier,
+) (sdk.Change, error) {
+	did, err := apply(ctx, s, opts)
 	if err != nil {
-		return err
+		return sdk.Change{}, err
 	}
 
-	if err := said(w, kept...); err != nil {
-		return err
-	}
-
-	_, err = fmt.Fprintf(w, "\n%s%s %s %s %s\n\n%s%s\n\n",
-		cli.Indent,
-		cli.Accent(w, slotpkg.Label(opts.FromSlot)), fromName,
-		cli.Mute(w, "→"),
-		cli.Accent(w, slotpkg.Label(opts.ToSlot)),
-		cli.Indent, cli.Success(w, verb+", replacing "+toName))
-
-	return err
+	return sdk.Change{
+		Action:   action,
+		From:     &sdk.At{Slot: opts.FromSlot, Name: did.from},
+		To:       sdk.At{Slot: opts.ToSlot, Name: did.to},
+		Replaced: did.to,
+		Kept:     did.kept,
+	}, nil
 }
 
 // copyOne writes what the source holds into the destination.
@@ -108,15 +119,15 @@ func copyOne(
 	ctx context.Context,
 	s device.Editor,
 	opts EditOptions,
-) (string, string, []string, error) {
+) (edited, error) {
 	from, to, err := names(ctx, s, opts)
 	if err != nil {
-		return "", "", nil, err
+		return edited{}, err
 	}
 
 	body, err := slotBytes(ctx, s, opts.FromSetlist, opts.FromSlot)
 	if err != nil {
-		return "", "", nil, err
+		return edited{}, err
 	}
 
 	// Before the backup: a session that cannot write is not going to
@@ -124,7 +135,7 @@ func copyOne(
 	// round trip to the device for nothing.
 	w, err := writerFor(s)
 	if err != nil {
-		return "", "", nil, err
+		return edited{}, err
 	}
 
 	// The destination is about to stop being what it was, and unlike the
@@ -132,7 +143,7 @@ func copyOne(
 	kept, err := replacing(ctx, s, opts.Deps, opts.CatalogPath, opts.BackupDir,
 		opts.ToSetlist, opts.ToSlot)
 	if err != nil {
-		return "", "", nil, err
+		return edited{}, err
 	}
 
 	// Named, because the destination takes the source's name along with its
@@ -140,11 +151,11 @@ func copyOne(
 	// was, which is not what copying a preset means.
 	if err := w.WriteNamedPreset(
 		ctx, opts.ToSetlist, opts.ToSlot, from, body); err != nil {
-		return "", "", nil, fmt.Errorf("writing slot %s: %w",
+		return edited{}, fmt.Errorf("writing slot %s: %w",
 			slotpkg.Label(opts.ToSlot), err)
 	}
 
-	return from, to, kept, nil
+	return edited{from: from, to: to, kept: kept}, nil
 }
 
 // swapTwo exchanges what two slots hold.
@@ -156,25 +167,25 @@ func swapTwo(
 	ctx context.Context,
 	s device.Editor,
 	opts EditOptions,
-) (string, string, []string, error) {
+) (edited, error) {
 	from, to, err := names(ctx, s, opts)
 	if err != nil {
-		return "", "", nil, err
+		return edited{}, err
 	}
 
 	source, err := slotBytes(ctx, s, opts.FromSetlist, opts.FromSlot)
 	if err != nil {
-		return "", "", nil, err
+		return edited{}, err
 	}
 
 	destination, err := slotBytes(ctx, s, opts.ToSetlist, opts.ToSlot)
 	if err != nil {
-		return "", "", nil, err
+		return edited{}, err
 	}
 
 	w, err := writerFor(s)
 	if err != nil {
-		return "", "", nil, err
+		return edited{}, err
 	}
 
 	// Both of them, because a swap replaces both. No extra reads: a swap has
@@ -183,22 +194,22 @@ func swapTwo(
 		at{body: destination, slot: opts.ToSlot},
 		at{body: source, slot: opts.FromSlot})
 	if err != nil {
-		return "", "", nil, err
+		return edited{}, err
 	}
 
 	if err := w.WriteNamedPreset(
 		ctx, opts.ToSetlist, opts.ToSlot, from, source); err != nil {
-		return "", "", nil, fmt.Errorf("writing slot %s: %w",
+		return edited{}, fmt.Errorf("writing slot %s: %w",
 			slotpkg.Label(opts.ToSlot), err)
 	}
 
 	if err := w.WriteNamedPreset(
 		ctx, opts.FromSetlist, opts.FromSlot, to, destination); err != nil {
-		return "", "", nil, fmt.Errorf("writing slot %s: %w",
+		return edited{}, fmt.Errorf("writing slot %s: %w",
 			slotpkg.Label(opts.FromSlot), err)
 	}
 
-	return from, to, kept, nil
+	return edited{from: from, to: to, kept: kept}, nil
 }
 
 // slotBytes reads one slot as the bytes the device holds.

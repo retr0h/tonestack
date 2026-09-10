@@ -20,9 +20,6 @@
 package catalogview_test
 
 import (
-	"bytes"
-	"errors"
-	"io"
 	"path/filepath"
 	"testing"
 
@@ -106,25 +103,33 @@ func (s *CatalogViewPublicTestSuite) TestOpen() {
 // TestList writes out the blocks a filter selects.
 func (s *CatalogViewPublicTestSuite) TestList() {
 	tests := []struct {
-		name     string
-		path     string
-		filter   catalogview.Filter
-		to       io.Writer
+		name   string
+		path   string
+		filter catalogview.Filter
+		// the identifiers the answer must carry, and must not.
 		contains []string
 		absent   []string
-		err      bool
+		// nothing came through the filter.
+		empty bool
+		// what the catalog says about itself. The source is matched loosely,
+		// since it carries a version this test has no business pinning.
+		total  int
+		source string
+		err    bool
 	}{
 		{
 			name:     "every block, with a count",
 			path:     s.path(),
-			contains: []string{"HD2_AmpTestBass", "HD2_DriveTest", "2 of 2 blocks"},
+			contains: []string{"HD2_AmpTestBass", "HD2_DriveTest"},
+			total:    2,
 		},
 		{
 			name:     "narrowed to a category",
 			path:     s.path(),
 			filter:   catalogview.Filter{Category: "amp"},
-			contains: []string{"HD2_AmpTestBass", "1 of 2 blocks"},
+			contains: []string{"HD2_AmpTestBass"},
 			absent:   []string{"HD2_DriveTest"},
+			total:    2,
 		},
 		{
 			// This is the filter that makes a bass request draw from bass
@@ -156,60 +161,42 @@ func (s *CatalogViewPublicTestSuite) TestList() {
 		{
 			// A device's own name for a model is not what the catalog
 			// searches, so this finds nothing rather than everything.
-			name:     "searched by a name only the device uses",
-			path:     s.path(),
-			filter:   catalogview.Filter{Search: "SVBeast"},
-			contains: []string{"no blocks match"},
+			name:   "searched by a name only the device uses",
+			path:   s.path(),
+			filter: catalogview.Filter{Search: "SVBeast"},
+			empty:  true,
 		},
 		{
-			name:     "a filter nothing matches",
-			path:     s.path(),
-			filter:   catalogview.Filter{Category: "looper"},
-			contains: []string{"no blocks match"},
+			name:   "a filter nothing matches",
+			path:   s.path(),
+			filter: catalogview.Filter{Category: "looper"},
+			empty:  true,
 		},
 		{
 			// A catalog is only true of the release it came from, so it says
 			// which.
-			name:     "the release it came from",
-			path:     "",
-			filter:   catalogview.Filter{Search: "klon"},
-			contains: []string{"HX Edit"},
+			name:   "the release it came from",
+			path:   "",
+			filter: catalogview.Filter{Search: "klon"},
+			source: "HX Edit",
 		},
 		{
-			name:     "one that cannot name its source",
-			path:     s.path(),
-			contains: []string{"source unknown"},
+			// Nothing recorded it, which is a different thing from a source
+			// nobody recognises. What to say about that is the renderer's.
+			name:   "one that cannot name its source",
+			path:   s.path(),
+			source: "",
 		},
 		{
 			name: "a catalog that will not open",
 			path: filepath.Join("testdata", "nope.json"),
 			err:  true,
 		},
-		{
-			name: "nowhere to write it",
-			path: s.path(),
-			to:   &failingWriter{},
-			err:  true,
-		},
-		{
-			name:   "nowhere to write the empty case either",
-			path:   s.path(),
-			filter: catalogview.Filter{Category: "looper"},
-			to:     &failingWriter{},
-			err:    true,
-		},
 	}
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			var buf bytes.Buffer
-
-			to := tt.to
-			if to == nil {
-				to = &buf
-			}
-
-			err := catalogview.List(to, tt.path, tt.filter)
+			blocks, err := catalogview.List(tt.path, tt.filter)
 
 			if tt.err {
 				s.Require().Error(err)
@@ -219,13 +206,28 @@ func (s *CatalogViewPublicTestSuite) TestList() {
 
 			s.Require().NoError(err)
 
+			got := make([]string, 0, len(blocks.Matched))
+			for _, b := range blocks.Matched {
+				got = append(got, string(b.ID))
+			}
+
 			for _, want := range tt.contains {
-				s.Require().Contains(buf.String(), want)
+				s.Require().Contains(got, want)
 			}
 
 			for _, gone := range tt.absent {
-				s.Require().NotContains(buf.String(), gone)
+				s.Require().NotContains(got, gone)
 			}
+
+			if tt.empty {
+				s.Require().Empty(blocks.Matched)
+			}
+
+			if tt.total != 0 {
+				s.Require().Equal(tt.total, blocks.Total)
+			}
+
+			s.Require().Contains(blocks.Source, tt.source)
 		})
 	}
 }
@@ -233,39 +235,18 @@ func (s *CatalogViewPublicTestSuite) TestList() {
 // TestShow writes out one block and everything it accepts.
 func (s *CatalogViewPublicTestSuite) TestShow() {
 	tests := []struct {
-		name     string
-		path     string
-		id       string
-		to       io.Writer
-		contains []string
-		absent   []string
-		err      bool
+		name string
+		path string
+		id   string
+		// the parameters the block must accept.
+		params []string
+		err    bool
 	}{
 		{
-			name: "a block, its costs and its parameters",
-			path: s.path(),
-			id:   "HD2_AmpTestBass",
-			contains: []string{
-				"Ampeg SVT (normal channel)", "amp (Bass)",
-				"26.67 mono", "40.10 stereo",
-				"Drive", "0..1", "0.53",
-				// A bool has no range.
-				"Bright", "—",
-			},
-		},
-		{
-			name:   "one with no stereo cost does not claim one",
+			name:   "a block and its parameters",
 			path:   s.path(),
-			id:     "HD2_DriveTest",
-			absent: []string{"stereo"},
-		},
-		{
-			// A DSP cost that was inferred must not read as Line 6's own
-			// figure.
-			name:     "a figure nobody stated is marked",
-			path:     filepath.Join("testdata", "assumed.json"),
-			id:       "HD2_Guessed",
-			contains: []string{"assumed"},
+			id:     "HD2_AmpTestBass",
+			params: []string{"Drive", "Bright"},
 		},
 		{
 			name: "a block the catalog does not carry",
@@ -279,34 +260,11 @@ func (s *CatalogViewPublicTestSuite) TestShow() {
 			id:   "x",
 			err:  true,
 		},
-		{
-			name: "nowhere to write it",
-			path: s.path(),
-			id:   "HD2_AmpTestBass",
-			to:   &failingWriter{},
-			err:  true,
-		},
-		{
-			// The parameters are a second write, so a writer that survives
-			// the first still has to be reported.
-			name: "nowhere to write the parameters",
-			path: s.path(),
-			id:   "HD2_AmpTestBass",
-			to:   &failAfter{n: 1},
-			err:  true,
-		},
 	}
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			var buf bytes.Buffer
-
-			to := tt.to
-			if to == nil {
-				to = &buf
-			}
-
-			err := catalogview.Show(to, tt.path, tt.id)
+			block, err := catalogview.Show(tt.path, tt.id)
 
 			if tt.err {
 				s.Require().Error(err)
@@ -315,13 +273,10 @@ func (s *CatalogViewPublicTestSuite) TestShow() {
 			}
 
 			s.Require().NoError(err)
+			s.Require().Equal(tt.id, string(block.ID))
 
-			for _, want := range tt.contains {
-				s.Require().Contains(buf.String(), want)
-			}
-
-			for _, gone := range tt.absent {
-				s.Require().NotContains(buf.String(), gone)
+			for _, want := range tt.params {
+				s.Require().Contains(block.Params, want)
 			}
 		})
 	}
@@ -342,23 +297,6 @@ func (s *CatalogViewPublicTestSuite) TestNotFoundError() {
 func (s *CatalogViewPublicTestSuite) TestDefaultPathIsWhereTheCatalogLives() {
 	s.Require().Equal(
 		"resources/schemas/hx-stomp.catalog.json", catalogview.DefaultPath)
-}
-
-type failingWriter struct{}
-
-func (*failingWriter) Write([]byte) (int, error) { return 0, errors.New("boom") }
-
-// failAfter fails on the nth write, so a later reporting step can be reached.
-type failAfter struct{ n int }
-
-func (f *failAfter) Write(p []byte) (int, error) {
-	if f.n == 0 {
-		return 0, errors.New("boom")
-	}
-
-	f.n--
-
-	return len(p), nil
 }
 
 func TestCatalogViewPublicTestSuite(t *testing.T) {

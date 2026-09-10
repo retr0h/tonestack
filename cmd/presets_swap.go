@@ -22,7 +22,9 @@ package cmd
 import (
 	"github.com/spf13/cobra"
 
+	"github.com/retr0h/tonestack/internal/cli"
 	"github.com/retr0h/tonestack/internal/slots"
+	"github.com/retr0h/tonestack/pkg/sdk"
 )
 
 var presetsSwapOptions slots.EditOptions
@@ -39,17 +41,30 @@ inputs, outputs, split and join a device expects, which differ by model and by
 firmware. Swapping invents nothing and undoes itself when repeated.`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		// No file means the device itself, which is what somebody with one
-		// plugged in almost always wants.
-		if presetsSwapOptions.Path == "" {
-			return slots.SwapDevice(cmd.Context(), cmd.OutOrStdout(), presetsSwapOptions)
+		// The operation answers with what it did; saying so is decided here,
+		// which is all this command does.
+		change, err := swapped(cmd)
+		if err != nil {
+			return err
 		}
 
-		return slots.Swap(cmd.OutOrStdout(), presetsSwapOptions)
+		return cli.Change(cmd.OutOrStdout(), change)
 	},
 }
 
 func init() {
 	presetsCmd.AddCommand(presetsSwapCmd)
 	editFlags(presetsSwapCmd, &presetsSwapOptions)
+}
+
+// swapped exchanges two slots, on the device or in a file.
+//
+// No file means the device itself, which is what somebody with one plugged in
+// almost always wants.
+func swapped(cmd *cobra.Command) (sdk.Change, error) {
+	if presetsSwapOptions.Path == "" {
+		return slots.SwapDevice(cmd.Context(), presetsSwapOptions)
+	}
+
+	return slots.Swap(presetsSwapOptions)
 }

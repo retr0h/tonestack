@@ -21,8 +21,6 @@
 package recipes_test
 
 import (
-	"bytes"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -91,14 +89,13 @@ func (s *NewPublicTestSuite) TestNew() {
 		dir string
 		// write the recipe once first, so the call under test finds it there.
 		twice bool
-		deaf  bool
 
 		// the gear the written recipe must name, by role and by position.
 		wantAmp   string
 		wantCab   string
 		wantFirst string
 		wantRoles []gen.Role
-		logs      []string
+		says      []string
 
 		err     error
 		errText string
@@ -110,7 +107,7 @@ func (s *NewPublicTestSuite) TestNew() {
 			// template.
 			name:    "a recipe naming an amplifier",
 			wantAmp: "Ampeg SVT",
-			logs:    []string{"Test Player", "presets make"},
+			says:    []string{"Test Player"},
 		},
 		{
 			name:   "everything somebody named",
@@ -123,7 +120,7 @@ func (s *NewPublicTestSuite) TestNew() {
 			wantRoles: []gen.Role{gen.RoleDrive, gen.RoleAmp},
 			wantAmp:   "Ampeg SVT",
 			wantCab:   "Ampeg SVT 410HLF",
-			logs:      []string{"Klon Centaur"},
+			says:      []string{"Klon Centaur"},
 		},
 		{
 			// Checking before writing is the point. A recipe naming an
@@ -213,7 +210,6 @@ func (s *NewPublicTestSuite) TestNew() {
 			dir:     "a file",
 			errText: "making room",
 		},
-		{name: "a writer that fails", deaf: true},
 	}
 
 	for _, tt := range tests {
@@ -253,19 +249,13 @@ func (s *NewPublicTestSuite) TestNew() {
 			}
 
 			if tt.twice {
-				s.Require().NoError(recipes.New(&bytes.Buffer{}, s.opts(dir)))
+				_, err := recipes.New(s.opts(dir))
+				s.Require().NoError(err)
 			}
 
-			var log bytes.Buffer
+			made, err := recipes.New(o)
 
-			w := io.Writer(&log)
-			if tt.deaf {
-				w = &failingWriter{}
-			}
-
-			err := recipes.New(w, o)
-
-			if tt.err != nil || tt.errText != "" || tt.deaf {
+			if tt.err != nil || tt.errText != "" {
 				s.Require().Error(err)
 
 				if tt.err != nil {
@@ -310,8 +300,14 @@ func (s *NewPublicTestSuite) TestNew() {
 				s.Require().Equal(want, all[0].Chain[i].Role)
 			}
 
-			for _, want := range tt.logs {
-				s.Require().Contains(log.String(), want)
+			// What was written, from the answer rather than from the
+			// options it was asked for.
+			said := strings.Join(append(
+				[]string{made.ID, made.Name, made.Amp, made.Cab, made.Path},
+				made.Pedals...), " ")
+
+			for _, want := range tt.says {
+				s.Require().Contains(said, want)
 			}
 		})
 	}

@@ -24,7 +24,6 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -246,66 +245,6 @@ func (s *BackupTestSuite) TestBackup() {
 	}
 }
 
-// TestSaid covers naming the file a slot's old contents went to.
-func (s *BackupTestSuite) TestSaid() {
-	tests := []struct {
-		name  string
-		kept  []string
-		deaf  bool
-		wants []string
-		quiet bool
-	}{
-		{
-			name:  "one file",
-			kept:  []string{"/tmp/one.hlx"},
-			wants: []string{"kept", "/tmp/one.hlx"},
-		},
-		{
-			name:  "two, because a swap replaces two slots",
-			kept:  []string{"/tmp/one.hlx", "/tmp/two.hlx"},
-			wants: []string{"/tmp/one.hlx", "/tmp/two.hlx"},
-		},
-		{
-			name:  "a slot that held nothing",
-			kept:  []string{""},
-			quiet: true,
-		},
-		{name: "nothing kept at all", quiet: true},
-		{name: "a reader nobody can write to", kept: []string{"/tmp/x.hlx"}, deaf: true},
-	}
-
-	for _, tt := range tests {
-		s.Run(tt.name, func() {
-			var buf bytes.Buffer
-
-			w := io.Writer(&buf)
-			if tt.deaf {
-				w = &failing{}
-			}
-
-			err := said(w, tt.kept...)
-
-			if tt.deaf {
-				s.Require().Error(err)
-
-				return
-			}
-
-			s.Require().NoError(err)
-
-			if tt.quiet {
-				s.Require().Empty(buf.String())
-
-				return
-			}
-
-			for _, want := range tt.wants {
-				s.Require().Contains(buf.String(), want)
-			}
-		})
-	}
-}
-
 // TestHolds covers reading a slot that may hold nothing.
 func (s *BackupTestSuite) TestHolds() {
 	tests := []struct {
@@ -410,12 +349,6 @@ func (s *BackupTestSuite) TestReplacing() {
 		})
 	}
 }
-
-// failing is a writer nothing can be written to. Standing in for a standard
-// library interface, so it is written by hand.
-type failing struct{}
-
-func (*failing) Write([]byte) (int, error) { return 0, errors.New("no") }
 
 func TestBackupTestSuite(t *testing.T) {
 	suite.Run(t, new(BackupTestSuite))

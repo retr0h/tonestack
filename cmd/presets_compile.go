@@ -23,6 +23,7 @@ package cmd
 import (
 	"github.com/spf13/cobra"
 
+	"github.com/retr0h/tonestack/internal/cli"
 	"github.com/retr0h/tonestack/internal/slots"
 )
 
@@ -45,7 +46,12 @@ hardware has written. Pass --template to use a particular preset as that base,
 which is what makes a rig read off a device rebuild exactly.`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		return slots.Compile(cmd.OutOrStdout(), presetsCompileOptions)
+		built, err := slots.Compile(presetsCompileOptions)
+		if err != nil {
+			return err
+		}
+
+		return cli.Built(cmd.OutOrStdout(), built)
 	},
 }
 

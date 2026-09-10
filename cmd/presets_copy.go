@@ -22,7 +22,9 @@ package cmd
 import (
 	"github.com/spf13/cobra"
 
+	"github.com/retr0h/tonestack/internal/cli"
 	"github.com/retr0h/tonestack/internal/slots"
+	"github.com/retr0h/tonestack/pkg/sdk"
 	"github.com/retr0h/tonestack/pkg/sdk/slot"
 )
 
@@ -39,13 +41,14 @@ rather than over the one it came from. A device backup is often the only copy
 of what the hardware holds.`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		// No file means the device itself, which is what somebody with one
-		// plugged in almost always wants.
-		if presetsCopyOptions.Path == "" {
-			return slots.CopyDevice(cmd.Context(), cmd.OutOrStdout(), presetsCopyOptions)
+		// The operation answers with what it did; saying so is decided here,
+		// which is all this command does.
+		change, err := copied(cmd)
+		if err != nil {
+			return err
 		}
 
-		return slots.Copy(cmd.OutOrStdout(), presetsCopyOptions)
+		return cli.Change(cmd.OutOrStdout(), change)
 	},
 }
 
@@ -75,4 +78,16 @@ func editFlags(c *cobra.Command, o *slots.EditOptions) {
 	// device. So a file needs somewhere to put the result and a device does
 	// not, and asking for one either way would be wrong in both directions.
 	c.MarkFlagsRequiredTogether("file", "out")
+}
+
+// copied puts one slot into another, on the device or in a file.
+//
+// No file means the device itself, which is what somebody with one plugged in
+// almost always wants.
+func copied(cmd *cobra.Command) (sdk.Change, error) {
+	if presetsCopyOptions.Path == "" {
+		return slots.CopyDevice(cmd.Context(), presetsCopyOptions)
+	}
+
+	return slots.Copy(presetsCopyOptions)
 }

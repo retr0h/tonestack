@@ -17,41 +17,53 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
-package attached
+
+package sdk_test
 
 import (
-	"context"
-	"fmt"
+	"testing"
+
+	"github.com/stretchr/testify/suite"
 
 	"github.com/retr0h/tonestack/pkg/sdk"
-	"github.com/retr0h/tonestack/pkg/sdk/device"
 )
 
-// Lister reports the devices currently attached. device.Lister satisfies it.
-type Lister interface {
-	List(ctx context.Context) ([]device.Descriptor, error)
+// ChangePublicTestSuite covers what a caller is handed for a write.
+type ChangePublicTestSuite struct {
+	suite.Suite
 }
 
-// ListWith reports every device the lister returns and this package
-// recognises. Taking the lister makes this testable without hardware.
-func ListWith(ctx context.Context, l Lister) (sdk.Attached, error) {
-	found, err := device.Devices(ctx, l)
-	if err != nil {
-		return sdk.Attached{}, fmt.Errorf("finding devices: %w", err)
+// TestOnDevice covers telling a write to hardware from a write to a file.
+func (s *ChangePublicTestSuite) TestOnDevice() {
+	tests := []struct {
+		name string
+		in   sdk.Change
+		want bool
+	}{
+		{
+			// A device is written in place. There is no file, which is what
+			// makes the kept backup the only way back.
+			name: "a slot on an attached device",
+			in:   sdk.Change{Action: sdk.Copied, To: sdk.At{Slot: 3}},
+			want: true,
+		},
+		{
+			name: "a setlist written to a new file",
+			in: sdk.Change{
+				Action: sdk.Copied,
+				To:     sdk.At{Slot: 3},
+				Path:   "/tmp/out.hls",
+			},
+		},
 	}
 
-	out := make([]sdk.Attachment, 0, len(found))
-
-	for _, d := range found {
-		out = append(out, sdk.Attachment{
-			Model:    d.Model,
-			DeviceID: d.DeviceID,
-			Vendor:   d.Descriptor.Vendor,
-			Product:  d.Descriptor.Product,
-			Bus:      d.Descriptor.Bus,
-			Address:  d.Descriptor.Address,
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			s.Require().Equal(tt.want, tt.in.OnDevice())
 		})
 	}
+}
 
-	return sdk.Attached{Devices: out}, nil
+func TestChangePublicTestSuite(t *testing.T) {
+	suite.Run(t, new(ChangePublicTestSuite))
 }

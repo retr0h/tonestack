@@ -23,10 +23,9 @@ package slots
 import (
 	"bytes"
 	"fmt"
-	"io"
 	"os"
 
-	"github.com/retr0h/tonestack/internal/cli"
+	"github.com/retr0h/tonestack/pkg/sdk"
 	"github.com/retr0h/tonestack/pkg/sdk/preset"
 	"github.com/retr0h/tonestack/pkg/sdk/rig"
 	riggen "github.com/retr0h/tonestack/pkg/sdk/rig/gen"
@@ -56,27 +55,27 @@ type CompileOptions struct {
 // 98.6% of real presets carry them; one built without them is unlike anything
 // the hardware has written. Passing --template uses a specific preset as that
 // base, which is what makes a rig lifted off a device rebuild exactly.
-func Compile(w io.Writer, opts CompileOptions) error {
+func Compile(opts CompileOptions) (sdk.Built, error) {
 	spec, err := readRig(opts.RigPath)
 	if err != nil {
-		return err
+		return sdk.Built{}, err
 	}
 
 	cat, err := opts.catalogs().Open(opts.CatalogPath)
 	if err != nil {
-		return err
+		return sdk.Built{}, err
 	}
 
 	doc, err := template(opts.TemplatePath)
 	if err != nil {
-		return err
+		return sdk.Built{}, err
 	}
 
 	doc.Data.Device = cat.DeviceID
 	doc.Data.Meta.Name = spec.Subject.Name
 
 	if err := opts.compiler().Lower(doc, spec, cat); err != nil {
-		return err
+		return sdk.Built{}, err
 	}
 
 	var buf bytes.Buffer
@@ -85,10 +84,14 @@ func Compile(w io.Writer, opts CompileOptions) error {
 	_ = preset.Write(&buf, doc)
 
 	if err := os.WriteFile(opts.OutputPath, buf.Bytes(), 0o600); err != nil {
-		return fmt.Errorf("writing %s: %w", opts.OutputPath, err)
+		return sdk.Built{}, fmt.Errorf("writing %s: %w", opts.OutputPath, err)
 	}
 
-	return reportCompiled(w, spec.Subject.Name, len(spec.Chain), opts.OutputPath)
+	return sdk.Built{
+		Name:   spec.Subject.Name,
+		Blocks: len(spec.Chain),
+		Path:   opts.OutputPath,
+	}, nil
 }
 
 // readRig loads a rig from disk.
@@ -122,14 +125,4 @@ func template(path string) (*preset.Document, error) {
 	}
 
 	return doc, nil
-}
-
-// reportCompiled says what was built.
-func reportCompiled(w io.Writer, name string, blocks int, path string) error {
-	_, err := fmt.Fprintf(w, "\n%s%s  %s\n\n%s%s\n\n",
-		cli.Indent, cli.Title(w, name),
-		cli.Mute(w, fmt.Sprintf("%s in the chain", cli.Plural(blocks, "block"))),
-		cli.Indent, cli.Success(w, "wrote "+path))
-
-	return err
 }

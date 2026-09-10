@@ -23,23 +23,22 @@ package slots
 import (
 	"context"
 	"fmt"
-	"io"
 
-	"github.com/retr0h/tonestack/internal/cli"
+	"github.com/retr0h/tonestack/pkg/sdk"
 	"github.com/retr0h/tonestack/pkg/sdk/device"
 	slotpkg "github.com/retr0h/tonestack/pkg/sdk/slot"
 )
 
 // SelectDevice makes one preset the active one on an attached device.
-func SelectDevice(ctx context.Context, w io.Writer, opts DeviceOptions) error {
+func SelectDevice(ctx context.Context, opts DeviceOptions) (sdk.Change, error) {
 	s, err := openDevice(ctx)
 	if err != nil {
-		return err
+		return sdk.Change{}, err
 	}
 
 	defer s.Close()
 
-	return SelectWith(ctx, w, s, opts)
+	return SelectWith(ctx, s, opts)
 }
 
 // SelectWith makes one preset the active one on the given session.
@@ -50,31 +49,29 @@ func SelectDevice(ctx context.Context, w io.Writer, opts DeviceOptions) error {
 // without changing what the device holds.
 func SelectWith(
 	ctx context.Context,
-	w io.Writer,
 	s device.Editor,
 	opts DeviceOptions,
-) error {
+) (sdk.Change, error) {
 	sel, ok := s.(device.Selector)
 	if !ok {
-		return fmt.Errorf("this session cannot select a preset")
+		return sdk.Change{}, fmt.Errorf("this session cannot select a preset")
 	}
 
 	// Read before selecting, so the name is the one being switched to rather
 	// than whatever the device answers with mid-switch.
 	found, err := s.Presets(ctx, opts.Setlist)
 	if err != nil {
-		return fmt.Errorf("listing setlist %d: %w", opts.Setlist, err)
+		return sdk.Change{}, fmt.Errorf(
+			"listing setlist %d: %w", opts.Setlist, err)
 	}
 
 	if err := sel.SelectPreset(ctx, opts.Setlist, opts.Slot); err != nil {
-		return fmt.Errorf("selecting slot %s: %w", slotpkg.Label(opts.Slot), err)
+		return sdk.Change{}, fmt.Errorf(
+			"selecting slot %s: %w", slotpkg.Label(opts.Slot), err)
 	}
 
-	_, err = fmt.Fprintf(w, "\n%s%s %s\n\n%s%s\n\n",
-		cli.Indent,
-		cli.Accent(w, slotpkg.Label(opts.Slot)),
-		nameOf(found, opts.Slot),
-		cli.Indent, cli.Success(w, "loaded"))
-
-	return err
+	return sdk.Change{
+		Action: sdk.Selected,
+		To:     sdk.At{Slot: opts.Slot, Name: nameOf(found, opts.Slot)},
+	}, nil
 }

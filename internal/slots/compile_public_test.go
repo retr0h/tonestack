@@ -22,7 +22,6 @@ package slots_test
 
 import (
 	"bytes"
-	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -100,9 +99,9 @@ func (s *CompilePublicTestSuite) TestCompile() {
 		template string
 		catalog  string
 		out      string
-		deaf     bool
 
-		logs []string
+		// how many blocks the built preset must report.
+		blocks int
 		// what the written preset must say, and must not.
 		contains []string
 		absent   []string
@@ -114,7 +113,7 @@ func (s *CompilePublicTestSuite) TestCompile() {
 	}{
 		{
 			name:     "a rig lifted off a slot",
-			logs:     []string{"in the chain"},
+			blocks:   3,
 			loadable: true,
 		},
 		{
@@ -184,7 +183,6 @@ func (s *CompilePublicTestSuite) TestCompile() {
 			out:     filepath.Join("no", "out.hlx"),
 			errText: "writing",
 		},
-		{name: "a writer that fails", deaf: true},
 	}
 
 	for _, tt := range tests {
@@ -216,19 +214,12 @@ func (s *CompilePublicTestSuite) TestCompile() {
 				catalog = tt.catalog
 			}
 
-			var log bytes.Buffer
-
-			w := io.Writer(&log)
-			if tt.deaf {
-				w = &failingWriter{}
-			}
-
-			err := slots.Compile(w, slots.CompileOptions{
+			built, err := slots.Compile(slots.CompileOptions{
 				RigPath: rigPath, OutputPath: out, CatalogPath: catalog,
 				TemplatePath: tt.template,
 			})
 
-			if tt.err != nil || tt.errText != "" || tt.deaf {
+			if tt.err != nil || tt.errText != "" {
 				s.Require().Error(err)
 
 				if tt.err != nil {
@@ -244,8 +235,10 @@ func (s *CompilePublicTestSuite) TestCompile() {
 
 			s.Require().NoError(err)
 
-			for _, want := range tt.logs {
-				s.Require().Contains(log.String(), want)
+			if tt.blocks != 0 {
+				s.Require().Equal(tt.blocks, built.Blocks)
+				s.Require().Equal(out, built.Path)
+				s.Require().NotEmpty(built.Name)
 			}
 
 			raw, err := os.ReadFile(out) //nolint:gosec // a path this test chose

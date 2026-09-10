@@ -23,6 +23,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/retr0h/tonestack/internal/catalogview"
+	"github.com/retr0h/tonestack/internal/cli"
 )
 
 var catalogListFilter catalogview.Filter
@@ -37,7 +38,12 @@ var catalogListCmd = &cobra.Command{
     tonestack catalog list --search ampeg`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		return catalogview.List(cmd.OutOrStdout(), catalogPath, catalogListFilter)
+		blocks, err := catalogview.List(catalogPath, catalogListFilter)
+		if err != nil {
+			return err
+		}
+
+		return cli.Blocks(cmd.OutOrStdout(), blocks)
 	},
 }
 

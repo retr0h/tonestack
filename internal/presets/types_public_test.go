@@ -21,7 +21,6 @@
 package presets_test
 
 import (
-	"bytes"
 	"errors"
 	"path/filepath"
 	"testing"
@@ -67,7 +66,7 @@ func (s *TypesPublicTestSuite) TestRecipes() {
 	rec := presetmocks.NewMockRecipes(s.ctrl)
 	rec.EXPECT().Find(gomock.Any(), "mike-dirnt").Return(riggen.RigSpec{}, want)
 
-	err := presets.Make(&bytes.Buffer{}, s.options(presets.Deps{Recipes: rec}))
+	_, err := presets.Make(s.options(presets.Deps{Recipes: rec}))
 
 	s.Require().ErrorIs(err, want)
 }
@@ -79,7 +78,7 @@ func (s *TypesPublicTestSuite) TestCatalogs() {
 	cat := presetmocks.NewMockCatalogs(s.ctrl)
 	cat.EXPECT().Open(gomock.Any()).Return(nil, want)
 
-	err := presets.Make(&bytes.Buffer{}, s.options(presets.Deps{Catalogs: cat}))
+	_, err := presets.Make(s.options(presets.Deps{Catalogs: cat}))
 
 	s.Require().ErrorIs(err, want)
 }
@@ -92,7 +91,7 @@ func (s *TypesPublicTestSuite) TestCompiler() {
 	comp.EXPECT().Resolve(gomock.Any(), gomock.Any(), gomock.Any()).
 		Return(chain.Chain{}, nil, want)
 
-	err := presets.Make(&bytes.Buffer{}, s.options(presets.Deps{Compiler: comp}))
+	_, err := presets.Make(s.options(presets.Deps{Compiler: comp}))
 
 	s.Require().ErrorIs(err, want)
 }
