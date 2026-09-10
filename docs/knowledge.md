@@ -57,6 +57,12 @@ their comment sections into one answer, and it will attribute a claim to a page
 that does not make it. Four of the first eight rigs cited something that was not
 on the page once somebody opened it. Open the page.
 
+**A 200 is not verification.** The Mike Dirnt example cited a bassplayer.com
+article for the amplifier. The URL still answers 200, because the whole site now
+redirects to a section index on another domain, and the article is gone.
+Checking that a link resolves catches a 404 and nothing else. Open it and read
+the sentence.
+
 **Forums block machine readers.** Reddit refuses Anthropic's crawler outright,
 and TalkBass returns 403 to anything automated. Both can be found by search and
 neither can be read by an agent, so a rig citing one records that nobody checked

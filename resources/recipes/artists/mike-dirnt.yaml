@@ -16,7 +16,7 @@ subject:
   kind: artist
   name: Mike Dirnt
   band: Green Day
-  era: Dookie through American Idiot
+  era: American Idiot
 
 instrument: bass
 default: true
@@ -27,23 +27,28 @@ chain:
   - role: amp
     gear: Ampeg SVT
     evidence:
-      - kind: llm
+      - kind: cited
+        url: https://equipboard.com/pros/mike-dirnt
         note: >-
-          Model knowledge, not a cited source. Not confirmed against a rig
-          rundown or an interview.
-      - kind: video
-        url: https://www.youtube.com/watch?v=NDjtguZG6iw
-        note: a listening reference, not a citation
+          "for most of the record [American Idiot], Dirnt used an Ampeg SVT
+          bass amplifier, recording with his signature bass and a Precision
+          Bass"
         caveat: >-
-          nothing has measured this, and nobody has confirmed what is in the
-          signal path on it
-    confidence: medium
+          one record. His gear pages list Fender Bassman and Pro heads, Mesa
+          M-2000s and Yamaha G100s across other eras, so this is the American
+          Idiot sound rather than his rig.
+    confidence: high
 
   - role: cab
     gear: Ampeg 8x10
     evidence:
-      - { kind: llm }
-    confidence: medium
+      - kind: llm
+        note: assumed from the amplifier, which Ampeg sold as a stack
+        caveat: >-
+          not sourced. The cabinets anybody lists for him are a Fender Pro
+          810, a Mesa 6x10 and an Acoustic 104 6x10, none of which is this
+          and none of which is tied to the record.
+    confidence: low
 
 # How it should sound, in the words a person would use. Describe the result,
 # not the control.
@@ -59,19 +64,18 @@ character:
       - { kind: llm }
   - term: pick attack audible
     evidence:
-      - kind: video
-        url: https://www.youtube.com/watch?v=NDjtguZG6iw
-        note: audible on the recording, which is the one claim here anybody can check
+      - kind: llm
 
 technique:
   attack: pick
   position: bridge
   evidence:
-    - kind: video
-      url: https://www.youtube.com/watch?v=NDjtguZG6iw
-      note: visible in the footage
+    - kind: llm
+      note: widely said to be a pick player
       caveat: >-
-        one performance. Nothing here says it is what he does on the record.
+        not sourced. This rig cited a 2024 official music video for it, which
+        is twenty years after the record it describes and which nobody
+        watched.
 
 confidence: medium
 
