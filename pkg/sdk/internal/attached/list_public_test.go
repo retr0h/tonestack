@@ -28,8 +28,8 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
-	"github.com/retr0h/tonestack/internal/attached"
 	"github.com/retr0h/tonestack/pkg/sdk/device"
+	"github.com/retr0h/tonestack/pkg/sdk/internal/attached"
 )
 
 type ListPublicTestSuite struct {
@@ -126,10 +126,10 @@ func (s *ListPublicTestSuite) TestListWith() {
 // TestList finds its own bus. One line — find a bus, hand it on, release it —
 // and the only line in this package that needs hardware.
 func (s *ListPublicTestSuite) TestList() {
-	restore := *attached.NewLister
-	defer func() { *attached.NewLister = restore }()
+	restore := attached.NewLister
+	defer func() { attached.NewLister = restore }()
 
-	*attached.NewLister = func() attached.Closer {
+	attached.NewLister = func() attached.Closer {
 		return &lister{descs: []device.Descriptor{stomp()}}
 	}
 

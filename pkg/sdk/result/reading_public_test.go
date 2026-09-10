@@ -18,15 +18,15 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-package sdk_test
+package result_test
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/suite"
 
-	"github.com/retr0h/tonestack/pkg/sdk"
 	"github.com/retr0h/tonestack/pkg/sdk/preset"
+	"github.com/retr0h/tonestack/pkg/sdk/result"
 )
 
 // ReadingPublicTestSuite covers what a caller is handed for one preset.
@@ -38,29 +38,29 @@ type ReadingPublicTestSuite struct {
 func (s *ReadingPublicTestSuite) TestEmpty() {
 	tests := []struct {
 		name string
-		in   sdk.Reading
+		in   result.Reading
 		want bool
 	}{
 		{
 			// A device names every slot, so an untouched one still answers
 			// with whatever it shipped with. Only the document says.
 			name: "a slot the device named and nobody filled",
-			in:   sdk.Reading{Name: "New Preset"},
+			in:   result.Reading{Name: "New Preset"},
 			want: true,
 		},
 		{
 			name: "a slot holding a preset",
-			in:   sdk.Reading{Name: "Mike Dirnt", Doc: &preset.Document{}},
+			in:   result.Reading{Name: "Mike Dirnt", Doc: &preset.Document{}},
 		},
 		{
 			// A reply nobody could decode is not a slot holding nothing. It
 			// is a slot whose contents did not survive the wire, and calling
 			// it empty would lose that.
 			name: "a reply that was not a preset",
-			in: sdk.Reading{
+			in: result.Reading{
 				Name:   "Mike Dirnt",
 				Doc:    &preset.Document{},
-				Answer: &sdk.Answer{Model: "HX Stomp", Shape: "map with 2 keys"},
+				Answer: &result.Answer{Model: "HX Stomp", Shape: "map with 2 keys"},
 			},
 		},
 	}

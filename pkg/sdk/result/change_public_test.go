@@ -18,13 +18,52 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-package attached
+package result_test
 
-import "github.com/retr0h/tonestack/pkg/sdk/device"
+import (
+	"testing"
 
-// NewLister is how a lister is obtained, exported so a test can stand in for
-// the one line in this package that needs hardware.
-var NewLister = &newLister
+	"github.com/stretchr/testify/suite"
 
-// Closer is a lister that holds something needing release.
-type Closer = device.Bus
+	"github.com/retr0h/tonestack/pkg/sdk/result"
+)
+
+// ChangePublicTestSuite covers what a caller is handed for a write.
+type ChangePublicTestSuite struct {
+	suite.Suite
+}
+
+// TestOnDevice covers telling a write to hardware from a write to a file.
+func (s *ChangePublicTestSuite) TestOnDevice() {
+	tests := []struct {
+		name string
+		in   result.Change
+		want bool
+	}{
+		{
+			// A device is written in place. There is no file, which is what
+			// makes the kept backup the only way back.
+			name: "a slot on an attached device",
+			in:   result.Change{Action: result.Copied, To: result.At{Slot: 3}},
+			want: true,
+		},
+		{
+			name: "a setlist written to a new file",
+			in: result.Change{
+				Action: result.Copied,
+				To:     result.At{Slot: 3},
+				Path:   "/tmp/out.hls",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			s.Require().Equal(tt.want, tt.in.OnDevice())
+		})
+	}
+}
+
+func TestChangePublicTestSuite(t *testing.T) {
+	suite.Run(t, new(ChangePublicTestSuite))
+}

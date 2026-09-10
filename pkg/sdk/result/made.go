@@ -18,7 +18,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-package sdk
+package result
 
 import "github.com/retr0h/tonestack/pkg/sdk/chain"
 

@@ -18,30 +18,9 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-package sdk
+package attached
 
-import (
-	"github.com/retr0h/tonestack/pkg/sdk/catalog"
-	"github.com/retr0h/tonestack/pkg/sdk/corpus"
-)
+import "github.com/retr0h/tonestack/pkg/sdk/device"
 
-// Measured is what the corpus recorded, and what was asked of it.
-//
-// Two questions come out of the same measurements: what players did with one
-// model, and what chains of a kind are shaped like. Which was asked decides
-// what there is to say, so the answer carries it rather than leaving somebody
-// to infer it from which fields are set.
-type Measured struct {
-	// Stats are the measurements themselves.
-	Stats *corpus.Stats
-	// Catalog is what the device accepts, so what players chose can be read
-	// beside what Line 6 chose. Nil unless a model was asked about.
-	Catalog *catalog.Catalog
-	// Model is the model asked about. Empty for the grammar.
-	Model catalog.ModelID
-	// Instrument narrows the grammar to one kind of chain. Empty for all.
-	Instrument string
-}
-
-// AboutOne says whether one model was asked about, rather than the grammar.
-func (m Measured) AboutOne() bool { return m.Model != "" }
+// Closer is a lister that holds something needing release.
+type Closer = device.Bus

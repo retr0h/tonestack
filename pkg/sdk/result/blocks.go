@@ -17,34 +17,24 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
-package cmd
 
-import (
-	"github.com/spf13/cobra"
+package result
 
-	"github.com/retr0h/tonestack/internal/cli"
-	"github.com/retr0h/tonestack/pkg/sdk"
-)
+import "github.com/retr0h/tonestack/pkg/sdk/catalog"
 
-// devicesListCmd represents the devices list command.
-var devicesListCmd = &cobra.Command{
-	Use:   "list",
-	Short: "List attached Helix hardware",
-	Long: `List every Line 6 Helix-family device attached over USB.
-
-Devices are enumerated by descriptor only — none is opened — so this needs no
-special privileges and cannot disturb a device in use by other software.`,
-	Args: cobra.NoArgs,
-	RunE: func(cmd *cobra.Command, _ []string) error {
-		found, err := sdk.New().Devices(cmd.Context())
-		if err != nil {
-			return err
-		}
-
-		return cli.Attached(cmd.OutOrStdout(), found)
-	},
-}
-
-func init() {
-	devicesCmd.AddCommand(devicesListCmd)
+// Blocks is what a device can do, narrowed to what was asked for.
+//
+// The total is here alongside the matches because a search answering with
+// four blocks means something different depending on whether the catalog
+// holds six or six hundred.
+type Blocks struct {
+	// Device is what the catalog calls the hardware.
+	Device string
+	// Source says where the catalog came from. Empty when nothing recorded
+	// it, which is different from a source nobody recognises.
+	Source string
+	// Total is how many blocks the catalog holds, before any filtering.
+	Total int
+	// Matched are the blocks that came through the filter.
+	Matched []catalog.Block
 }

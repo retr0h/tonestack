@@ -18,52 +18,59 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-package sdk_test
+package result_test
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/suite"
 
-	"github.com/retr0h/tonestack/pkg/sdk"
+	"github.com/retr0h/tonestack/pkg/sdk/corpus"
+	"github.com/retr0h/tonestack/pkg/sdk/result"
 )
 
-// ChangePublicTestSuite covers what a caller is handed for a write.
-type ChangePublicTestSuite struct {
+// MeasuredPublicTestSuite covers what a caller is handed for the corpus.
+type MeasuredPublicTestSuite struct {
 	suite.Suite
 }
 
-// TestOnDevice covers telling a write to hardware from a write to a file.
-func (s *ChangePublicTestSuite) TestOnDevice() {
+// TestAboutOne covers telling the two questions apart.
+//
+// Both come out of the same measurements, and which was asked decides what
+// there is to say about them, so the answer has to carry it rather than leave
+// somebody to infer it from which fields are set.
+func (s *MeasuredPublicTestSuite) TestAboutOne() {
 	tests := []struct {
 		name string
-		in   sdk.Change
+		in   result.Measured
 		want bool
 	}{
 		{
-			// A device is written in place. There is no file, which is what
-			// makes the kept backup the only way back.
-			name: "a slot on an attached device",
-			in:   sdk.Change{Action: sdk.Copied, To: sdk.At{Slot: 3}},
+			name: "one model was asked about",
+			in: result.Measured{
+				Stats: &corpus.Stats{},
+				Model: "HD2_AmpSVBeastNrm",
+			},
 			want: true,
 		},
 		{
-			name: "a setlist written to a new file",
-			in: sdk.Change{
-				Action: sdk.Copied,
-				To:     sdk.At{Slot: 3},
-				Path:   "/tmp/out.hls",
-			},
+			// The grammar of a chain, which is about no model in particular.
+			name: "the grammar was asked for",
+			in:   result.Measured{Stats: &corpus.Stats{}, Instrument: "bass"},
+		},
+		{
+			name: "the grammar of everything",
+			in:   result.Measured{Stats: &corpus.Stats{}},
 		},
 	}
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			s.Require().Equal(tt.want, tt.in.OnDevice())
+			s.Require().Equal(tt.want, tt.in.AboutOne())
 		})
 	}
 }
 
-func TestChangePublicTestSuite(t *testing.T) {
-	suite.Run(t, new(ChangePublicTestSuite))
+func TestMeasuredPublicTestSuite(t *testing.T) {
+	suite.Run(t, new(MeasuredPublicTestSuite))
 }

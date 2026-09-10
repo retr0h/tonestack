@@ -88,7 +88,9 @@ generators. Everything a package owns lives in that package's own `internal`.
 
 ```text
 pkg/sdk/              the library. One import root.
-  sdk.go              Client, Options, and the operations
+  client.go           Client, Options, and the operations
+  alias.go            the answer types, named here and declared in result
+  result/             what every operation answers with
   internal/           shared private half. Invisible outside pkg/sdk.
     slots/  presets/  recipes/   the flows, once they no longer render
     compile/                     a rig to a preset and back
@@ -230,6 +232,20 @@ Where a device is needed the Client holds one; where it is not, the same Client
 works with no hardware attached, which is what lets a service compile rigs on a
 machine that has never seen a Helix.
 
+### Where the answers live
+
+The first flow to move found the other thing this record had wrong. The
+operations build the result types and the Client hands them back, so a type
+declared in `pkg/sdk` makes `pkg/sdk/internal/…` import it, and a type declared
+in the flow makes `pkg/sdk` import that. Either way the two import each other,
+and Go refuses.
+
+So the types live in `pkg/sdk/result`, which depends on neither and which both
+depend on. Nobody names it: every type in it is aliased into `sdk`, so a caller
+writes `sdk.Listing` and never sees the seam. Aliases rather than wrappers,
+because `sdk.Listing` and `result.Listing` being the same type is what keeps the
+seam free.
+
 ## Order of work
 
 Each stage lands on its own and leaves the tree working.
@@ -241,24 +257,34 @@ Each stage lands on its own and leaves the tree working.
    moves to `internal/cli`; `cmd/` calls both. One command at a time, starting
    with `presets list`, because it has a device path, a file path and a table.
 
-3. **Give the library its internal.** Two moves, and the second is the one
-   originally missed.
+3. **Give the library its internal, one flow at a time.** This stage and the
+   next are the same stage, and it took trying it to find out.
 
-   The flows move to `pkg/sdk/internal`. Then the domain packages nothing
-   outside the SDK imports follow them: `compile`, `setlist`, `editor`,
-   `device/wire`, and `rig/gen`. Six packages, two hundred and sixteen exported
-   identifiers, public today for no reason anybody can name. Demoting is the
-   direction that has to happen now: promoting a package later costs nothing,
-   and demoting one later breaks every caller.
+   A flow cannot stay in root `internal/` and be called from `pkg/sdk`:
+   `main_test.go` refuses it, and it is the weld this is removing. A flow cannot
+   move to `pkg/sdk/internal/` and still be called from `cmd/`: the *compiler*
+   refuses that, which is the whole reason for nested internal. So the moment a
+   flow goes private it needs the Client in front of it, and the move and the
+   method land together or not at all.
+
+   Done per flow, that is small: move one flow, add its Client method, point its
+   command at the Client. Six of them, each leaving the tree working.
+
+   Then the domain packages nothing outside the SDK imports follow: `compile`,
+   `setlist`, `editor`, `device/wire`, and `rig/gen`. Six packages, two hundred
+   and sixteen exported identifiers, public today for no reason anybody can
+   name. Demoting is the direction that has to happen now: promoting a package
+   later costs nothing, and demoting one later breaks every caller.
 
    Stages 2 and 3 were first written the other way round and cannot be. A flow
    that still renders imports `internal/cli`, and moving it under `pkg/` would
-   put `pkg/` importing `internal/`, which `main_test.go` refuses and which
-   would weld the SDK to this program. The rendering comes out first; the move
-   is what is left once nothing in the flow knows what a colour is.
+   put `pkg/` importing `internal/`. The rendering comes out first; the move is
+   what is left once nothing in the flow knows what a colour is.
 
-4. **Put the Client in front.** Once the operations return values, `sdk.Client`
-   is a thin thing over them, and `cmd/` stops importing anything else.
+4. **Finish the front door.** Folded into stage 3 above, because the compiler
+   folds it: what is left once every flow has moved is a `Client` that already
+   covers all of them, and a `cmd/` importing nothing but `sdk` and the
+   renderer.
 
 5. **Own the types.** `pkg/sdk` declares what a caller holds, aliasing the
    generated types where they are already right and converting where they are

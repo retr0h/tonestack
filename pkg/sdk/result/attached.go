@@ -17,27 +17,30 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
-// Package device reports what hardware is attached.
-package attached
 
-import (
-	"context"
+package result
 
-	"github.com/retr0h/tonestack/pkg/sdk"
-
-	"github.com/retr0h/tonestack/pkg/sdk/device"
-)
-
-// newLister is how a bus is obtained, so a test can stand in for it.
+// Attached is what is on the bus that this recognises.
 //
-// The one thing in this package that needs hardware; everything reached
-// through it takes the lister as an argument instead.
-var newLister = device.NewUSBLister
+// Recognised rather than everything: a bus holds keyboards and webcams, and a
+// list of those is not an answer to "what can I write a preset to".
+type Attached struct {
+	// Devices are what was found, in the order the bus reported them.
+	Devices []Attachment
+}
 
-// List reports every recognised device on the bus.
-func List(ctx context.Context) (sdk.Attached, error) {
-	l := newLister()
-	defer func() { _ = l.Close() }()
-
-	return ListWith(ctx, l)
+// Attachment is one device on the bus.
+type Attachment struct {
+	// Model is the device as Line 6 markets it.
+	Model string
+	// DeviceID is what a preset for this device carries in data.device,
+	// which is how a preset says which hardware it was made for.
+	DeviceID int
+	// Vendor and Product are how the bus identifies it.
+	Vendor  uint16
+	Product uint16
+	// Bus and Address are where it is plugged in. They change between
+	// unpluggings, so they identify a device now and not later.
+	Bus     int
+	Address int
 }
