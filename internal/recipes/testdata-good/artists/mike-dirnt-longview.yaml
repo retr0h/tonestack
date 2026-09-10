@@ -27,4 +27,5 @@ character:
   - rounder, more low-mid
   - cleaner — the part carries the song
 
-technique: fingerstyle
+technique:
+  attack: fingers

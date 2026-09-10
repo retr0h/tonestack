@@ -232,9 +232,9 @@ func Show(w io.Writer, dir, id string) error {
 		cli.Field{Label: "instrument", Value: string(spec.Instrument)})
 	d.Fields = append(d.Fields, chain(spec)...)
 
-	if spec.Technique != nil && *spec.Technique != "" {
+	if spec.Technique != nil {
 		d.Fields = append(d.Fields,
-			cli.Field{Label: "technique", Value: *spec.Technique})
+			cli.Field{Label: "technique", Value: technique(*spec.Technique)})
 	}
 
 	d.Fields = append(d.Fields, character(spec)...)

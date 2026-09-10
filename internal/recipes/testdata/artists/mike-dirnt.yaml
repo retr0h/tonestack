@@ -16,7 +16,9 @@ rig:
   amp: Ampeg SVT
   cab: Ampeg 8x10
   pedals: []
-  technique: pick, near the bridge
+  technique:
+    attack: pick
+    position: bridge
 
 # How it should sound, in words a person would use. The generator turns these
 # into parameter moves against the catalog's real ranges.

@@ -84,6 +84,31 @@ func (s *LoadPublicTestSuite) TestLoad() {
 			errText: `property "gera" is unsupported`,
 		},
 		{
+			// technique was a sentence until the three things it says were
+			// separated. Two files in this repository carried the old
+			// spelling and nothing outside it did, so it is refused rather
+			// than accepted alongside the new one.
+			name: "technique as the sentence it used to be",
+			in: "schema: RigSpec\nid: x\nsubject: {kind: artist, name: X}\n" +
+				"instrument: bass\nchain:\n  - {role: amp, gear: Ampeg SVT}\n" +
+				"technique: pick, near the bridge\n",
+			errText: "technique",
+		},
+		{
+			name: "a way of playing the contract does not name",
+			in: "schema: RigSpec\nid: x\nsubject: {kind: artist, name: X}\n" +
+				"instrument: bass\nchain:\n  - {role: amp, gear: Ampeg SVT}\n" +
+				"technique: {attack: plectrum}\n",
+			errText: `technique.attack value is not one of the allowed values`,
+		},
+		{
+			name: "a technique saying nothing about the attack",
+			in: "schema: RigSpec\nid: x\nsubject: {kind: artist, name: X}\n" +
+				"instrument: bass\nchain:\n  - {role: amp, gear: Ampeg SVT}\n" +
+				"technique: {position: bridge}\n",
+			errText: `property "attack" is missing`,
+		},
+		{
 			// The contract calls this an integer and Go's int cannot hold
 			// it, so the decode fails on a document that validated. It came
 			// back as a rig with the field zeroed and no error at all.
