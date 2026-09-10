@@ -17,34 +17,31 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
-package cmd
+
+package result
 
 import (
-	"github.com/spf13/cobra"
-
-	"github.com/retr0h/tonestack/internal/cli"
-	"github.com/retr0h/tonestack/pkg/sdk"
+	"github.com/retr0h/tonestack/pkg/sdk/catalog"
+	"github.com/retr0h/tonestack/pkg/sdk/corpus"
 )
 
-// devicesListCmd represents the devices list command.
-var devicesListCmd = &cobra.Command{
-	Use:   "list",
-	Short: "List attached Helix hardware",
-	Long: `List every Line 6 Helix-family device attached over USB.
-
-Devices are enumerated by descriptor only — none is opened — so this needs no
-special privileges and cannot disturb a device in use by other software.`,
-	Args: cobra.NoArgs,
-	RunE: func(cmd *cobra.Command, _ []string) error {
-		found, err := sdk.New().Devices(cmd.Context())
-		if err != nil {
-			return err
-		}
-
-		return cli.Attached(cmd.OutOrStdout(), found)
-	},
+// Measured is what the corpus recorded, and what was asked of it.
+//
+// Two questions come out of the same measurements: what players did with one
+// model, and what chains of a kind are shaped like. Which was asked decides
+// what there is to say, so the answer carries it rather than leaving somebody
+// to infer it from which fields are set.
+type Measured struct {
+	// Stats are the measurements themselves.
+	Stats *corpus.Stats
+	// Catalog is what the device accepts, so what players chose can be read
+	// beside what Line 6 chose. Nil unless a model was asked about.
+	Catalog *catalog.Catalog
+	// Model is the model asked about. Empty for the grammar.
+	Model catalog.ModelID
+	// Instrument narrows the grammar to one kind of chain. Empty for all.
+	Instrument string
 }
 
-func init() {
-	devicesCmd.AddCommand(devicesListCmd)
-}
+// AboutOne says whether one model was asked about, rather than the grammar.
+func (m Measured) AboutOne() bool { return m.Model != "" }

@@ -20,27 +20,14 @@
 
 package sdk
 
-// Attached is what is on the bus that this recognises.
-//
-// Recognised rather than everything: a bus holds keyboards and webcams, and a
-// list of those is not an answer to "what can I write a preset to".
-type Attached struct {
-	// Devices are what was found, in the order the bus reported them.
-	Devices []Attachment
-}
+import (
+	"github.com/retr0h/tonestack/pkg/sdk/device"
+	"github.com/retr0h/tonestack/pkg/sdk/internal/attached"
+)
 
-// Attachment is one device on the bus.
-type Attachment struct {
-	// Model is the device as Line 6 markets it.
-	Model string
-	// DeviceID is what a preset for this device carries in data.device,
-	// which is how a preset says which hardware it was made for.
-	DeviceID int
-	// Vendor and Product are how the bus identifies it.
-	Vendor  uint16
-	Product uint16
-	// Bus and Address are where it is plugged in. They change between
-	// unpluggings, so they identify a device now and not later.
-	Bus     int
-	Address int
-}
+// NewLister is the one line in this library that needs hardware, exported so
+// a test can stand in for it.
+var NewLister = &attached.NewLister
+
+// Closer is a lister that holds something needing release.
+type Closer = device.Bus

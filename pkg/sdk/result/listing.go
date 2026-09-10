@@ -18,14 +18,21 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// Package sdk is what a caller holds.
+// Package result holds what every operation answers with.
 //
-// The types an operation hands back live here rather than beside the code
-// that builds them, so that whatever renders one does not have to import
-// whatever produced it. A terminal draws a table, a service writes JSON and a
-// TUI keeps a cursor in it, and none of those three should know about the
-// other two.
-package sdk
+// The types live apart from both halves of the library on purpose. The
+// operations under internal build them and the Client hands them back, so a
+// type declared in either would make the other import it and the two would
+// import each other. Here, both depend on this and this depends on neither.
+//
+// Nobody names this package. Every type in it is aliased into sdk, so a
+// caller writes sdk.Listing and never sees the seam.
+//
+// They also sit apart from the code that builds them so that whatever renders
+// one does not have to import whatever produced it. A terminal draws a table,
+// a service writes JSON and a TUI keeps a cursor in it, and none of those
+// three should know about the other two.
+package result
 
 import "github.com/retr0h/tonestack/pkg/sdk/chain"
 

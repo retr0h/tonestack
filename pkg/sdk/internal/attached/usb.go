@@ -17,41 +17,29 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
+// Package device reports what hardware is attached.
 package attached
 
 import (
 	"context"
-	"fmt"
 
-	"github.com/retr0h/tonestack/pkg/sdk"
+	"github.com/retr0h/tonestack/pkg/sdk/result"
+
 	"github.com/retr0h/tonestack/pkg/sdk/device"
 )
 
-// Lister reports the devices currently attached. device.Lister satisfies it.
-type Lister interface {
-	List(ctx context.Context) ([]device.Descriptor, error)
-}
+// NewLister is how a bus is obtained, so a test can stand in for it.
+//
+// The one thing in this package that needs hardware; everything reached
+// through it takes the lister as an argument instead. Exported because the
+// Client's own test has to stand in for it too, and this package is private
+// to pkg/sdk either way — the compiler says so, not a lowercase letter.
+var NewLister = device.NewUSBLister
 
-// ListWith reports every device the lister returns and this package
-// recognises. Taking the lister makes this testable without hardware.
-func ListWith(ctx context.Context, l Lister) (sdk.Attached, error) {
-	found, err := device.Devices(ctx, l)
-	if err != nil {
-		return sdk.Attached{}, fmt.Errorf("finding devices: %w", err)
-	}
+// List reports every recognised device on the bus.
+func List(ctx context.Context) (result.Attached, error) {
+	l := NewLister()
+	defer func() { _ = l.Close() }()
 
-	out := make([]sdk.Attachment, 0, len(found))
-
-	for _, d := range found {
-		out = append(out, sdk.Attachment{
-			Model:    d.Model,
-			DeviceID: d.DeviceID,
-			Vendor:   d.Descriptor.Vendor,
-			Product:  d.Descriptor.Product,
-			Bus:      d.Descriptor.Bus,
-			Address:  d.Descriptor.Address,
-		})
-	}
-
-	return sdk.Attached{Devices: out}, nil
+	return ListWith(ctx, l)
 }

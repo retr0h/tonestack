@@ -18,15 +18,15 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-package sdk_test
+package result_test
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/suite"
 
-	"github.com/retr0h/tonestack/pkg/sdk"
 	"github.com/retr0h/tonestack/pkg/sdk/chain"
+	"github.com/retr0h/tonestack/pkg/sdk/result"
 )
 
 // ListingPublicTestSuite covers what a caller is handed for a setlist.
@@ -38,13 +38,13 @@ type ListingPublicTestSuite struct {
 func (s *ListingPublicTestSuite) TestUsed() {
 	tests := []struct {
 		name string
-		in   sdk.Listing
+		in   result.Listing
 		want int
 	}{
 		{name: "a setlist nobody has touched"},
 		{
 			name: "one preset in a hundred and twenty-eight slots",
-			in: sdk.Listing{Slots: []sdk.Held{
+			in: result.Listing{Slots: []result.Held{
 				{Slot: 0, Name: "New Preset"},
 				{Slot: 1, Name: "Mike Dirnt", Blocks: []chain.Block{{Model: "x"}}},
 				{Slot: 2, Name: "New Preset"},
@@ -53,7 +53,7 @@ func (s *ListingPublicTestSuite) TestUsed() {
 		},
 		{
 			name: "every slot in use",
-			in: sdk.Listing{Slots: []sdk.Held{
+			in: result.Listing{Slots: []result.Held{
 				{Blocks: []chain.Block{{Model: "x"}}},
 				{Blocks: []chain.Block{{Model: "y"}}},
 			}},
@@ -72,24 +72,24 @@ func (s *ListingPublicTestSuite) TestUsed() {
 func (s *ListingPublicTestSuite) TestEmpty() {
 	tests := []struct {
 		name string
-		in   sdk.Held
+		in   result.Held
 		want bool
 	}{
 		{
 			// The name a slot shipped with, and nothing in it.
 			name: "untouched",
-			in:   sdk.Held{Name: "New Preset"},
+			in:   result.Held{Name: "New Preset"},
 			want: true,
 		},
 		{
 			// Somebody named it and then emptied it. The name is no guide.
 			name: "named, and holding nothing",
-			in:   sdk.Held{Name: "Lead"},
+			in:   result.Held{Name: "Lead"},
 			want: true,
 		},
 		{
 			name: "holding a chain",
-			in:   sdk.Held{Name: "Lead", Blocks: []chain.Block{{Model: "x"}}},
+			in:   result.Held{Name: "Lead", Blocks: []chain.Block{{Model: "x"}}},
 		},
 	}
 
