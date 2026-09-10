@@ -1,6 +1,6 @@
 # Where a package belongs
 
-**Status:** proposed\
+**Status:** implemented\
 **Relates to:**
 [2026-09-06-rigspec-as-the-one-model-design.md](2026-09-06-rigspec-as-the-one-model-design.md),
 [2026-09-06-helix-sdk-design.md](2026-09-06-helix-sdk-design.md)
@@ -392,3 +392,26 @@ Five `types.go` files hold methods. The rule said a function belongs in a file
 named for what it does, and a type's own JSON marshalling is not that. The rule
 now says so, because scattering `DataMeta.MarshalJSON` away from `DataMeta`
 would be worse than the tidiness it buys.
+
+## Step 4 was two thirds done
+
+The rule went into CONTRIBUTING and `main_test.go` asserted it. The third thing
+this step asked for did not happen: stating where the SDK ends.
+
+It says so now, and it is worth having written down rather than measured each
+time. `go list -deps ./pkg/sdk` returns `pkg/sdk`, `pkg/sdk/wire` and `pkg/slot`
+and nothing else from this module, which is the whole extraction unit. Nothing
+enforces that, so it is a thing to check before adding an import to any of the
+three rather than a thing the build will catch.
+
+`wire` is the SDK's public vocabulary rather than its private guts, which is why
+unexporting something there is a decision about what the SDK promises. And
+`slot` is in the unit because a device is addressed in slots: a device library
+that could not say which slot it meant would be missing the noun.
+
+This record said **proposed** for as long as it took to notice. So did the
+grammar record with all five of its steps built, and the RigSpec record said
+"accepted, not yet implemented" while being the thing the whole project is built
+on. A record that lies about its own state is worse than no record, because
+somebody trusts it. All of them say what they are now, including the two that
+are only partly built and say which parts.

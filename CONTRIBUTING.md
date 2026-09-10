@@ -112,6 +112,24 @@ it.
 `internal/` is not something to maximise. Measured against the three questions,
 today's tree moves code up rather than down.
 
+### Where the SDK ends
+
+`pkg/sdk`, `pkg/sdk/wire` and `pkg/slot` are one unit. Everything the SDK needs
+from this module is those three, which `go list -deps ./pkg/sdk` says and which
+nothing enforces, so check it before adding an import to any of them. If
+somebody ever asks for the device half on its own, those three move and nothing
+else does.
+
+`wire` is the SDK's public vocabulary, not its private guts. A caller reading a
+device gets a `wire.DevicePreset` and a `wire.Preset`, and writing one back
+means handing over bytes it framed. That is why it is a package beside `sdk`
+rather than a directory inside it, and why unexporting something there is a
+decision about what the SDK promises rather than tidying.
+
+`slot` is in the unit because a device is addressed in slots. `01A` through
+`42C` is how the pedal labels them and how the protocol counts them, and a
+device library that could not say which slot it meant would be missing the noun.
+
 `main_test.go` asserts that no package under `pkg/` imports `internal/`, because
 the compiler will not. `internal/` sits at the repository root, so Go permits
 the import; only a test keeps it from happening by accident, and a package that

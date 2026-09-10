@@ -1,6 +1,6 @@
 # A grammar for every field
 
-**Status:** proposed\
+**Status:** implemented\
 **Depends on:** checking a rig as it was written, not as it decoded (#37)
 
 ## The problem
