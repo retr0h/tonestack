@@ -33,18 +33,18 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk/wire"
 )
 
-// SelectTestSuite covers loading a preset.
+// SelectPublicTestSuite covers loading a preset.
 //
 // The wait is what this file is about. A select is deferred, and a caller
 // that returns before the device has finished leaves it holding a half
 // finished switch, which it settles by wiping its edit buffer: the preset
 // comes up with no blocks and no footswitch colours. Asking the device what
 // is loaded, until it says the right thing, is the only honest signal.
-type SelectTestSuite struct {
+type SelectPublicTestSuite struct {
 	suite.Suite
 }
 
-func (s *SelectTestSuite) SetupTest() {
+func (s *SelectPublicTestSuite) SetupTest() {
 	poll, budget := *sdk.SelectPoll, *sdk.SelectBudget
 	*sdk.SelectPoll = time.Millisecond
 	*sdk.SelectBudget = 50 * time.Millisecond
@@ -55,7 +55,7 @@ func (s *SelectTestSuite) SetupTest() {
 }
 
 // status is the device answering with one status and nothing else.
-func (s *SelectTestSuite) status(txn uint64, status int) []byte {
+func (s *SelectPublicTestSuite) status(txn uint64, status int) []byte {
 	var buf bytes.Buffer
 
 	enc := msgpack.NewEncoder(&buf)
@@ -69,7 +69,7 @@ func (s *SelectTestSuite) status(txn uint64, status int) []byte {
 }
 
 // document is the device answering with a preset.
-func (s *SelectTestSuite) document(txn uint64, body string) []byte {
+func (s *SelectPublicTestSuite) document(txn uint64, body string) []byte {
 	var buf bytes.Buffer
 
 	enc := msgpack.NewEncoder(&buf)
@@ -85,7 +85,7 @@ func (s *SelectTestSuite) document(txn uint64, body string) []byte {
 }
 
 // took is the device saying it has taken a request.
-func (s *SelectTestSuite) took(txn uint64) []byte {
+func (s *SelectPublicTestSuite) took(txn uint64) []byte {
 	var buf bytes.Buffer
 
 	enc := msgpack.NewEncoder(&buf)
@@ -99,7 +99,7 @@ func (s *SelectTestSuite) took(txn uint64) []byte {
 }
 
 // playing is the device saying which preset it has loaded.
-func (s *SelectTestSuite) playing(txn uint64, setlist, slot int) []byte {
+func (s *SelectPublicTestSuite) playing(txn uint64, setlist, slot int) []byte {
 	var buf bytes.Buffer
 
 	enc := msgpack.NewEncoder(&buf)
@@ -120,7 +120,7 @@ func (s *SelectTestSuite) playing(txn uint64, setlist, slot int) []byte {
 	return sdk.Reply(sdk.DataChannel, buf.Bytes())
 }
 
-func (s *SelectTestSuite) session(d *device) *sdk.Session {
+func (s *SelectPublicTestSuite) session(d *device) *sdk.Session {
 	out := sdk.NewTestSession(d, d)
 	out.OpenChannels()
 
@@ -128,7 +128,7 @@ func (s *SelectTestSuite) session(d *device) *sdk.Session {
 }
 
 // TestSelectPreset loads a preset and waits for the device to say it landed.
-func (s *SelectTestSuite) TestSelectPreset() {
+func (s *SelectPublicTestSuite) TestSelectPreset() {
 	tests := []struct {
 		name      string
 		device    func() *device
@@ -224,7 +224,7 @@ func (s *SelectTestSuite) TestSelectPreset() {
 
 // TestLoaded reads which preset the device is playing, which is the only
 // honest signal that a switch has finished.
-func (s *SelectTestSuite) TestLoaded() {
+func (s *SelectPublicTestSuite) TestLoaded() {
 	tests := []struct {
 		name   string
 		device func() *device
@@ -263,7 +263,7 @@ func (s *SelectTestSuite) TestLoaded() {
 
 // TestReadCurrent reads the document a device is playing, which is the edit
 // buffer rather than a stored slot.
-func (s *SelectTestSuite) TestReadCurrent() {
+func (s *SelectPublicTestSuite) TestReadCurrent() {
 	tests := []struct {
 		name   string
 		device func() *device
@@ -301,5 +301,5 @@ func (s *SelectTestSuite) TestReadCurrent() {
 }
 
 func TestSelectTestSuite(t *testing.T) {
-	suite.Run(t, new(SelectTestSuite))
+	suite.Run(t, new(SelectPublicTestSuite))
 }

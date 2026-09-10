@@ -68,7 +68,7 @@ internal/slots/      the commands that read and write what a device holds
 pkg/rig/             RigSpec, the one authored format, and its validation
 pkg/compile/         a rig becomes a preset, and a preset becomes a rig
 pkg/editor/          what a device says becomes a chain, and back again
-pkg/chain/           a resolved chain. An internal struct, not a format.
+pkg/chain/           a resolved chain: what compile produces and editor reads
 pkg/catalog/         what a device can do: blocks, parameters, DSP costs
 pkg/corpus/          what real presets say about a device, measured
 pkg/preset/          read and write a .hlx preset file
@@ -218,6 +218,12 @@ accumulate whatever has no other home.
 
 `types.go` holds only type declarations: structs, interfaces, constants, and
 aliases. A function belongs in a file named for what it does.
+
+A method on a type declared there may stay beside it, and several do:
+`DataMeta`'s JSON marshalling, `Catalog.Symbol`, `ParamStats.Spread`. The rule
+is about where behaviour lives, and a type's own marshalling is part of the type
+rather than behaviour of its own. A method that does real work, or that needs
+anything the type does not carry, goes in a file named for what it does.
 
 A test file is named for the production file it tests. Where tests grow too
 large to read, split the production file first so each test file keeps a
@@ -414,7 +420,9 @@ later:
 ### Test file conventions
 
 - Public tests: `*_public_test.go` in the package's `_test` package, exercising
-  the exported surface. This is the default.
+  the exported surface. This is the default. The suffix and the package clause
+  have to agree: nine files once said `_test.go` while sitting in a `_test`
+  package, which reads as an internal test and is not one.
 - Internal tests: `*_test.go` in the same package, for what the exported surface
   cannot reach.
 - Suite naming: `*_public_test.go` → `{Name}PublicTestSuite`, `*_test.go` →

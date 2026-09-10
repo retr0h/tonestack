@@ -30,14 +30,14 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk/wire"
 )
 
-// ConversationTestSuite covers a session's beginning and end.
-type ConversationTestSuite struct {
+// ConversationPublicTestSuite covers a session's beginning and end.
+type ConversationPublicTestSuite struct {
 	suite.Suite
 }
 
 // TestClose gives back what the session took, and tells the device it is
 // over.
-func (s *ConversationTestSuite) TestClose() {
+func (s *ConversationPublicTestSuite) TestClose() {
 	tests := []struct {
 		name   string
 		opened bool
@@ -119,7 +119,7 @@ func (s *ConversationTestSuite) TestClose() {
 }
 
 // TestRetry waits on an interface a previous session has not let go of.
-func (s *ConversationTestSuite) TestRetry() {
+func (s *ConversationPublicTestSuite) TestRetry() {
 	tests := []struct {
 		name  string
 		until int
@@ -167,10 +167,10 @@ func (s *ConversationTestSuite) TestRetry() {
 }
 
 // TestModel is which device answered.
-func (s *ConversationTestSuite) TestModel() {
+func (s *ConversationPublicTestSuite) TestModel() {
 	s.Require().Equal("HX Stomp", sdk.NewTestSession(nil, nil).Model().Name)
 }
 
 func TestConversationTestSuite(t *testing.T) {
-	suite.Run(t, new(ConversationTestSuite))
+	suite.Run(t, new(ConversationPublicTestSuite))
 }
