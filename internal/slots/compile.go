@@ -128,7 +128,7 @@ func template(path string) (*preset.Document, error) {
 func reportCompiled(w io.Writer, name string, blocks int, path string) error {
 	_, err := fmt.Fprintf(w, "\n%s%s  %s\n\n%s%s\n\n",
 		cli.Indent, cli.Title(w, name),
-		cli.Mute(w, fmt.Sprintf("%s in the chain", plural(blocks, "block"))),
+		cli.Mute(w, fmt.Sprintf("%s in the chain", cli.Plural(blocks, "block"))),
 		cli.Indent, cli.Success(w, "wrote "+path))
 
 	return err

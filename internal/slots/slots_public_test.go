@@ -29,6 +29,8 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
+	"github.com/retr0h/tonestack/internal/catalogview"
+	"github.com/retr0h/tonestack/internal/cli"
 	"github.com/retr0h/tonestack/internal/slots"
 )
 
@@ -99,13 +101,6 @@ func (s *SlotsPublicTestSuite) TestList() {
 			errText: "not a setlist",
 		},
 		{
-			name: "a catalog that is not there",
-			opts: slots.ListOptions{
-				Path: fixture("setlist.hls"), CatalogPath: fixture("nope.json"),
-			},
-			errText: "catalog",
-		},
-		{
 			name: "a setlist that is not there",
 			opts: slots.ListOptions{
 				Path: fixture("setlist.hls"), Setlist: 9, CatalogPath: catalogPath(),
@@ -116,9 +111,7 @@ func (s *SlotsPublicTestSuite) TestList() {
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			var out bytes.Buffer
-
-			err := slots.List(&out, tt.opts)
+			listing, err := slots.List(tt.opts)
 
 			if tt.errText != "" {
 				s.Require().Error(err)
@@ -128,6 +121,14 @@ func (s *SlotsPublicTestSuite) TestList() {
 			}
 
 			s.Require().NoError(err)
+
+			// Rendered the way the command renders it, because what a reader
+			// sees is the renderer's answer rather than the operation's.
+			var out bytes.Buffer
+
+			cat, err := catalogview.Open(tt.opts.CatalogPath)
+			s.Require().NoError(err)
+			s.Require().NoError(cli.Listing(&out, listing, cat, tt.opts.All))
 
 			for _, want := range tt.contains {
 				s.Require().Contains(out.String(), want)
@@ -140,7 +141,26 @@ func (s *SlotsPublicTestSuite) TestList() {
 	}
 }
 
+// TestListNeedsNoCatalogToRead covers what the split moved.
+//
+// Reading a setlist says which blocks are in it, and a catalog is what turns
+// a block into a name. So a catalog nobody can open is a rendering failure
+// now rather than a reading one, which is the right place for it: a TUI
+// holding a listing has already read the file.
+func (s *SlotsPublicTestSuite) TestListNeedsNoCatalogToRead() {
+	listing, err := slots.List(slots.ListOptions{Path: fixture("setlist.hls")})
+	s.Require().NoError(err)
+	s.Require().NotEmpty(listing.Slots)
+
+	_, err = catalogview.Open(fixture("nope.json"))
+	s.Require().ErrorContains(err, "catalog")
+}
+
 // TestListReportsAWriterThatFails covers a listing nobody can read.
+//
+// The failure belongs to the renderer now rather than to the operation, which
+// is the point of the split: reading a setlist cannot fail because somebody's
+// terminal went away.
 func (s *SlotsPublicTestSuite) TestListReportsAWriterThatFails() {
 	tests := []struct {
 		name string
@@ -154,9 +174,15 @@ func (s *SlotsPublicTestSuite) TestListReportsAWriterThatFails() {
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			s.Require().Error(slots.List(tt.w, slots.ListOptions{
+			listing, err := slots.List(slots.ListOptions{
 				Path: fixture(tt.path), CatalogPath: catalogPath(),
-			}))
+			})
+			s.Require().NoError(err)
+
+			cat, err := catalogview.Open(catalogPath())
+			s.Require().NoError(err)
+
+			s.Require().Error(cli.Listing(tt.w, listing, cat, false))
 		})
 	}
 }

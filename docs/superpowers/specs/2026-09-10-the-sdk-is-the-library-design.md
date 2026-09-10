@@ -183,13 +183,22 @@ Each stage lands on its own and leaves the tree working.
 
 1. **Move the packages.** Import paths change and nothing else. Mechanical,
    large, and reviewable precisely because it carries no other change. Done.
-2. **Give the library its internal.** The flows move to `pkg/sdk/internal`,
-   still writing to an `io.Writer`, so the move is separable from the reshape.
-3. **Turn the flows inside out.** Each operation returns a value; the printing
+
+2. **Turn the flows inside out.** Each operation returns a value; the printing
    moves to `internal/cli`; `cmd/` calls both. One command at a time, starting
    with `presets list`, because it has a device path, a file path and a table.
+
+3. **Give the library its internal.** The flows move to `pkg/sdk/internal`.
+
+   These two were written the other way round and cannot be. A flow that still
+   renders imports `internal/cli`, and moving it under `pkg/` would put `pkg/`
+   importing `internal/`, which `main_test.go` refuses and which would weld the
+   SDK to this program. The rendering comes out first; the move is what is left
+   once nothing in the flow knows what a colour is.
+
 4. **Put the Client in front.** Once the operations return values, `sdk.Client`
    is a thin thing over them, and `cmd/` stops importing anything else.
+
 5. **Own the types.** `pkg/sdk` declares what a caller holds, aliasing the
    generated types where they are already right and converting where they are
    not, so regenerating the contract cannot rename somebody else's field.

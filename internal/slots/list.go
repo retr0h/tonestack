@@ -21,15 +21,8 @@
 package slots
 
 import (
-	"fmt"
-	"io"
-	"strings"
-
-	"github.com/retr0h/tonestack/internal/cli"
-	"github.com/retr0h/tonestack/pkg/sdk/catalog"
-	"github.com/retr0h/tonestack/pkg/sdk/chain"
+	"github.com/retr0h/tonestack/pkg/sdk"
 	"github.com/retr0h/tonestack/pkg/sdk/setlist"
-	slotpkg "github.com/retr0h/tonestack/pkg/sdk/slot"
 )
 
 // ListOptions says which setlist to list.
@@ -52,102 +45,30 @@ type ListOptions struct {
 // Empty slots are hidden by default. A device-written setlist always holds
 // 128 of them and most are untouched, so listing them all buries the ones
 // somebody actually made.
-func List(w io.Writer, opts ListOptions) error {
+func List(opts ListOptions) (sdk.Listing, error) {
 	doc, err := open(opts.Path)
 	if err != nil {
-		return err
-	}
-
-	cat, err := opts.catalogs().Open(opts.CatalogPath)
-	if err != nil {
-		return err
+		return sdk.Listing{}, err
 	}
 
 	if opts.Setlist < 0 || opts.Setlist >= len(doc.Setlists) {
-		return &setlist.NoSuchSlotError{Setlist: opts.Setlist}
+		return sdk.Listing{}, &setlist.NoSuchSlotError{Setlist: opts.Setlist}
 	}
 
 	sl := doc.Setlists[opts.Setlist]
-	rows, used := listRows(w, sl, cat, opts.All)
-
-	return cli.Section{
-		Title:   sl.Name(),
-		Detail:  fmt.Sprintf("%s · %d in use", plural(len(sl.Slots), "slot"), used),
-		Headers: []string{"slot", "name", "chain"},
-		Rows:    rows,
-		Empty:   "no presets",
-	}.Render(w)
-}
-
-// listRows renders one row per slot, and counts the ones holding a chain.
-func listRows(
-	w io.Writer,
-	sl setlist.Setlist,
-	cat *catalog.Catalog,
-	all bool,
-) ([][]string, int) {
-	var (
-		rows [][]string
-		used int
-	)
+	held := make([]sdk.Held, 0, len(sl.Slots))
 
 	for i := range sl.Slots {
-		// A slot that fails to parse is still a slot; showing it as empty is
-		// better than refusing to list the 127 around it.
+		// A slot that fails to parse is still a slot. Reporting it as empty
+		// beats refusing to list the hundred and twenty-seven around it.
 		spec, _ := sl.Slots[i].Spec()
 
-		if len(spec.Blocks) == 0 {
-			if all {
-				rows = append(rows, []string{
-					cli.Mute(w, slotpkg.Label(i)),
-					cli.Mute(w, sl.Slots[i].Meta.Name),
-					"",
-				})
-			}
-
-			continue
-		}
-
-		used++
-
-		rows = append(rows, []string{
-			cli.Accent(w, slotpkg.Label(i)),
-			sl.Slots[i].Meta.Name,
-			flow(w, spec.Blocks, cat),
+		held = append(held, sdk.Held{
+			Slot:   i,
+			Name:   sl.Slots[i].Meta.Name,
+			Blocks: spec.Blocks,
 		})
 	}
 
-	return rows, used
-}
-
-// flow summarises a chain as the categories it passes through.
-//
-// The categories are what distinguishes one preset from another at a glance —
-// whether it has an amp, whether anything comes after the cab. Model names
-// would be more precise and would not fit on a line.
-func flow(w io.Writer, blocks []chain.Block, cat *catalog.Catalog) string {
-	parts := make([]string, 0, len(blocks))
-
-	for _, b := range blocks {
-		blk, ok := cat.Block(b.Model)
-		if !ok {
-			parts = append(parts, cli.Info(w, "?"))
-
-			continue
-		}
-
-		parts = append(parts, cli.Category(w, blk.Category))
-	}
-
-	return strings.Join(parts, cli.Mute(w, " → "))
-}
-
-// plural renders a count with its noun, so a setlist of one does not read as
-// "1 slots".
-func plural(n int, noun string) string {
-	if n == 1 {
-		return "1 " + noun
-	}
-
-	return fmt.Sprintf("%d %ss", n, noun)
+	return sdk.Listing{Name: sl.Name(), Slots: held}, nil
 }

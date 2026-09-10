@@ -22,7 +22,10 @@ package cmd
 import (
 	"github.com/spf13/cobra"
 
+	"github.com/retr0h/tonestack/internal/catalogview"
+	"github.com/retr0h/tonestack/internal/cli"
 	"github.com/retr0h/tonestack/internal/slots"
+	"github.com/retr0h/tonestack/pkg/sdk"
 )
 
 var presetsListOptions slots.ListOptions
@@ -42,18 +45,20 @@ Slots are labelled the way the hardware labels them, so 03B here is 03B
 there.`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		// No file means the device itself, which is what somebody with one
-		// plugged in almost always wants.
-		if presetsListOptions.Path == "" {
-			return slots.ListDevice(cmd.Context(), cmd.OutOrStdout(),
-				slots.DeviceOptions{
-					Setlist:     presetsListOptions.Setlist,
-					All:         presetsListOptions.All,
-					CatalogPath: presetsListOptions.CatalogPath,
-				})
+		// The operation answers with what is there; what to show of it and
+		// what it looks like are decided here, which is all this command
+		// does.
+		listing, err := listing(cmd)
+		if err != nil {
+			return err
 		}
 
-		return slots.List(cmd.OutOrStdout(), presetsListOptions)
+		cat, err := catalogview.Open(presetsListOptions.CatalogPath)
+		if err != nil {
+			return err
+		}
+
+		return cli.Listing(cmd.OutOrStdout(), listing, cat, presetsListOptions.All)
 	},
 }
 
@@ -76,4 +81,20 @@ func init() {
 	f.StringVar(&presetsListOptions.CatalogPath, "catalog", "",
 		"a generated catalog to use instead of the built-in one")
 	f.BoolVar(&presetsListOptions.All, "all", false, "include empty slots")
+}
+
+// listing reads a setlist, from the device or from a file.
+//
+// No file means the device itself, which is what somebody with one plugged in
+// almost always wants.
+func listing(cmd *cobra.Command) (sdk.Listing, error) {
+	if presetsListOptions.Path != "" {
+		return slots.List(presetsListOptions)
+	}
+
+	return slots.ListDevice(cmd.Context(), slots.DeviceOptions{
+		Setlist:     presetsListOptions.Setlist,
+		All:         presetsListOptions.All,
+		CatalogPath: presetsListOptions.CatalogPath,
+	})
 }

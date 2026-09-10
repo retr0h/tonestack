@@ -33,6 +33,8 @@ import (
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/mock/gomock"
 
+	"github.com/retr0h/tonestack/internal/catalogview"
+	"github.com/retr0h/tonestack/internal/cli"
 	"github.com/retr0h/tonestack/internal/slots"
 	"github.com/retr0h/tonestack/pkg/sdk/device"
 	"github.com/retr0h/tonestack/pkg/sdk/device/mocks"
@@ -159,9 +161,7 @@ func (s *DevicePublicTestSuite) TestListWith() {
 				tt.expect()
 			}
 
-			var out bytes.Buffer
-
-			err := slots.ListWith(context.Background(), &out, s.dev, tt.opts)
+			listing, err := slots.ListWith(context.Background(), s.dev, tt.opts)
 
 			if tt.says != "" {
 				s.Require().ErrorContains(err, tt.says)
@@ -170,6 +170,15 @@ func (s *DevicePublicTestSuite) TestListWith() {
 			}
 
 			s.Require().NoError(err)
+
+			// The operation answers with every slot and what is in it. What
+			// a reader sees of that is the renderer's, so the assertions run
+			// against the rendering the command would do.
+			var out bytes.Buffer
+
+			cat, err := catalogview.Open(tt.opts.CatalogPath)
+			s.Require().NoError(err)
+			s.Require().NoError(cli.Listing(&out, listing, cat, tt.opts.All))
 
 			for _, want := range tt.contains {
 				s.Require().Contains(out.String(), want)
@@ -187,8 +196,8 @@ func (s *DevicePublicTestSuite) TestListWith() {
 func (s *DevicePublicTestSuite) TestListWithReportsAListingItCannotGet() {
 	s.dev.EXPECT().Presets(gomock.Any(), 0).Return(nil, errors.New("boom"))
 
-	s.Require().ErrorContains(slots.ListWith(context.Background(),
-		&bytes.Buffer{}, s.dev, slots.DeviceOptions{}), "listing presets")
+	_, err := slots.ListWith(context.Background(), s.dev, slots.DeviceOptions{})
+	s.Require().ErrorContains(err, "listing presets")
 }
 
 // TestShowWith writes out one slot.
@@ -567,7 +576,8 @@ func (s *DevicePublicTestSuite) TestTheCommandsThatFindTheirOwnDevice() {
 
 	ctx := context.Background()
 
-	s.Require().NoError(slots.ListDevice(ctx, &bytes.Buffer{}, slots.DeviceOptions{}))
+	_, err := slots.ListDevice(ctx, slots.DeviceOptions{})
+	s.Require().NoError(err)
 	s.Require().NoError(slots.ShowDevice(ctx, &bytes.Buffer{}, slots.DeviceOptions{}))
 	s.Require().NoError(slots.ExportDevice(ctx, &bytes.Buffer{},
 		slots.ExportOptions{OutputPath: out}))
@@ -625,8 +635,10 @@ func (s *DevicePublicTestSuite) TestReportsADeviceItCannotOpen() {
 
 	ctx := context.Background()
 
+	_, listing := slots.ListDevice(ctx, slots.DeviceOptions{})
+
 	for _, err := range []error{
-		slots.ListDevice(ctx, &bytes.Buffer{}, slots.DeviceOptions{}),
+		listing,
 		slots.ShowDevice(ctx, &bytes.Buffer{}, slots.DeviceOptions{}),
 		slots.ExportDevice(ctx, &bytes.Buffer{}, slots.ExportOptions{}),
 	} {

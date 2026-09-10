@@ -29,6 +29,7 @@ import (
 	"os"
 
 	"github.com/retr0h/tonestack/internal/cli"
+	"github.com/retr0h/tonestack/pkg/sdk"
 	"github.com/retr0h/tonestack/pkg/sdk/catalog"
 	"github.com/retr0h/tonestack/pkg/sdk/chain"
 	"github.com/retr0h/tonestack/pkg/sdk/device"
@@ -207,83 +208,54 @@ func ExportWith(
 //
 // Read-only: it asks the device to describe a setlist and nothing more.
 // Nothing is selected, loaded or written.
-func ListDevice(ctx context.Context, w io.Writer, opts DeviceOptions) error {
+func ListDevice(ctx context.Context, opts DeviceOptions) (sdk.Listing, error) {
 	s, err := openDevice(ctx)
 	if err != nil {
-		return err
+		return sdk.Listing{}, err
 	}
 
 	defer s.Close()
 
-	return ListWith(ctx, w, s, opts)
+	return ListWith(ctx, s, opts)
 }
 
-// ListWith prints what the given session holds.
+// ListWith returns what the given session holds.
 func ListWith(
 	ctx context.Context,
-	w io.Writer,
 	s device.Editor,
 	opts DeviceOptions,
-) error {
+) (sdk.Listing, error) {
 	presets, err := s.Presets(ctx, opts.Setlist)
 	if err != nil {
-		return fmt.Errorf("listing presets: %w", err)
+		return sdk.Listing{}, fmt.Errorf("listing presets: %w", err)
 	}
 
 	cat, err := opts.catalogs().Open(opts.CatalogPath)
 	if err != nil {
-		return err
+		return sdk.Listing{}, err
 	}
 
-	rows := make([][]string, 0, len(presets))
-
-	var used int
+	held := make([]sdk.Held, 0, len(presets))
 
 	for _, p := range presets {
+		one := sdk.Held{Slot: p.Slot, Name: p.Name}
+
 		// A slot is always named, so a name says nothing about whether
 		// anything is in it. An untouched one keeps the name it shipped
-		// with; a named one can still hold no blocks at all, and only
-		// reading it says which.
-		blank := p.Name == untouched
-
-		chain := ""
-
-		if !blank {
+		// with, and only reading it says which.
+		if p.Name != untouched {
 			blocks, err := chainAt(ctx, opts.Deps, s, cat, opts.Setlist, p.Slot)
 			if err != nil {
-				return err
+				return sdk.Listing{}, err
 			}
 
-			blank = len(blocks) == 0
-			chain = flow(w, blocks, cat)
+			one.Blocks = blocks
 		}
 
-		if blank {
-			if !opts.All {
-				continue
-			}
-
-			rows = append(rows, []string{
-				cli.Mute(w, p.Label()), cli.Mute(w, p.Name), cli.Mute(w, "empty"),
-			})
-
-			continue
-		}
-
-		used++
-
-		rows = append(rows, []string{cli.Accent(w, p.Label()), p.Name, chain})
+		held = append(held, one)
 	}
 
-	return cli.Section{
-		Title:  s.Model().Name,
-		Detail: fmt.Sprintf("%s · %d in use", plural(len(presets), "slot"), used),
-		// One address, the one printed on the pedal. What the device counts
-		// underneath is its business, and --slot takes what is shown here.
-		Headers: []string{"slot", "name", "chain"},
-		Rows:    rows,
-		Empty:   "no presets",
-	}.Render(w)
+	return sdk.Listing{Name: s.Model().Name, Slots: held}, nil
 }
 
 // untouched is what a device calls a slot nobody has named.
