@@ -1,0 +1,72 @@
+# Bootsy Collins — Parliament-Funkadelic
+#
+# The one rig here whose amplifier this device cannot do. The envelope
+# filter is the sound anyway, and that is modelled.
+
+schema: RigSpec
+version: 2
+id: bootsy-collins
+aliases: [bootsy, william-collins]
+
+subject:
+  kind: artist
+  name: Bootsy Collins
+  band: Parliament-Funkadelic
+  era: Stretchin' Out through Ahh... The Name Is Bootsy
+
+instrument: bass
+
+chain:
+  - role: other
+    gear: Mu-Tron III
+    evidence:
+      - kind: cited
+        url: https://mixdownmag.com.au/features/gear-rundown-bootsy-collins/
+        note: >-
+          "since the '70s, Bootsy has been a devout user of the Musictronics
+          Mu-Tron III Envelope Filter"
+    confidence: high
+
+  - role: amp
+    gear: Alembic F2-B
+    substitute:
+      gear: Ampeg B-15
+      evidence:
+        - kind: llm
+          note: >-
+            a model's guess at the nearest clean tube bass preamp this device
+            carries. Nobody has compared them.
+      confidence: low
+    evidence:
+      - kind: cited
+        url: https://www.uberproaudio.com/who-plays-what/295-bootsy-collins-bass-rig-gear-and-equipment
+        note: >-
+          an Alembic F2-B preamp into Crown power amps and eight custom
+          Electro-Voice cabinets
+        caveat: >-
+          nothing on this device emulates the F2-B, and the power amps and
+          cabinets are custom. What is here is the filter and something clean
+          behind it.
+    confidence: medium
+
+character:
+  - term: envelope-swept, vowel-like
+    evidence:
+      - kind: cited
+        url: https://mixdownmag.com.au/features/gear-rundown-bootsy-collins/
+        note: '"a squelchy, synth-like tone when playing leads or slap"' 
+  - term: clean behind the filter
+    evidence:
+      - kind: llm
+
+technique:
+  attack: slap
+  evidence:
+    - kind: cited
+      url: https://mixdownmag.com.au/features/gear-rundown-bootsy-collins/
+      note: the filter described as used "when playing leads or slap"
+      caveat: >-
+        which is the effect being described rather than his hands. Not a
+        statement about attack from anybody who watched him.
+
+confidence: low

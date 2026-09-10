@@ -1,0 +1,73 @@
+# Paul McCartney — Wings
+#
+# The touring rig, not the Abbey Road one. He went direct on the records as
+# often as not, and the Vox stack of the Beatles years is not modelled here.
+
+schema: RigSpec
+version: 2
+id: paul-mccartney
+aliases: [macca, mccartney]
+
+subject:
+  kind: artist
+  name: Paul McCartney
+  band: Wings
+  era: mid to late seventies touring
+
+instrument: bass
+
+chain:
+  - role: amp
+    gear: Acoustic 360
+    evidence:
+      - kind: user
+        url: https://www.talkbass.com/threads/paul-mccartneys-rig.469978/
+        note: an Acoustic 360/361 on the mid to late seventies Wings tours
+        caveat: >-
+          this thread blocks automated readers, so it was found by search and
+          not read. Somebody should open it. The equipboard page for his
+          amplifiers does not list an Acoustic at all, and does list Fender
+          Bassman, Mesa and Alembic, so this is the weakest claim here.
+    confidence: low
+
+  - role: cab
+    gear: Acoustic 361
+    substitute:
+      gear: Acoustic 360
+      evidence:
+        - kind: llm
+          note: >-
+            the device carries a 1x18 named for the 360 rather than the 361.
+      confidence: medium
+    evidence:
+      - kind: user
+        url: https://www.talkbass.com/threads/paul-mccartneys-rig.469978/
+        note: the 361 cabinet the 360 head drove
+        caveat: the same unread thread
+    confidence: medium
+
+character:
+  - term: round and forward, melodic rather than supporting
+    evidence:
+      - kind: llm
+  - term: flatwound, little string noise
+    evidence:
+      - kind: cited
+        url: https://www.talkbass.com/threads/paul-mccartneys-rig.469978/
+        note: flatwounds named there as important to the sound
+        caveat: >-
+          a forum thread that blocks automated readers, so found by search
+          and not read
+
+technique:
+  attack: pick
+  position: neck
+  evidence:
+    - kind: cited
+      url: https://www.talkbass.com/threads/paul-mccartneys-rig.469978/
+      note: played with a pick, plucking closer to the neck
+      caveat: >-
+        about the Abbey Road sessions, and this rig is the Wings tours. He
+        plays both pick and fingers, and the thread was not read.
+
+confidence: low

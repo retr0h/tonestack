@@ -1,0 +1,85 @@
+# Flea — Red Hot Chili Peppers
+#
+# The Gallien-Krueger years. The rig here is the one a rundown documents
+# rather than the one most people mean: the 800RB on the early records is
+# widely repeated and was not sourced to a page anybody here opened.
+
+schema: RigSpec
+version: 2
+id: flea
+aliases: [rhcp, michael-balzary]
+
+subject:
+  kind: artist
+  name: Flea
+  band: Red Hot Chili Peppers
+  era: 2012 touring
+
+instrument: bass
+
+chain:
+  - role: amp
+    gear: Gallien-Krueger 2001RB
+    substitute:
+      gear: Gallien-Krueger 800RB
+      evidence:
+        - kind: llm
+          note: >-
+            the 800RB is the only Gallien-Krueger this device models. Same
+            maker, a different head, and nobody has compared them.
+      confidence: low
+    evidence:
+      - kind: cited
+        url: https://www.premierguitar.com/rig-rundown-red-hot-chili-peppers-flea
+        note: >-
+          "Flea uses three Gallien-Krueger 2001RB amps, one controls the
+          other two as slaves"
+      - kind: cited
+        url: https://www.guitarworld.com/news/flea-red-hot-chili-peppers-unlimited-love-new-bass-amp-setup
+        note: >-
+          headlined as him switching to Ampeg from Gallien-Krueger for
+          Unlimited Love, which dates this rig to before that
+        caveat: >-
+          only the headline was readable. The body did not come back.
+    confidence: medium
+
+  - role: cab
+    gear: Gallien-Krueger 410
+    substitute:
+      gear: Ampeg SVT 410HLF
+      evidence:
+        - kind: llm
+          note: >-
+            nothing here models a Gallien-Krueger cabinet. A 4x10 for a 4x10,
+            which is a guess about size rather than about voicing.
+      confidence: low
+    evidence:
+      - kind: cited
+        url: https://www.premierguitar.com/rig-rundown-red-hot-chili-peppers-flea
+        note: three 410 cabinets and three 115s in the 2012 rundown
+    confidence: medium
+
+character:
+  - term: hard attack, front of the note
+    evidence:
+      - kind: llm
+  - term: bass up, treble rolled off
+    evidence:
+      - kind: cited
+        url: https://www.premierguitar.com/rig-rundown-red-hot-chili-peppers-flea
+        note: >-
+          "he keeps his knobs taped at his preferred settings (bass almost
+          full up, treble rolled off)"
+
+technique:
+  attack: slap
+  evidence:
+    - kind: cited
+      url: https://www.premierguitar.com/rig-rundown-red-hot-chili-peppers-flea
+      note: >-
+        "MXR Micro Amp used as clean boost for slapping and leads"
+      caveat: >-
+        he plays fingerstyle at least as much. A rig names one attack, so
+        this one is the funk material rather than the whole player.
+
+confidence: medium

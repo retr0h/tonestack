@@ -1,0 +1,76 @@
+# Jaco Pastorius — Weather Report
+#
+# The amplifier is well documented and was rarely what you hear on the
+# records: he went to the desk. This rig is the live sound.
+
+schema: RigSpec
+version: 2
+id: jaco-pastorius
+aliases: [jaco, pastorius]
+
+subject:
+  kind: artist
+  name: Jaco Pastorius
+  band: Weather Report
+  era: Weather Report through Word of Mouth
+
+instrument: bass
+
+chain:
+  - role: amp
+    gear: Acoustic 360
+    evidence:
+      - kind: cited
+        url: https://mixdownmag.com.au/features/rig-rundown-jaco-pastorius/
+        note: >-
+          the 360-361PP, described there as an 18 inch inverted speaker
+          cabinet he converted to after a borrowed one on a gig
+      - kind: user
+        url: https://ebass.bestbassgear.com/article/jaco-pastorius.html
+        note: >-
+          readers there say he went to the board with no preamp on record
+        caveat: >-
+          this is the comments section and the article above them says the
+          opposite. Read as a live rig, not a recorded one.
+    confidence: medium
+
+  - role: cab
+    gear: Acoustic 361
+    substitute:
+      gear: Acoustic 360
+      evidence:
+        - kind: llm
+          note: >-
+            the device carries a 1x18 named for the 360 rather than the 361
+            it was sold with. The same box, as far as anything here knows.
+      confidence: medium
+    evidence:
+      - kind: cited
+        url: https://mixdownmag.com.au/features/rig-rundown-jaco-pastorius/
+        note: the 1x18 folded horn the 360 was sold with
+    confidence: medium
+
+character:
+  - term: bridge-pickup forward, nasal rather than round
+    evidence:
+      - kind: user
+        url: https://ebass.bestbassgear.com/article/jaco-pastorius.html
+        note: fingers over the bridge pickup
+        caveat: from the comments on that page rather than the article
+  - term: bright, and hearing the fingerboard is the point
+    evidence:
+      - kind: llm
+
+technique:
+  attack: fingers
+  position: bridge
+  evidence:
+    - kind: user
+      url: https://ebass.bestbassgear.com/article/jaco-pastorius.html
+      note: playing over the bridge pickup
+      caveat: >-
+        from the comments rather than the article, and the position is all
+        it supports. The two-finger technique and the muting he did with the
+        rest are not on that page.
+
+confidence: medium

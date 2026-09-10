@@ -34,6 +34,35 @@ obscure ones. It cannot tell which it is doing. That is the largest correctness
 risk in the product, and it is why every rig carries evidence per claim. See
 [recipes.md](recipes.md).
 
+### Which sources are worth what
+
+Not equally. Ranked for a claim about gear:
+
+| kind    | what it is                           | worth                                             |
+| ------- | ------------------------------------ | ------------------------------------------------- |
+| `cited` | a published rig rundown or interview | best. Somebody with access wrote it down          |
+| `user`  | a forum thread, TalkBass or Reddit   | argued and corrected in public, and uneven        |
+| `video` | footage                              | good for how it sounds, weak for what the box was |
+| `llm`   | a model asserted it                  | a starting point, never an answer                 |
+
+Video is last on purpose. A stage seen from forty feet says little about which
+head was on it, and the description under a clip is whatever the uploader typed.
+Cite it for character and technique, where hearing or seeing it is the point,
+and say in the note that is what it is for.
+
+Two practical things, both found the hard way while sourcing the shipped rigs:
+
+**A search result is not a source.** A search summary blends several pages and
+their comment sections into one answer, and it will attribute a claim to a page
+that does not make it. Four of the first eight rigs cited something that was not
+on the page once somebody opened it. Open the page.
+
+**Forums block machine readers.** Reddit refuses Anthropic's crawler outright,
+and TalkBass returns 403 to anything automated. Both can be found by search and
+neither can be read by an agent, so a rig citing one records that nobody checked
+it. Those citations say so in a `caveat`, and they are the ones a person should
+open first.
+
 ## 2. Gear to model identifier
 
 Line 6 renames every model for trademark reasons. An Ampeg SVT ships as
