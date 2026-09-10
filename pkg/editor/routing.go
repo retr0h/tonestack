@@ -18,7 +18,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-package slots
+package editor
 
 import (
 	"encoding/json"
@@ -160,12 +160,12 @@ func symbolFor(model catalog.ModelID, cat *catalog.Catalog) (catalog.Symbol, boo
 	return catalog.Symbol{}, false
 }
 
-// deviceStateOf records what the device wraps its chain in.
+// DeviceState records what the device wraps its chain in.
 //
 // Only what was read. A rig that carries a partial record would rebuild into a
 // preset that routes differently from the one it came from, which is worse
 // than carrying none and using an untouched preset.
-func deviceStateOf(got wire.DevicePreset, cat *catalog.Catalog) *riggen.DeviceState {
+func DeviceState(got wire.DevicePreset, cat *catalog.Catalog) *riggen.DeviceState {
 	routing := routingOf(got, cat)
 	if routing == nil {
 		return nil

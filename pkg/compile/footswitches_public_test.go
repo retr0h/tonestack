@@ -18,7 +18,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-package lift_test
+package compile_test
 
 import (
 	"bytes"
@@ -27,8 +27,8 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
-	"github.com/retr0h/tonestack/internal/lift"
 	"github.com/retr0h/tonestack/pkg/catalog"
+	"github.com/retr0h/tonestack/pkg/compile"
 	"github.com/retr0h/tonestack/pkg/preset"
 	riggen "github.com/retr0h/tonestack/pkg/rig/gen"
 )
@@ -139,7 +139,7 @@ func (s *FootswitchesPublicTestSuite) TestLiftFootswitches() {
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			spec, err := lift.Lift(s.presetWith(tt.body), s.cat)
+			spec, err := compile.Lift(s.presetWith(tt.body), s.cat)
 			s.Require().NoError(err)
 
 			if tt.none {
@@ -180,7 +180,7 @@ func (s *FootswitchesPublicTestSuite) TestLiftFootswitches() {
 
 			back, err := preset.Blank()
 			s.Require().NoError(err)
-			s.Require().NoError(lift.Lower(back, spec, s.cat))
+			s.Require().NoError(compile.Lower(back, spec, s.cat))
 
 			var out bytes.Buffer
 			s.Require().NoError(preset.Write(&out, back))
@@ -210,7 +210,7 @@ func (s *FootswitchesPublicTestSuite) TestASwitchWithNoBlockIsNotWritten() {
 
 	doc, err := preset.Blank()
 	s.Require().NoError(err)
-	s.Require().NoError(lift.Lower(doc, spec, s.cat))
+	s.Require().NoError(compile.Lower(doc, spec, s.cat))
 
 	var out bytes.Buffer
 	s.Require().NoError(preset.Write(&out, doc))

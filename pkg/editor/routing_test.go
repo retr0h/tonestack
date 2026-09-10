@@ -18,7 +18,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-package slots
+package editor
 
 import (
 	"encoding/json"
@@ -275,7 +275,7 @@ func (s *RoutingTestSuite) TestDeviceStateOf() {
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			got := deviceStateOf(wire.DevicePreset{Routing: tt.routing}, s.cat)
+			got := DeviceState(wire.DevicePreset{Routing: tt.routing}, s.cat)
 
 			if !tt.want {
 				s.Require().Nil(got)

@@ -18,18 +18,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// Package lift converts between a device preset and a rig.
-//
-// Both directions, because a format that only reads one way is not an
-// abstraction over anything. Lifting reads a preset into a rig; lowering
-// builds a preset back out of one.
-//
-// Nothing is lost either way. What a rig does not model as musical intent —
-// routing, snapshots, footswitch assignments, the metadata a preset carries —
-// is recorded verbatim under `device`, so a rig lifted from a preset rebuilds
-// that preset without the original file. A rig somebody typed carries none of
-// it and is built into an untouched preset the device itself wrote.
-package lift
+package compile
 
 import (
 	"encoding/json"

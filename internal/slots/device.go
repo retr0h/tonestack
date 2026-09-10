@@ -32,6 +32,7 @@ import (
 	"github.com/retr0h/tonestack/internal/cli"
 	"github.com/retr0h/tonestack/pkg/catalog"
 	"github.com/retr0h/tonestack/pkg/chain"
+	"github.com/retr0h/tonestack/pkg/editor"
 	"github.com/retr0h/tonestack/pkg/sdk"
 	"github.com/retr0h/tonestack/pkg/sdk/wire"
 	slotpkg "github.com/retr0h/tonestack/pkg/slot"
@@ -320,7 +321,7 @@ func chainAt(
 		return nil, nil
 	}
 
-	c, err := chainOf("", preset, cat)
+	c, err := editor.Chain("", preset, cat)
 	if err != nil {
 		return nil, nil
 	}

@@ -28,7 +28,7 @@ import (
 
 	"github.com/retr0h/tonestack/internal/catalogview"
 	"github.com/retr0h/tonestack/internal/cli"
-	"github.com/retr0h/tonestack/internal/lift"
+	"github.com/retr0h/tonestack/pkg/compile"
 	"github.com/retr0h/tonestack/pkg/preset"
 	"github.com/retr0h/tonestack/pkg/rig"
 	riggen "github.com/retr0h/tonestack/pkg/rig/gen"
@@ -74,7 +74,7 @@ func Compile(w io.Writer, opts CompileOptions) error {
 	doc.Data.Device = cat.DeviceID
 	doc.Data.Meta.Name = spec.Subject.Name
 
-	if err := lift.Lower(doc, spec, cat); err != nil {
+	if err := compile.Lower(doc, spec, cat); err != nil {
 		return err
 	}
 

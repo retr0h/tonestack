@@ -18,7 +18,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-package lift
+package compile
 
 import (
 	"encoding/json"
@@ -26,7 +26,6 @@ import (
 	"math"
 	"strings"
 
-	"github.com/retr0h/tonestack/internal/resolve"
 	"github.com/retr0h/tonestack/pkg/catalog"
 	"github.com/retr0h/tonestack/pkg/chain"
 	"github.com/retr0h/tonestack/pkg/preset"
@@ -74,7 +73,7 @@ func Lower(
 	// What the rig claims beside its chain, against the catalog that has to
 	// supply it. After the chain, because a controller names the block it
 	// moves by position and that list is what says which model is there.
-	if err := resolve.Check(spec, blocks, cat); err != nil {
+	if err := Check(spec, blocks, cat); err != nil {
 		return err
 	}
 
@@ -137,7 +136,7 @@ func modelFor(
 		}
 	}
 
-	b, err := resolve.Gear(cat, entry.Gear, entry.Role, instrument)
+	b, err := Gear(cat, entry.Gear, entry.Role, instrument)
 	if err != nil {
 		return "", err
 	}

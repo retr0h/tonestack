@@ -72,7 +72,7 @@ func (s *ImportDevicePublicTestSuite) TearDownTest() { s.ctrl.Finish() }
 
 // preset is a .hlx the corpus carries, with a real chain in it.
 func (s *ImportDevicePublicTestSuite) preset() string {
-	return filepath.Join("..", "lift", "testdata", "preset0.hlx")
+	return filepath.Join("..", "..", "pkg", "compile", "testdata", "preset0.hlx")
 }
 
 // unknownGear writes a preset naming a model no catalog carries.

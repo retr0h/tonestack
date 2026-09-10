@@ -18,16 +18,16 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-package resolve_test
+package compile_test
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/suite"
 
-	"github.com/retr0h/tonestack/internal/resolve"
 	"github.com/retr0h/tonestack/pkg/catalog"
 	"github.com/retr0h/tonestack/pkg/chain"
+	"github.com/retr0h/tonestack/pkg/compile"
 	riggen "github.com/retr0h/tonestack/pkg/rig/gen"
 )
 
@@ -110,7 +110,7 @@ func (s *CheckPublicTestSuite) TestCheck() {
 		{
 			name:    "a device this catalog is not for",
 			device:  "Kemper Profiler",
-			err:     resolve.ErrNoSuchValue,
+			err:     compile.ErrNoSuchValue,
 			field:   "target.device",
 			suggest: "it has: HX Stomp",
 		},
@@ -122,7 +122,7 @@ func (s *CheckPublicTestSuite) TestCheck() {
 			name:      "a colour it does not",
 			led:       "chartruse",
 			hasSwitch: true,
-			err:       resolve.ErrNoSuchValue,
+			err:       compile.ErrNoSuchValue,
 			field:     "footswitches[0].led",
 			suggest:   "it has: auto color, white, green, violet, off",
 		},
@@ -138,7 +138,7 @@ func (s *CheckPublicTestSuite) TestCheck() {
 			name:       "a parameter close to one it has",
 			parameter:  "Driv",
 			hasControl: true,
-			err:        resolve.ErrNoSuchValue,
+			err:        compile.ErrNoSuchValue,
 			field:      "controllers[0].parameter",
 			suggest:    "did you mean: Drive",
 		},
@@ -146,7 +146,7 @@ func (s *CheckPublicTestSuite) TestCheck() {
 			name:       "a parameter nothing is close to",
 			parameter:  "Loudness",
 			hasControl: true,
-			err:        resolve.ErrNoSuchValue,
+			err:        compile.ErrNoSuchValue,
 			field:      "controllers[0].parameter",
 			suggest:    "it has: Bass, Bright, Drive, Interval, MidFreq, Treble",
 		},
@@ -169,7 +169,7 @@ func (s *CheckPublicTestSuite) TestCheck() {
 				"A", "B", "C", "D", "E", "F", "G", "H",
 				"I", "J", "K", "L", "M", "N", "O",
 			},
-			err:    resolve.ErrNoSuchValue,
+			err:    compile.ErrNoSuchValue,
 			field:  "controllers[0].parameter",
 			absent: "it has",
 		},
@@ -180,7 +180,7 @@ func (s *CheckPublicTestSuite) TestCheck() {
 			params: []string{
 				"Mid1", "Mid2", "Mid3", "Mid4", "Mid5", "Mid6", "Mid7", "Mid8",
 			},
-			err:     resolve.ErrNoSuchValue,
+			err:     compile.ErrNoSuchValue,
 			field:   "controllers[0].parameter",
 			suggest: "did you mean: Mid1, Mid2, Mid3, Mid4, Mid5",
 			absent:  "Mid6",
@@ -193,7 +193,7 @@ func (s *CheckPublicTestSuite) TestCheck() {
 			parameter:  "Drive",
 			block:      9,
 			hasControl: true,
-			err:        resolve.ErrNoSuchBlock,
+			err:        compile.ErrNoSuchBlock,
 			field:      "controllers[0].block",
 			suggest:    "no block sits at position 9",
 		},
@@ -202,7 +202,7 @@ func (s *CheckPublicTestSuite) TestCheck() {
 			parameter:   "Drive",
 			hasControl:  true,
 			emptyBlocks: true,
-			err:         resolve.ErrNoSuchBlock,
+			err:         compile.ErrNoSuchBlock,
 			field:       "controllers[0].block",
 			suggest:     "the chain holds 0 blocks",
 		},
@@ -250,7 +250,7 @@ func (s *CheckPublicTestSuite) TestCheck() {
 				blocks = nil
 			}
 
-			err := resolve.Check(spec, blocks, cat)
+			err := compile.Check(spec, blocks, cat)
 
 			if tt.err == nil {
 				s.Require().NoError(err)

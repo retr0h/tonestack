@@ -64,14 +64,16 @@ main.go              a single call into cmd
 cmd/                 cobra wiring: flags to behaviour, no logic
 internal/            implementation, not importable
 internal/cli/        the shared visual language: theme, table, detail, help
-internal/resolve/    a rig and a catalog become a chain
-internal/lift/       a preset becomes a rig, and a rig becomes a preset
+internal/slots/      the commands that read and write what a device holds
 pkg/rig/             RigSpec, the one authored format, and its validation
+pkg/compile/         a rig becomes a preset, and a preset becomes a rig
+pkg/editor/          what a device says becomes a chain, and back again
 pkg/chain/           a resolved chain. An internal struct, not a format.
 pkg/catalog/         what a device can do: blocks, parameters, DSP costs
 pkg/corpus/          what real presets say about a device, measured
 pkg/preset/          read and write a .hlx preset file
 pkg/setlist/         read and write .hls setlists and .hlb device backups
+pkg/slot/            addressing, 01A to 42C
 pkg/sdk/             talk to a device over USB. The only cgo in the tree.
 pkg/sdk/wire/        the framing a device speaks. Pure Go, no hardware needed.
 resources/
@@ -80,6 +82,40 @@ resources/
 docs/                how the format, catalog and generation work
 .github/workflows/   CI
 ```
+
+## Where a package belongs
+
+`pkg/` holds what something outside this repository would call. `internal/`
+holds everything else.
+
+Ask it of a package in this order, and if the answer is no three times the code
+is application code however clean it is:
+
+1. Would the cloud half of a service call it?
+2. Would an agent on somebody's desktop call it?
+3. Would a stranger writing their own tool call it?
+
+The same test applies to each identifier inside a package under `pkg/`. Exported
+means somebody outside the package calls it, and out there that means somebody
+outside this repository plausibly would. Everything else is unexported, or it
+belongs in `internal/`.
+
+Where a domain has both halves, they mirror each other by name: `pkg/foo` is
+what a consumer calls and `internal/foo` is the rest of that domain. No domain
+needs the second half today, because unexported identifiers already give a
+package its private side, and a twin package earns its place only when the
+implementation has to be several files with tests of its own that nobody outside
+may import. When one appears, its tests still live in `internal/foo_test` as
+`*_public_test.go`: the suffix says how Go sees the surface, not who may import
+it.
+
+`internal/` is not something to maximise. Measured against the three questions,
+today's tree moves code up rather than down.
+
+`main_test.go` asserts that no package under `pkg/` imports `internal/`, because
+the compiler will not. `internal/` sits at the repository root, so Go permits
+the import; only a test keeps it from happening by accident, and a package that
+imports `internal/` is a package that cannot be lifted out.
 
 ## How the system works
 

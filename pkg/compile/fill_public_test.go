@@ -18,7 +18,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-package resolve_test
+package compile_test
 
 import (
 	"os"
@@ -27,9 +27,9 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
-	"github.com/retr0h/tonestack/internal/resolve"
 	"github.com/retr0h/tonestack/pkg/catalog"
 	"github.com/retr0h/tonestack/pkg/chain"
+	"github.com/retr0h/tonestack/pkg/compile"
 	"github.com/retr0h/tonestack/pkg/corpus"
 )
 
@@ -253,7 +253,7 @@ func (s *FillPublicTestSuite) TestResolveFill() {
 			var first []catalog.ModelID
 
 			for range 3 {
-				spec, added, err := resolve.Resolve(
+				spec, added, err := compile.Resolve(
 					recipe(gear, "", tt.extra...), s.cat, stats)
 
 				s.Require().NoError(err)

@@ -18,7 +18,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-package lift_test
+package compile_test
 
 import (
 	"bytes"
@@ -27,8 +27,8 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
-	"github.com/retr0h/tonestack/internal/lift"
 	"github.com/retr0h/tonestack/pkg/catalog"
+	"github.com/retr0h/tonestack/pkg/compile"
 	"github.com/retr0h/tonestack/pkg/preset"
 	riggen "github.com/retr0h/tonestack/pkg/rig/gen"
 )
@@ -128,7 +128,7 @@ func (s *DevicePublicTestSuite) TestLowerDeviceState() {
 				state.Routing = &tt.routing
 			}
 
-			s.Require().NoError(lift.Lower(doc, s.rig(state), s.cat))
+			s.Require().NoError(compile.Lower(doc, s.rig(state), s.cat))
 
 			var out bytes.Buffer
 			s.Require().NoError(preset.Write(&out, doc))

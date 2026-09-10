@@ -31,7 +31,7 @@ import (
 
 	"github.com/retr0h/tonestack/internal/presets"
 	"github.com/retr0h/tonestack/internal/recipes"
-	"github.com/retr0h/tonestack/internal/resolve"
+	"github.com/retr0h/tonestack/pkg/compile"
 	"github.com/retr0h/tonestack/pkg/preset"
 )
 
@@ -107,7 +107,7 @@ func (s *MakePublicTestSuite) TestMake() {
 		{
 			name: "gear the catalog does not model",
 			id:   "unbuildable",
-			err:  resolve.ErrNoSuchGear,
+			err:  compile.ErrNoSuchGear,
 		},
 		{
 			// Seven heavy pedals plus an amp and a cabinet exceeds what the

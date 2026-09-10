@@ -27,6 +27,7 @@ import (
 
 	"github.com/retr0h/tonestack/internal/catalogview"
 	"github.com/retr0h/tonestack/internal/cli"
+	"github.com/retr0h/tonestack/pkg/editor"
 	"github.com/retr0h/tonestack/pkg/preset"
 	"github.com/retr0h/tonestack/pkg/sdk"
 	"github.com/retr0h/tonestack/pkg/sdk/wire"
@@ -100,7 +101,7 @@ func documentFor(
 		return nil, err
 	}
 
-	blocks, err := placementsOf(doc, cat)
+	blocks, err := editor.Placements(doc, cat)
 	if err != nil {
 		return nil, err
 	}

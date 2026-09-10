@@ -18,7 +18,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-package slots
+package editor
 
 import (
 	"encoding/json"
@@ -37,12 +37,12 @@ import (
 // device names it by a number, so the catalog's model table is what makes
 // one into the other.
 
-// placementsOf turns a preset into the blocks a device grid holds.
+// Placements turns a preset into the blocks a device grid holds.
 //
 // A preset rather than a chain, because an amp's cabinet is not in the
 // chain. A preset stores the amp with a `@cab` naming a sibling entry, and
 // that entry holds the cabinet's own settings.
-func placementsOf(
+func Placements(
 	doc *preset.Document,
 	cat *catalog.Catalog,
 ) ([]wire.Placement, error) {

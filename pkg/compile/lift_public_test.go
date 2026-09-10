@@ -18,7 +18,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-package lift_test
+package compile_test
 
 import (
 	"bytes"
@@ -26,9 +26,9 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
-	"github.com/retr0h/tonestack/internal/lift"
 	"github.com/retr0h/tonestack/pkg/catalog"
 	"github.com/retr0h/tonestack/pkg/chain"
+	"github.com/retr0h/tonestack/pkg/compile"
 	"github.com/retr0h/tonestack/pkg/preset"
 	"github.com/retr0h/tonestack/pkg/rig"
 	riggen "github.com/retr0h/tonestack/pkg/rig/gen"
@@ -212,7 +212,7 @@ func (s *LiftPublicTestSuite) TestLift() {
 				doc = s.preset(tt.title, tt.model)
 			}
 
-			got, err := lift.Lift(doc, s.catalogOf(tt.blocks))
+			got, err := compile.Lift(doc, s.catalogOf(tt.blocks))
 
 			if tt.err != nil || tt.errText != "" {
 				s.Require().Error(err)
@@ -379,11 +379,11 @@ func (s *LiftPublicTestSuite) TestLower() {
 			if tt.from != "" {
 				var err error
 
-				spec, err = lift.Lift(s.preset("Test", tt.from), cat)
+				spec, err = compile.Lift(s.preset("Test", tt.from), cat)
 				s.Require().NoError(err)
 			}
 
-			err := lift.Lower(doc, spec, cat)
+			err := compile.Lower(doc, spec, cat)
 
 			if tt.err != nil || tt.errText != "" {
 				s.Require().Error(err)
@@ -452,7 +452,7 @@ func (s *LiftPublicTestSuite) TestLowerPicksTheSameModelEveryTime() {
 	for range 20 {
 		doc, err := preset.Blank()
 		s.Require().NoError(err)
-		s.Require().NoError(lift.Lower(doc, spec, s.cat))
+		s.Require().NoError(compile.Lower(doc, spec, s.cat))
 
 		c, err := doc.Spec()
 		s.Require().NoError(err)

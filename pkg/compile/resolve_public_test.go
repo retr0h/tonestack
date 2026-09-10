@@ -17,7 +17,7 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
-package resolve_test
+package compile_test
 
 import (
 	"os"
@@ -26,9 +26,9 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
-	"github.com/retr0h/tonestack/internal/resolve"
 	"github.com/retr0h/tonestack/pkg/catalog"
 	"github.com/retr0h/tonestack/pkg/chain"
+	"github.com/retr0h/tonestack/pkg/compile"
 	riggen "github.com/retr0h/tonestack/pkg/rig/gen"
 )
 
@@ -192,10 +192,10 @@ func (s *ResolvePublicTestSuite) TestResolve() {
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			got, _, err := resolve.Resolve(tt.spec, s.cat, nil)
+			got, _, err := compile.Resolve(tt.spec, s.cat, nil)
 
 			if tt.err != "" {
-				s.Require().ErrorIs(err, resolve.ErrNoSuchGear)
+				s.Require().ErrorIs(err, compile.ErrNoSuchGear)
 				s.Require().Contains(err.Error(), tt.err)
 
 				return
@@ -229,9 +229,9 @@ func (s *ResolvePublicTestSuite) TestResolveChecksWhatTheRigClaims() {
 	device := "Kemper Profiler"
 	spec.Target = &riggen.Target{Device: &device}
 
-	_, _, err := resolve.Resolve(spec, s.cat, nil)
+	_, _, err := compile.Resolve(spec, s.cat, nil)
 
-	s.Require().ErrorIs(err, resolve.ErrNoSuchValue)
+	s.Require().ErrorIs(err, compile.ErrNoSuchValue)
 }
 
 func (s *ResolvePublicTestSuite) TestGear() {
@@ -265,14 +265,14 @@ func (s *ResolvePublicTestSuite) TestGear() {
 			gear:       "Guitar Only",
 			role:       riggen.RoleAmp,
 			instrument: "bass",
-			err:        resolve.ErrNoSuchGear,
+			err:        compile.ErrNoSuchGear,
 		},
 		{
 			name:       "gear nothing emulates",
 			gear:       "Nonesuch 900",
 			role:       riggen.RoleAmp,
 			instrument: "bass",
-			err:        resolve.ErrNoSuchGear,
+			err:        compile.ErrNoSuchGear,
 		},
 	}
 
@@ -281,7 +281,7 @@ func (s *ResolvePublicTestSuite) TestGear() {
 			// Twice, because the answer used to depend on which way a map
 			// ranged.
 			for range 2 {
-				got, err := resolve.Gear(s.cat, tt.gear, tt.role, tt.instrument)
+				got, err := compile.Gear(s.cat, tt.gear, tt.role, tt.instrument)
 
 				if tt.err != nil {
 					s.Require().ErrorIs(err, tt.err)
@@ -297,11 +297,11 @@ func (s *ResolvePublicTestSuite) TestGear() {
 }
 
 func (s *ResolvePublicTestSuite) TestResolveIsDeterministic() {
-	first, _, err := resolve.Resolve(recipe("Ampeg SVT", ""), s.cat, nil)
+	first, _, err := compile.Resolve(recipe("Ampeg SVT", ""), s.cat, nil)
 	s.Require().NoError(err)
 
 	for range 20 {
-		again, _, err := resolve.Resolve(recipe("Ampeg SVT", ""), s.cat, nil)
+		again, _, err := compile.Resolve(recipe("Ampeg SVT", ""), s.cat, nil)
 
 		s.Require().NoError(err)
 		s.Require().Equal(models(first), models(again))
@@ -311,7 +311,7 @@ func (s *ResolvePublicTestSuite) TestResolveIsDeterministic() {
 // TestResolveNamesWhatItChoseForYou covers the second return, which is what
 // a person is told about decisions made on their behalf.
 func (s *ResolvePublicTestSuite) TestResolveNamesWhatItChoseForYou() {
-	_, added, err := resolve.Resolve(
+	_, added, err := compile.Resolve(
 		recipe("Ampeg SVT", "Some Cabinet Nobody Models"), s.cat, nil)
 
 	s.Require().NoError(err)
@@ -354,7 +354,7 @@ func (s *ResolvePublicTestSuite) TestResolveSetsParameters() {
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			got, _, err := resolve.Resolve(tt.spec, s.cat, nil)
+			got, _, err := compile.Resolve(tt.spec, s.cat, nil)
 
 			s.Require().NoError(err)
 			s.Require().NotEmpty(got.Blocks)
@@ -406,10 +406,10 @@ func (s *ResolvePublicTestSuite) TestFit() {
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			spec, _, err := resolve.Resolve(tt.spec, s.cat, nil)
+			spec, _, err := compile.Resolve(tt.spec, s.cat, nil)
 			s.Require().NoError(err)
 
-			fitted := resolve.Fit(spec, s.cat, tt.limits)
+			fitted := compile.Fit(spec, s.cat, tt.limits)
 
 			var second int
 
@@ -433,13 +433,13 @@ func (s *ResolvePublicTestSuite) TestFit() {
 // TestFitNumbersEachProcessorFromZero is a property of the whole result
 // rather than of any one chain.
 func (s *ResolvePublicTestSuite) TestFitNumbersEachProcessorFromZero() {
-	spec, _, err := resolve.Resolve(
+	spec, _, err := compile.Resolve(
 		recipe("Ampeg SVT", "", "Heavy Thing", "Heavy Thing"), s.cat, nil)
 	s.Require().NoError(err)
 
 	seen := map[int]map[int]bool{}
 
-	for _, b := range resolve.Fit(spec, s.cat, twoChips(95.0)).Blocks {
+	for _, b := range compile.Fit(spec, s.cat, twoChips(95.0)).Blocks {
 		if seen[b.DSP] == nil {
 			seen[b.DSP] = map[int]bool{}
 		}
@@ -459,30 +459,30 @@ func (s *ResolvePublicTestSuite) TestFitNumbersEachProcessorFromZero() {
 // TestFitIgnoresABlockTheCatalogLacks keeps a catalog from another release
 // from dropping blocks on the floor.
 func (s *ResolvePublicTestSuite) TestFitIgnoresABlockTheCatalogLacks() {
-	spec, _, err := resolve.Resolve(recipe("Ampeg SVT", ""), s.cat, nil)
+	spec, _, err := compile.Resolve(recipe("Ampeg SVT", ""), s.cat, nil)
 	s.Require().NoError(err)
 
 	spec.Blocks[0].Model = "HD2_NotInThisCatalog"
 
 	s.Require().Len(
-		resolve.Fit(spec, s.cat, twoChips(95.0)).Blocks, len(spec.Blocks))
+		compile.Fit(spec, s.cat, twoChips(95.0)).Blocks, len(spec.Blocks))
 }
 
 // TestNoSuchGearError covers what somebody reads when nothing matched.
 func (s *ResolvePublicTestSuite) TestNoSuchGearError() {
 	tests := []struct {
 		name string
-		err  *resolve.NoSuchGearError
+		err  *compile.NoSuchGearError
 		want string
 	}{
 		{
 			name: "a miss inside one instrument's half of the catalog",
-			err:  &resolve.NoSuchGearError{Gear: "Orange", Kind: "amp", Instrument: "bass"},
+			err:  &compile.NoSuchGearError{Gear: "Orange", Kind: "amp", Instrument: "bass"},
 			want: "bass amps",
 		},
 		{
 			name: "one with nowhere left to look",
-			err:  &resolve.NoSuchGearError{Gear: "Orange", Kind: "block"},
+			err:  &compile.NoSuchGearError{Gear: "Orange", Kind: "block"},
 			want: "this device's catalog",
 		},
 	}
@@ -490,7 +490,7 @@ func (s *ResolvePublicTestSuite) TestNoSuchGearError() {
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
 			s.Require().Contains(tt.err.Error(), tt.want)
-			s.Require().ErrorIs(tt.err, resolve.ErrNoSuchGear)
+			s.Require().ErrorIs(tt.err, compile.ErrNoSuchGear)
 		})
 	}
 }
