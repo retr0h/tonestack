@@ -23,9 +23,9 @@ chain:
     confidence: medium
 
 character:
-  - term: fingers rather than pick
-  - term: rounder, more low-mid
-  - term: cleaner — the part carries the song
+  - term: soft-attack
+  - term: neck-forward
+  - term: clean
 
 technique:
   attack: fingers

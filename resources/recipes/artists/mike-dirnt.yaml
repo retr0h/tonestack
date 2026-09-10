@@ -53,16 +53,22 @@ chain:
 # How it should sound, in the words a person would use. Describe the result,
 # not the control.
 character:
-  - term: mid-forward, not scooped
+  - term: mid-forward
     evidence:
       - { kind: llm }
-  - term: minimal drive, grit only on hard attack
+  - term: minimal-drive
     evidence:
       - { kind: llm }
-  - term: tight low end, short decay
+  - term: grit-on-attack
     evidence:
       - { kind: llm }
-  - term: pick attack audible
+  - term: tight-low-end
+    evidence:
+      - { kind: llm }
+  - term: short-decay
+    evidence:
+      - { kind: llm }
+  - term: audible-pick-attack
     evidence:
       - kind: llm
 

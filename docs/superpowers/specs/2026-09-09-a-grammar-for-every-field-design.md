@@ -352,3 +352,38 @@ nothing reads yet.
 breaks once rather than twice, and step 3 is left with only the vocabulary: a
 term is free text until `character-terms.json` exists, and the contract says so
 where a reader will see it.
+
+## What step 3 did
+
+The vocabulary was not guessed in the end. Nine rigs had been written by then,
+and the twenty character lines in them are what the list is made of.
+
+Every one of those twenty was a sentence rather than a term, which is the
+problem this step was written to fix, and sixteen of them were added after the
+design said so. Writing rigs is what makes the case: "thumping low end under a
+hard top" is two claims welded together, and neither can be compared with
+anything.
+
+The axes fell out of them. `mids`, `highs`, `low-end`, `decay`, `drive`,
+`attack`, `space`, `string-noise`, `pickup`, and `movement` for the one rig
+whose sound is a filter following the note. Twenty-four terms, each with a
+sentence saying what it means.
+
+**A term is reported, not refused.** The design said an unknown term is refused
+the way unknown gear is, and that is wrong. Unknown gear stops a build because
+there is no model to write. A character term moves no knob, so an unfamiliar one
+costs the preset nothing, and refusing to build over a word would be refusing
+somebody the right to describe a sound in their own words. It prints with its
+near miss and the preset is written.
+
+The rigs this repository ships are held to the list by a test instead, which is
+the split worth keeping: this project's own data stays clean and nobody else's
+authoring is policed. The day a term moves a knob, an unknown one becomes a real
+error, because by then it will genuinely have stopped working.
+
+**The suggestion needed its own matcher.** Gear names are matched by prefix and
+substring, and neither reaches from "pick attack audible" to
+`audible-pick-attack`. What people write here is a phrase in some order, so
+terms are matched on shared words and the closest single term is offered. Naming
+every partial match would read as alternatives when what the writer wants is to
+say two things.

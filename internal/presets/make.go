@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/retr0h/tonestack/internal/cli"
 	"github.com/retr0h/tonestack/pkg/catalog"
@@ -32,6 +33,7 @@ import (
 	"github.com/retr0h/tonestack/pkg/compile"
 	"github.com/retr0h/tonestack/pkg/corpus"
 	"github.com/retr0h/tonestack/pkg/preset"
+	riggen "github.com/retr0h/tonestack/pkg/rig/gen"
 )
 
 // MakeOptions says what to build and where to put it.
@@ -92,7 +94,7 @@ func Make(w io.Writer, opts MakeOptions) error {
 		return err
 	}
 
-	return report(w, spec, cat, added, opts.OutputPath)
+	return report(w, rec, spec, cat, added, opts.OutputPath)
 }
 
 // openStats reads measured statistics, falling back to the ones in this
@@ -153,13 +155,45 @@ func write(path string, doc *preset.Document) error {
 // was rather than surfacing a bare write error.
 func report(
 	w io.Writer,
+	rec riggen.RigSpec,
 	spec chain.Chain,
 	cat *catalog.Catalog,
 	added []compile.Added,
 	path string,
 ) error {
-	if err := render(w, spec, cat, added, path); err != nil {
+	if err := render(w, rec, spec, cat, added, path); err != nil {
 		return fmt.Errorf("reporting: %w", err)
+	}
+
+	return nil
+}
+
+// unfamiliar names the character terms nothing defines.
+//
+// Said rather than refused. A term moves no knob, so an unfamiliar one costs
+// the preset nothing, and a build that stopped over a word would be refusing
+// somebody the right to describe a sound in their own words. The rigs this
+// project ships are held to the list by a test instead.
+func unfamiliar(w io.Writer, rec riggen.RigSpec) error {
+	unknown := compile.CheckCharacter(rec)
+	if len(unknown) == 0 {
+		return nil
+	}
+
+	if _, err := fmt.Fprintln(w); err != nil {
+		return err
+	}
+
+	for _, u := range unknown {
+		line := fmt.Sprintf("no such character term %q", u.Term)
+		if len(u.Near) > 0 {
+			line += " — did you mean " + strings.Join(u.Near, ", ") + "?"
+		}
+
+		if _, err := fmt.Fprintf(w, "%s%s %s\n",
+			cli.Indent, cli.Mute(w, "note"), line); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -170,6 +204,7 @@ func report(
 // read the same way.
 func render(
 	w io.Writer,
+	rec riggen.RigSpec,
 	spec chain.Chain,
 	cat *catalog.Catalog,
 	added []compile.Added,
@@ -186,6 +221,10 @@ func render(
 	}
 
 	if err := explain(w, added); err != nil {
+		return err
+	}
+
+	if err := unfamiliar(w, rec); err != nil {
 		return err
 	}
 

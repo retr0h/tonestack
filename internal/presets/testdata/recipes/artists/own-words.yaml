@@ -1,0 +1,22 @@
+schema: RigSpec
+version: 2
+id: own-words
+
+subject: { kind: artist, name: Test Player }
+instrument: bass
+
+chain:
+  - role: amp
+    gear: Ampeg SVT
+    evidence: [{ kind: llm }]
+  - role: cab
+    gear: Ampeg SVT 410HLF
+    evidence: [{ kind: llm }]
+
+confidence: medium
+
+character:
+  - term: mid-forward
+  # One the vocabulary can suggest something for, and one it cannot.
+  - term: tight low end
+  - term: sounds like a wet paper bag

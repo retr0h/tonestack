@@ -98,14 +98,50 @@ having.
 
 ## Character describes the result, not the control
 
+Each term is one thing, from a list that ships beside the catalog. A term is one
+claim, so a rig saying two things says two of them:
+
 ```yaml
 character:
-  - mid-forward, not scooped
-  - grit only on hard attack
+  - term: mid-forward
+    evidence:
+      - kind: llm
+  - term: short-decay
 ```
 
-Not "raise the mids". The first is a description that survives being read
-against different hardware; the second is an instruction to one device.
+The words, grouped by the axis each belongs to. An axis is what makes a term
+mean something: saying `mid-forward` has already said "not scooped", and a rig
+claiming both has claimed nothing.
+
+| axis           | what it says                                        | words                                                      |
+| -------------- | --------------------------------------------------- | ---------------------------------------------------------- |
+| `attack`       | what the front of a note sounds like                | `audible-pick-attack` · `percussive` · `soft-attack`       |
+| `decay`        | how long a note lasts once it is struck             | `long-decay` · `short-decay`                               |
+| `drive`        | how hard the amplifier is being pushed              | `clean` · `grit-on-attack` · `minimal-drive` · `saturated` |
+| `highs`        | the top, and how much of it there is                | `bright` · `dark` · `glassy`                               |
+| `low-end`      | how the bottom behaves, not how much of it there is | `loose-low-end` · `tight-low-end`                          |
+| `mids`         | where the middle of the range sits                  | `mid-forward` · `scooped`                                  |
+| `movement`     | whether the tone stays put while a note lasts       | `envelope-swept` · `static`                                |
+| `pickup`       | where along the string the sound is taken from      | `bridge-forward` · `neck-forward`                          |
+| `space`        | what surrounds the part                             | `dry` · `roomy`                                            |
+| `string-noise` | what the hands make that is not a note              | `audible-strings` · `quiet-strings`                        |
+
+A word that is not on the list is reported and not refused:
+
+```console
+$ tonestack presets make --id mine
+  note no such character term "tight low end" — did you mean tight-low-end?
+
+  [ok] wrote mine.hlx
+```
+
+The preset is written, because nothing compiles a character term into a chain
+and refusing one would be refusing you the right to describe a sound. If the
+word you want is missing, add it to
+[`resources/schemas/character-terms.json`](../resources/schemas/character-terms.json)
+with a sentence saying what it means. The rigs this repository ships are held to
+the list by a test, which is what keeps the examples from drifting back into
+sentences.
 
 ## Say where each claim came from
 

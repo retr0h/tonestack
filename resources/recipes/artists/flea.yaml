@@ -60,10 +60,10 @@ chain:
     confidence: medium
 
 character:
-  - term: hard attack, front of the note
+  - term: percussive
     evidence:
       - kind: llm
-  - term: bass up, treble rolled off
+  - term: dark
     evidence:
       - kind: cited
         url: https://www.premierguitar.com/rig-rundown-red-hot-chili-peppers-flea

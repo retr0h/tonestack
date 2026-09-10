@@ -50,12 +50,12 @@ chain:
     confidence: medium
 
 character:
-  - term: envelope-swept, vowel-like
+  - term: envelope-swept
     evidence:
       - kind: cited
         url: https://mixdownmag.com.au/features/gear-rundown-bootsy-collins/
         note: '"a squelchy, synth-like tone when playing leads or slap"' 
-  - term: clean behind the filter
+  - term: clean
     evidence:
       - kind: llm
 

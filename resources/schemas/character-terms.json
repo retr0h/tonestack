@@ -1,0 +1,79 @@
+{
+  "$comment": "The words a rig may use to say how it should sound. Grouped by axis, because an axis is what makes a term mean something: saying 'mid-forward' has already said 'not scooped', and a rig claiming both has claimed nothing. Nothing compiles these into a chain yet. They are here so that a person reading a preset can say whether it came out right, and so that two rigs can be compared without parsing English.",
+  "axes": {
+    "mids": {
+      "about": "where the middle of the range sits",
+      "terms": {
+        "mid-forward": "mids pushed, the part sits in front of the mix",
+        "scooped": "mids pulled, the part sits under everything else"
+      }
+    },
+    "highs": {
+      "about": "the top, and how much of it there is",
+      "terms": {
+        "dark": "top rolled off, tone knob down",
+        "bright": "top open, the attack audible",
+        "glassy": "top open and hard, closer to a bell than a growl"
+      }
+    },
+    "low-end": {
+      "about": "how the bottom behaves, not how much of it there is",
+      "terms": {
+        "tight-low-end": "the bottom stops when the note does",
+        "loose-low-end": "the bottom blooms and hangs on"
+      }
+    },
+    "decay": {
+      "about": "how long a note lasts once it is struck",
+      "terms": {
+        "short-decay": "notes stop, whether from the hands or the strings",
+        "long-decay": "notes ring on and overlap"
+      }
+    },
+    "drive": {
+      "about": "how hard the amplifier is being pushed",
+      "terms": {
+        "clean": "no breakup at any dynamic",
+        "minimal-drive": "breakup only where it is played hardest",
+        "grit-on-attack": "the front of the note breaks up and the body does not",
+        "saturated": "breakup throughout, part of the voice rather than an accent"
+      }
+    },
+    "attack": {
+      "about": "what the front of a note sounds like",
+      "terms": {
+        "audible-pick-attack": "the pick is a sound of its own, not just a way in",
+        "soft-attack": "notes arrive rather than start",
+        "percussive": "the string against the fretboard is part of the sound"
+      }
+    },
+    "space": {
+      "about": "what surrounds the part",
+      "terms": {
+        "dry": "no room on it",
+        "roomy": "an audible space around the part"
+      }
+    },
+    "string-noise": {
+      "about": "what the hands make that is not a note",
+      "terms": {
+        "quiet-strings": "little finger noise, usually flatwounds",
+        "audible-strings": "the hands moving is part of what you hear"
+      }
+    },
+    "pickup": {
+      "about": "where along the string the sound is taken from",
+      "terms": {
+        "bridge-forward": "nasal and hard, fundamental pulled back",
+        "neck-forward": "round and full, harmonics pulled back"
+      }
+    },
+    "movement": {
+      "about": "whether the tone stays put while a note lasts",
+      "terms": {
+        "envelope-swept": "a filter follows the note, so the vowel changes as it decays",
+        "static": "the tone is the same at the end of a note as at the start"
+      }
+    }
+  }
+}

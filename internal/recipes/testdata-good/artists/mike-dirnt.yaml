@@ -24,10 +24,12 @@ chain:
     confidence: medium
 
 character:
-  - term: mid-forward, not scooped
-  - term: minimal drive, grit only on hard attack
-  - term: tight low end, short decay
-  - term: pick attack audible
+  - term: mid-forward
+  - term: minimal-drive
+  - term: grit-on-attack
+  - term: tight-low-end
+  - term: short-decay
+  - term: audible-pick-attack
 
 technique:
   attack: pick

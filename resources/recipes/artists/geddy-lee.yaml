@@ -41,10 +41,10 @@ chain:
     confidence: medium
 
 character:
-  - term: bright and hard, treble-forward for a bass
+  - term: bright
     evidence:
       - kind: llm
-  - term: audible pick-free attack, digging in
+  - term: percussive
     evidence:
       - kind: user
         url: https://www.talkbass.com/threads/how-do-you-get-that-aggresive-geddy-lee-sound.764407/
