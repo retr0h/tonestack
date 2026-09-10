@@ -98,7 +98,13 @@ components:
         `llm` means a model asserted it and nobody checked — reliable for
         well-known players, unreliable for obscure ones, and the model cannot
         always tell which it is doing.
-      enum: [llm, cited, video, audio, corpus, measured, user]
+
+
+        `store` is where content that did not ship with the device comes from,
+        bought or free. It is the one kind that answers "where do I get this"
+        rather than "why is this believed", and a substitute naming something
+        nobody can obtain is worth nothing without it.
+      enum: [llm, cited, video, audio, corpus, measured, user, store]
       x-enum-varnames:
         [
           EvidenceLLM,
@@ -108,6 +114,7 @@ components:
           EvidenceCorpus,
           EvidenceMeasured,
           EvidenceUser,
+          EvidenceStore,
         ]
 
     CharacterTerm:
@@ -316,6 +323,8 @@ components:
             Centaur". Never a device model identifier: those are one
             manufacturer's internal names, they change, and they do not
             survive being read on other hardware.
+        substitute:
+          $ref: "#/components/schemas/Substitute"
         settings:
           $ref: "#/components/schemas/Settings"
         models:
@@ -415,6 +424,43 @@ components:
           type: string
           pattern: "^https?://\\S+$"
           x-go-name: URL
+
+    Substitute:
+      type: object
+      additionalProperties: false
+      description: >
+        What to use when the device cannot do what the rig names.
+
+
+        The rig goes on naming the real gear, because a rig outlives any one
+        device: the day Line 6 model the amplifier, this block is deleted and
+        nothing else moves. Naming the stand-in in `gear` instead would make
+        the rig assert something false about the player, and would make `gear`
+        mean two different things depending on whether anybody substituted.
+
+
+        A substitution is a claim like any other and carries why it is
+        believed. Somebody on a forum saying two amplifiers share a power
+        section is `user`; an A/B somebody recorded is `video`; a model
+        asserting it is `llm`. Where the stand-in is content that did not ship
+        with the device, `store` says where to get it, and without that the
+        rig names something the reader cannot obtain.
+      required: [gear]
+      properties:
+        gear:
+          type: string
+          x-lookup: the gear the catalog maps a model to
+          minLength: 1
+          pattern: "\\S"
+          description: >
+            Real-world gear, as a person would say it, the same as any other
+            entry names.
+        evidence:
+          type: array
+          items: { $ref: "#/components/schemas/Evidence" }
+          description: Why this is a fair stand-in, and where it comes from.
+        confidence:
+          $ref: "#/components/schemas/Confidence"
 
     Target:
       type: object

@@ -58,8 +58,36 @@ func Resolve(
 		missedErr error
 	)
 
+	sub := []Added(nil)
+
 	for _, entry := range spec.Chain {
 		b, err := findGear(cat, entry.Gear, categoryFor(entry.Role), instrument)
+
+		// The rig named gear this device cannot do and said what to put
+		// there instead. It goes on naming the real thing, so the day the
+		// real thing is modelled the substitute is deleted and nothing else
+		// in the file moves.
+		if err != nil && entry.Substitute != nil && errors.Is(err, ErrNoSuchGear) {
+			var stand catalog.Block
+
+			stand, err = findGear(
+				cat, entry.Substitute.Gear, categoryFor(entry.Role), instrument)
+			if err != nil {
+				return chain.Chain{}, nil, fmt.Errorf(
+					"%q stands in for %q, and nothing emulates it either: %w",
+					entry.Substitute.Gear, entry.Gear, err)
+			}
+
+			sub = append(sub, Added{
+				Block: stand,
+				Reason: fmt.Sprintf(
+					"nothing emulates %q — the rig says to use %q",
+					entry.Gear, entry.Substitute.Gear),
+			})
+
+			b = stand
+		}
+
 		if err != nil {
 			if entry.Role != riggen.RoleCab || !errors.Is(err, ErrNoSuchGear) {
 				return chain.Chain{}, nil, err
@@ -72,8 +100,6 @@ func Resolve(
 
 		blocks = append(blocks, b)
 	}
-
-	sub := []Added(nil)
 
 	// A rig naming an amplifier and no cabinet gets the one Line 6 voiced it
 	// with, which is a better answer than picking arbitrarily.

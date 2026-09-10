@@ -64,6 +64,7 @@ One piece of gear, in signal order.
 | `position` | integer | — | — |
 | `role *` | string | closed | `amp`, `cab`, `drive`, `comp`, `gate`, `eq`, `mod`, `delay`, `reverb`, `wah`, `pitch`, `filter`, `utility`, `other` |
 | `settings` | map of number | shaped | `0` to `1` |
+| `substitute` | Substitute | — | [Substitute](#substitute) |
 
 ## Change
 
@@ -120,7 +121,7 @@ Why one claim is believed. Attached per claim rather than per document, because 
 | --- | --- | --- | --- |
 | `at` | string | shaped | `^\d{1,2}:\d{2}(:\d{2})?(-\d{1,2}:\d{2}(:\d{2})?)?$` |
 | `caveat` | string | open | — |
-| `kind *` | string | closed | `llm`, `cited`, `video`, `audio`, `corpus`, `measured`, `user` |
+| `kind *` | string | closed | `llm`, `cited`, `video`, `audio`, `corpus`, `measured`, `user`, `store` |
 | `measured` | map of number | — | — |
 | `note` | string | open | — |
 | `url` | string | shaped | `^https?://\S+$` |
@@ -192,6 +193,16 @@ Who or what this rig belongs to.
 | `era` | string | open | — |
 | `kind *` | string | closed | `artist`, `band`, `song`, `genre`, `sound` |
 | `name *` | string | shaped | `\S` |
+
+## Substitute
+
+What to use when the device cannot do what the rig names.
+
+| field | holds | grammar | allowed |
+| --- | --- | --- | --- |
+| `confidence` | string | closed | `low`, `medium`, `high` |
+| `evidence` | list of Evidence | — | [Evidence](#evidence) |
+| `gear *` | string | looked up | the gear the catalog maps a model to |
 
 ## Target
 

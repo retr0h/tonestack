@@ -22,6 +22,7 @@ package compile
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"strings"
@@ -137,6 +138,19 @@ func modelFor(
 	}
 
 	b, err := gear(cat, entry.Gear, entry.Role, instrument)
+
+	// The rig named gear this device cannot do and said what to put there
+	// instead. Resolving does the same, so a rig built either way lands on
+	// the same model.
+	if err != nil && entry.Substitute != nil && errors.Is(err, ErrNoSuchGear) {
+		b, err = gear(cat, entry.Substitute.Gear, entry.Role, instrument)
+		if err != nil {
+			return "", fmt.Errorf(
+				"%q stands in for %q, and nothing emulates it either: %w",
+				entry.Substitute.Gear, entry.Gear, err)
+		}
+	}
+
 	if err != nil {
 		return "", err
 	}
