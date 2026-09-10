@@ -387,3 +387,38 @@ substring, and neither reaches from "pick attack audible" to
 terms are matched on shared words and the closest single term is offered. Naming
 every partial match would read as alternatives when what the writer wants is to
 say two things.
+
+## What step 5 did
+
+Thirty-three fields appeared in no example when this was written, and the way to
+fix that turned out not to be writing one.
+
+**The second example is generated.** `presets show --preset` reads a preset an
+HX Stomp actually wrote and prints it as a rig, so the file committed is what
+the hardware held rather than what somebody imagined it holds. That is the
+better document for the device half of the format: the footswitches, the
+snapshots, the controller assignments and the routing a device wraps a chain in
+are not things a person types, and an example that pretended otherwise would be
+teaching the wrong thing.
+
+Choosing which capture mattered. The first one tried carried no controller
+assignments and nothing under `rest`, and swapping it for one that did took the
+remaining count from ten to five without writing a line.
+
+**One field was worth writing by hand after all.** A rig can assign an
+expression pedal to a parameter, and the contract says why: those are decisions
+somebody made about how they play rather than device state. So the hand-written
+example gained a `controllers` block, and the look-up caught the first attempt
+pointing at block 0, which is the compressor rather than the amplifier. A test
+that finds a mistake in the document teaching people not to make it is the test
+working.
+
+**`extends` is exempted, with the reason in the test.** Every rig here is a
+sibling rather than a departure, and `recipes new --from` writes the field, so
+exercising it would mean inventing a rig to have something to extend. The
+exemption is a sentence rather than a list, so adding to it is a decision
+somebody has to defend.
+
+Seventy-one of seventy-two fields are now written down somewhere a person can
+read them, and adding a field without one fails the build. Verified by adding a
+field to the contract and watching the test name it.

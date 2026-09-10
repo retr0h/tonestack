@@ -1,0 +1,402 @@
+# A rig read off a device, not written by hand.
+#
+# Produced by `tonestack presets show --preset` from a preset an HX Stomp
+# actually wrote, and committed exactly as it came out. Nobody typed it, and
+# nothing here is an opinion: every value is what the hardware held.
+#
+# It is the other half of what a rig is for. mike-dirnt.yaml is somebody
+# saying what they want, with evidence and confidence and character. This is
+# a device saying what it has, which is where footswitches, snapshots, the
+# controller assignments under somebody's foot and the routing a device wraps
+# a chain in come from. A rig written by hand carries none of those and does
+# not need to.
+#
+# Read it beside mike-dirnt.yaml rather than instead of it. Between them they
+# exercise the whole format, which a test asserts: every field the contract
+# declares appears in a rig this repository ships or shows.
+#
+# Three things to notice.
+#
+# `models` records the exact model each block resolved to, keyed by device,
+# so this rebuilds the preset it came from rather than a similar one.
+#
+# `params` holds the device's own parameter names beside the `@`-prefixed
+# attributes a chain has no opinion about, kept verbatim so that writing it
+# back produces the file that was read.
+#
+# `rest`, under a footswitch, is everything the device stored there that this
+# format does not model. It is kept rather than dropped, which is what lets a
+# preset survive a round trip through a format that does not claim to
+# understand all of it.
+
+chain:
+- enabled: false
+  gear: Arbiter Cry Baby
+  models:
+    HX Stomp: HD2_WahWeeper
+  params:
+    '@no_snapshot_bypass': false
+    '@path': 0
+    '@position': 0
+    '@stereo': false
+    '@type': 0
+    FcHigh: 1901
+    FcLow: 435
+    Level: 0
+    Mix: 1
+    Pedal: 0
+  path: 0
+  position: 0
+  role: wah
+- enabled: false
+  gear: Ibanez® TS808 Tube Screamer®
+  models:
+    HX Stomp: HD2_DistScream808
+  params:
+    '@no_snapshot_bypass': false
+    '@path': 0
+    '@position': 1
+    '@stereo': false
+    '@type': 0
+    Gain: 0.04999995231628418
+    Level: 0.5
+    Tone: 0.3500000238418579
+  path: 0
+  position: 1
+  role: drive
+- enabled: true
+  gear: ENGL® Fireball 100
+  models:
+    HX Stomp: HD2_AmpANGLMeteor
+  params:
+    '@bypassvolume': 1
+    '@no_snapshot_bypass': false
+    '@path': 0
+    '@position': 2
+    '@type': 1
+    Bass: 0.5099999904632568
+    Bias: 0.559999942779541
+    BiasX: 0.5
+    ChVol: 0.6399999856948853
+    Drive: 0.3500000238418579
+    Hum: 0
+    Master: 0.36000001430511475
+    Mid: 0.5499999523162842
+    MidBoost: false
+    Presence: 0.5
+    Ripple: 0.5
+    Sag: 0
+    Treble: 0.7000000476837158
+  path: 0
+  position: 2
+  role: amp
+- enabled: true
+  gear: Mono, Stereo Line 6 Original
+  models:
+    HX Stomp: HD2_VolPanVol
+  params:
+    '@no_snapshot_bypass': false
+    '@path': 0
+    '@position': 3
+    '@stereo': false
+    '@type': 0
+    Pedal: 1
+    VolumeTaper: false
+  path: 0
+  position: 3
+  role: utility
+- enabled: true
+  gear: Legacy 4x12" ENGL XXL V30
+  models:
+    HX Stomp: HD2_Cab4x12XXLV30
+  params:
+    '@mic': 6
+    '@no_snapshot_bypass': false
+    '@path': 0
+    '@position': 4
+    '@type': 2
+    Distance: 3
+    EarlyReflections: 0
+    HighCut: 8000
+    Level: 0
+    LowCut: 80
+  path: 0
+  position: 4
+  role: cab
+- enabled: true
+  gear: Legacy 4x12" ENGL XXL V30
+  models:
+    HX Stomp: HD2_Cab4x12XXLV30
+  params:
+    '@mic': 0
+    '@no_snapshot_bypass': false
+    '@path': 1
+    '@position': 5
+    '@type': 2
+    Distance: 3
+    EarlyReflections: 0
+    HighCut: 8000
+    Level: 0
+    LowCut: 80
+  path: 0
+  position: 7
+  role: cab
+- enabled: false
+  gear: Simple Delay
+  models:
+    HX Stomp: HD2_DelaySimpleDelay
+  params:
+    '@no_snapshot_bypass': false
+    '@path': 0
+    '@position': 6
+    '@stereo': false
+    '@trails': true
+    '@type': 7
+    Feedback: 0.2999999523162842
+    Level: 0
+    Mix: 0.25
+    Scale: 0.75
+    SyncSelect1: 8
+    TempoSync1: true
+    Time: 0.4010000228881836
+  path: 0
+  position: 5
+  role: delay
+- enabled: true
+  gear: Room
+  models:
+    HX Stomp: HD2_ReverbRoom
+  params:
+    '@no_snapshot_bypass': false
+    '@path': 0
+    '@position': 7
+    '@trails': false
+    '@type': 7
+    Decay: 0.23000001907348633
+    HighCut: 7000
+    Level: 0
+    LowCut: 93
+    Mix: 0.20000004768371582
+    Predelay: 0.029999971389770508
+  path: 0
+  position: 6
+  role: reverb
+device:
+  file:
+    original: 0
+    pbn: 0
+    premium: 0
+  format: 2
+  id: 2162694
+  meta:
+    build_sha: v2.92-457-ge30d971
+    name: DIR:ANGL Meteor
+  name: DIR:ANGL Meteor
+  routing:
+    dsp0.inputA:
+      '@input': 1
+      '@model': HelixStomp_AppDSPFlowInput
+      decay: 0.1499999761581421
+      noiseGate: true
+      threshold: -57
+    dsp0.inputB:
+      '@input': 0
+      '@model': HelixStomp_AppDSPFlowInput
+      decay: 0.5
+      noiseGate: false
+      threshold: -48
+    dsp0.join:
+      '@enabled': true
+      '@model': HD2_AppDSPFlowJoin
+      '@no_snapshot_bypass': false
+      '@position': 6
+      A Level: 0
+      A Pan: 0.5
+      B Level: 0
+      B Pan: 0.5
+      B Polarity: false
+      Level: 0
+    dsp0.outputA:
+      '@model': HelixStomp_AppDSPFlowOutputMain
+      '@output': 1
+      gain: 0
+      pan: 0.5
+    dsp0.outputB:
+      '@model': HelixStomp_AppDSPFlowOutputSend
+      '@output': 0
+      Type: true
+      gain: 0
+      pan: 0.5
+    dsp0.split:
+      '@enabled': true
+      '@model': HD2_AppDSPFlowSplitY
+      '@no_snapshot_bypass': false
+      '@position': 4
+      BalanceA: 0.5
+      BalanceB: 0.5
+      bypass: false
+  tone:
+    controller:
+      dsp0:
+        block0:
+          Pedal:
+            '@controller': 1
+            '@max': 1
+            '@min': 0
+            '@snapshot_disable': false
+        block3:
+          Pedal:
+            '@controller': 2
+            '@max': 1
+            '@min': 0
+            '@snapshot_disable': false
+    global:
+      '@DtSelect': 2
+      '@PowercabMode': 0
+      '@PowercabSelect': 2
+      '@PowercabVoicing': 0
+      '@current_snapshot': 0
+      '@cursor_dsp': 0
+      '@cursor_group': block2
+      '@cursor_path': 0
+      '@cursor_position': 2
+      '@guitarinputZ': 0
+      '@guitarpad': 0
+      '@model': '@global_params'
+      '@pedalstate': 2
+      '@tempo': 120
+      '@topology0': SABJ
+      '@topology1': 0
+    variax:
+      '@variax_customtuning': false
+      '@variax_lockctrls': 0
+      '@variax_magmode': false
+      '@variax_model': 20
+      '@variax_str1level': 1
+      '@variax_str1tuning': 0
+      '@variax_str2level': 1
+      '@variax_str2tuning': 0
+      '@variax_str3level': 1
+      '@variax_str3tuning': 0
+      '@variax_str4level': 1
+      '@variax_str4tuning': 0
+      '@variax_str5level': 1
+      '@variax_str5tuning': 0
+      '@variax_str6level': 1
+      '@variax_str6tuning': 0
+      '@variax_toneknob': -0.10000002384185791
+      '@variax_volumeknob': -0.10000002384185791
+  version: 58720256
+footswitches:
+- block: 0
+  rest:
+    '@behavior': 0
+    '@overthresh': false
+    '@position': 5
+    '@wait': 300
+  switch: 14
+- block: 1
+  colour: 525824
+  enabled: false
+  label: Scream 808
+  momentary: false
+  primary: true
+  switch: 1
+- block: 5
+  colour: 67840
+  enabled: false
+  label: Simple Delay
+  momentary: false
+  primary: true
+  switch: 2
+id: dir-angl-meteor
+instrument: guitar
+schema: RigSpec
+snapshots:
+- blocks:
+    dsp0:
+      block0: false
+      block1: false
+      block2: true
+      block3: true
+      block4: true
+      block5: false
+      block6: true
+      block7: true
+      split: true
+  controllers:
+    dsp0:
+      block0:
+        Pedal:
+          '@fs_enabled': false
+          '@value': 0
+      block3:
+        Pedal:
+          '@fs_enabled': false
+          '@value': 1
+  led: 0
+  name: SNAPSHOT 1
+  named: false
+  pedal: 0
+  tempo: 120
+  valid: true
+- blocks:
+    dsp0:
+      block0: false
+      block1: true
+      block2: true
+      block3: true
+      block4: true
+      block5: true
+      block6: true
+      block7: true
+      split: true
+  controllers:
+    dsp0:
+      block0:
+        Pedal:
+          '@fs_enabled': false
+          '@value': 0
+      block3:
+        Pedal:
+          '@fs_enabled': false
+          '@value': 1
+  led: 0
+  name: SNAPSHOT 2
+  named: false
+  pedal: 0
+  tempo: 120
+  valid: true
+- blocks:
+    dsp0:
+      block0: false
+      block1: true
+      block2: true
+      block3: true
+      block4: true
+      block5: true
+      block6: true
+      block7: true
+      split: true
+  controllers:
+    dsp0:
+      block0:
+        Pedal:
+          '@fs_enabled': false
+          '@value': 0
+      block3:
+        Pedal:
+          '@fs_enabled': false
+          '@value': 1
+  led: 0
+  name: SNAPSHOT 3
+  named: false
+  pedal: 0
+  tempo: 120
+  valid: true
+subject:
+  kind: sound
+  name: DIR:ANGL Meteor
+target:
+  device: HX Stomp
+version: 2
