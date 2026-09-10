@@ -346,3 +346,49 @@ find it.
 is exported and used, and a pair like that reads as an API even when only half
 of it has a caller. It went lowercase because the rule is about callers rather
 than symmetry, and re-exporting it is one line.
+
+## Audited again, against the doubt rather than the record
+
+The first audit answered "does anything move down" with a count. Asked a second
+time, with the answer treated as a claim to disprove rather than a result to
+reuse, it holds, and now for a reason somebody can check.
+
+Four packages are imported by no other package under `pkg/`. They are the leaves
+of what this repository promises, and they are the strongest candidates for
+moving down, because nothing public would break:
+
+| package       | who imports it                       |
+| ------------- | ------------------------------------ |
+| `pkg/compile` | `internal/presets`, `internal/slots` |
+| `pkg/editor`  | `internal/slots`                     |
+| `pkg/setlist` | `internal/slots`                     |
+| `pkg/sdk`     | `internal/device`, `internal/slots`  |
+
+Each survives the three questions, and not narrowly. Turning a rig into a preset
+is the thing this project exists to do. Reading a device's answer as a chain is
+what anybody building on the SDK needs. Reading an HX Edit backup is what
+somebody with a `.hlb` and no device has. Talking to a device is the SDK.
+
+The other two worth naming are public for a different reason. `pkg/chain` and
+`pkg/corpus` are named in the signatures of `compile.Resolve`, `compile.Fit` and
+`editor.Chain`, so a consumer has to be able to declare them whether or not they
+would ever have reached for the package. That is a real constraint rather than a
+preference: a function cannot return a type its caller cannot name.
+
+Which makes CONTRIBUTING wrong about one of them. It described `pkg/chain` as
+"an internal struct, not a format", which was true when the resolver was
+internal and stopped being true when it moved up. Corrected rather than argued
+with.
+
+### What the audit did find
+
+Nine test files said `*_test.go` while sitting in a `_test` package. That is the
+shape CONTRIBUTING gives to an internal test, and every one of them was a public
+test, which makes a package look less exercised from outside than it is. Seven
+were in `pkg/sdk`. Renamed, and `main_test.go` asserts the two agree now,
+because a convention nothing checks is one that drifts back.
+
+Five `types.go` files hold methods. The rule said a function belongs in a file
+named for what it does, and a type's own JSON marshalling is not that. The rule
+now says so, because scattering `DataMeta.MarshalJSON` away from `DataMeta`
+would be worse than the tidiness it buys.

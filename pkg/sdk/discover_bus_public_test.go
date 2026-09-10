@@ -31,11 +31,11 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk/wire"
 )
 
-// DiscoverBusTestSuite covers finding a device and claiming it.
+// DiscoverBusPublicTestSuite covers finding a device and claiming it.
 //
 // All of it against a bus this file supplies. What libusb does is one
 // expression per method in usb.go, and none of the decisions are there.
-type DiscoverBusTestSuite struct {
+type DiscoverBusPublicTestSuite struct {
 	suite.Suite
 }
 
@@ -133,7 +133,7 @@ func foreign() *fakeHandle {
 }
 
 // TestOpenOver finds a device on a bus, claims it and hands back a session.
-func (s *DiscoverBusTestSuite) TestOpenOver() {
+func (s *DiscoverBusPublicTestSuite) TestOpenOver() {
 	tests := []struct {
 		name string
 		bus  func() *fakeBus
@@ -317,7 +317,7 @@ func (s *DiscoverBusTestSuite) TestOpenOver() {
 
 // TestOpenFindsItsOwnBus covers the one line in this package that reaches
 // hardware.
-func (s *DiscoverBusTestSuite) TestOpenFindsItsOwnBus() {
+func (s *DiscoverBusPublicTestSuite) TestOpenFindsItsOwnBus() {
 	restore := *sdk.NewBus
 	defer func() { *sdk.NewBus = restore }()
 
@@ -332,5 +332,5 @@ func (s *DiscoverBusTestSuite) TestOpenFindsItsOwnBus() {
 }
 
 func TestDiscoverBusTestSuite(t *testing.T) {
-	suite.Run(t, new(DiscoverBusTestSuite))
+	suite.Run(t, new(DiscoverBusPublicTestSuite))
 }

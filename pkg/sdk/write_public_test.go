@@ -34,17 +34,17 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk/wire"
 )
 
-// WriteTestSuite covers putting a preset on a device.
+// WritePublicTestSuite covers putting a preset on a device.
 //
 // Nothing here reaches hardware. What it checks are the two rules a device
 // enforces and punishes: a message goes out in pieces it can pace, and a
 // write is not finished when it says it was accepted.
-type WriteTestSuite struct {
+type WritePublicTestSuite struct {
 	suite.Suite
 }
 
 // answer encodes a reply carrying one status.
-func (s *WriteTestSuite) answer(txn uint64, status int) []byte {
+func (s *WritePublicTestSuite) answer(txn uint64, status int) []byte {
 	var buf bytes.Buffer
 
 	enc := msgpack.NewEncoder(&buf)
@@ -58,7 +58,7 @@ func (s *WriteTestSuite) answer(txn uint64, status int) []byte {
 }
 
 // accepted then done is what a device says about a write it completed.
-func (s *WriteTestSuite) completes() *device {
+func (s *WritePublicTestSuite) completes() *device {
 	return answers(
 		s.answer(sdk.FirstTxn, 1),
 		s.answer(sdk.FirstTxn, 0),
@@ -67,7 +67,7 @@ func (s *WriteTestSuite) completes() *device {
 
 // SetupTest shortens the wait for a commit, since no test here is waiting on
 // hardware.
-func (s *WriteTestSuite) SetupTest() {
+func (s *WritePublicTestSuite) SetupTest() {
 	was := *sdk.CommitBudget
 	*sdk.CommitBudget = 50 * time.Millisecond
 
@@ -82,7 +82,7 @@ func (s *WriteTestSuite) SetupTest() {
 }
 
 // session returns one with its channels open over a scripted device.
-func (s *WriteTestSuite) session(d *device) *sdk.Session {
+func (s *WritePublicTestSuite) session(d *device) *sdk.Session {
 	out := sdk.NewTestSession(d, d)
 	out.OpenChannels()
 
@@ -93,7 +93,7 @@ func (s *WriteTestSuite) session(d *device) *sdk.Session {
 //
 // Both statuses have been seen on hardware for a write that landed, so
 // neither is read: the erase and program that follow never reach the wire.
-func (s *WriteTestSuite) TestWritePreset() {
+func (s *WritePublicTestSuite) TestWritePreset() {
 	tests := []struct {
 		name   string
 		device func() *device
@@ -176,7 +176,7 @@ func (s *WriteTestSuite) TestWritePreset() {
 // acknowledgements. Sending a whole preset at once fills its receive window
 // and stalls the endpoint, and the interface will not be claimed again until
 // the device is power cycled.
-func (s *WriteTestSuite) TestAMessageGoesOutInPiecesADeviceCanPace() {
+func (s *WritePublicTestSuite) TestAMessageGoesOutInPiecesADeviceCanPace() {
 	d := s.completes()
 
 	err := s.session(d).WritePreset(
@@ -200,7 +200,7 @@ func (s *WriteTestSuite) TestAMessageGoesOutInPiecesADeviceCanPace() {
 // Nothing on the wire says when the erase and program finish, so a second
 // write landing on the first stacks its commit. The pause is the only thing
 // keeping them apart.
-func (s *WriteTestSuite) TestAWriteIsPacedForTheFlash() {
+func (s *WritePublicTestSuite) TestAWriteIsPacedForTheFlash() {
 	was := *sdk.FlashBudget
 	*sdk.FlashBudget = 40 * time.Millisecond
 
@@ -218,7 +218,7 @@ func (s *WriteTestSuite) TestAWriteIsPacedForTheFlash() {
 //
 // A paste or an import carries one; editing a preset in place leaves whatever
 // the slot was called.
-func (s *WriteTestSuite) TestWriteNamedPreset() {
+func (s *WritePublicTestSuite) TestWriteNamedPreset() {
 	d := s.completes()
 
 	s.Require().NoError(s.session(d).WriteNamedPreset(
@@ -229,7 +229,7 @@ func (s *WriteTestSuite) TestWriteNamedPreset() {
 }
 
 // TestAWriteOnAChannelNobodyOpened covers a session that never handshook.
-func (s *WriteTestSuite) TestAWriteOnAChannelNobodyOpened() {
+func (s *WritePublicTestSuite) TestAWriteOnAChannelNobodyOpened() {
 	d := s.completes()
 
 	err := sdk.NewTestSession(d, d).Write(context.Background(), 5, nil)
@@ -238,5 +238,5 @@ func (s *WriteTestSuite) TestAWriteOnAChannelNobodyOpened() {
 }
 
 func TestWriteTestSuite(t *testing.T) {
-	suite.Run(t, new(WriteTestSuite))
+	suite.Run(t, new(WritePublicTestSuite))
 }

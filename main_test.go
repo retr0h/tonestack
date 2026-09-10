@@ -73,6 +73,53 @@ func (s *MainTestSuite) TestPkgDoesNotImportInternal() {
 	s.Require().NoError(err)
 }
 
+// TestATestFileSaysWhichKindItIs asserts the suffix and the package agree.
+//
+// CONTRIBUTING gives two kinds of test file and a name for each: a
+// `*_public_test.go` in the package's `_test` package exercises what the
+// package promises, and a `*_test.go` in the package itself reaches what that
+// surface cannot. Nine files once said the second and meant the first, which
+// makes a public test look like an internal one and hides how much of a
+// package is actually exercised from outside.
+//
+// export_test.go is neither. It exists to hand an unexported thing to an
+// external test and belongs in the package.
+func (s *MainTestSuite) TestATestFileSaysWhichKindItIs() {
+	fset := token.NewFileSet()
+
+	err := filepath.WalkDir(".", func(path string, d fs.DirEntry, err error) error {
+		switch {
+		case err != nil:
+			return err
+		case d.IsDir():
+			// Nothing this repository wrote, and nothing it can fix.
+			if name := d.Name(); name == ".git" || name == ".worktrees" ||
+				name == "node_modules" {
+				return fs.SkipDir
+			}
+
+			return nil
+		case !strings.HasSuffix(path, "_test.go"),
+			strings.HasSuffix(path, "_public_test.go"),
+			d.Name() == "export_test.go":
+			return nil
+		}
+
+		f, err := parser.ParseFile(fset, path, nil, parser.PackageClauseOnly)
+		if err != nil {
+			return err
+		}
+
+		s.Require().False(strings.HasSuffix(f.Name.Name, "_test"),
+			"%s is in package %s, so it is a public test and its name should "+
+				"end in _public_test.go", path, f.Name.Name)
+
+		return nil
+	})
+
+	s.Require().NoError(err)
+}
+
 func TestMainTestSuite(t *testing.T) {
 	suite.Run(t, new(MainTestSuite))
 }

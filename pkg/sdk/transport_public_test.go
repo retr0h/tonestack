@@ -32,16 +32,16 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk/wire"
 )
 
-// TransportTestSuite covers reading and writing frames.
+// TransportPublicTestSuite covers reading and writing frames.
 //
 // Framing, sequence numbers and acknowledgements: none of it needs a device,
 // and all of it is what breaks one when it is wrong.
-type TransportTestSuite struct {
+type TransportPublicTestSuite struct {
 	suite.Suite
 }
 
 // TestDrain reads until the device genuinely has nothing left.
-func (s *TransportTestSuite) TestDrain() {
+func (s *TransportPublicTestSuite) TestDrain() {
 	tests := []struct {
 		name   string
 		device func() *device
@@ -107,7 +107,7 @@ func (s *TransportTestSuite) TestDrain() {
 }
 
 // TestReceive takes one transfer off the bus.
-func (s *TransportTestSuite) TestReceive() {
+func (s *TransportPublicTestSuite) TestReceive() {
 	full := sdk.FrameFor("control", wire.MsgData, []byte("noise"))
 
 	tests := []struct {
@@ -153,7 +153,7 @@ func (s *TransportTestSuite) TestReceive() {
 
 // TestTheWireTrace is how both directions were read off a device in the
 // first place, and the thing that found the tag a write goes out under.
-func (s *TransportTestSuite) TestTheWireTrace() {
+func (s *TransportPublicTestSuite) TestTheWireTrace() {
 	defer sdk.SetDebug(true)()
 
 	d := answers(sdk.FrameFor("control", wire.MsgData, []byte("noise")))
@@ -167,5 +167,5 @@ func (s *TransportTestSuite) TestTheWireTrace() {
 }
 
 func TestTransportTestSuite(t *testing.T) {
-	suite.Run(t, new(TransportTestSuite))
+	suite.Run(t, new(TransportPublicTestSuite))
 }

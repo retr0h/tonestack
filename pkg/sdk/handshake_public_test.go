@@ -34,13 +34,13 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk/wire"
 )
 
-// HandshakeTestSuite covers making a request and matching the answer to it.
-type HandshakeTestSuite struct {
+// HandshakePublicTestSuite covers making a request and matching the answer to it.
+type HandshakePublicTestSuite struct {
 	suite.Suite
 }
 
 // answer encodes what a device replies to one transaction.
-func (s *HandshakeTestSuite) answer(txn uint64, status int, result any) []byte {
+func (s *HandshakePublicTestSuite) answer(txn uint64, status int, result any) []byte {
 	var buf bytes.Buffer
 
 	enc := msgpack.NewEncoder(&buf)
@@ -56,25 +56,25 @@ func (s *HandshakeTestSuite) answer(txn uint64, status int, result any) []byte {
 }
 
 // reply frames an answer the way the device sends it.
-func (s *HandshakeTestSuite) reply(txn uint64, status int, result any) []byte {
+func (s *HandshakePublicTestSuite) reply(txn uint64, status int, result any) []byte {
 	return sdk.Reply(sdk.ControlChannel, s.answer(txn, status, result))
 }
 
 // replyOnData is the answer to a question about a preset document, which the
 // device takes on the data channel rather than the control one.
-func (s *HandshakeTestSuite) replyOnData(txn uint64, status int, result any) []byte {
+func (s *HandshakePublicTestSuite) replyOnData(txn uint64, status int, result any) []byte {
 	return sdk.Reply(sdk.DataChannel, s.answer(txn, status, result))
 }
 
 // session returns one with its channels already open, over a scripted device.
-func (s *HandshakeTestSuite) session(d *device) *sdk.Session {
+func (s *HandshakePublicTestSuite) session(d *device) *sdk.Session {
 	out := sdk.NewTestSession(d, d)
 	out.OpenChannels()
 
 	return out
 }
 
-func (s *HandshakeTestSuite) TestCall() {
+func (s *HandshakePublicTestSuite) TestCall() {
 	tests := []struct {
 		name      string
 		channel   string
@@ -249,7 +249,7 @@ func (s *HandshakeTestSuite) TestCall() {
 	}
 }
 
-func (s *HandshakeTestSuite) TestPresets() {
+func (s *HandshakePublicTestSuite) TestPresets() {
 	tests := []struct {
 		name   string
 		device func() *device
@@ -300,7 +300,7 @@ func (s *HandshakeTestSuite) TestPresets() {
 // The three answers are a document, nothing at all, and something else. The
 // last one used to reach the caller as an `any` nobody had checked, where a
 // failed type assertion read as an empty slot.
-func (s *HandshakeTestSuite) TestReadPreset() {
+func (s *HandshakePublicTestSuite) TestReadPreset() {
 	tests := []struct {
 		name   string
 		device func() *device
@@ -365,5 +365,5 @@ func (s *HandshakeTestSuite) TestReadPreset() {
 }
 
 func TestHandshakeTestSuite(t *testing.T) {
-	suite.Run(t, new(HandshakeTestSuite))
+	suite.Run(t, new(HandshakePublicTestSuite))
 }
