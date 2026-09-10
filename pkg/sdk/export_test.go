@@ -21,8 +21,8 @@
 package sdk
 
 import (
-	"github.com/retr0h/tonestack/pkg/sdk/device"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/attached"
+	"github.com/retr0h/tonestack/pkg/sdk/internal/device"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/slots"
 )
 

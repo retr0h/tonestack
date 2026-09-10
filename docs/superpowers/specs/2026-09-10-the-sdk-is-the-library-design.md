@@ -133,19 +133,24 @@ already moved in:
 | `device/wire`                  | `device`, `editor`           |
 | `compile`, `editor`, `setlist` | nothing inside the SDK       |
 
-Two of those cannot go where they belong yet, and the table is why. `rig/gen`
-under `rig/internal` is unreachable from `compile`, and `wire` under
-`device/internal` is unreachable from `editor`. Both are fixed by work already
-planned rather than by a weaker fence:
+Two of those cannot go where they belong yet, and doing it found the table half
+wrong about which two.
 
-- `rig/gen` becomes `rig/internal/gen` once `rig` owns the types a caller holds
-  and `compile` stops reaching past it. That is stage 5.
-- `wire` becomes `device/internal/wire` once `editor` moves under `device`,
-  which is where it belonged anyway.
+`wire` under `device/internal` is unreachable from `editor`, which this record
+said moving `editor` under `device` would fix. It would not: `slots` reads the
+wire too, and `slots` is not under `device` either. There is no arrangement
+where `wire` is private to one domain, because two domains need it. It sits in
+the shared `pkg/sdk/internal` and that is not a compromise — it is the tightest
+fence that exists for a package with two consumers.
 
-Until each lands, the package sits in the shared `pkg/sdk/internal` instead. A
-shared private half is still private; it is only a wider fence than the tightest
-one available.
+`rig/gen` is blocked, but not by `compile` as this record guessed. It is
+`internal/cli` that holds `gen.RigSpec`, `gen.Technique` and eight more
+generated types directly, which is precisely what stage 5 is for. `gen` stays
+public until the renderer stops naming it.
+
+A shared private half is still private. The only thing a tighter fence would buy
+is saying *which* half of the library a package belongs to, and where two halves
+need it there is no such answer to give.
 
 What stays public is what a consumer holds: the `Client`, and the types it hands
 back. Roughly three thousand lines of the thirteen thousand there are today.

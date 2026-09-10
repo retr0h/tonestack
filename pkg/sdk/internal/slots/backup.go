@@ -28,7 +28,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/retr0h/tonestack/pkg/sdk/device"
+	"github.com/retr0h/tonestack/pkg/sdk/internal/device"
 	"github.com/retr0h/tonestack/pkg/sdk/preset"
 	slotpkg "github.com/retr0h/tonestack/pkg/sdk/slot"
 )

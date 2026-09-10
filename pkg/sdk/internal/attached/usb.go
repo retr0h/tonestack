@@ -25,7 +25,7 @@ import (
 
 	"github.com/retr0h/tonestack/pkg/sdk/result"
 
-	"github.com/retr0h/tonestack/pkg/sdk/device"
+	"github.com/retr0h/tonestack/pkg/sdk/internal/device"
 )
 
 // NewLister is how a bus is obtained, so a test can stand in for it.

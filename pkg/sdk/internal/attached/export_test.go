@@ -20,7 +20,7 @@
 
 package attached
 
-import "github.com/retr0h/tonestack/pkg/sdk/device"
+import "github.com/retr0h/tonestack/pkg/sdk/internal/device"
 
 // Closer is a lister that holds something needing release.
 type Closer = device.Bus

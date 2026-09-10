@@ -30,7 +30,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/retr0h/tonestack/pkg/sdk/setlist"
+	"github.com/retr0h/tonestack/pkg/sdk/internal/setlist"
 )
 
 // open reads a setlist or bundle from disk.

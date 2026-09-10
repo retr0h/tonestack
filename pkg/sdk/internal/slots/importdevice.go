@@ -24,8 +24,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/retr0h/tonestack/pkg/sdk/device"
-	"github.com/retr0h/tonestack/pkg/sdk/device/wire"
+	"github.com/retr0h/tonestack/pkg/sdk/internal/device"
+	"github.com/retr0h/tonestack/pkg/sdk/internal/wire"
 	"github.com/retr0h/tonestack/pkg/sdk/preset"
 	"github.com/retr0h/tonestack/pkg/sdk/result"
 	slotpkg "github.com/retr0h/tonestack/pkg/sdk/slot"

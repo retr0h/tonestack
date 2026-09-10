@@ -61,28 +61,34 @@ just deps
 
 ```text
 main.go              a single call into cmd
-cmd/                 cobra wiring: flags to behaviour, no logic
-internal/            this program, not the library
+cmd/                 cobra wiring: flags to a Client call to a renderer
+internal/            belongs to no package here
 internal/cli/        the shared visual language: theme, table, detail, help
-internal/slots/      the commands that read and write what a device holds
-internal/attached/   listing what is on the bus
 internal/catalogen/  internal/corpusgen/  internal/specdoc/   generators
 pkg/sdk/             the library. One directory, and the one that leaves.
+pkg/sdk/client.go    the Client every wrapper rallies around
+pkg/sdk/alias.go     the answer types, named here and declared in result
+pkg/sdk/result/      what every operation answers with
 pkg/sdk/rig/         RigSpec, its contract in data/, and its validation
 pkg/sdk/rig/gen/     generated from the contract, an implementation detail
-pkg/sdk/compile/     a rig becomes a preset, and a preset becomes a rig
-pkg/sdk/editor/      what a device says becomes a chain, and back again
+pkg/sdk/rigs/        curated rigs: which gear a player uses
 pkg/sdk/chain/       a resolved chain: what compile produces and editor reads
 pkg/sdk/catalog/     what a device can do: blocks, parameters, DSP costs
 pkg/sdk/corpus/      what real presets say about a device, measured
 pkg/sdk/preset/      read and write a .hlx preset file
-pkg/sdk/setlist/     read and write .hls setlists and .hlb device backups
 pkg/sdk/slot/        addressing, 01A to 42C
-pkg/sdk/device/      talk to a device over USB. The only cgo in the tree.
-pkg/sdk/device/wire/ the framing a device speaks. Pure Go, no hardware needed.
+pkg/sdk/internal/    how the operations are done. Invisible outside pkg/sdk.
+  slots/             reading and writing what a device holds
+  presets/  recipes/ building a preset, and the rigs to build from
+  attached/          listing what is on the bus
+  catalogview/  corpusview/    reading the catalog and the measurements
+  compile/           a rig becomes a preset, and a preset becomes a rig
+  editor/            what a device says becomes a chain, and back again
+  setlist/           read and write .hls setlists and .hlb device backups
+  device/            talk to a device over USB. The only cgo in the tree.
+  wire/              the framing a device speaks. Pure Go, no hardware needed.
 resources/
   schemas/           the generated catalog, the gear map, the preset corpus
-  recipes/           curated rigs: which gear a player uses
 docs/                how the format, catalog and generation work
 .github/workflows/   CI
 ```
@@ -140,11 +146,11 @@ that knows what USB is.
 
 ### Where the SDK ends
 
-`pkg/sdk/device`, its `wire`, and `pkg/sdk/slot` are one unit. Everything the
-device half needs from this module is those three, which
-`go list -deps ./pkg/sdk/device` says and `main_test.go` asserts. If somebody
-ever asks for the device half on its own, those three move and nothing else
-does.
+`pkg/sdk/internal/device`, `internal/wire`, and `pkg/sdk/slot` are one unit.
+Everything the device half needs from this module is those three, which
+`go list -deps ./pkg/sdk/internal/device` says and `main_test.go` asserts. If
+somebody ever asks for the device half on its own, those three move and nothing
+else does.
 
 `wire` is the device's public vocabulary, not its private guts. A caller reading
 a device gets a `wire.DevicePreset` and a `wire.Preset`, and writing one back

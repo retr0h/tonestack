@@ -29,7 +29,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/retr0h/tonestack/pkg/sdk"
-	"github.com/retr0h/tonestack/pkg/sdk/device"
+	"github.com/retr0h/tonestack/pkg/sdk/internal/device"
 )
 
 // PresetsPublicTestSuite covers the operations a wrapper reaches through the
