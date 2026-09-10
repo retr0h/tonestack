@@ -22,10 +22,10 @@ package cmd
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/retr0h/tonestack/internal/catalogview"
 	"github.com/retr0h/tonestack/internal/cli"
 	"github.com/retr0h/tonestack/internal/slots"
 	"github.com/retr0h/tonestack/pkg/sdk"
+	"github.com/retr0h/tonestack/pkg/sdk/catalog"
 )
 
 var presetsListOptions slots.ListOptions
@@ -53,7 +53,7 @@ there.`,
 			return err
 		}
 
-		cat, err := catalogview.Open(presetsListOptions.CatalogPath)
+		cat, err := catalog.Open(presetsListOptions.CatalogPath)
 		if err != nil {
 			return err
 		}

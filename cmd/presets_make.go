@@ -22,9 +22,9 @@ package cmd
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/retr0h/tonestack/internal/catalogview"
 	"github.com/retr0h/tonestack/internal/cli"
 	"github.com/retr0h/tonestack/internal/presets"
+	"github.com/retr0h/tonestack/pkg/sdk/catalog"
 )
 
 var presetsMakeOptions presets.MakeOptions
@@ -45,7 +45,7 @@ lines do not move knobs yet.`,
 			return err
 		}
 
-		cat, err := catalogview.Open(presetsMakeOptions.CatalogPath)
+		cat, err := catalog.Open(presetsMakeOptions.CatalogPath)
 		if err != nil {
 			return err
 		}

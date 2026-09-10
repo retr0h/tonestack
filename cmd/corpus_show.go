@@ -24,10 +24,10 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/retr0h/tonestack/internal/cli"
-	"github.com/retr0h/tonestack/internal/corpusview"
+	"github.com/retr0h/tonestack/pkg/sdk"
 )
 
-var corpusShowOptions corpusview.Options
+var corpusShowOptions sdk.Corpus
 
 // corpusShowCmd represents the corpus show command.
 var corpusShowCmd = &cobra.Command{
@@ -43,7 +43,7 @@ The spread is the useful column. A parameter everybody sets the same way is one
 this tool can be confident about; one nobody agrees on belongs to the player.`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		measured, err := corpusview.Show(corpusShowOptions)
+		measured, err := sdk.New().Measurements(corpusShowOptions)
 		if err != nil {
 			return err
 		}

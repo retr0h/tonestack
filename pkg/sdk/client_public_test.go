@@ -132,6 +132,126 @@ func (s *ClientPublicTestSuite) TestDevices() {
 	}
 }
 
+// TestBlocks covers reporting what a device can do.
+func (s *ClientPublicTestSuite) TestBlocks() {
+	tests := []struct {
+		name    string
+		path    string
+		filter  sdk.Filter
+		matched bool
+		err     bool
+	}{
+		{
+			// No path means the catalog in the binary, which is what anyone
+			// who has not generated their own wants.
+			name:    "the catalog in the binary",
+			filter:  sdk.Filter{Search: "klon"},
+			matched: true,
+		},
+		{
+			name:   "a filter nothing matches",
+			filter: sdk.Filter{Category: "no such category"},
+		},
+		{name: "a catalog that is not there", path: "no.json", err: true},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			got, err := sdk.New().Blocks(tt.path, tt.filter)
+
+			if tt.err {
+				s.Require().Error(err)
+
+				return
+			}
+
+			s.Require().NoError(err)
+			s.Require().NotZero(got.Total)
+
+			if tt.matched {
+				s.Require().NotEmpty(got.Matched)
+
+				return
+			}
+
+			s.Require().Empty(got.Matched)
+		})
+	}
+}
+
+// TestBlock covers reporting one block and what it accepts.
+func (s *ClientPublicTestSuite) TestBlock() {
+	tests := []struct {
+		name string
+		id   string
+		err  bool
+	}{
+		{name: "a block the catalog carries", id: "HD2_DistMinotaur"},
+		{name: "one it does not", id: "HD2_NoSuchBlock", err: true},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			got, err := sdk.New().Block("", tt.id)
+
+			if tt.err {
+				s.Require().Error(err)
+
+				return
+			}
+
+			s.Require().NoError(err)
+			s.Require().Equal(tt.id, string(got.ID))
+		})
+	}
+}
+
+// TestMeasurements covers both questions the corpus answers.
+func (s *ClientPublicTestSuite) TestMeasurements() {
+	tests := []struct {
+		name     string
+		in       sdk.Corpus
+		aboutOne bool
+		err      bool
+	}{
+		{
+			// Naming no model asks what chains of a kind are shaped like.
+			name: "the grammar of a chain",
+		},
+		{
+			name:     "one model's distributions",
+			in:       sdk.Corpus{Model: "HD2_DistMinotaur"},
+			aboutOne: true,
+		},
+		{
+			name: "a model nobody measured",
+			in:   sdk.Corpus{Model: "HD2_NoSuchModel"},
+			err:  true,
+		},
+		{
+			name: "statistics that are not there",
+			in:   sdk.Corpus{StatsPath: "no.json.gz"},
+			err:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			got, err := sdk.New().Measurements(tt.in)
+
+			if tt.err {
+				s.Require().Error(err)
+
+				return
+			}
+
+			s.Require().NoError(err)
+			s.Require().NotNil(got.Stats)
+			s.Require().Equal(tt.aboutOne, got.AboutOne())
+		})
+	}
+}
+
 func TestClientPublicTestSuite(t *testing.T) {
 	suite.Run(t, new(ClientPublicTestSuite))
 }

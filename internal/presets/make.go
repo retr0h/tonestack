@@ -25,11 +25,11 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/retr0h/tonestack/pkg/sdk"
 	"github.com/retr0h/tonestack/pkg/sdk/chain"
 	"github.com/retr0h/tonestack/pkg/sdk/compile"
 	"github.com/retr0h/tonestack/pkg/sdk/corpus"
 	"github.com/retr0h/tonestack/pkg/sdk/preset"
+	"github.com/retr0h/tonestack/pkg/sdk/result"
 	riggen "github.com/retr0h/tonestack/pkg/sdk/rig/gen"
 )
 
@@ -57,15 +57,15 @@ type MakeOptions struct {
 // Reporting the chain matters as much as writing the file. A generated preset
 // is a set of decisions, and a wrong amp should be visible before anyone plugs
 // in rather than after.
-func Make(opts MakeOptions) (sdk.Made, error) {
+func Make(opts MakeOptions) (result.Made, error) {
 	rec, err := opts.recipes().Find(opts.RecipesDir, opts.RecipeID)
 	if err != nil {
-		return sdk.Made{}, err
+		return result.Made{}, err
 	}
 
 	cat, err := opts.catalogs().Open(opts.CatalogPath)
 	if err != nil {
-		return sdk.Made{}, err
+		return result.Made{}, err
 	}
 
 	// Statistics are an improvement on the catalog's defaults, not a
@@ -75,24 +75,24 @@ func Make(opts MakeOptions) (sdk.Made, error) {
 
 	spec, added, err := opts.compiler().Resolve(rec, cat, stats)
 	if err != nil {
-		return sdk.Made{}, err
+		return result.Made{}, err
 	}
 
 	limits := chain.HXStompLimits()
 	spec = opts.compiler().Fit(spec, cat, limits)
 
 	if err := chain.Validate(cat, spec, limits); err != nil {
-		return sdk.Made{}, fmt.Errorf(
+		return result.Made{}, fmt.Errorf(
 			"the chain this recipe describes will not load: %w", err)
 	}
 
 	doc := build(cat.DeviceID, spec)
 
 	if err := write(opts.OutputPath, doc); err != nil {
-		return sdk.Made{}, err
+		return result.Made{}, err
 	}
 
-	return sdk.Made{
+	return result.Made{
 		Chain:      spec,
 		Added:      addedFrom(added),
 		Unfamiliar: unfamiliar(rec),
@@ -158,22 +158,22 @@ func write(path string, doc *preset.Document) error {
 // the preset nothing, and a build that stopped over a word would be refusing
 // somebody the right to describe a sound in their own words. The rigs this
 // project ships are held to the list by a test instead.
-func unfamiliar(rec riggen.RigSpec) []sdk.Unfamiliar {
+func unfamiliar(rec riggen.RigSpec) []result.Unfamiliar {
 	unknown := compile.CheckCharacter(rec)
 
-	out := make([]sdk.Unfamiliar, 0, len(unknown))
+	out := make([]result.Unfamiliar, 0, len(unknown))
 	for _, u := range unknown {
-		out = append(out, sdk.Unfamiliar{Term: u.Term, Near: u.Near})
+		out = append(out, result.Unfamiliar{Term: u.Term, Near: u.Near})
 	}
 
 	return out
 }
 
 // addedFrom says what went into the chain that the recipe did not name.
-func addedFrom(added []compile.Added) []sdk.Added {
-	out := make([]sdk.Added, 0, len(added))
+func addedFrom(added []compile.Added) []result.Added {
+	out := make([]result.Added, 0, len(added))
 	for _, a := range added {
-		out = append(out, sdk.Added{
+		out = append(out, result.Added{
 			Name:   a.Block.Name,
 			Reason: a.Reason,
 			Share:  a.Share,

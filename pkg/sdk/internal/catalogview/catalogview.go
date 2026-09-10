@@ -21,17 +21,12 @@
 package catalogview
 
 import (
-	"fmt"
-	"os"
 	"sort"
 	"strings"
 
-	"github.com/retr0h/tonestack/pkg/sdk"
 	"github.com/retr0h/tonestack/pkg/sdk/catalog"
+	"github.com/retr0h/tonestack/pkg/sdk/result"
 )
-
-// DefaultPath is where the generated catalog lives.
-const DefaultPath = "resources/schemas/hx-stomp.catalog.json"
 
 // Filter narrows what List reports.
 type Filter struct {
@@ -43,37 +38,14 @@ type Filter struct {
 	Search string
 }
 
-// Open reads the catalog at path.
-func Open(path string) (*catalog.Catalog, error) {
-	// No path means the catalog that ships in the binary, which is the case
-	// for anyone who has not generated their own.
-	if path == "" {
-		return catalog.BuiltIn()
-	}
-
-	f, err := os.Open(path) //nolint:gosec // a path the caller named
-	if err != nil {
-		return nil, fmt.Errorf("opening catalog: %w", err)
-	}
-
-	defer func() { _ = f.Close() }()
-
-	c, err := catalog.Load(f)
-	if err != nil {
-		return nil, err
-	}
-
-	return c, nil
-}
-
 // List reads the blocks matching f.
-func List(path string, f Filter) (sdk.Blocks, error) {
-	c, err := Open(path)
+func List(path string, f Filter) (result.Blocks, error) {
+	c, err := catalog.Open(path)
 	if err != nil {
-		return sdk.Blocks{}, err
+		return result.Blocks{}, err
 	}
 
-	return sdk.Blocks{
+	return result.Blocks{
 		Device:  c.Device,
 		Source:  c.Source,
 		Total:   len(c.Blocks),
@@ -123,7 +95,7 @@ func mentions(b catalog.Block, term string) bool {
 
 // Show reads one block and everything it accepts.
 func Show(path, id string) (catalog.Block, error) {
-	c, err := Open(path)
+	c, err := catalog.Open(path)
 	if err != nil {
 		return catalog.Block{}, err
 	}

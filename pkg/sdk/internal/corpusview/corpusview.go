@@ -26,10 +26,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/retr0h/tonestack/internal/catalogview"
-	"github.com/retr0h/tonestack/pkg/sdk"
 	"github.com/retr0h/tonestack/pkg/sdk/catalog"
 	"github.com/retr0h/tonestack/pkg/sdk/corpus"
+	"github.com/retr0h/tonestack/pkg/sdk/result"
 )
 
 // ErrNotMeasured reports that the corpus never saw a model.
@@ -63,14 +62,14 @@ type Options struct {
 //
 // The measurements and, when one model was asked about, the catalog beside
 // them: what players chose means little without what Line 6 chose.
-func Show(opts Options) (sdk.Measured, error) {
+func Show(opts Options) (result.Measured, error) {
 	stats, err := open(opts.StatsPath)
 	if err != nil {
-		return sdk.Measured{}, err
+		return result.Measured{}, err
 	}
 
 	if opts.Model == "" {
-		return sdk.Measured{Stats: stats, Instrument: opts.Instrument}, nil
+		return result.Measured{Stats: stats, Instrument: opts.Instrument}, nil
 	}
 
 	id := catalog.ModelID(opts.Model)
@@ -78,15 +77,15 @@ func Show(opts Options) (sdk.Measured, error) {
 	// Asked here rather than while drawing, so a model nobody measured is an
 	// error from the operation and not a table with nothing in it.
 	if _, ok := stats.Models[id]; !ok {
-		return sdk.Measured{}, &NotMeasuredError{Model: id}
+		return result.Measured{}, &NotMeasuredError{Model: id}
 	}
 
-	cat, err := catalogview.Open(opts.CatalogPath)
+	cat, err := catalog.Open(opts.CatalogPath)
 	if err != nil {
-		return sdk.Measured{}, err
+		return result.Measured{}, err
 	}
 
-	return sdk.Measured{Stats: stats, Catalog: cat, Model: id}, nil
+	return result.Measured{Stats: stats, Catalog: cat, Model: id}, nil
 }
 
 // open reads statistics, falling back to the ones in this binary.

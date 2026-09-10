@@ -25,7 +25,8 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
-	"github.com/retr0h/tonestack/internal/catalogview"
+	"github.com/retr0h/tonestack/pkg/sdk/catalog"
+	"github.com/retr0h/tonestack/pkg/sdk/internal/catalogview"
 )
 
 type CatalogViewPublicTestSuite struct {
@@ -73,7 +74,7 @@ func (s *CatalogViewPublicTestSuite) TestOpen() {
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			got, err := catalogview.Open(tt.path)
+			got, err := catalog.Open(tt.path)
 
 			if tt.err {
 				s.Require().Error(err)
@@ -290,13 +291,6 @@ func (s *CatalogViewPublicTestSuite) TestNotFoundError() {
 	s.Require().Contains(err.Error(), "665")
 	s.Require().Contains(err.Error(), "catalog list")
 	s.Require().ErrorIs(err, catalogview.ErrNotFound)
-}
-
-// TestDefaultPathIsWhereTheCatalogLives keeps the fallback pointing at the
-// generated file rather than wherever it used to be.
-func (s *CatalogViewPublicTestSuite) TestDefaultPathIsWhereTheCatalogLives() {
-	s.Require().Equal(
-		"resources/schemas/hx-stomp.catalog.json", catalogview.DefaultPath)
 }
 
 func TestCatalogViewPublicTestSuite(t *testing.T) {

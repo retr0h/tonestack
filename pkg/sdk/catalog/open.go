@@ -18,18 +18,47 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-package catalogview
+package catalog
 
-import "github.com/retr0h/tonestack/pkg/sdk/catalog"
+import (
+	"fmt"
+	"os"
+)
 
-// Files opens catalogs the way a command does: the path it was given, or the
-// one built into the binary.
+// DefaultPath is where the generated catalog lives.
+const DefaultPath = "resources/schemas/hx-stomp.catalog.json"
+
+// Open reads the catalog at path.
 //
-// The zero value works, and holds nothing. It exists so a caller can name
-// opening a catalog as a thing it depends on rather than calling straight
-// into this package, which is what lets a test hand over a catalog without
-// writing one to disk.
+// Here rather than beside whatever draws one, because opening a catalog is
+// this package's own business and every part of the library needs it.
+func Open(path string) (*Catalog, error) {
+	// No path means the catalog that ships in the binary, which is the case
+	// for anyone who has not generated their own.
+	if path == "" {
+		return BuiltIn()
+	}
+
+	f, err := os.Open(path) //nolint:gosec // a path the caller named
+	if err != nil {
+		return nil, fmt.Errorf("opening catalog: %w", err)
+	}
+
+	defer func() { _ = f.Close() }()
+
+	c, err := Load(f)
+	if err != nil {
+		return nil, err
+	}
+
+	return c, nil
+}
+
+// Files reads catalogs from disk.
+//
+// The value a caller gets when it says nothing about where catalogs come
+// from, and the seam a test replaces when it wants to say.
 type Files struct{}
 
 // Open reads the catalog at path, or the built-in one when path is empty.
-func (Files) Open(path string) (*catalog.Catalog, error) { return Open(path) }
+func (Files) Open(path string) (*Catalog, error) { return Open(path) }

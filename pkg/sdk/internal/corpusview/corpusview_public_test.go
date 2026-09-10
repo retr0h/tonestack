@@ -26,7 +26,7 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
-	"github.com/retr0h/tonestack/internal/corpusview"
+	"github.com/retr0h/tonestack/pkg/sdk/internal/corpusview"
 )
 
 type CorpusViewPublicTestSuite struct {

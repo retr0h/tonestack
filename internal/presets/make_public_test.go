@@ -30,9 +30,9 @@ import (
 
 	"github.com/retr0h/tonestack/internal/presets"
 	"github.com/retr0h/tonestack/internal/recipes"
-	"github.com/retr0h/tonestack/pkg/sdk"
 	"github.com/retr0h/tonestack/pkg/sdk/compile"
 	"github.com/retr0h/tonestack/pkg/sdk/preset"
+	"github.com/retr0h/tonestack/pkg/sdk/result"
 )
 
 type MakePublicTestSuite struct {
@@ -200,7 +200,7 @@ func (s *MakePublicTestSuite) TestMake() {
 
 // built flattens what a build reported, so a test can assert on the facts of
 // it without also asserting on how a terminal paints them.
-func built(m sdk.Made) string {
+func built(m result.Made) string {
 	parts := make([]string, 0, 2+2*len(m.Added)+len(m.Unfamiliar))
 	parts = append(parts, m.Chain.Name, m.Path)
 
