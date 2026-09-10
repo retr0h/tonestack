@@ -181,6 +181,11 @@ func slicesContainFold(all []string, want string) bool {
 //
 // A short list is worth printing whole when nothing matched: twelve colours
 // answer the question outright, where forty parameter names only bury it.
+//
+// For names: a colour, a parameter, a piece of gear. Somebody types part of
+// one or mistypes its first letters, so a prefix and a substring are what
+// find it. A phrase in the wrong order is a different problem and closest,
+// beside this, is what solves it.
 func near(all []string, want string) (hits []string, whole bool) {
 	want = strings.ToLower(want)
 
