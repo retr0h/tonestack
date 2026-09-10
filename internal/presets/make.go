@@ -26,9 +26,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/retr0h/tonestack/internal/catalogview"
 	"github.com/retr0h/tonestack/internal/cli"
-	"github.com/retr0h/tonestack/internal/recipes"
 	"github.com/retr0h/tonestack/pkg/catalog"
 	"github.com/retr0h/tonestack/pkg/chain"
 	"github.com/retr0h/tonestack/pkg/compile"
@@ -38,6 +36,9 @@ import (
 
 // MakeOptions says what to build and where to put it.
 type MakeOptions struct {
+	// Deps are the collaborators this command works through.
+	Deps
+
 	// RecipeID names the curated knowledge to build from.
 	RecipeID string
 	// RecipesDir is where recipes live.
@@ -58,12 +59,12 @@ type MakeOptions struct {
 // is a set of decisions, and a wrong amp should be visible before anyone plugs
 // in rather than after.
 func Make(w io.Writer, opts MakeOptions) error {
-	rec, err := recipes.Find(opts.RecipesDir, opts.RecipeID)
+	rec, err := opts.recipes().Find(opts.RecipesDir, opts.RecipeID)
 	if err != nil {
 		return err
 	}
 
-	cat, err := catalogview.Open(opts.CatalogPath)
+	cat, err := opts.catalogs().Open(opts.CatalogPath)
 	if err != nil {
 		return err
 	}
@@ -73,13 +74,13 @@ func Make(w io.Writer, opts MakeOptions) error {
 	// generic, so a failure to read them is not a failure to build.
 	stats, _ := openStats(opts.StatsPath)
 
-	spec, added, err := compile.Resolve(rec, cat, stats)
+	spec, added, err := opts.compiler().Resolve(rec, cat, stats)
 	if err != nil {
 		return err
 	}
 
 	limits := chain.HXStompLimits()
-	spec = compile.Fit(spec, cat, limits)
+	spec = opts.compiler().Fit(spec, cat, limits)
 
 	if err := chain.Validate(cat, spec, limits); err != nil {
 		return fmt.Errorf("the chain this recipe describes will not load: %w", err)

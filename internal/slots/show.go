@@ -26,9 +26,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/retr0h/tonestack/internal/catalogview"
 	"github.com/retr0h/tonestack/internal/cli"
-	"github.com/retr0h/tonestack/pkg/compile"
 	"github.com/retr0h/tonestack/pkg/preset"
 	"github.com/retr0h/tonestack/pkg/rig"
 	riggen "github.com/retr0h/tonestack/pkg/rig/gen"
@@ -41,6 +39,9 @@ import (
 // Both read into the same rig, which is the point: what the device holds and
 // what this tool generates are the same kind of thing.
 type ShowOptions struct {
+	// Deps are the collaborators this command works through.
+	Deps
+
 	// Path is the .hls or .hlb file to read. Empty when showing a file.
 	Path string
 	// File is a standalone .hlx to read. Empty when showing a slot.
@@ -64,7 +65,7 @@ func Show(w io.Writer, opts ShowOptions) error {
 		return err
 	}
 
-	cat, err := catalogview.Open(opts.CatalogPath)
+	cat, err := opts.catalogs().Open(opts.CatalogPath)
 	if err != nil {
 		return err
 	}
@@ -77,7 +78,7 @@ func Show(w io.Writer, opts ShowOptions) error {
 		return err
 	}
 
-	spec, err := compile.Lift(doc, cat)
+	spec, err := opts.compiler().Lift(doc, cat)
 	if err != nil {
 		return fmt.Errorf("reading slot %s: %w", slotpkg.Label(opts.Slot), err)
 	}
