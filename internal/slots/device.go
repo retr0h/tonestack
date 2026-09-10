@@ -28,11 +28,9 @@ import (
 	"io"
 	"os"
 
-	"github.com/retr0h/tonestack/internal/catalogview"
 	"github.com/retr0h/tonestack/internal/cli"
 	"github.com/retr0h/tonestack/pkg/catalog"
 	"github.com/retr0h/tonestack/pkg/chain"
-	"github.com/retr0h/tonestack/pkg/editor"
 	"github.com/retr0h/tonestack/pkg/sdk"
 	"github.com/retr0h/tonestack/pkg/sdk/wire"
 	slotpkg "github.com/retr0h/tonestack/pkg/slot"
@@ -46,6 +44,9 @@ var openDevice = sdk.Open
 
 // DeviceOptions says which setlist to read off an attached device.
 type DeviceOptions struct {
+	// Deps are the collaborators this command works through.
+	Deps
+
 	// Setlist selects one of the device's setlists, from zero.
 	Setlist int
 	// All includes slots holding nothing.
@@ -229,7 +230,7 @@ func ListWith(
 		return fmt.Errorf("listing presets: %w", err)
 	}
 
-	cat, err := catalogview.Open(opts.CatalogPath)
+	cat, err := opts.catalogs().Open(opts.CatalogPath)
 	if err != nil {
 		return err
 	}
@@ -248,7 +249,7 @@ func ListWith(
 		chain := ""
 
 		if !blank {
-			blocks, err := chainAt(ctx, s, cat, opts.Setlist, p.Slot)
+			blocks, err := chainAt(ctx, opts.Deps, s, cat, opts.Setlist, p.Slot)
 			if err != nil {
 				return err
 			}
@@ -295,6 +296,7 @@ const untouched = "New Preset"
 // hundred that read.
 func chainAt(
 	ctx context.Context,
+	deps Deps,
 	s sdk.Editor,
 	cat *catalog.Catalog,
 	setlist, slot int,
@@ -321,7 +323,7 @@ func chainAt(
 		return nil, nil
 	}
 
-	c, err := editor.Chain("", preset, cat)
+	c, err := deps.translator().Chain("", preset, cat)
 	if err != nil {
 		return nil, nil
 	}

@@ -25,9 +25,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/retr0h/tonestack/internal/catalogview"
 	"github.com/retr0h/tonestack/internal/cli"
-	"github.com/retr0h/tonestack/pkg/editor"
 	"github.com/retr0h/tonestack/pkg/preset"
 	"github.com/retr0h/tonestack/pkg/sdk"
 	"github.com/retr0h/tonestack/pkg/sdk/wire"
@@ -64,7 +62,7 @@ func ImportWith(
 		return err
 	}
 
-	body, err := documentFor(doc, opts.CatalogPath)
+	body, err := documentFor(opts.Deps, doc, opts.CatalogPath)
 	if err != nil {
 		return err
 	}
@@ -93,15 +91,16 @@ func ImportWith(
 
 // documentFor builds what a device holds out of what a file describes.
 func documentFor(
+	deps Deps,
 	doc *preset.Document,
 	catalogPath string,
 ) ([]byte, error) {
-	cat, err := catalogview.Open(catalogPath)
+	cat, err := deps.catalogs().Open(catalogPath)
 	if err != nil {
 		return nil, err
 	}
 
-	blocks, err := editor.Placements(doc, cat)
+	blocks, err := deps.translator().Placements(doc, cat)
 	if err != nil {
 		return nil, err
 	}

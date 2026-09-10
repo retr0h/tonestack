@@ -26,9 +26,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/retr0h/tonestack/internal/catalogview"
 	"github.com/retr0h/tonestack/internal/cli"
-	"github.com/retr0h/tonestack/pkg/compile"
 	"github.com/retr0h/tonestack/pkg/preset"
 	"github.com/retr0h/tonestack/pkg/rig"
 	slotpkg "github.com/retr0h/tonestack/pkg/slot"
@@ -50,6 +48,9 @@ const (
 
 // ExportOptions says which slot to write out as a preset file.
 type ExportOptions struct {
+	// Deps are the collaborators this command works through.
+	Deps
+
 	// Path is the .hls or .hlb file to read.
 	Path string
 	// Setlist and Slot address the preset.
@@ -93,7 +94,7 @@ func Export(w io.Writer, opts ExportOptions) error {
 		// A payload that decoded encodes again.
 		_ = preset.Write(&buf, out)
 	} else {
-		if err := writeRig(&buf, out, opts.CatalogPath); err != nil {
+		if err := writeRig(opts.Deps, &buf, out, opts.CatalogPath); err != nil {
 			return err
 		}
 	}
@@ -110,13 +111,18 @@ func Export(w io.Writer, opts ExportOptions) error {
 }
 
 // writeRig renders a preset as a rig.
-func writeRig(buf *bytes.Buffer, doc *preset.Document, catalogPath string) error {
-	cat, err := catalogview.Open(catalogPath)
+func writeRig(
+	deps Deps,
+	buf *bytes.Buffer,
+	doc *preset.Document,
+	catalogPath string,
+) error {
+	cat, err := deps.catalogs().Open(catalogPath)
 	if err != nil {
 		return err
 	}
 
-	spec, err := compile.Lift(doc, cat)
+	spec, err := deps.compiler().Lift(doc, cat)
 	if err != nil {
 		return err
 	}
@@ -126,6 +132,9 @@ func writeRig(buf *bytes.Buffer, doc *preset.Document, catalogPath string) error
 
 // ImportOptions says which preset file to put in which slot.
 type ImportOptions struct {
+	// Deps are the collaborators this command works through.
+	Deps
+
 	// Path is the .hls or .hlb file to read.
 	Path string
 	// File is the .hlx to read.

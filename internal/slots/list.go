@@ -25,7 +25,6 @@ import (
 	"io"
 	"strings"
 
-	"github.com/retr0h/tonestack/internal/catalogview"
 	"github.com/retr0h/tonestack/internal/cli"
 	"github.com/retr0h/tonestack/pkg/catalog"
 	"github.com/retr0h/tonestack/pkg/chain"
@@ -35,6 +34,9 @@ import (
 
 // ListOptions says which setlist to list.
 type ListOptions struct {
+	// Deps are the collaborators this command works through.
+	Deps
+
 	// Path is the .hls or .hlb file to read.
 	Path string
 	// Setlist selects one setlist within a bundle.
@@ -56,7 +58,7 @@ func List(w io.Writer, opts ListOptions) error {
 		return err
 	}
 
-	cat, err := catalogview.Open(opts.CatalogPath)
+	cat, err := opts.catalogs().Open(opts.CatalogPath)
 	if err != nil {
 		return err
 	}

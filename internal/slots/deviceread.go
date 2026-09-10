@@ -24,9 +24,6 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/retr0h/tonestack/internal/catalogview"
-	"github.com/retr0h/tonestack/pkg/compile"
-	"github.com/retr0h/tonestack/pkg/editor"
 	"github.com/retr0h/tonestack/pkg/preset"
 	"github.com/retr0h/tonestack/pkg/sdk/wire"
 	slotpkg "github.com/retr0h/tonestack/pkg/slot"
@@ -44,7 +41,7 @@ func writeDeviceRig(w io.Writer, body []byte, opts DeviceOptions) error {
 		return fmt.Errorf("reading slot %s: %w", slotpkg.Label(opts.Slot), err)
 	}
 
-	cat, err := catalogview.Open(opts.CatalogPath)
+	cat, err := opts.catalogs().Open(opts.CatalogPath)
 	if err != nil {
 		return err
 	}
@@ -54,7 +51,7 @@ func writeDeviceRig(w io.Writer, body []byte, opts DeviceOptions) error {
 		name = "slot " + slotpkg.Label(opts.Slot)
 	}
 
-	doc, empty, err := editor.Document(got, cat, name)
+	doc, empty, err := opts.translator().Document(got, cat, name)
 	if err != nil {
 		return err
 	}
@@ -71,7 +68,7 @@ func writeDeviceRig(w io.Writer, body []byte, opts DeviceOptions) error {
 		return preset.Write(w, doc)
 	}
 
-	spec, err := compile.Lift(doc, cat)
+	spec, err := opts.compiler().Lift(doc, cat)
 	if err != nil {
 		return fmt.Errorf("reading slot %s: %w", slotpkg.Label(opts.Slot), err)
 	}
@@ -82,10 +79,10 @@ func writeDeviceRig(w io.Writer, body []byte, opts DeviceOptions) error {
 	//
 	// Controller assignments are not decoded yet and so are not carried. A
 	// rig read off the device rebuilds its routing but not those.
-	spec.Device = editor.DeviceState(got, cat)
-	spec.Snapshots = editor.Snapshots(got)
-	spec.Footswitches = editor.Footswitches(got, cat)
-	spec.Controllers = editor.Controllers(got, cat)
+	spec.Device = opts.translator().DeviceState(got, cat)
+	spec.Snapshots = opts.translator().Snapshots(got)
+	spec.Footswitches = opts.translator().Footswitches(got, cat)
+	spec.Controllers = opts.translator().Controllers(got, cat)
 
 	return writeRigTo(w, spec)
 }

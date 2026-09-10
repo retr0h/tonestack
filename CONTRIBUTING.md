@@ -265,6 +265,34 @@ so which directory you run it from does not matter.
 - Import order: standard library, third party, then local, separated by blank
   lines.
 
+### Where an interface lives
+
+An interface belongs in the package that uses it, not the one that satisfies it.
+That is Go's rule rather than this project's, and it has a reason: the consumer
+knows which methods it needs, so the interface it declares is as small as its
+use, and two consumers of the same thing get two different interfaces rather
+than one that serves neither.
+
+So a package that does work returns a struct. `pkg/compile` carries a
+`Compiler`, `pkg/editor` a `Translator`, and both are empty types whose methods
+are the package-level functions of the same name. The type exists only so a
+caller can name what it depends on, the way `net/http` gives you a `Client`
+alongside `Get`.
+
+A caller then declares what it needs. `internal/slots` wants `Lift` and `Lower`;
+`internal/presets` wants `Resolve` and `Fit`. Two interfaces, four methods
+between them, over one struct that has all four.
+
+The collaborators live in a `Deps` struct embedded in the command's options, and
+every field is optional: a zero value reaches the real thing. A caller names
+only what it wants to stand something else in for, which is what `net/http` does
+with a nil `Transport`.
+
+`pkg/sdk` looks like the exception and is not one. `sdk.Open` returns the
+`Editor` interface because the concrete type behind it is unexported and
+`USBLister` has two build-tag variants, so there is no struct it could return.
+Return an interface only when you cannot return the struct.
+
 ### Test doubles
 
 A double for an interface this organization defines is generated with `mockgen`

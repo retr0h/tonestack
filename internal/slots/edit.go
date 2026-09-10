@@ -35,6 +35,9 @@ import (
 // overwriting one by default would make a mistyped slot number destroy the
 // only copy of what the hardware holds.
 type EditOptions struct {
+	// Deps are the collaborators this command works through.
+	Deps
+
 	// Path is the .hls or .hlb file to read.
 	Path string
 	// FromSetlist and FromSlot address the source.

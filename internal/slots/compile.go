@@ -26,9 +26,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/retr0h/tonestack/internal/catalogview"
 	"github.com/retr0h/tonestack/internal/cli"
-	"github.com/retr0h/tonestack/pkg/compile"
 	"github.com/retr0h/tonestack/pkg/preset"
 	"github.com/retr0h/tonestack/pkg/rig"
 	riggen "github.com/retr0h/tonestack/pkg/rig/gen"
@@ -36,6 +34,9 @@ import (
 
 // CompileOptions says which rig to turn into a preset.
 type CompileOptions struct {
+	// Deps are the collaborators this command works through.
+	Deps
+
 	// RigPath is the rig to read.
 	RigPath string
 	// OutputPath is where the preset is written.
@@ -61,7 +62,7 @@ func Compile(w io.Writer, opts CompileOptions) error {
 		return err
 	}
 
-	cat, err := catalogview.Open(opts.CatalogPath)
+	cat, err := opts.catalogs().Open(opts.CatalogPath)
 	if err != nil {
 		return err
 	}
@@ -74,7 +75,7 @@ func Compile(w io.Writer, opts CompileOptions) error {
 	doc.Data.Device = cat.DeviceID
 	doc.Data.Meta.Name = spec.Subject.Name
 
-	if err := compile.Lower(doc, spec, cat); err != nil {
+	if err := opts.compiler().Lower(doc, spec, cat); err != nil {
 		return err
 	}
 
