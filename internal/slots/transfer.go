@@ -27,9 +27,9 @@ import (
 	"os"
 
 	"github.com/retr0h/tonestack/internal/cli"
-	"github.com/retr0h/tonestack/pkg/preset"
-	"github.com/retr0h/tonestack/pkg/rig"
-	slotpkg "github.com/retr0h/tonestack/pkg/slot"
+	"github.com/retr0h/tonestack/pkg/sdk/preset"
+	"github.com/retr0h/tonestack/pkg/sdk/rig"
+	slotpkg "github.com/retr0h/tonestack/pkg/sdk/slot"
 )
 
 // Format is what an export is written as.

@@ -34,8 +34,8 @@ import (
 	"github.com/vmihailenco/msgpack/v5"
 	"go.uber.org/mock/gomock"
 
-	"github.com/retr0h/tonestack/pkg/preset"
-	"github.com/retr0h/tonestack/pkg/sdk/mocks"
+	"github.com/retr0h/tonestack/pkg/sdk/device/mocks"
+	"github.com/retr0h/tonestack/pkg/sdk/preset"
 )
 
 // BackupTestSuite covers keeping what a slot held before replacing it.
@@ -56,7 +56,7 @@ func (s *BackupTestSuite) TearDownTest() { s.ctrl.Finish() }
 // answer returns one slot as an HX Stomp sent it.
 func (s *BackupTestSuite) answer() []byte {
 	raw, err := os.ReadFile(
-		filepath.Join("..", "..", "pkg", "sdk", "wire", "testdata", "preset.bin"))
+		filepath.Join("..", "..", "pkg", "sdk", "device", "wire", "testdata", "preset.bin"))
 	s.Require().NoError(err)
 
 	return raw

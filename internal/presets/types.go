@@ -23,11 +23,11 @@ package presets
 import (
 	"github.com/retr0h/tonestack/internal/catalogview"
 	"github.com/retr0h/tonestack/internal/recipes"
-	"github.com/retr0h/tonestack/pkg/catalog"
-	"github.com/retr0h/tonestack/pkg/chain"
-	"github.com/retr0h/tonestack/pkg/compile"
-	"github.com/retr0h/tonestack/pkg/corpus"
-	riggen "github.com/retr0h/tonestack/pkg/rig/gen"
+	"github.com/retr0h/tonestack/pkg/sdk/catalog"
+	"github.com/retr0h/tonestack/pkg/sdk/chain"
+	"github.com/retr0h/tonestack/pkg/sdk/compile"
+	"github.com/retr0h/tonestack/pkg/sdk/corpus"
+	riggen "github.com/retr0h/tonestack/pkg/sdk/rig/gen"
 )
 
 // Catalogs opens the catalog a rig is built against.

@@ -35,9 +35,9 @@ import (
 	"go.uber.org/mock/gomock"
 
 	"github.com/retr0h/tonestack/internal/slots"
-	"github.com/retr0h/tonestack/pkg/sdk"
-	"github.com/retr0h/tonestack/pkg/sdk/mocks"
-	"github.com/retr0h/tonestack/pkg/sdk/wire"
+	"github.com/retr0h/tonestack/pkg/sdk/device"
+	"github.com/retr0h/tonestack/pkg/sdk/device/mocks"
+	"github.com/retr0h/tonestack/pkg/sdk/device/wire"
 )
 
 // ImportDevicePublicTestSuite covers putting a preset file on a device.
@@ -73,14 +73,14 @@ func (s *ImportDevicePublicTestSuite) TearDownTest() { s.ctrl.Finish() }
 // preset is a .hlx the corpus carries, with a real chain in it.
 func (s *ImportDevicePublicTestSuite) answer() []byte {
 	raw, err := os.ReadFile(
-		filepath.Join("..", "..", "pkg", "sdk", "wire", "testdata", "preset.bin"))
+		filepath.Join("..", "..", "pkg", "sdk", "device", "wire", "testdata", "preset.bin"))
 	s.Require().NoError(err)
 
 	return raw
 }
 
 func (s *ImportDevicePublicTestSuite) preset() string {
-	return filepath.Join("..", "..", "pkg", "compile", "testdata", "preset0.hlx")
+	return filepath.Join("..", "..", "pkg", "sdk", "compile", "testdata", "preset0.hlx")
 }
 
 // unknownGear writes a preset naming a model no catalog carries.
@@ -234,7 +234,7 @@ func (s *ImportDevicePublicTestSuite) TestImportWith() {
 				file = tt.file
 			}
 
-			dev := sdk.Editor(s.dev)
+			dev := device.Editor(s.dev)
 			if tt.readOnly {
 				dev = mocks.NewMockEditor(s.ctrl)
 			}
@@ -332,11 +332,11 @@ func (s *ImportDevicePublicTestSuite) TestImportDevice() {
 						gomock.Any(), gomock.Any()).
 					Return(nil)
 
-				*slots.OpenDevice = func(context.Context) (sdk.Editor, error) {
+				*slots.OpenDevice = func(context.Context) (device.Editor, error) {
 					return s.dev, nil
 				}
 			} else {
-				*slots.OpenDevice = func(context.Context) (sdk.Editor, error) {
+				*slots.OpenDevice = func(context.Context) (device.Editor, error) {
 					return nil, errors.New("nothing on the bus")
 				}
 			}

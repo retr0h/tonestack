@@ -22,13 +22,13 @@ package slots
 
 import (
 	"github.com/retr0h/tonestack/internal/catalogview"
-	"github.com/retr0h/tonestack/pkg/catalog"
-	"github.com/retr0h/tonestack/pkg/chain"
-	"github.com/retr0h/tonestack/pkg/compile"
-	"github.com/retr0h/tonestack/pkg/editor"
-	"github.com/retr0h/tonestack/pkg/preset"
-	riggen "github.com/retr0h/tonestack/pkg/rig/gen"
-	"github.com/retr0h/tonestack/pkg/sdk/wire"
+	"github.com/retr0h/tonestack/pkg/sdk/catalog"
+	"github.com/retr0h/tonestack/pkg/sdk/chain"
+	"github.com/retr0h/tonestack/pkg/sdk/compile"
+	"github.com/retr0h/tonestack/pkg/sdk/device/wire"
+	"github.com/retr0h/tonestack/pkg/sdk/editor"
+	"github.com/retr0h/tonestack/pkg/sdk/preset"
+	riggen "github.com/retr0h/tonestack/pkg/sdk/rig/gen"
 )
 
 // Catalogs opens the catalog a command reads model names out of.

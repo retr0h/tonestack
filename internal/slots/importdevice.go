@@ -26,10 +26,10 @@ import (
 	"io"
 
 	"github.com/retr0h/tonestack/internal/cli"
-	"github.com/retr0h/tonestack/pkg/preset"
-	"github.com/retr0h/tonestack/pkg/sdk"
-	"github.com/retr0h/tonestack/pkg/sdk/wire"
-	slotpkg "github.com/retr0h/tonestack/pkg/slot"
+	"github.com/retr0h/tonestack/pkg/sdk/device"
+	"github.com/retr0h/tonestack/pkg/sdk/device/wire"
+	"github.com/retr0h/tonestack/pkg/sdk/preset"
+	slotpkg "github.com/retr0h/tonestack/pkg/sdk/slot"
 )
 
 // ImportDevice puts a preset file into a slot on an attached device.
@@ -54,7 +54,7 @@ func ImportDevice(ctx context.Context, w io.Writer, opts ImportOptions) error {
 func ImportWith(
 	ctx context.Context,
 	w io.Writer,
-	s sdk.Editor,
+	s device.Editor,
 	opts ImportOptions,
 ) error {
 	doc, err := readPreset(opts.File)

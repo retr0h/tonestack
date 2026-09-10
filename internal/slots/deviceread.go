@@ -24,9 +24,9 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/retr0h/tonestack/pkg/preset"
-	"github.com/retr0h/tonestack/pkg/sdk/wire"
-	slotpkg "github.com/retr0h/tonestack/pkg/slot"
+	"github.com/retr0h/tonestack/pkg/sdk/device/wire"
+	"github.com/retr0h/tonestack/pkg/sdk/preset"
+	slotpkg "github.com/retr0h/tonestack/pkg/sdk/slot"
 )
 
 // writeDeviceRig turns a device's answer into a rig and writes it.

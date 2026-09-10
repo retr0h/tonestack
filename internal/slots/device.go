@@ -29,18 +29,18 @@ import (
 	"os"
 
 	"github.com/retr0h/tonestack/internal/cli"
-	"github.com/retr0h/tonestack/pkg/catalog"
-	"github.com/retr0h/tonestack/pkg/chain"
-	"github.com/retr0h/tonestack/pkg/sdk"
-	"github.com/retr0h/tonestack/pkg/sdk/wire"
-	slotpkg "github.com/retr0h/tonestack/pkg/slot"
+	"github.com/retr0h/tonestack/pkg/sdk/catalog"
+	"github.com/retr0h/tonestack/pkg/sdk/chain"
+	"github.com/retr0h/tonestack/pkg/sdk/device"
+	"github.com/retr0h/tonestack/pkg/sdk/device/wire"
+	slotpkg "github.com/retr0h/tonestack/pkg/sdk/slot"
 )
 
 // openDevice is how a session is obtained, so a test can stand in for it.
 //
 // The one line in this package that needs hardware; everything reached
 // through it takes the session as an argument instead.
-var openDevice = sdk.Open
+var openDevice = device.Open
 
 // DeviceOptions says which setlist to read off an attached device.
 type DeviceOptions struct {
@@ -95,7 +95,7 @@ func ShowDevice(ctx context.Context, w io.Writer, opts DeviceOptions) error {
 func ShowWith(
 	ctx context.Context,
 	w io.Writer,
-	s sdk.Editor,
+	s device.Editor,
 	opts DeviceOptions,
 ) error {
 	// The name comes from the listing rather than the preset: what the device
@@ -111,7 +111,7 @@ func ShowWith(
 	// A device that answered with something else is not a failure to report
 	// as one: what arrived is worth keeping and showing, because it is how a
 	// protocol change becomes visible.
-	var answer *sdk.NotAPresetError
+	var answer *device.NotAPresetError
 	if errors.As(err, &answer) {
 		if err := dump(answer.Result); err != nil {
 			return err
@@ -178,7 +178,7 @@ func ExportDevice(ctx context.Context, w io.Writer, opts ExportOptions) error {
 func ExportWith(
 	ctx context.Context,
 	w io.Writer,
-	s sdk.Editor,
+	s device.Editor,
 	opts ExportOptions,
 ) error {
 	var buf bytes.Buffer
@@ -222,7 +222,7 @@ func ListDevice(ctx context.Context, w io.Writer, opts DeviceOptions) error {
 func ListWith(
 	ctx context.Context,
 	w io.Writer,
-	s sdk.Editor,
+	s device.Editor,
 	opts DeviceOptions,
 ) error {
 	presets, err := s.Presets(ctx, opts.Setlist)
@@ -297,7 +297,7 @@ const untouched = "New Preset"
 func chainAt(
 	ctx context.Context,
 	deps Deps,
-	s sdk.Editor,
+	s device.Editor,
 	cat *catalog.Catalog,
 	setlist, slot int,
 ) ([]chain.Block, error) {
@@ -306,7 +306,7 @@ func chainAt(
 	// An answer that is not a preset is skipped the way an undecodable one
 	// is: this is a listing, and one slot nobody can read should not hide the
 	// hundred that read.
-	if errors.Is(err, sdk.ErrNotAPreset) {
+	if errors.Is(err, device.ErrNotAPreset) {
 		return nil, nil
 	}
 

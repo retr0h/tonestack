@@ -31,8 +31,8 @@ import (
 	"time"
 
 	"github.com/retr0h/tonestack/internal/cli"
-	"github.com/retr0h/tonestack/pkg/sdk"
-	slotpkg "github.com/retr0h/tonestack/pkg/slot"
+	"github.com/retr0h/tonestack/pkg/sdk/device"
+	slotpkg "github.com/retr0h/tonestack/pkg/sdk/slot"
 )
 
 // backupDir is where a slot's contents go before something overwrites them.
@@ -134,7 +134,7 @@ func said(w io.Writer, kept ...string) error {
 // failure. Reading the destination of a write is how a backup is taken, and
 // writing into an empty slot has to keep working: there is nothing there to
 // lose, which is a reason to carry on rather than a reason to stop.
-func holds(ctx context.Context, s sdk.Editor, setlist, slot int) ([]byte, error) {
+func holds(ctx context.Context, s device.Editor, setlist, slot int) ([]byte, error) {
 	body, err := s.ReadPreset(ctx, setlist, slot)
 	if err != nil {
 		return nil, fmt.Errorf("reading slot %s before replacing it: %w",
@@ -190,7 +190,7 @@ func keep(
 // never looked at.
 func replacing(
 	ctx context.Context,
-	s sdk.Editor,
+	s device.Editor,
 	deps Deps,
 	catalogPath, dir string,
 	setlist, slot int,

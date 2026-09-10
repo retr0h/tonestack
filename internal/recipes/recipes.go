@@ -37,8 +37,8 @@ import (
 	"strings"
 
 	"github.com/retr0h/tonestack/internal/cli"
-	"github.com/retr0h/tonestack/pkg/rig"
-	"github.com/retr0h/tonestack/pkg/rig/gen"
+	"github.com/retr0h/tonestack/pkg/sdk/rig"
+	"github.com/retr0h/tonestack/pkg/sdk/rig/gen"
 	recipedata "github.com/retr0h/tonestack/resources/recipes"
 )
 

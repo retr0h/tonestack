@@ -25,8 +25,8 @@ import (
 	"io"
 
 	"github.com/retr0h/tonestack/internal/cli"
-	"github.com/retr0h/tonestack/pkg/setlist"
-	slotpkg "github.com/retr0h/tonestack/pkg/slot"
+	"github.com/retr0h/tonestack/pkg/sdk/setlist"
+	slotpkg "github.com/retr0h/tonestack/pkg/sdk/slot"
 )
 
 // EditOptions says which two slots to act on and where to put the result.

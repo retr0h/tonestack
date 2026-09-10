@@ -31,8 +31,8 @@ import (
 
 	"github.com/retr0h/tonestack/internal/presets"
 	"github.com/retr0h/tonestack/internal/recipes"
-	"github.com/retr0h/tonestack/pkg/compile"
-	"github.com/retr0h/tonestack/pkg/preset"
+	"github.com/retr0h/tonestack/pkg/sdk/compile"
+	"github.com/retr0h/tonestack/pkg/sdk/preset"
 )
 
 type MakePublicTestSuite struct {

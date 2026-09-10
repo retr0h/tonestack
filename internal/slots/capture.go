@@ -27,7 +27,7 @@ import (
 	"os"
 
 	"github.com/retr0h/tonestack/internal/cli"
-	slotpkg "github.com/retr0h/tonestack/pkg/slot"
+	slotpkg "github.com/retr0h/tonestack/pkg/sdk/slot"
 )
 
 // dumpEnv names a file to write a device's raw answer to.
