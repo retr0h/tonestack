@@ -1,0 +1,59 @@
+# Pino Palladino — D'Angelo, Voodoo
+#
+# A P-Bass tuned down, flatwounds, tone rolled off, into a mic'd B-15. The
+# rig is almost beside the point and the strings are not.
+
+schema: RigSpec
+version: 2
+id: pino-palladino
+aliases: [pino, palladino]
+
+subject:
+  kind: artist
+  name: Pino Palladino
+  band: D'Angelo
+  era: Voodoo
+
+instrument: bass
+
+chain:
+  - role: amp
+    gear: Ampeg B-15
+    evidence:
+      - kind: cited
+        url: https://mixdownmag.com.au/features/rig-rundown-pino-palladino/
+        note: >-
+          the Voodoo configuration, "recorded from the amp without using a
+          DI"
+    confidence: high
+
+  - role: cab
+    gear: Ampeg B-15
+    evidence:
+      - kind: cited
+        url: https://mixdownmag.com.au/features/rig-rundown-pino-palladino/
+        note: the B-15 is a combo, so the cabinet is the amplifier
+    confidence: high
+
+character:
+  - term: dark, tone rolled almost off
+    evidence:
+      - kind: cited
+        url: https://mixdownmag.com.au/features/rig-rundown-pino-palladino/
+        note: '"keeping the volume turned all the way up and the tone all the way down"' 
+  - term: short-decay, flatwound thud
+    evidence:
+      - kind: cited
+        url: https://mixdownmag.com.au/features/rig-rundown-pino-palladino/
+        note: flatwounds named there as a major component of the sound
+        caveat: >-
+          strings are not modelled by anything. This term is here for a
+          reader, not for the compiler.
+
+technique:
+  attack: fingers
+  evidence:
+    - kind: llm
+      note: fingerstyle, not sourced to a rundown
+
+confidence: medium

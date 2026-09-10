@@ -1,0 +1,64 @@
+# Geddy Lee — Rush
+#
+# The Ampeg years. He used Ampeg from the first record to Hemispheres, and
+# everything after that is a Wal, a Trace Elliot or an Orange, none of which
+# this device models.
+
+schema: RigSpec
+version: 2
+id: geddy-lee
+aliases: [geddy, rush]
+
+subject:
+  kind: artist
+  name: Geddy Lee
+  band: Rush
+  era: Fly by Night through Hemispheres
+
+instrument: bass
+
+chain:
+  - role: amp
+    gear: Ampeg SVT
+    evidence:
+      - kind: user
+        url: https://www.talkbass.com/threads/geddy-lee-amps.847050/
+        note: >-
+          Ampeg from the first album to about Hemispheres. By 2112, two SVTs,
+          one into Sunn 215s and one into Ampeg V4b 215s.
+        caveat: >-
+          this thread blocks automated readers, so it was found by search and
+          not read. Somebody should open it.
+    confidence: medium
+
+  - role: cab
+    gear: Ampeg 8x10
+    evidence:
+      - kind: user
+        url: https://www.talkbass.com/threads/geddy-lee-amps.847050/
+        note: the SVT-810 in the Fly by Night footage
+        caveat: the same unread thread
+    confidence: medium
+
+character:
+  - term: bright and hard, treble-forward for a bass
+    evidence:
+      - kind: llm
+  - term: audible pick-free attack, digging in
+    evidence:
+      - kind: user
+        url: https://www.talkbass.com/threads/how-do-you-get-that-aggresive-geddy-lee-sound.764407/
+        note: a thread on the aggressive right hand
+        caveat: >-
+          opinion rather than measurement, and the thread blocks automated
+          readers so it was not read
+
+technique:
+  attack: fingers
+  evidence:
+    - kind: user
+      url: https://www.talkbass.com/threads/how-do-you-get-that-aggresive-geddy-lee-sound.764407/
+      note: digging in hard with the right hand
+      caveat: the same unread thread
+
+confidence: low

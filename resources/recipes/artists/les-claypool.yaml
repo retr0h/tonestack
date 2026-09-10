@@ -1,0 +1,60 @@
+# Les Claypool — Primus
+#
+# The nineties rig, which is the sound on the records. He plays Mesa Subway
+# heads now.
+
+schema: RigSpec
+version: 2
+id: les-claypool
+aliases: [claypool, primus]
+
+subject:
+  kind: artist
+  name: Les Claypool
+  band: Primus
+  era: Sailing the Seas of Cheese through Tales from the Punchbowl
+
+instrument: bass
+
+chain:
+  - role: amp
+    gear: Mesa/Boogie Bass 400+
+    evidence:
+      - kind: cited
+        url: https://mixdownmag.com.au/features/rig-rundown-les-claypool/
+        note: >-
+          the Bass 400+ head through the nineties, into two Mesa 2x15 Diesel
+          cabinets
+        caveat: >-
+          the same rundown has him on Subway D-800 heads and 1x12s now, so
+          this rig is the earlier era.
+    confidence: high
+
+  - role: cab
+    gear: Mesa/Boogie 2x15
+    evidence:
+      - kind: cited
+        url: https://mixdownmag.com.au/features/rig-rundown-les-claypool/
+        note: two 2x15 Mesa/Boogie Diesel cabinets
+    confidence: medium
+
+character:
+  - term: thumping low end under a hard top
+    evidence:
+      - kind: cited
+        url: https://mixdownmag.com.au/features/rig-rundown-les-claypool/
+        note: described there as a heavy, thumping tone
+  - term: percussive, the string hitting the fretboard
+    evidence:
+      - kind: llm
+
+technique:
+  attack: slap
+  evidence:
+    - kind: cited
+      url: https://mixdownmag.com.au/features/rig-rundown-les-claypool/
+      note: a rapid slapped and tapped style
+      caveat: >-
+        tapping is half of it and this format has no word for that.
+
+confidence: medium

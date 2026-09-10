@@ -1,0 +1,61 @@
+# Tim Commerford — Rage Against the Machine
+#
+# Two SVT heads and two 8x10s. One rig here, because a preset is one signal
+# path and he runs several at once.
+
+schema: RigSpec
+version: 2
+id: tim-commerford
+aliases: [commerford, ratm, timc]
+
+subject:
+  kind: artist
+  name: Tim Commerford
+  band: Rage Against the Machine
+  era: Rage Against the Machine
+
+instrument: bass
+
+chain:
+  - role: amp
+    gear: Ampeg SVT
+    evidence:
+      - kind: cited
+        url: https://www.mixonline.com/the-wire/why-tim-commerford-will-never-give-his-ampeg-svts-430713
+        note: >-
+          "In Rage, I used two Ampeg SVT-2PRO heads and two Ampeg 8x10
+          cabinets"
+        caveat: >-
+          the 2PRO rather than the vintage SVT this device models, and he
+          says in the same piece that he is "a multiple amp kind of guy",
+          one on all the time and one for when he wants the sound different.
+          A preset is one path, so this is the one that is always on.
+    confidence: high
+
+  - role: cab
+    gear: Ampeg 8x10
+    evidence:
+      - kind: cited
+        url: https://www.mixonline.com/the-wire/why-tim-commerford-will-never-give-his-ampeg-svts-430713
+        note: two Ampeg 8x10 cabinets, in the same sentence
+    confidence: high
+
+character:
+  - term: hard and dry, no room on it
+    evidence:
+      - kind: llm
+  - term: grind at the top rather than fuzz
+    evidence:
+      - kind: llm
+
+technique:
+  attack: fingers
+  evidence:
+    - kind: llm
+      note: >-
+        widely said to be a fingers-only player who used to slap
+      caveat: >-
+        the equipboard page this was first attributed to covers his gear and
+        says nothing about his hands. Not sourced.
+
+confidence: medium
