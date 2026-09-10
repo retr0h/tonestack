@@ -46,9 +46,11 @@ character:
         note: described there as a heavy, thumping tone
   - term: bright
     evidence:
-      - kind: cited
-        url: https://mixdownmag.com.au/features/rig-rundown-les-claypool/
-        note: described there as a heavy, thumping tone
+      - kind: llm
+        caveat: >-
+          not sourced. This was split off a line saying "thumping low end
+          under a hard top", and the rundown behind that line describes the
+          low end and says nothing about the top.
   - term: percussive
     evidence:
       - kind: llm

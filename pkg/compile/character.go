@@ -105,6 +105,11 @@ func CheckCharacter(spec riggen.RigSpec) []UnknownTerm {
 // write here is a phrase in some order, and "pick attack audible" should
 // reach "audible-pick-attack" even though neither is a prefix or a substring
 // of the other.
+//
+// The two are not one function because they are not one problem. near, in
+// check.go, finds a name somebody typed part of. This finds a term inside a
+// sentence somebody wrote. Word overlap cannot reach "Ampeg SVT" from
+// "Ampeg", and a prefix cannot reach a phrase whose words are reordered.
 func closest(known []string, term string) []string {
 	want := words(term)
 	if len(want) == 0 {

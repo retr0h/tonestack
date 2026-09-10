@@ -63,6 +63,14 @@ redirects to a section index on another domain, and the article is gone.
 Checking that a link resolves catches a 404 and nothing else. Open it and read
 the sentence.
 
+**Splitting a claim does not split its evidence.** Turning "thumping low end
+under a hard top" into `loose-low-end` and `bright` left both citing the rundown
+that produced the sentence, and that rundown describes the low end and says
+nothing about the top. One of the two halves is usually unsourced, and
+mechanically copying the citation onto both is how a guess acquires a URL.
+Sharing a page between two terms is fine when each quotes a different sentence
+from it. Sharing a sentence is not.
+
 **Forums block machine readers.** Reddit refuses Anthropic's crawler outright,
 and TalkBass returns 403 to anything automated. Both can be found by search and
 neither can be read by an agent, so a rig citing one records that nobody checked
