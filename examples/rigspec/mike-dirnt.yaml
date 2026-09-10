@@ -96,10 +96,25 @@ chain:
 # not the control — "raise the mids" is an instruction, "mid-forward" is a
 # description, and only the second survives being read on other hardware.
 character:
-  - mid-forward, not scooped
-  - minimal drive, grit only on hard attack
-  - tight low end, short decay
-  - pick attack audible
+  # Each term carries why it is believed, the same way a piece of gear does.
+  # These are the claims least likely to be checkable from a preset, so the
+  # difference between "somebody asserted it" and "somebody listened" is the
+  # whole value of writing them down.
+  - term: mid-forward, not scooped
+    evidence:
+      - { kind: llm }
+  - term: minimal drive, grit only on hard attack
+    evidence:
+      - { kind: llm }
+  - term: tight low end, short decay
+    evidence:
+      - { kind: llm }
+  - term: pick attack audible
+    evidence:
+      - kind: video
+        url: https://www.youtube.com/watch?v=NDjtguZG6iw
+        at: "0:12"
+        note: audible on the recording, which is the one claim here anybody can check
 
 technique:
   # What sets the string moving. The one part that is always true.
@@ -110,6 +125,14 @@ technique:
   # bassline sounds like, and a reader should not have to guess whether
   # nobody thought about it.
   muting: none
+  # Why any of the above is believed. Nothing measures how somebody plays
+  # out of a preset, so a claim here was asserted or it was watched.
+  evidence:
+    - kind: video
+      url: https://www.youtube.com/watch?v=NDjtguZG6iw
+      at: "1:42"
+      note: visible in the footage
+      caveat: one performance, and not the recording the rig is tuned from
 
 # Anything a device does not ship with. Only what a catalog cannot already
 # see belongs here: whether a model exists on your device tier, or needs newer

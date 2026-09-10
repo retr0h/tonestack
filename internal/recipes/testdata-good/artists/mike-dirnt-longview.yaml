@@ -23,9 +23,9 @@ chain:
     confidence: medium
 
 character:
-  - fingers rather than pick
-  - rounder, more low-mid
-  - cleaner — the part carries the song
+  - term: fingers rather than pick
+  - term: rounder, more low-mid
+  - term: cleaner — the part carries the song
 
 technique:
   attack: fingers
