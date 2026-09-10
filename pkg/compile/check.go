@@ -30,7 +30,7 @@ import (
 	riggen "github.com/retr0h/tonestack/pkg/rig/gen"
 )
 
-// Check reports what a rig claims that this device cannot supply.
+// check reports what a rig claims that this device cannot supply.
 //
 // The contract cannot do this. A colour, a parameter name and a device name
 // are all valid strings, and whether they are valid values is a question about
@@ -40,7 +40,7 @@ import (
 // The blocks are the chain as resolved, because a controller names the block
 // it moves by position and the parameter by name, and only the model sitting
 // at that position says whether the name is one of its own.
-func Check(spec riggen.RigSpec, blocks []chain.Block, cat *catalog.Catalog) error {
+func check(spec riggen.RigSpec, blocks []chain.Block, cat *catalog.Catalog) error {
 	if err := checkTarget(spec, cat); err != nil {
 		return err
 	}

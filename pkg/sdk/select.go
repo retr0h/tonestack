@@ -43,7 +43,7 @@ var (
 )
 
 // Loaded reports which preset the device is playing.
-func (s *Session) Loaded(ctx context.Context) (wire.Loaded, error) {
+func (s *session) Loaded(ctx context.Context) (wire.Loaded, error) {
 	resp, err := s.Call(ctx, channelData, opLoaded, nil)
 	if err != nil {
 		return wire.Loaded{}, err
@@ -70,7 +70,7 @@ func (s *Session) Loaded(ctx context.Context) (wire.Loaded, error) {
 // buffer — the preset loads with no blocks and no footswitch colours. Asking
 // until the device reports the preset as current is the only honest signal
 // that it is done.
-func (s *Session) SelectPreset(
+func (s *session) SelectPreset(
 	ctx context.Context,
 	setlist, slot int,
 ) error {
@@ -93,7 +93,7 @@ func (s *Session) SelectPreset(
 //
 // A busy device refuses the question rather than answering it, which is
 // patience rather than failure until the budget runs out.
-func (s *Session) awaitLoaded(
+func (s *session) awaitLoaded(
 	ctx context.Context,
 	setlist, slot int,
 ) error {

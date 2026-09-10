@@ -42,7 +42,7 @@ func Read(r io.Reader) (*Document, error) {
 		return nil, fmt.Errorf("decoding setlist: %w", err)
 	}
 
-	if env.Schema != SchemaSetlist && env.Schema != SchemaBundle {
+	if env.Schema != schemaSetlist && env.Schema != schemaBundle {
 		return nil, &NotASetlistError{Schema: env.Schema}
 	}
 
@@ -109,7 +109,7 @@ func decodePayload(env envelope) ([]byte, error) {
 
 // decodeSetlists parses the payload according to the schema that wrapped it.
 func decodeSetlists(schema string, raw []byte) ([]Setlist, error) {
-	if schema == SchemaBundle {
+	if schema == schemaBundle {
 		var p payloadBundle
 		if err := json.Unmarshal(raw, &p); err != nil {
 			return nil, fmt.Errorf("decoding bundle payload: %w", err)

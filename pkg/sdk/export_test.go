@@ -32,8 +32,8 @@ import (
 // Everything a session does apart from finding and claiming hardware happens
 // here: framing, sequence numbers, acknowledgements, opening a channel and
 // making a call.
-func NewTestSession(out sender, in receiver) *Session {
-	return &Session{
+func NewTestSession(out sender, in receiver) *session {
+	return &session{
 		out:   out,
 		in:    in,
 		chans: map[string]*channel{},
@@ -43,14 +43,14 @@ func NewTestSession(out sender, in receiver) *Session {
 
 // Holding records what a session took to reach a device, so that releasing
 // it can be tested without one.
-func (s *Session) Holding(held ...func() error) {
+func (s *session) Holding(held ...func() error) {
 	for _, release := range held {
 		s.holds = append(s.holds, releaseFunc(release))
 	}
 }
 
 // OnDone records what a session does with the interface it claimed.
-func (s *Session) OnDone(done func()) { s.done = done }
+func (s *session) OnDone(done func()) { s.done = done }
 
 // releaseFunc makes a function into something a session can give back.
 type releaseFunc func() error
@@ -58,13 +58,13 @@ type releaseFunc func() error
 func (f releaseFunc) Close() error { return f() }
 
 // Handshake opens every channel the editor uses.
-func (s *Session) Handshake(ctx context.Context) error { return s.handshake(ctx) }
+func (s *session) Handshake(ctx context.Context) error { return s.handshake(ctx) }
 
 // Drain reads until the device has nothing left to say.
-func (s *Session) Drain(ctx context.Context) { s.drain(ctx) }
+func (s *session) Drain(ctx context.Context) { s.drain(ctx) }
 
 // Receive reads one transfer and routes every frame in it.
-func (s *Session) Receive(ctx context.Context) bool {
+func (s *session) Receive(ctx context.Context) bool {
 	return s.receive(ctx, openReadWait)
 }
 
@@ -112,7 +112,7 @@ func Reply(name string, body []byte) []byte {
 
 // OpenChannels puts a channel in place without a handshake, so a call can be
 // tested without scripting one first.
-func (s *Session) OpenChannels() {
+func (s *session) OpenChannels() {
 	for _, spec := range channelSpecs {
 		s.chans[spec.name] = &channel{
 			name: spec.name, device: spec.device, host: spec.host,
@@ -210,6 +210,20 @@ var ReplyBudget = &replyBudget
 
 // Write sends a request too large for one frame and waits for the device to
 // finish acting on it.
-func (s *Session) Write(ctx context.Context, opcode uint64, args []wire.Arg) error {
+func (s *session) Write(ctx context.Context, opcode uint64, args []wire.Arg) error {
 	return s.write(ctx, opcode, args)
 }
+
+// Exposed to this package's external tests.
+//
+// Session is the concrete type behind Editor. A caller is handed the
+// interface and never names this, so it is not part of what the package
+// promises, but the tests that drive a scripted device need the type itself.
+type Session = session
+
+var (
+	First    = first
+	ModelFor = modelFor
+)
+
+const VendorID = vendorID

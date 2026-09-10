@@ -54,9 +54,9 @@ func Write(w io.Writer, d *Document) error {
 		Schema:   d.Schema,
 		Version:  d.Version,
 		Meta:     d.Meta,
-		Encoding: Encoding,
+		Encoding: encoding,
 		Compression: compression{
-			Type:             CompressionZlib,
+			Type:             compressionZlib,
 			CRC32:            crc32.ChecksumIEEE(raw),
 			DecompressedSize: len(raw),
 		},
@@ -75,7 +75,7 @@ func Write(w io.Writer, d *Document) error {
 
 // encodePayload renders the inner JSON in the shape the schema calls for.
 func encodePayload(d *Document) ([]byte, error) {
-	if d.Schema == SchemaBundle {
+	if d.Schema == schemaBundle {
 		p := payloadBundle{Setlists: make([]payloadSetlist, 0, len(d.Setlists))}
 		for _, s := range d.Setlists {
 			p.Setlists = append(p.Setlists, payloadSetlist{Meta: s.Meta, Presets: s.Slots})
@@ -86,7 +86,7 @@ func encodePayload(d *Document) ([]byte, error) {
 
 	if len(d.Setlists) != 1 {
 		return nil, fmt.Errorf(
-			"a %s file holds one setlist, not %d", SchemaSetlist, len(d.Setlists),
+			"a %s file holds one setlist, not %d", schemaSetlist, len(d.Setlists),
 		)
 	}
 

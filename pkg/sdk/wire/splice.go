@@ -32,7 +32,7 @@ import (
 // Re-encoding section 0 of a captured preset grows it from 588 bytes to 835.
 //
 // Nothing derives the original choice from the value, so the only edit that
-// keeps the rest of a section intact is one that never touches it. Splice
+// keeps the rest of a section intact is one that never touches it. splice
 // finds the bytes a value occupies and swaps those, and every byte outside
 // that range survives because nothing reads it.
 
@@ -42,7 +42,7 @@ var ErrNoSuchPath = errors.New("no such path")
 // NoSuchPathError says how far a path got before it ran out.
 type NoSuchPathError struct {
 	// Path is what was asked for.
-	Path Path
+	Path path
 	// Depth is how many steps resolved before the failure.
 	Depth int
 	// Why says what was there instead.
@@ -70,34 +70,34 @@ func (e *BadValueError) Error() string {
 
 func (*BadValueError) Unwrap() error { return ErrBadValue }
 
-// Path addresses one value inside a section.
+// path addresses one value inside a section.
 //
 // Every map key in a preset is an integer. There are 665 of them across the
 // captures and not one is a string, so a step is an integer whichever kind of
 // container it lands in, and the container decides whether it reads as a map
 // key or an array index.
-type Path []int
+type path []int
 
-// Locate returns the half-open byte range the value at path occupies.
+// locate returns the half-open byte range the value at path occupies.
 //
 // An empty path is the section itself.
-func Locate(
+func locate(
 	body []byte,
-	path Path,
+	path path,
 ) (int, int, error) {
-	return locate(body, 0, path, path)
+	return walk(body, 0, path, path)
 }
 
-// SpliceRaw replaces one value with MessagePack bytes the caller supplies.
+// spliceRaw replaces one value with MessagePack bytes the caller supplies.
 //
 // This is the primitive. Everything outside the replaced range is copied
 // through unread, so a section keeps the encoding Line 6 gave it.
-func SpliceRaw(
+func spliceRaw(
 	body []byte,
-	path Path,
+	path path,
 	raw []byte,
 ) ([]byte, error) {
-	start, end, err := Locate(body, path)
+	start, end, err := locate(body, path)
 	if err != nil {
 		return nil, err
 	}
@@ -118,18 +118,18 @@ func replaceSpan(
 	return append(out, body[end:]...)
 }
 
-// Splice replaces one value, encoding it the way the device would.
+// splice replaces one value, encoding it the way the device would.
 //
 // The replacement keeps the width the original was written with wherever the
 // new value fits it, so swapping one parameter for another leaves the section
 // the same length. A value needing more room widens to the narrowest form
 // that holds it.
-func Splice(
+func splice(
 	body []byte,
-	path Path,
+	path path,
 	value any,
 ) ([]byte, error) {
-	start, end, err := Locate(body, path)
+	start, end, err := locate(body, path)
 	if err != nil {
 		return nil, err
 	}
@@ -142,12 +142,12 @@ func Splice(
 	return replaceSpan(body, start, end, raw), nil
 }
 
-// locate walks one step at a time, carrying the whole path for the error.
-func locate(
+// walk takes one step at a time, carrying the whole path for the error.
+func walk(
 	body []byte,
 	at int,
-	rest Path,
-	full Path,
+	rest path,
+	full path,
 ) (int, int, error) {
 	depth := len(full) - len(rest)
 
@@ -183,8 +183,8 @@ func locate(
 func intoMap(
 	body []byte,
 	at, n int,
-	rest Path,
-	full Path,
+	rest path,
+	full path,
 ) (int, int, error) {
 	for range n {
 		key, next, err := readKey(body, at)
@@ -193,7 +193,7 @@ func intoMap(
 		}
 
 		if key == rest[0] {
-			return locate(body, next, rest[1:], full)
+			return walk(body, next, rest[1:], full)
 		}
 
 		// Only a key that did not match costs a walk over its value.
@@ -216,8 +216,8 @@ func intoMap(
 func intoArray(
 	body []byte,
 	at, n int,
-	rest Path,
-	full Path,
+	rest path,
+	full path,
 ) (int, int, error) {
 	if rest[0] < 0 || rest[0] >= n {
 		return 0, 0, &NoSuchPathError{
@@ -234,5 +234,5 @@ func intoArray(
 		}
 	}
 
-	return locate(body, at, rest[1:], full)
+	return walk(body, at, rest[1:], full)
 }

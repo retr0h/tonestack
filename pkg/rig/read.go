@@ -24,12 +24,12 @@ import (
 	"github.com/retr0h/tonestack/pkg/rig/gen"
 )
 
-// Gear returns the first entry filling a role, and whether the rig has one.
+// gear returns the first entry filling a role, and whether the rig has one.
 //
 // A chain is ordered by what the signal does rather than grouped by kind, so
 // finding the amplifier means looking for it. Every caller that displays a rig
 // wants this and none of them should search the chain themselves.
-func Gear(spec gen.RigSpec, role gen.Role) (gen.ChainEntry, bool) {
+func gear(spec gen.RigSpec, role gen.Role) (gen.ChainEntry, bool) {
 	for _, e := range spec.Chain {
 		if e.Role == role {
 			return e, true
@@ -41,7 +41,7 @@ func Gear(spec gen.RigSpec, role gen.Role) (gen.ChainEntry, bool) {
 
 // GearName returns the gear filling a role, or an empty string.
 func GearName(spec gen.RigSpec, role gen.Role) string {
-	if e, ok := Gear(spec, role); ok {
+	if e, ok := gear(spec, role); ok {
 		return e.Gear
 	}
 

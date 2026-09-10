@@ -120,12 +120,12 @@ func (m DataMeta) MarshalJSON() ([]byte, error) {
 // as raw JSON and written back unchanged.
 type Tone map[string]json.RawMessage
 
-// Block is one entry in a processor.
+// block is one entry in a processor.
 //
 // Attributes are @-prefixed; everything else is a parameter. Params holds
 // them in the union that keeps a float from being written where the device
 // expects an enum.
-type Block struct {
+type block struct {
 	Model catalog.ModelID
 	// Slot is the number in the block's own key — block5 is slot 5.
 	//

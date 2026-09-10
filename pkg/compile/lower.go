@@ -73,7 +73,7 @@ func Lower(
 	// What the rig claims beside its chain, against the catalog that has to
 	// supply it. After the chain, because a controller names the block it
 	// moves by position and that list is what says which model is there.
-	if err := Check(spec, blocks, cat); err != nil {
+	if err := check(spec, blocks, cat); err != nil {
 		return err
 	}
 
@@ -136,7 +136,7 @@ func modelFor(
 		}
 	}
 
-	b, err := Gear(cat, entry.Gear, entry.Role, instrument)
+	b, err := gear(cat, entry.Gear, entry.Role, instrument)
 	if err != nil {
 		return "", err
 	}

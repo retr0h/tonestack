@@ -37,7 +37,7 @@ var debug = os.Getenv("TONESTACK_USB_DEBUG") != ""
 //
 // Every frame the host sends advances the sequence, acknowledgements and
 // keep-alives included.
-func (s *Session) send(c *channel, msgType uint16, payload []byte) error {
+func (s *session) send(c *channel, msgType uint16, payload []byte) error {
 	flags := wire.FlagNormal
 	ack := c.ack()
 
@@ -71,7 +71,7 @@ func (s *Session) send(c *channel, msgType uint16, payload []byte) error {
 // acknowledgement is owed: the device sends empty transfers when it has
 // nothing to say, and acknowledging one burns a sequence number and
 // desynchronises the channel.
-func (s *Session) receive(ctx context.Context, wait time.Duration) bool {
+func (s *session) receive(ctx context.Context, wait time.Duration) bool {
 	rctx, cancel := context.WithTimeout(ctx, wait)
 	defer cancel()
 
@@ -124,7 +124,7 @@ func (s *Session) receive(ctx context.Context, wait time.Duration) bool {
 //
 // The device swaps the node fields, so its frames carry the host node where
 // a host frame carries the device node.
-func (s *Session) channelFor(f wire.Frame) *channel {
+func (s *session) channelFor(f wire.Frame) *channel {
 	for _, c := range s.chans {
 		if f.HostNode == c.device || f.DeviceNode == c.device {
 			return c
@@ -139,7 +139,7 @@ func (s *Session) channelFor(f wire.Frame) *channel {
 // Bounded on purpose. A stale backlog clears in about a hundred frames; an
 // unbounded drain keeps the endpoint under load and has coincided with
 // devices locking up.
-func (s *Session) drain(ctx context.Context) {
+func (s *session) drain(ctx context.Context) {
 	deadline := time.Now().Add(drainBudget)
 
 	quiet := 0

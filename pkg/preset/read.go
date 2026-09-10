@@ -87,7 +87,7 @@ func (d *Data) Spec() (chain.Chain, error) {
 }
 
 // keep records an attribute exactly as it arrived.
-func keep(b *Block, key string, val json.RawMessage) {
+func keep(b *block, key string, val json.RawMessage) {
 	if b.Attrs == nil {
 		b.Attrs = map[string]json.RawMessage{}
 	}
@@ -96,7 +96,7 @@ func keep(b *Block, key string, val json.RawMessage) {
 }
 
 // assignTyped fills the attributes this package models as fields.
-func assignTyped(b *Block, key string, val json.RawMessage) error {
+func assignTyped(b *block, key string, val json.RawMessage) error {
 	switch key {
 	case attrPath:
 		return json.Unmarshal(val, &b.Path)
@@ -149,8 +149,8 @@ func processorIndex(key string) (int, error) {
 //
 // Entries that are not blocks — cab0, inputA, split, join — are skipped: they
 // describe routing, not a link in the chain.
-func readBlocks(t Tone) ([]Block, error) {
-	var out []Block
+func readBlocks(t Tone) ([]block, error) {
+	var out []block
 
 	for key, raw := range t {
 		if !strings.HasPrefix(key, "block") {
@@ -177,7 +177,7 @@ func readBlocks(t Tone) ([]Block, error) {
 	// position — a hand-written preset that states none puts them all at
 	// zero — and an order that depends on which way a map ranged is one this
 	// package's round-trip guarantee cannot hold.
-	slices.SortFunc(out, func(a, b Block) int {
+	slices.SortFunc(out, func(a, b block) int {
 		if a.Position != b.Position {
 			return a.Position - b.Position
 		}
@@ -189,17 +189,17 @@ func readBlocks(t Tone) ([]Block, error) {
 }
 
 // decodeBlock splits one block object into attributes and parameters.
-func decodeBlock(raw json.RawMessage) (Block, error) {
+func decodeBlock(raw json.RawMessage) (block, error) {
 	var fields map[string]json.RawMessage
 	if err := json.Unmarshal(raw, &fields); err != nil {
-		return Block{}, fmt.Errorf("decoding block: %w", err)
+		return block{}, fmt.Errorf("decoding block: %w", err)
 	}
 
-	b := Block{Params: make(map[string]catalog.ParamValue)}
+	b := block{Params: make(map[string]catalog.ParamValue)}
 
 	for key, val := range fields {
 		if err := assign(&b, key, val); err != nil {
-			return Block{}, err
+			return block{}, err
 		}
 	}
 
@@ -207,7 +207,7 @@ func decodeBlock(raw json.RawMessage) (Block, error) {
 }
 
 // assign puts one field of a block object where it belongs.
-func assign(b *Block, key string, val json.RawMessage) error {
+func assign(b *block, key string, val json.RawMessage) error {
 	switch key {
 	case attrModel:
 		return json.Unmarshal(val, &b.Model)

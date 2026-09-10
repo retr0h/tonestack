@@ -274,3 +274,75 @@ stayed an internal test in the same package, and `Document`, `Snapshots` and
 `Footswitches` gained public tests of their own, because the suite that covered
 them stayed in `internal/slots` with the command it tests and coverage is
 counted per package.
+
+## What step 2 did
+
+Twenty-seven identifiers became unexported and one turned out to be dead. The
+packages that were mostly machinery lost the most: `wire` and `sdk` between them
+account for sixteen of the twenty-seven.
+
+The count of 210 candidates a first pass produced was wrong four times over, and
+each way it was wrong is worth naming, because the same mistake is available to
+anybody repeating the measurement.
+
+**A seam in `export_test.go` is not surface.** `rig.Against`, `catalog.Decode`
+and six others are declared in test files, which are compiled into the test
+binary and shipped to nobody.
+
+**A type nobody names is still public.** Callers write
+`doc, err := wire.DecodeDocument(...)` and let the compiler name the type, so
+`wire.Document` is referenced by nothing while being the thing the function
+hands back. Anything reachable through the signature of something that stays,
+transitively, stays with it.
+
+**A method implementing an interface is called by the interface.**
+`Session.Call` looks unreferenced because callers hold an `sdk.Editor`. Checking
+every interface in the build against every candidate receiver covers `error`,
+`json.Marshaler` and `pflag.Value` without naming any of them.
+
+**An error escapes as `error`, never as its own type.** `chain.ErrOverBudget`
+and `OverBudgetError` are referenced by nothing and are exactly what
+`chain.Validate`'s caller matches on. CONTRIBUTING already says every error is a
+sentinel plus a struct so callers can use `errors.Is` and `errors.As`, which
+makes both halves part of the contract of whatever can return them.
+
+Two things were exempted after the measurement rather than by it.
+`ValidateStructure`, `ValidateParams`, `ValidateTopology` and `ValidateBudget`
+are called only by `Validate`, and CONTRIBUTING says why they are four functions
+with four error types and four suites. And the methods of a type that has itself
+been unexported were left alone: `session.Call` is unreachable because nothing
+outside can hold a `session`, so the type closed the question and renaming the
+method would only churn the tests.
+
+**The tests did not move.** Every external test that reached one of the
+thirty-two now reaches it through an alias in `export_test.go`, which is the
+pattern this repository already uses and which compiles into the test binary
+alone. `go doc` and any importer see the lowercase name. Moving those suites
+into their packages would have cost hundreds of lines and bought nothing.
+
+**One identifier stayed exported because of where it lives.** `sdk.USBLister` is
+declared in `usb.go`, every line of which is uncovered and uncoverable without a
+device on the bus. Renaming it puts those lines in the diff, and a patch that
+touches them cannot meet a 99% patch target however well the change is tested.
+Loosening the target or excluding the file would trade a real guarantee for a
+cosmetic rename, and nothing outside the package can name the type anyway,
+because `NewUSBLister` returns `Bus`. It stays.
+
+That file also carries the one thing a type-aware rename cannot see. `usb.go`
+and `usb_nocgo.go` both declare `USBLister` behind opposite build tags, and a
+pass over the syntax trees only sees the build it runs under. Renaming one would
+have left the package exporting a different surface depending on whether cgo was
+enabled, and nothing in the gate would have said so. Any rename inside a
+build-tagged file needs both builds checked, which is `CGO_ENABLED=0 go build`
+here.
+
+**One thing was dead rather than over-exported.** `setlist.SlotsPerSetlist` was
+referenced by nothing, inside the package or out, and the linter said so the
+moment it went lowercase. The fact it recorded, that a setlist file always holds
+128 slots, is in [preset-format.md](../../preset-format.md) where a reader will
+find it.
+
+`slot.Parse` is the one to argue about. It is the inverse of `slot.Label`, which
+is exported and used, and a pair like that reads as an API even when only half
+of it has a caller. It went lowercase because the rule is about callers rather
+than symmetry, and re-exporting it is one line.

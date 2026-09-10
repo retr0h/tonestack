@@ -82,7 +82,7 @@ func open(ctx context.Context, b bus) (Editor, error) {
 		return nil, err
 	}
 
-	s := &Session{
+	s := &session{
 		holds: []releaser{dev, b},
 		model: model,
 		chans: map[string]*channel{},
@@ -110,7 +110,7 @@ func open(ctx context.Context, b bus) (Editor, error) {
 // it is a device nothing else can claim.
 func findDevice(b bus) (handle, Model, error) {
 	devs, err := b.Devices(func(_, product uint16) bool {
-		_, ok := ModelFor(product)
+		_, ok := modelFor(product)
 
 		return ok
 	})
@@ -134,7 +134,7 @@ func findDevice(b bus) (handle, Model, error) {
 		return nil, Model{}, ErrNoDevice
 	}
 
-	model, _ := ModelFor(found.Descriptor().Product)
+	model, _ := modelFor(found.Descriptor().Product)
 
 	return found, model, nil
 }
@@ -145,7 +145,7 @@ func findDevice(b bus) (handle, Model, error) {
 // like startup noise until reconnecting without it fails on roughly every
 // other attempt: the device carries channel state across connections, and the
 // release is what clears it.
-func (s *Session) claim(dev handle) error {
+func (s *session) claim(dev handle) error {
 	_, release, err := claimOnce(dev)
 	if err != nil {
 		return err

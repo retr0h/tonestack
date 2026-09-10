@@ -25,9 +25,9 @@ import (
 	"fmt"
 )
 
-// ModelFor returns the model with the given USB product identifier.
-func ModelFor(product uint16) (Model, bool) {
-	for _, m := range Models {
+// modelFor returns the model with the given USB product identifier.
+func modelFor(product uint16) (Model, bool) {
+	for _, m := range models {
 		if m.ProductID == product {
 			return m, true
 		}
@@ -51,11 +51,11 @@ func Devices(ctx context.Context, l Lister) ([]Device, error) {
 	found := make([]Device, 0, len(descs))
 
 	for _, d := range descs {
-		if d.Vendor != VendorID {
+		if d.Vendor != vendorID {
 			continue
 		}
 
-		m, ok := ModelFor(d.Product)
+		m, ok := modelFor(d.Product)
 		if !ok {
 			continue
 		}
@@ -66,12 +66,12 @@ func Devices(ctx context.Context, l Lister) ([]Device, error) {
 	return found, nil
 }
 
-// First returns the single attached device this package recognises.
+// first returns the single attached device this package recognises.
 //
 // It reports ErrNoDevice when none is attached. When more than one is present
 // it returns the first the bus reported, because there is no basis for
 // preferring one over another — a caller that cares should use Devices.
-func First(ctx context.Context, l Lister) (Device, error) {
+func first(ctx context.Context, l Lister) (Device, error) {
 	found, err := Devices(ctx, l)
 	if err != nil {
 		return Device{}, err

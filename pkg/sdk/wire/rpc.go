@@ -106,8 +106,8 @@ func Text(key int, v string) Arg { return Arg{Key: key, Text: v, Kind: ArgText} 
 // Blob returns an argument carrying bytes.
 func Blob(key int, v []byte) Arg { return Arg{Key: key, Blob: v, Kind: ArgBlob} }
 
-// Flag returns an argument carrying a boolean.
-func Flag(key int, v bool) Arg { return Arg{Key: key, Flag: v, Kind: ArgFlag} }
+// flag returns an argument carrying a boolean.
+func flag(key int, v bool) Arg { return Arg{Key: key, Flag: v, Kind: ArgFlag} }
 
 // Request is a call to make.
 type Request struct {
