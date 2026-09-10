@@ -21,8 +21,8 @@
 package slots
 
 import (
+	"github.com/retr0h/tonestack/pkg/sdk/internal/setlist"
 	"github.com/retr0h/tonestack/pkg/sdk/result"
-	"github.com/retr0h/tonestack/pkg/sdk/setlist"
 )
 
 // EditOptions says which two slots to act on and where to put the result.

@@ -32,11 +32,11 @@ import (
 
 	"github.com/retr0h/tonestack/pkg/sdk/catalog"
 	"github.com/retr0h/tonestack/pkg/sdk/chain"
-	"github.com/retr0h/tonestack/pkg/sdk/device"
-	"github.com/retr0h/tonestack/pkg/sdk/device/mocks"
-	"github.com/retr0h/tonestack/pkg/sdk/device/wire"
+	"github.com/retr0h/tonestack/pkg/sdk/internal/device"
+	"github.com/retr0h/tonestack/pkg/sdk/internal/device/mocks"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/slots"
 	slotmocks "github.com/retr0h/tonestack/pkg/sdk/internal/slots/mocks"
+	"github.com/retr0h/tonestack/pkg/sdk/internal/wire"
 	riggen "github.com/retr0h/tonestack/pkg/sdk/rig/gen"
 )
 
@@ -57,7 +57,7 @@ func (s *TypesPublicTestSuite) TearDownTest() { s.ctrl.Finish() }
 
 // preset returns a standalone .hlx a command can read.
 func (s *TypesPublicTestSuite) preset() string {
-	return filepath.Join("..", "..", "compile", "testdata", "preset0.hlx")
+	return filepath.Join("..", "compile", "testdata", "preset0.hlx")
 }
 
 // TestCatalogs covers a command opening its catalog through a double.
@@ -134,7 +134,7 @@ func (s *TypesPublicTestSuite) TestTranslator() {
 	s.Require().NoError(err)
 
 	raw, err := os.ReadFile(
-		filepath.Join("..", "..", "device", "wire", "testdata", "preset.bin"))
+		filepath.Join("..", "wire", "testdata", "preset.bin"))
 	s.Require().NoError(err)
 
 	dev := mocks.NewMockEditor(s.ctrl)

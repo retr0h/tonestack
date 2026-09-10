@@ -27,9 +27,9 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
+	"github.com/retr0h/tonestack/pkg/sdk/internal/setlist"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/slots"
 	"github.com/retr0h/tonestack/pkg/sdk/result"
-	"github.com/retr0h/tonestack/pkg/sdk/setlist"
 )
 
 type EditPublicTestSuite struct {

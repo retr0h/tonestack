@@ -28,7 +28,7 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
-	"github.com/retr0h/tonestack/pkg/sdk/compile"
+	"github.com/retr0h/tonestack/pkg/sdk/internal/compile"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/presets"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/recipes"
 	"github.com/retr0h/tonestack/pkg/sdk/preset"

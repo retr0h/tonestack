@@ -127,7 +127,7 @@ func (s *MainTestSuite) TestATestFileSaysWhichKindItIs() {
 // TestTheSDKTakesNothingElseWithIt holds the device half where the argument
 // for it being liftable assumes it is.
 //
-// pkg/device, its wire and pkg/slot are one unit: framing, transport,
+// The device, its wire and slot addressing are one unit: framing, transport,
 // session and addressing. Everything the SDK needs from this module is those
 // three, which is what makes "the device half could be its own repository" a
 // fact rather than a hope.
@@ -140,12 +140,13 @@ func (s *MainTestSuite) TestATestFileSaysWhichKindItIs() {
 // depend on each other, and none of them reaches the device.
 func (s *MainTestSuite) TestTheSDKTakesNothingElseWithIt() {
 	unit := map[string]bool{
-		mod + "pkg/sdk/device":      true,
-		mod + "pkg/sdk/device/wire": true,
-		mod + "pkg/sdk/slot":        true,
+		mod + "pkg/sdk/internal/device": true,
+		mod + "pkg/sdk/internal/wire":   true,
+		mod + "pkg/sdk/slot":            true,
 	}
 
-	out, err := exec.Command("go", "list", "-deps", "./pkg/sdk/device").Output()
+	out, err := exec.Command(
+		"go", "list", "-deps", "./pkg/sdk/internal/device").Output()
 	s.Require().NoError(err)
 
 	for _, dep := range strings.Fields(string(out)) {

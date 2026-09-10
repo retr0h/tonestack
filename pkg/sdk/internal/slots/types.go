@@ -23,9 +23,9 @@ package slots
 import (
 	"github.com/retr0h/tonestack/pkg/sdk/catalog"
 	"github.com/retr0h/tonestack/pkg/sdk/chain"
-	"github.com/retr0h/tonestack/pkg/sdk/compile"
-	"github.com/retr0h/tonestack/pkg/sdk/device/wire"
-	"github.com/retr0h/tonestack/pkg/sdk/editor"
+	"github.com/retr0h/tonestack/pkg/sdk/internal/compile"
+	"github.com/retr0h/tonestack/pkg/sdk/internal/editor"
+	"github.com/retr0h/tonestack/pkg/sdk/internal/wire"
 	"github.com/retr0h/tonestack/pkg/sdk/preset"
 	riggen "github.com/retr0h/tonestack/pkg/sdk/rig/gen"
 )

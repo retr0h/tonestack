@@ -26,8 +26,8 @@ import (
 	"os"
 
 	"github.com/retr0h/tonestack/pkg/sdk/chain"
-	"github.com/retr0h/tonestack/pkg/sdk/compile"
 	"github.com/retr0h/tonestack/pkg/sdk/corpus"
+	"github.com/retr0h/tonestack/pkg/sdk/internal/compile"
 	"github.com/retr0h/tonestack/pkg/sdk/preset"
 	"github.com/retr0h/tonestack/pkg/sdk/result"
 	riggen "github.com/retr0h/tonestack/pkg/sdk/rig/gen"

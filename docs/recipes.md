@@ -146,7 +146,7 @@ $ tonestack presets make --id mine
 The preset is written, because nothing compiles a character term into a chain
 and refusing one would be refusing you the right to describe a sound. If the
 word you want is missing, add it to
-[`pkg/sdk/compile/data/character-terms.json`](../pkg/sdk/compile/data/character-terms.json)
+[`pkg/sdk/internal/compile/data/character-terms.json`](../pkg/sdk/internal/compile/data/character-terms.json)
 with a sentence saying what it means. The rigs this repository ships are held to
 the list by a test, which is what keeps the examples from drifting back into
 sentences.
