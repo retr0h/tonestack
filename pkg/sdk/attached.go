@@ -17,41 +17,30 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
-package attached
 
-import (
-	"context"
-	"fmt"
+package sdk
 
-	"github.com/retr0h/tonestack/pkg/sdk"
-	"github.com/retr0h/tonestack/pkg/sdk/device"
-)
-
-// Lister reports the devices currently attached. device.Lister satisfies it.
-type Lister interface {
-	List(ctx context.Context) ([]device.Descriptor, error)
+// Attached is what is on the bus that this recognises.
+//
+// Recognised rather than everything: a bus holds keyboards and webcams, and a
+// list of those is not an answer to "what can I write a preset to".
+type Attached struct {
+	// Devices are what was found, in the order the bus reported them.
+	Devices []Attachment
 }
 
-// ListWith reports every device the lister returns and this package
-// recognises. Taking the lister makes this testable without hardware.
-func ListWith(ctx context.Context, l Lister) (sdk.Attached, error) {
-	found, err := device.Devices(ctx, l)
-	if err != nil {
-		return sdk.Attached{}, fmt.Errorf("finding devices: %w", err)
-	}
-
-	out := make([]sdk.Attachment, 0, len(found))
-
-	for _, d := range found {
-		out = append(out, sdk.Attachment{
-			Model:    d.Model,
-			DeviceID: d.DeviceID,
-			Vendor:   d.Descriptor.Vendor,
-			Product:  d.Descriptor.Product,
-			Bus:      d.Descriptor.Bus,
-			Address:  d.Descriptor.Address,
-		})
-	}
-
-	return sdk.Attached{Devices: out}, nil
+// Attachment is one device on the bus.
+type Attachment struct {
+	// Model is the device as Line 6 markets it.
+	Model string
+	// DeviceID is what a preset for this device carries in data.device,
+	// which is how a preset says which hardware it was made for.
+	DeviceID int
+	// Vendor and Product are how the bus identifies it.
+	Vendor  uint16
+	Product uint16
+	// Bus and Address are where it is plugged in. They change between
+	// unpluggings, so they identify a device now and not later.
+	Bus     int
+	Address int
 }

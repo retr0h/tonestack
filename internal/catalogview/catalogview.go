@@ -22,14 +22,11 @@ package catalogview
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"sort"
 	"strings"
 
-	"github.com/charmbracelet/lipgloss"
-
-	"github.com/retr0h/tonestack/internal/cli"
+	"github.com/retr0h/tonestack/pkg/sdk"
 	"github.com/retr0h/tonestack/pkg/sdk/catalog"
 )
 
@@ -69,52 +66,19 @@ func Open(path string) (*catalog.Catalog, error) {
 	return c, nil
 }
 
-// List writes the blocks matching f to w.
-func List(w io.Writer, path string, f Filter) error {
+// List reads the blocks matching f.
+func List(path string, f Filter) (sdk.Blocks, error) {
 	c, err := Open(path)
 	if err != nil {
-		return err
+		return sdk.Blocks{}, err
 	}
 
-	matched := match(c, f)
-	rows := make([][]string, 0, len(matched))
-
-	for _, b := range matched {
-		rows = append(rows, []string{
-			cli.Accent(w, string(b.ID)),
-			b.Name,
-			cli.Category(w, b.Category),
-			cli.Mute(w, b.Subcategory),
-			fmt.Sprintf("%.1f", b.DSP.Mono),
-			cli.Mute(w, b.BasedOn),
-		})
-	}
-
-	return report(cli.Section{
-		Title:   c.Device,
-		Detail:  fmt.Sprintf("%d blocks · %s", len(c.Blocks), origin(c)),
-		Headers: []string{"model", "name", "category", "sub", "dsp", "based on"},
-		Rows:    rows,
-		Align: []lipgloss.Position{
-			lipgloss.Left, lipgloss.Left, lipgloss.Left,
-			lipgloss.Left, lipgloss.Right,
-		},
-		Empty:   "no blocks match",
-		Summary: fmt.Sprintf("%d of %d blocks", len(matched), len(c.Blocks)),
-	}.Render(w))
-}
-
-// match returns the blocks satisfying f, in identifier order.
-// origin says which release a catalog was generated from.
-//
-// A catalog is only true of the models that release knew about, so one that
-// cannot name its source is worth flagging rather than presenting as fact.
-func origin(c *catalog.Catalog) string {
-	if c.Source == "" {
-		return "source unknown"
-	}
-
-	return c.Source
+	return sdk.Blocks{
+		Device:  c.Device,
+		Source:  c.Source,
+		Total:   len(c.Blocks),
+		Matched: match(c, f),
+	}, nil
 }
 
 func match(c *catalog.Catalog, f Filter) []catalog.Block {
@@ -157,92 +121,17 @@ func mentions(b catalog.Block, term string) bool {
 		strings.ToLower(string(b.ID)), strings.ToLower(term))
 }
 
-// Show writes one block's parameters to w.
-func Show(w io.Writer, path, id string) error {
+// Show reads one block and everything it accepts.
+func Show(path, id string) (catalog.Block, error) {
 	c, err := Open(path)
 	if err != nil {
-		return err
+		return catalog.Block{}, err
 	}
 
 	b, ok := c.Block(catalog.ModelID(id))
 	if !ok {
-		return &NotFoundError{ID: id, Known: len(c.Blocks)}
+		return catalog.Block{}, &NotFoundError{ID: id, Known: len(c.Blocks)}
 	}
 
-	d := cli.Detail{Title: b.Name, Subtitle: string(b.ID)}
-
-	if b.BasedOn != "" {
-		d.Fields = append(d.Fields, cli.Field{Label: "based on", Value: b.BasedOn})
-	}
-
-	category := string(b.Category)
-	if b.Subcategory != "" {
-		category += " (" + b.Subcategory + ")"
-	}
-
-	dsp := fmt.Sprintf("%.2f mono", b.DSP.Mono)
-	if b.DSP.Stereo > 0 {
-		dsp += fmt.Sprintf(", %.2f stereo", b.DSP.Stereo)
-	}
-
-	d.Fields = append(d.Fields,
-		cli.Field{Label: "category", Value: category},
-		cli.Field{Label: "dsp", Value: dsp},
-	)
-
-	if !b.Prov.Trusted() {
-		d.Note = "assumed — this figure was inferred, not stated by Line 6"
-	}
-
-	if err := d.Render(w); err != nil {
-		return report(err)
-	}
-
-	return writeParams(w, b)
-}
-
-// writeParams renders a block's knobs, in name order.
-func writeParams(w io.Writer, b catalog.Block) error {
-	keys := make([]string, 0, len(b.Params))
-	for k := range b.Params {
-		keys = append(keys, k)
-	}
-
-	sort.Strings(keys)
-
-	rows := make([][]string, 0, len(keys))
-
-	for _, k := range keys {
-		p := b.Params[k]
-		rng := "—"
-
-		if p.Type == catalog.ParamFloat || p.Type == catalog.ParamInt {
-			rng = fmt.Sprintf("%g..%g", p.Min, p.Max)
-		}
-
-		// A parameter that came out of the catalog always marshals.
-		def, _ := p.Default.MarshalJSON()
-
-		rows = append(rows, []string{
-			cli.Accent(w, k),
-			cli.Mute(w, string(p.Type)),
-			cli.Mute(w, rng),
-			string(def),
-		})
-	}
-
-	return report(cli.Section{
-		Headers: []string{"parameter", "kind", "range", "default"},
-		Rows:    rows,
-		Empty:   "no parameters",
-	}.Render(w))
-}
-
-// report gives a reporting failure the same shape everywhere.
-func report(err error) error {
-	if err == nil {
-		return nil
-	}
-
-	return fmt.Errorf("reporting: %w", err)
+	return b, nil
 }

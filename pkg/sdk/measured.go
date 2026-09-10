@@ -17,41 +17,31 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
-package attached
+
+package sdk
 
 import (
-	"context"
-	"fmt"
-
-	"github.com/retr0h/tonestack/pkg/sdk"
-	"github.com/retr0h/tonestack/pkg/sdk/device"
+	"github.com/retr0h/tonestack/pkg/sdk/catalog"
+	"github.com/retr0h/tonestack/pkg/sdk/corpus"
 )
 
-// Lister reports the devices currently attached. device.Lister satisfies it.
-type Lister interface {
-	List(ctx context.Context) ([]device.Descriptor, error)
+// Measured is what the corpus recorded, and what was asked of it.
+//
+// Two questions come out of the same measurements: what players did with one
+// model, and what chains of a kind are shaped like. Which was asked decides
+// what there is to say, so the answer carries it rather than leaving somebody
+// to infer it from which fields are set.
+type Measured struct {
+	// Stats are the measurements themselves.
+	Stats *corpus.Stats
+	// Catalog is what the device accepts, so what players chose can be read
+	// beside what Line 6 chose. Nil unless a model was asked about.
+	Catalog *catalog.Catalog
+	// Model is the model asked about. Empty for the grammar.
+	Model catalog.ModelID
+	// Instrument narrows the grammar to one kind of chain. Empty for all.
+	Instrument string
 }
 
-// ListWith reports every device the lister returns and this package
-// recognises. Taking the lister makes this testable without hardware.
-func ListWith(ctx context.Context, l Lister) (sdk.Attached, error) {
-	found, err := device.Devices(ctx, l)
-	if err != nil {
-		return sdk.Attached{}, fmt.Errorf("finding devices: %w", err)
-	}
-
-	out := make([]sdk.Attachment, 0, len(found))
-
-	for _, d := range found {
-		out = append(out, sdk.Attachment{
-			Model:    d.Model,
-			DeviceID: d.DeviceID,
-			Vendor:   d.Descriptor.Vendor,
-			Product:  d.Descriptor.Product,
-			Bus:      d.Descriptor.Bus,
-			Address:  d.Descriptor.Address,
-		})
-	}
-
-	return sdk.Attached{Devices: out}, nil
-}
+// AboutOne says whether one model was asked about, rather than the grammar.
+func (m Measured) AboutOne() bool { return m.Model != "" }

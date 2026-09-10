@@ -21,10 +21,9 @@
 package attached_test
 
 import (
-	"bytes"
 	"context"
 	"errors"
-	"io"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
@@ -55,10 +54,11 @@ func stomp() device.Descriptor {
 // TestListWith prints what is attached.
 func (s *ListPublicTestSuite) TestListWith() {
 	tests := []struct {
-		name     string
-		descs    []device.Descriptor
-		listErr  error
-		deaf     bool
+		name    string
+		descs   []device.Descriptor
+		listErr error
+		// nothing on the bus this project recognises.
+		empty    bool
 		contains []string
 		errText  string
 	}{
@@ -73,44 +73,26 @@ func (s *ListPublicTestSuite) TestListWith() {
 			},
 		},
 		{
-			name:     "nothing attached",
-			contains: []string{"no Helix devices attached"},
+			name:  "nothing attached",
+			empty: true,
 		},
 		{
-			name:     "somebody else's hardware",
-			descs:    []device.Descriptor{{Vendor: 0x05ac, Product: 0x1234}},
-			contains: []string{"no Helix devices attached"},
+			// A bus holds keyboards and webcams. A list of those is not an
+			// answer to what a preset can be written to.
+			name:  "somebody else's hardware",
+			descs: []device.Descriptor{{Vendor: 0x05ac, Product: 0x1234}},
+			empty: true,
 		},
 		{
 			name:    "a bus that will not answer",
 			listErr: errors.New("bus unavailable"),
 			errText: "finding devices",
 		},
-		{
-			// A tabwriter buffers, so the flush is where a failing writer
-			// surfaces.
-			name:    "a writer that fails, with a device to print",
-			descs:   []device.Descriptor{stomp()},
-			deaf:    true,
-			errText: "boom",
-		},
-		{
-			name:    "a writer that fails, with nothing to print",
-			deaf:    true,
-			errText: "boom",
-		},
 	}
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			var buf bytes.Buffer
-
-			out := io.Writer(&buf)
-			if tt.deaf {
-				out = &failingWriter{}
-			}
-
-			err := attached.ListWith(context.Background(), out,
+			found, err := attached.ListWith(context.Background(),
 				&lister{descs: tt.descs, err: tt.listErr})
 
 			if tt.errText != "" {
@@ -122,8 +104,20 @@ func (s *ListPublicTestSuite) TestListWith() {
 
 			s.Require().NoError(err)
 
+			if tt.empty {
+				s.Require().Empty(found.Devices)
+
+				return
+			}
+
+			got := ""
+			for _, d := range found.Devices {
+				got += fmt.Sprintf("%s %04x:%04x %d.%d %d ",
+					d.Model, d.Vendor, d.Product, d.Bus, d.Address, d.DeviceID)
+			}
+
 			for _, want := range tt.contains {
-				s.Require().Contains(buf.String(), want)
+				s.Require().Contains(got, want)
 			}
 		})
 	}
@@ -139,14 +133,11 @@ func (s *ListPublicTestSuite) TestList() {
 		return &lister{descs: []device.Descriptor{stomp()}}
 	}
 
-	var out bytes.Buffer
-	s.Require().NoError(attached.List(context.Background(), &out))
-	s.Require().Contains(out.String(), "HX Stomp")
+	found, err := attached.List(context.Background())
+	s.Require().NoError(err)
+	s.Require().Len(found.Devices, 1)
+	s.Require().Equal("HX Stomp", found.Devices[0].Model)
 }
-
-type failingWriter struct{}
-
-func (*failingWriter) Write([]byte) (int, error) { return 0, errors.New("boom") }
 
 func TestListPublicTestSuite(t *testing.T) {
 	suite.Run(t, new(ListPublicTestSuite))

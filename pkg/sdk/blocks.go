@@ -17,41 +17,24 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
-package attached
 
-import (
-	"context"
-	"fmt"
+package sdk
 
-	"github.com/retr0h/tonestack/pkg/sdk"
-	"github.com/retr0h/tonestack/pkg/sdk/device"
-)
+import "github.com/retr0h/tonestack/pkg/sdk/catalog"
 
-// Lister reports the devices currently attached. device.Lister satisfies it.
-type Lister interface {
-	List(ctx context.Context) ([]device.Descriptor, error)
-}
-
-// ListWith reports every device the lister returns and this package
-// recognises. Taking the lister makes this testable without hardware.
-func ListWith(ctx context.Context, l Lister) (sdk.Attached, error) {
-	found, err := device.Devices(ctx, l)
-	if err != nil {
-		return sdk.Attached{}, fmt.Errorf("finding devices: %w", err)
-	}
-
-	out := make([]sdk.Attachment, 0, len(found))
-
-	for _, d := range found {
-		out = append(out, sdk.Attachment{
-			Model:    d.Model,
-			DeviceID: d.DeviceID,
-			Vendor:   d.Descriptor.Vendor,
-			Product:  d.Descriptor.Product,
-			Bus:      d.Descriptor.Bus,
-			Address:  d.Descriptor.Address,
-		})
-	}
-
-	return sdk.Attached{Devices: out}, nil
+// Blocks is what a device can do, narrowed to what was asked for.
+//
+// The total is here alongside the matches because a search answering with
+// four blocks means something different depending on whether the catalog
+// holds six or six hundred.
+type Blocks struct {
+	// Device is what the catalog calls the hardware.
+	Device string
+	// Source says where the catalog came from. Empty when nothing recorded
+	// it, which is different from a source nobody recognises.
+	Source string
+	// Total is how many blocks the catalog holds, before any filtering.
+	Total int
+	// Matched are the blocks that came through the filter.
+	Matched []catalog.Block
 }
