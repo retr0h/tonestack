@@ -24,8 +24,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/retr0h/tonestack/pkg/sdk"
 	"github.com/retr0h/tonestack/pkg/sdk/catalog"
+	"github.com/retr0h/tonestack/pkg/sdk/result"
 )
 
 // Filter narrows what List reports.
@@ -39,13 +39,13 @@ type Filter struct {
 }
 
 // List reads the blocks matching f.
-func List(path string, f Filter) (sdk.Blocks, error) {
+func List(path string, f Filter) (result.Blocks, error) {
 	c, err := catalog.Open(path)
 	if err != nil {
-		return sdk.Blocks{}, err
+		return result.Blocks{}, err
 	}
 
-	return sdk.Blocks{
+	return result.Blocks{
 		Device:  c.Device,
 		Source:  c.Source,
 		Total:   len(c.Blocks),

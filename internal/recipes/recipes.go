@@ -35,7 +35,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/retr0h/tonestack/pkg/sdk"
+	"github.com/retr0h/tonestack/pkg/sdk/result"
 	"github.com/retr0h/tonestack/pkg/sdk/rig"
 	"github.com/retr0h/tonestack/pkg/sdk/rig/gen"
 	recipedata "github.com/retr0h/tonestack/resources/recipes"
@@ -138,41 +138,41 @@ func matchesAlias(spec gen.RigSpec, id string) bool {
 // a spine they may not share. A rig that genuinely is a small change says so
 // with `extends`, and this is the other end of that link: reading the
 // characteristic rig should show what departs from it.
-func departures(all []gen.RigSpec, spec gen.RigSpec) []sdk.Variant {
-	out := []sdk.Variant(nil)
+func departures(all []gen.RigSpec, spec gen.RigSpec) []result.Variant {
+	out := []result.Variant(nil)
 
 	for _, other := range all {
 		if other.Extends == nil || *other.Extends != spec.ID {
 			continue
 		}
 
-		out = append(out, sdk.Variant{ID: other.ID, Name: other.Subject.Name})
+		out = append(out, result.Variant{ID: other.ID, Name: other.Subject.Name})
 	}
 
 	return out
 }
 
 // List reads every rig under dir.
-func List(dir string) (sdk.Recipes, error) {
+func List(dir string) (result.Recipes, error) {
 	all, err := Load(dir)
 	if err != nil {
-		return sdk.Recipes{}, err
+		return result.Recipes{}, err
 	}
 
-	return sdk.Recipes{Dir: dir, Rigs: all}, nil
+	return result.Recipes{Dir: dir, Rigs: all}, nil
 }
 
 // Show reads one rig, and what the rest of the set says about it.
-func Show(dir, id string) (sdk.Recipe, error) {
+func Show(dir, id string) (result.Recipe, error) {
 	all, err := Load(dir)
 	if err != nil {
-		return sdk.Recipe{}, err
+		return result.Recipe{}, err
 	}
 
 	spec, err := find(all, id)
 	if err != nil {
-		return sdk.Recipe{}, err
+		return result.Recipe{}, err
 	}
 
-	return sdk.Recipe{Rig: spec, Variants: departures(all, spec)}, nil
+	return result.Recipe{Rig: spec, Variants: departures(all, spec)}, nil
 }

@@ -29,8 +29,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/retr0h/tonestack/pkg/sdk"
 	"github.com/retr0h/tonestack/pkg/sdk/catalog"
+	"github.com/retr0h/tonestack/pkg/sdk/result"
 )
 
 // Sentinels callers match with errors.Is.
@@ -125,30 +125,30 @@ type NewOptions struct {
 // Checking first is the point. A recipe naming gear no device models is only
 // discovered when somebody tries to build from it, and by then the name has
 // usually been copied somewhere else too.
-func New(opts NewOptions) (sdk.Scaffolded, error) {
+func New(opts NewOptions) (result.Scaffolded, error) {
 	if !idPattern.MatchString(opts.ID) {
-		return sdk.Scaffolded{}, &BadIDError{ID: opts.ID}
+		return result.Scaffolded{}, &BadIDError{ID: opts.ID}
 	}
 
 	body, err := scaffoldFor(opts)
 	if err != nil {
-		return sdk.Scaffolded{}, err
+		return result.Scaffolded{}, err
 	}
 
 	path := filepath.Join(opts.Dir, "artists", opts.ID+".yaml")
 	if _, err := os.Stat(path); err == nil {
-		return sdk.Scaffolded{}, &ExistsError{Path: path}
+		return result.Scaffolded{}, &ExistsError{Path: path}
 	}
 
 	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
-		return sdk.Scaffolded{}, fmt.Errorf("making room for %s: %w", path, err)
+		return result.Scaffolded{}, fmt.Errorf("making room for %s: %w", path, err)
 	}
 
 	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
-		return sdk.Scaffolded{}, fmt.Errorf("writing %s: %w", path, err)
+		return result.Scaffolded{}, fmt.Errorf("writing %s: %w", path, err)
 	}
 
-	return sdk.Scaffolded{
+	return result.Scaffolded{
 		ID:         opts.ID,
 		Name:       opts.Name,
 		Instrument: opts.Instrument,

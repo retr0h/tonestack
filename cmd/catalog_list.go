@@ -22,11 +22,11 @@ package cmd
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/retr0h/tonestack/internal/catalogview"
 	"github.com/retr0h/tonestack/internal/cli"
+	"github.com/retr0h/tonestack/pkg/sdk"
 )
 
-var catalogListFilter catalogview.Filter
+var catalogListFilter sdk.Filter
 
 // catalogListCmd represents the catalog list command.
 var catalogListCmd = &cobra.Command{
@@ -38,7 +38,7 @@ var catalogListCmd = &cobra.Command{
     tonestack catalog list --search ampeg`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		blocks, err := catalogview.List(catalogPath, catalogListFilter)
+		blocks, err := sdk.New().Blocks(catalogPath, catalogListFilter)
 		if err != nil {
 			return err
 		}
