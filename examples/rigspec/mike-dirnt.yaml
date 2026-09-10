@@ -54,10 +54,15 @@ chain:
       mid: 0.71
       treble: 0.85
     evidence:
-      # A citation is the strongest evidence: somebody asked him.
+      # A citation is the strongest evidence: somebody asked him. Check that
+      # the link still reaches the article. This one used to point at
+      # bassplayer.com, which now redirects the whole site to a section index
+      # and answers 200 while saying nothing about anybody.
       - kind: cited
-        url: https://www.bassplayer.com/artists/mike-dirnt-green-day
-        note: names the SVT as his live amplifier
+        url: https://equipboard.com/pros/mike-dirnt
+        note: >-
+          "for most of the record [American Idiot], Dirnt used an Ampeg SVT
+          bass amplifier"
       # A video does not prove settings, but it does show the rig.
       - kind: video
         url: https://www.youtube.com/watch?v=EXAMPLE
@@ -88,9 +93,12 @@ chain:
   - role: cab
     gear: Ampeg 8x10
     evidence:
-      - kind: cited
-        url: https://www.bassplayer.com/artists/mike-dirnt-green-day
-    confidence: high
+      # An entry can be less well attested than the one above it, and saying
+      # so is the point. The shipped rig has the same split: the amplifier is
+      # cited to an interview and the cabinet is assumed from it.
+      - kind: llm
+        note: assumed from the amplifier, which Ampeg sold as a stack
+    confidence: low
 
 # How it should sound, in the words a person would use. Describe the result,
 # not the control — "raise the mids" is an instruction, "mid-forward" is a
@@ -111,10 +119,11 @@ character:
       - { kind: llm }
   - term: pick attack audible
     evidence:
-      - kind: video
-        url: https://www.youtube.com/watch?v=NDjtguZG6iw
-        at: "0:12"
-        note: audible on the recording, which is the one claim here anybody can check
+      # A timestamp says somebody went and listened. Do not write one you did
+      # not check: it is the most checkable claim in the file and the easiest
+      # to invent.
+      - kind: llm
+        caveat: nobody has listened for this
 
 technique:
   # What sets the string moving. The one part that is always true.
@@ -128,11 +137,9 @@ technique:
   # Why any of the above is believed. Nothing measures how somebody plays
   # out of a preset, so a claim here was asserted or it was watched.
   evidence:
-    - kind: video
-      url: https://www.youtube.com/watch?v=NDjtguZG6iw
-      at: "1:42"
-      note: visible in the footage
-      caveat: one performance, and not the recording the rig is tuned from
+    - kind: llm
+      note: widely said to be a pick player
+      caveat: not sourced to anything anybody opened
 
 # Anything a device does not ship with. Only what a catalog cannot already
 # see belongs here: whether a model exists on your device tier, or needs newer
