@@ -21,10 +21,8 @@
 package slots_test
 
 import (
-	"bytes"
 	"context"
 	"errors"
-	"io"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
@@ -76,7 +74,6 @@ func (s *SelectDevicePublicTestSuite) TestSelectWith() {
 		listed   bool
 		selects  string
 		readOnly bool
-		deaf     bool
 
 		contains []string
 		errText  string
@@ -85,7 +82,7 @@ func (s *SelectDevicePublicTestSuite) TestSelectWith() {
 			name:     "a preset the device holds",
 			listed:   true,
 			selects:  "loaded",
-			contains: []string{"02B", "Montana", "loaded"},
+			contains: []string{"02B", "Montana", "selected"},
 		},
 		{
 			name:    "a device that will not say what it holds",
@@ -103,13 +100,6 @@ func (s *SelectDevicePublicTestSuite) TestSelectWith() {
 			name:     "a session that cannot select",
 			readOnly: true,
 			errText:  "cannot select",
-		},
-		{
-			name:    "a writer with nowhere for the result to go",
-			listed:  true,
-			selects: "loaded",
-			deaf:    true,
-			errText: "boom",
 		},
 	}
 
@@ -137,15 +127,8 @@ func (s *SelectDevicePublicTestSuite) TestSelectWith() {
 					Return(errors.New("still switching"))
 			}
 
-			var out bytes.Buffer
-
-			w := io.Writer(&out)
-			if tt.deaf {
-				w = &brokenWriter{}
-			}
-
-			err := slots.SelectWith(
-				context.Background(), w, dev, slots.DeviceOptions{Slot: 4})
+			change, err := slots.SelectWith(
+				context.Background(), dev, slots.DeviceOptions{Slot: 4})
 
 			if tt.errText != "" {
 				s.Require().ErrorContains(err, tt.errText)
@@ -156,7 +139,7 @@ func (s *SelectDevicePublicTestSuite) TestSelectWith() {
 			s.Require().NoError(err)
 
 			for _, want := range tt.contains {
-				s.Require().Contains(out.String(), want)
+				s.Require().Contains(did(change), want)
 			}
 		})
 	}
@@ -171,7 +154,7 @@ func (s *SelectDevicePublicTestSuite) TestSelectDevice() {
 		contains string
 		errText  string
 	}{
-		{name: "a device on the bus", attached: true, contains: "loaded"},
+		{name: "a device on the bus", attached: true, contains: "selected"},
 		{name: "nothing on the bus", errText: "nothing on the bus"},
 	}
 
@@ -188,10 +171,8 @@ func (s *SelectDevicePublicTestSuite) TestSelectDevice() {
 				defer s.stand(nil, errors.New("nothing on the bus"))()
 			}
 
-			var out bytes.Buffer
-
-			err := slots.SelectDevice(
-				context.Background(), &out, slots.DeviceOptions{Slot: 4})
+			change, err := slots.SelectDevice(
+				context.Background(), slots.DeviceOptions{Slot: 4})
 
 			if tt.errText != "" {
 				s.Require().ErrorContains(err, tt.errText)
@@ -200,7 +181,7 @@ func (s *SelectDevicePublicTestSuite) TestSelectDevice() {
 			}
 
 			s.Require().NoError(err)
-			s.Require().Contains(out.String(), tt.contains)
+			s.Require().Contains(did(change), tt.contains)
 		})
 	}
 }

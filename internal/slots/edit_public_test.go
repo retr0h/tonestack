@@ -21,8 +21,6 @@
 package slots_test
 
 import (
-	"bytes"
-	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -30,6 +28,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/retr0h/tonestack/internal/slots"
+	"github.com/retr0h/tonestack/pkg/sdk"
 	"github.com/retr0h/tonestack/pkg/sdk/setlist"
 )
 
@@ -65,9 +64,6 @@ func (s *EditPublicTestSuite) TestCopy() {
 		to   int
 		// where to write, under this case's own directory.
 		out string
-		// a writer that fails, so a report nobody can read is an error.
-		deaf bool
-
 		// what the two slots must hold afterwards.
 		want     []string
 		contains []string
@@ -93,7 +89,6 @@ func (s *EditPublicTestSuite) TestCopy() {
 			out:     filepath.Join("no", "out.hls"),
 			errText: "writing",
 		},
-		{name: "a writer that fails", to: 1, deaf: true},
 	}
 
 	for _, tt := range tests {
@@ -112,16 +107,9 @@ func (s *EditPublicTestSuite) TestCopy() {
 				o.Path = tt.path
 			}
 
-			var log bytes.Buffer
+			change, err := slots.Copy(o)
 
-			w := io.Writer(&log)
-			if tt.deaf {
-				w = &failingWriter{}
-			}
-
-			err := slots.Copy(w, o)
-
-			if tt.errText != "" || tt.deaf {
+			if tt.errText != "" {
 				s.Require().Error(err)
 
 				if tt.errText != "" {
@@ -139,7 +127,7 @@ func (s *EditPublicTestSuite) TestCopy() {
 			}
 
 			for _, want := range tt.contains {
-				s.Require().Contains(log.String(), want)
+				s.Require().Contains(did(change), want)
 			}
 		})
 	}
@@ -149,13 +137,13 @@ func (s *EditPublicTestSuite) TestCopy() {
 func (s *EditPublicTestSuite) TestSwap() {
 	out := filepath.Join(s.T().TempDir(), "out.hls")
 
-	var log bytes.Buffer
-	s.Require().NoError(slots.Swap(&log, s.opts(out)))
+	change, err := slots.Swap(s.opts(out))
+	s.Require().NoError(err)
 
 	doc := s.reread(out)
 	s.Require().Equal("Second", doc.Setlists[0].Slots[0].Meta.Name)
 	s.Require().Equal("First", doc.Setlists[0].Slots[1].Meta.Name)
-	s.Require().Contains(log.String(), "swapped")
+	s.Require().Equal(sdk.Swapped, change.Action)
 }
 
 // TestExport writes one slot to a file of its own.
@@ -299,13 +287,11 @@ func (s *EditPublicTestSuite) TestImport() {
 		out  string
 		// export slot 0 first and import that, rather than a fixture.
 		exported bool
-		deaf     bool
-		// a writer that takes one write before failing, for a report with a
-		// warning above it.
-		partial bool
 
 		// what the destination slot must hold afterwards.
-		want     string
+		want string
+		// the preset was made for another device, so the write says so.
+		mismatch bool
 		contains []string
 		errText  string
 	}{
@@ -314,13 +300,13 @@ func (s *EditPublicTestSuite) TestImport() {
 			exported: true,
 			slot:     1,
 			want:     "First",
-			contains: []string{"replaced", "Second"},
+			contains: []string{"Second"},
 		},
 		{
 			name:     "a preset from another device",
 			file:     fixture("otherdevice.hlx"),
 			slot:     1,
-			contains: []string{"different device"},
+			mismatch: true,
 		},
 		{
 			name:    "a setlist that is not there",
@@ -342,19 +328,6 @@ func (s *EditPublicTestSuite) TestImport() {
 			name:    "a destination directory that is not there",
 			out:     filepath.Join("no", "o.hls"),
 			errText: "writing",
-		},
-		{name: "a writer that fails", slot: 1, deaf: true},
-		{
-			name: "a writer that fails on the warning",
-			file: fixture("otherdevice.hlx"),
-			slot: 1,
-			deaf: true,
-		},
-		{
-			name:    "a writer that fails after the warning",
-			file:    fixture("otherdevice.hlx"),
-			slot:    1,
-			partial: true,
 		},
 	}
 
@@ -389,20 +362,9 @@ func (s *EditPublicTestSuite) TestImport() {
 				o.Path = tt.path
 			}
 
-			var log bytes.Buffer
+			change, err := slots.Import(o)
 
-			w := io.Writer(&log)
-
-			switch {
-			case tt.deaf:
-				w = &failingWriter{}
-			case tt.partial:
-				w = &oneGoodWrite{}
-			}
-
-			err := slots.Import(w, o)
-
-			if tt.errText != "" || tt.deaf || tt.partial {
+			if tt.errText != "" {
 				s.Require().Error(err)
 
 				if tt.errText != "" {
@@ -413,6 +375,7 @@ func (s *EditPublicTestSuite) TestImport() {
 			}
 
 			s.Require().NoError(err)
+			s.Require().Equal(tt.mismatch, change.Mismatch)
 
 			if tt.want != "" {
 				s.Require().Equal(
@@ -420,7 +383,7 @@ func (s *EditPublicTestSuite) TestImport() {
 			}
 
 			for _, want := range tt.contains {
-				s.Require().Contains(log.String(), want)
+				s.Require().Contains(did(change), want)
 			}
 		})
 	}

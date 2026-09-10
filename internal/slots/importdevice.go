@@ -23,9 +23,8 @@ package slots
 import (
 	"context"
 	"fmt"
-	"io"
 
-	"github.com/retr0h/tonestack/internal/cli"
+	"github.com/retr0h/tonestack/pkg/sdk"
 	"github.com/retr0h/tonestack/pkg/sdk/device"
 	"github.com/retr0h/tonestack/pkg/sdk/device/wire"
 	"github.com/retr0h/tonestack/pkg/sdk/preset"
@@ -39,32 +38,31 @@ import (
 // there. See wire.Blank.
 //
 // The destination is overwritten. There is no undo on a device.
-func ImportDevice(ctx context.Context, w io.Writer, opts ImportOptions) error {
+func ImportDevice(ctx context.Context, opts ImportOptions) (sdk.Change, error) {
 	s, err := openDevice(ctx)
 	if err != nil {
-		return err
+		return sdk.Change{}, err
 	}
 
 	defer s.Close()
 
-	return ImportWith(ctx, w, s, opts)
+	return ImportWith(ctx, s, opts)
 }
 
 // ImportWith puts a preset file into a slot on the given session.
 func ImportWith(
 	ctx context.Context,
-	w io.Writer,
 	s device.Editor,
 	opts ImportOptions,
-) error {
+) (sdk.Change, error) {
 	doc, err := readPreset(opts.File)
 	if err != nil {
-		return err
+		return sdk.Change{}, err
 	}
 
 	body, err := documentFor(opts.Deps, doc, opts.CatalogPath)
 	if err != nil {
-		return err
+		return sdk.Change{}, err
 	}
 
 	// Before the backup rather than after it: a session that cannot write
@@ -72,35 +70,29 @@ func ImportWith(
 	// be a round trip to the device for nothing.
 	writer, err := writerFor(s)
 	if err != nil {
-		return err
+		return sdk.Change{}, err
 	}
 
 	// What the slot holds now, before it stops holding it.
 	kept, err := replacing(ctx, s, opts.Deps, opts.CatalogPath, opts.BackupDir,
 		opts.Setlist, opts.Slot)
 	if err != nil {
-		return err
+		return sdk.Change{}, err
 	}
 
 	name := doc.Data.Meta.Name
 
 	if err := writer.WriteNamedPreset(
 		ctx, opts.Setlist, opts.Slot, name, body); err != nil {
-		return fmt.Errorf("writing slot %s: %w", slotpkg.Label(opts.Slot), err)
+		return sdk.Change{}, fmt.Errorf(
+			"writing slot %s: %w", slotpkg.Label(opts.Slot), err)
 	}
 
-	if err := said(w, kept...); err != nil {
-		return err
-	}
-
-	_, err = fmt.Fprintf(w, "\n%s%s %s %s\n\n%s%s\n\n",
-		cli.Indent,
-		cli.Accent(w, name),
-		cli.Mute(w, "→"),
-		cli.Accent(w, slotpkg.Label(opts.Slot)),
-		cli.Indent, cli.Success(w, "written"))
-
-	return err
+	return sdk.Change{
+		Action: sdk.Imported,
+		To:     sdk.At{Slot: opts.Slot, Name: name},
+		Kept:   kept,
+	}, nil
 }
 
 // documentFor builds what a device holds out of what a file describes.

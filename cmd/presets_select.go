@@ -23,6 +23,7 @@ package cmd
 import (
 	"github.com/spf13/cobra"
 
+	"github.com/retr0h/tonestack/internal/cli"
 	"github.com/retr0h/tonestack/internal/slots"
 	"github.com/retr0h/tonestack/pkg/sdk/slot"
 )
@@ -41,7 +42,12 @@ is the one device command that changes what you hear without changing what the
 device holds.`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		return slots.SelectDevice(cmd.Context(), cmd.OutOrStdout(), presetsSelectOptions)
+		change, err := slots.SelectDevice(cmd.Context(), presetsSelectOptions)
+		if err != nil {
+			return err
+		}
+
+		return cli.Change(cmd.OutOrStdout(), change)
 	},
 }
 

@@ -298,9 +298,8 @@ func (s *DeviceReadTestSuite) TestARigReadOffTheDeviceRebuildsItsRouting() {
 	s.Require().NoError(rig.Write(&buf, read.Rig))
 	s.Require().NoError(os.WriteFile(rigPath, buf.Bytes(), 0o600))
 
-	s.Require().NoError(Compile(&bytes.Buffer{}, CompileOptions{
-		RigPath: rigPath, OutputPath: out,
-	}))
+	_, err = Compile(CompileOptions{RigPath: rigPath, OutputPath: out})
+	s.Require().NoError(err)
 
 	built, err := os.ReadFile(out) //nolint:gosec // a path this test chose
 	s.Require().NoError(err)

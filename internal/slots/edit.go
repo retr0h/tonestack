@@ -21,12 +21,8 @@
 package slots
 
 import (
-	"fmt"
-	"io"
-
-	"github.com/retr0h/tonestack/internal/cli"
+	"github.com/retr0h/tonestack/pkg/sdk"
 	"github.com/retr0h/tonestack/pkg/sdk/setlist"
-	slotpkg "github.com/retr0h/tonestack/pkg/sdk/slot"
 )
 
 // EditOptions says which two slots to act on and where to put the result.
@@ -57,8 +53,8 @@ type EditOptions struct {
 }
 
 // Copy overwrites one slot with another and writes the result.
-func Copy(w io.Writer, opts EditOptions) error {
-	return edit(w, opts, "copied", func(d *setlist.Document, from, to setlist.Address) error {
+func Copy(opts EditOptions) (sdk.Change, error) {
+	return edit(opts, sdk.Copied, func(d *setlist.Document, from, to setlist.Address) error {
 		return d.Copy(from, to)
 	})
 }
@@ -68,37 +64,36 @@ func Copy(w io.Writer, opts EditOptions) error {
 // This is what moving a preset means: a slot cannot be left blank without
 // writing an empty preset, and an empty preset carries routing that differs
 // by device and firmware. Swapping invents nothing.
-func Swap(w io.Writer, opts EditOptions) error {
-	return edit(w, opts, "swapped", func(d *setlist.Document, a, b setlist.Address) error {
+func Swap(opts EditOptions) (sdk.Change, error) {
+	return edit(opts, sdk.Swapped, func(d *setlist.Document, a, b setlist.Address) error {
 		return d.Swap(a, b)
 	})
 }
 
-// edit applies an operation to two slots and reports what moved.
+// edit applies an operation to two slots and answers with what moved.
 func edit(
-	w io.Writer,
 	opts EditOptions,
-	verb string,
+	action sdk.Action,
 	apply func(*setlist.Document, setlist.Address, setlist.Address) error,
-) error {
+) (sdk.Change, error) {
 	doc, err := open(opts.Path)
 	if err != nil {
-		return err
+		return sdk.Change{}, err
 	}
 
 	from := setlist.Address{Setlist: opts.FromSetlist, Slot: opts.FromSlot}
 	to := setlist.Address{Setlist: opts.ToSetlist, Slot: opts.ToSlot}
 
-	// Read the names before the edit, so the report says what was there
+	// Read the names before the edit, so the answer says what was there
 	// rather than what is there now.
 	fromName, err := name(doc, from)
 	if err != nil {
-		return err
+		return sdk.Change{}, err
 	}
 
 	toName, err := name(doc, to)
 	if err != nil {
-		return err
+		return sdk.Change{}, err
 	}
 
 	// Both addresses were resolved above, so the operation itself cannot
@@ -106,10 +101,16 @@ func edit(
 	_ = apply(doc, from, to)
 
 	if err := save(opts.OutputPath, doc); err != nil {
-		return err
+		return sdk.Change{}, err
 	}
 
-	return report(w, verb, fromName, toName, from, to, opts.OutputPath)
+	return sdk.Change{
+		Action:   action,
+		From:     &sdk.At{Slot: from.Slot, Name: fromName},
+		To:       sdk.At{Slot: to.Slot, Name: toName},
+		Replaced: toName,
+		Path:     opts.OutputPath,
+	}, nil
 }
 
 // name reads the name of a slot.
@@ -120,23 +121,4 @@ func name(doc *setlist.Document, at setlist.Address) (string, error) {
 	}
 
 	return d.Meta.Name, nil
-}
-
-// report says what changed and where it was written.
-func report(
-	w io.Writer,
-	verb, fromName, toName string,
-	from, to setlist.Address,
-	path string,
-) error {
-	_, err := fmt.Fprintf(w, "\n%s%s %s %s %s %s\n\n%s%s\n\n",
-		cli.Indent,
-		cli.Accent(w, slotpkg.Label(from.Slot)), fromName,
-		cli.Mute(w, "→"),
-		cli.Accent(w, slotpkg.Label(to.Slot)), toName,
-		cli.Indent,
-		cli.Success(w, fmt.Sprintf("%s, wrote %s", verb, path)),
-	)
-
-	return err
 }

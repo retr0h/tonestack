@@ -21,11 +21,9 @@
 package slots_test
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -129,7 +127,6 @@ func (s *ImportDevicePublicTestSuite) TestImportWith() {
 		refuses bool
 		// a session that can read but not write.
 		readOnly bool
-		deaf     bool
 		// what the destination slot answers when it is read to be kept.
 		// Empty means it holds nothing.
 		destination string
@@ -168,26 +165,12 @@ func (s *ImportDevicePublicTestSuite) TestImportWith() {
 			errText:  "cannot write",
 		},
 		{
-			name:    "a writer with nowhere for the result to go",
-			writes:  true,
-			deaf:    true,
-			errText: "boom",
-		},
-		{
 			// The destination is read so that what it held is kept. A device
 			// that will not say what is there is one whose slot cannot be
 			// replaced safely.
 			name:        "a destination it cannot read",
 			destination: "refused",
 			errText:     "before replacing it",
-		},
-		{
-			// Something was kept, and the line saying where went nowhere.
-			name:        "a writer it cannot say where the backup went through",
-			writes:      true,
-			destination: "held",
-			deaf:        true,
-			errText:     "boom",
 		},
 		{
 			name:    "gear the model table does not carry",
@@ -262,14 +245,7 @@ func (s *ImportDevicePublicTestSuite) TestImportWith() {
 				}
 			}
 
-			var out bytes.Buffer
-
-			w := io.Writer(&out)
-			if tt.deaf {
-				w = &brokenWriter{}
-			}
-
-			err := slots.ImportWith(s.T().Context(), w, dev, slots.ImportOptions{
+			change, err := slots.ImportWith(s.T().Context(), dev, slots.ImportOptions{
 				File: file, Slot: 7, CatalogPath: tt.catalog,
 				BackupDir: s.T().TempDir(),
 			})
@@ -284,7 +260,7 @@ func (s *ImportDevicePublicTestSuite) TestImportWith() {
 			s.Require().NoError(err)
 
 			for _, want := range tt.contains {
-				s.Require().Contains(out.String(), want)
+				s.Require().Contains(did(change), want)
 			}
 
 			if !tt.sent {
@@ -341,9 +317,7 @@ func (s *ImportDevicePublicTestSuite) TestImportDevice() {
 				}
 			}
 
-			var out bytes.Buffer
-
-			err := slots.ImportDevice(s.T().Context(), &out,
+			change, err := slots.ImportDevice(s.T().Context(),
 				slots.ImportOptions{
 					File: s.preset(), Slot: 7, BackupDir: s.T().TempDir(),
 				})
@@ -355,14 +329,10 @@ func (s *ImportDevicePublicTestSuite) TestImportDevice() {
 			}
 
 			s.Require().NoError(err)
-			s.Require().Contains(out.String(), tt.contains)
+			s.Require().Contains(did(change), tt.contains)
 		})
 	}
 }
-
-type brokenWriter struct{}
-
-func (*brokenWriter) Write([]byte) (int, error) { return 0, errors.New("boom") }
 
 func TestImportDevicePublicTestSuite(t *testing.T) {
 	suite.Run(t, new(ImportDevicePublicTestSuite))

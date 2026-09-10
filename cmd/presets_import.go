@@ -22,7 +22,9 @@ package cmd
 import (
 	"github.com/spf13/cobra"
 
+	"github.com/retr0h/tonestack/internal/cli"
 	"github.com/retr0h/tonestack/internal/slots"
+	"github.com/retr0h/tonestack/pkg/sdk"
 	"github.com/retr0h/tonestack/pkg/sdk/slot"
 )
 
@@ -43,14 +45,14 @@ With --file it edits an HX Edit backup instead, for working without a device
 attached. Either way whatever the slot held is gone, and a device has no undo.`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		// No file means the device itself, which is what somebody with one
-		// plugged in almost always wants.
-		if presetsImportOptions.Path == "" {
-			return slots.ImportDevice(
-				cmd.Context(), cmd.OutOrStdout(), presetsImportOptions)
+		// The operation answers with what it did; saying so is decided here,
+		// which is all this command does.
+		change, err := imported(cmd)
+		if err != nil {
+			return err
 		}
 
-		return slots.Import(cmd.OutOrStdout(), presetsImportOptions)
+		return cli.Change(cmd.OutOrStdout(), change)
 	},
 }
 
@@ -88,4 +90,16 @@ func init() {
 	// writes the device. So a file needs somewhere to put the result and a
 	// device does not.
 	presetsImportCmd.MarkFlagsRequiredTogether("file", "out")
+}
+
+// imported puts a preset file into a slot, on the device or in a file.
+//
+// No file means the device itself, which is what somebody with one plugged in
+// almost always wants.
+func imported(cmd *cobra.Command) (sdk.Change, error) {
+	if presetsImportOptions.Path == "" {
+		return slots.ImportDevice(cmd.Context(), presetsImportOptions)
+	}
+
+	return slots.Import(presetsImportOptions)
 }
