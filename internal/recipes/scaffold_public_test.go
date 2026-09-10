@@ -21,7 +21,6 @@
 package recipes_test
 
 import (
-	"bytes"
 	"os"
 	"path/filepath"
 	"testing"
@@ -169,9 +168,7 @@ func (s *ScaffoldPublicTestSuite) TestNewFrom() {
 					filepath.Join(dir, "artists", "adir.yaml"), 0o750))
 			}
 
-			var buf bytes.Buffer
-
-			err := recipes.New(&buf, recipes.NewOptions{
+			_, err := recipes.New(recipes.NewOptions{
 				Dir:  dir,
 				ID:   "copy",
 				From: tt.from,

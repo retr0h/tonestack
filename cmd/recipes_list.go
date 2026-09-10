@@ -22,6 +22,7 @@ package cmd
 import (
 	"github.com/spf13/cobra"
 
+	"github.com/retr0h/tonestack/internal/cli"
 	"github.com/retr0h/tonestack/internal/recipes"
 )
 
@@ -31,7 +32,12 @@ var recipesListCmd = &cobra.Command{
 	Short: "List available recipes",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		return recipes.List(cmd.OutOrStdout(), recipesDir)
+		all, err := recipes.List(recipesDir)
+		if err != nil {
+			return err
+		}
+
+		return cli.Recipes(cmd.OutOrStdout(), all)
 	},
 }
 

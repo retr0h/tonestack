@@ -23,6 +23,7 @@ package cmd
 import (
 	"github.com/spf13/cobra"
 
+	"github.com/retr0h/tonestack/internal/cli"
 	"github.com/retr0h/tonestack/internal/recipes"
 )
 
@@ -50,7 +51,12 @@ departs from another, such as one song played differently from the rest.`,
 			recipesNewOptions.Dir = "resources/recipes"
 		}
 
-		return recipes.New(cmd.OutOrStdout(), recipesNewOptions)
+		made, err := recipes.New(recipesNewOptions)
+		if err != nil {
+			return err
+		}
+
+		return cli.Scaffolded(cmd.OutOrStdout(), made)
 	},
 }
 

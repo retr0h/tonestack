@@ -23,12 +23,9 @@ package presets
 import (
 	"bytes"
 	"fmt"
-	"io"
 	"os"
-	"strings"
 
-	"github.com/retr0h/tonestack/internal/cli"
-	"github.com/retr0h/tonestack/pkg/sdk/catalog"
+	"github.com/retr0h/tonestack/pkg/sdk"
 	"github.com/retr0h/tonestack/pkg/sdk/chain"
 	"github.com/retr0h/tonestack/pkg/sdk/compile"
 	"github.com/retr0h/tonestack/pkg/sdk/corpus"
@@ -60,15 +57,15 @@ type MakeOptions struct {
 // Reporting the chain matters as much as writing the file. A generated preset
 // is a set of decisions, and a wrong amp should be visible before anyone plugs
 // in rather than after.
-func Make(w io.Writer, opts MakeOptions) error {
+func Make(opts MakeOptions) (sdk.Made, error) {
 	rec, err := opts.recipes().Find(opts.RecipesDir, opts.RecipeID)
 	if err != nil {
-		return err
+		return sdk.Made{}, err
 	}
 
 	cat, err := opts.catalogs().Open(opts.CatalogPath)
 	if err != nil {
-		return err
+		return sdk.Made{}, err
 	}
 
 	// Statistics are an improvement on the catalog's defaults, not a
@@ -78,23 +75,29 @@ func Make(w io.Writer, opts MakeOptions) error {
 
 	spec, added, err := opts.compiler().Resolve(rec, cat, stats)
 	if err != nil {
-		return err
+		return sdk.Made{}, err
 	}
 
 	limits := chain.HXStompLimits()
 	spec = opts.compiler().Fit(spec, cat, limits)
 
 	if err := chain.Validate(cat, spec, limits); err != nil {
-		return fmt.Errorf("the chain this recipe describes will not load: %w", err)
+		return sdk.Made{}, fmt.Errorf(
+			"the chain this recipe describes will not load: %w", err)
 	}
 
 	doc := build(cat.DeviceID, spec)
 
 	if err := write(opts.OutputPath, doc); err != nil {
-		return err
+		return sdk.Made{}, err
 	}
 
-	return report(w, rec, spec, cat, added, opts.OutputPath)
+	return sdk.Made{
+		Chain:      spec,
+		Added:      addedFrom(added),
+		Unfamiliar: unfamiliar(rec),
+		Path:       opts.OutputPath,
+	}, nil
 }
 
 // openStats reads measured statistics, falling back to the ones in this
@@ -149,118 +152,33 @@ func write(path string, doc *preset.Document) error {
 	return nil
 }
 
-// report writes the chain that was chosen, and what it cost.
-//
-// Make passes through several stages, so a failure here says which one it
-// was rather than surfacing a bare write error.
-func report(
-	w io.Writer,
-	rec riggen.RigSpec,
-	spec chain.Chain,
-	cat *catalog.Catalog,
-	added []compile.Added,
-	path string,
-) error {
-	if err := render(w, rec, spec, cat, added, path); err != nil {
-		return fmt.Errorf("reporting: %w", err)
-	}
-
-	return nil
-}
-
 // unfamiliar names the character terms nothing defines.
 //
 // Said rather than refused. A term moves no knob, so an unfamiliar one costs
 // the preset nothing, and a build that stopped over a word would be refusing
 // somebody the right to describe a sound in their own words. The rigs this
 // project ships are held to the list by a test instead.
-func unfamiliar(w io.Writer, rec riggen.RigSpec) error {
+func unfamiliar(rec riggen.RigSpec) []sdk.Unfamiliar {
 	unknown := compile.CheckCharacter(rec)
-	if len(unknown) == 0 {
-		return nil
-	}
 
-	if _, err := fmt.Fprintln(w); err != nil {
-		return err
-	}
-
+	out := make([]sdk.Unfamiliar, 0, len(unknown))
 	for _, u := range unknown {
-		line := fmt.Sprintf("no such character term %q", u.Term)
-		if len(u.Near) > 0 {
-			line += " — did you mean " + strings.Join(u.Near, ", ") + "?"
-		}
-
-		if _, err := fmt.Fprintf(w, "%s%s %s\n",
-			cli.Indent, cli.Mute(w, "note"), line); err != nil {
-			return err
-		}
+		out = append(out, sdk.Unfamiliar{Term: u.Term, Near: u.Near})
 	}
 
-	return nil
+	return out
 }
 
-// render prints the chain, using the same renderer that prints a slot read
-// off the device, so a generated preset and one somebody made by hand are
-// read the same way.
-func render(
-	w io.Writer,
-	rec riggen.RigSpec,
-	spec chain.Chain,
-	cat *catalog.Catalog,
-	added []compile.Added,
-	path string,
-) error {
-	if _, err := fmt.Fprintf(
-		w, "\n%s%s\n\n", cli.Indent, cli.Title(w, spec.Name),
-	); err != nil {
-		return err
-	}
-
-	if err := cli.Chain(w, spec, cat); err != nil {
-		return err
-	}
-
-	if err := explain(w, added); err != nil {
-		return err
-	}
-
-	if err := unfamiliar(w, rec); err != nil {
-		return err
-	}
-
-	_, err := fmt.Fprintf(w, "\n%s%s\n\n", cli.Indent, cli.Success(w, "wrote "+path))
-
-	return err
-}
-
-// explain names the blocks nobody asked for, and why they are there.
-//
-// A recipe names an amp; a rig is four or five blocks. The rest come from what
-// the corpus shows chains of this kind almost always hold, and a choice made
-// on the player's behalf has to be visible before they plug in.
-func explain(w io.Writer, added []compile.Added) error {
-	if len(added) == 0 {
-		return nil
-	}
-
-	if _, err := fmt.Fprintln(w); err != nil {
-		return err
-	}
-
+// addedFrom says what went into the chain that the recipe did not name.
+func addedFrom(added []compile.Added) []sdk.Added {
+	out := make([]sdk.Added, 0, len(added))
 	for _, a := range added {
-		// A block drawn from the corpus can say how common it is. One
-		// substituted for gear no model emulates cannot, and appending "0% of
-		// chains" to it would read as a measurement.
-		line := fmt.Sprintf("%s — %s", a.Block.Name, a.Reason)
-		if a.Share > 0 {
-			line += fmt.Sprintf(" (%.0f%% of chains)", a.Share*100)
-		}
-
-		_, err := fmt.Fprintf(w, "%s%s %s\n", cli.Indent, cli.Mute(w, "added"), line)
-		if err != nil {
-			return err
-		}
+		out = append(out, sdk.Added{
+			Name:   a.Block.Name,
+			Reason: a.Reason,
+			Share:  a.Share,
+		})
 	}
 
-	return nil
+	return out
 }
