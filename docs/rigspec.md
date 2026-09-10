@@ -45,7 +45,7 @@ A rig, complete. Sparse when hand-written; the same document carries settings an
 | `snapshots` | list of Snapshot | — | [Snapshot](#snapshot) |
 | `subject *` | Subject | — | [Subject](#subject) |
 | `target` | Target | — | [Target](#target) |
-| `technique` | string | open | — |
+| `technique` | Technique | — | [Technique](#technique) |
 | `version` | integer | closed | `2` |
 
 ## ChainEntry
@@ -192,4 +192,14 @@ Where the settings in this rig were arrived at.
 | --- | --- | --- | --- |
 | `catalog` | string | open | — |
 | `device` | string | looked up | the device the catalog was generated for |
-| `technique` | string | open | — |
+| `technique` | Technique | — | [Technique](#technique) |
+
+## Technique
+
+How the instrument is played, where it changes the sound. Not modelled by any device, and it still decides what the rig has to do.
+
+| field | holds | grammar | allowed |
+| --- | --- | --- | --- |
+| `attack *` | string | closed | `pick`, `fingers`, `slap`, `thumb`, `hybrid` |
+| `muting` | string | closed | `none`, `palm` |
+| `position` | string | closed | `bridge`, `middle`, `neck` |

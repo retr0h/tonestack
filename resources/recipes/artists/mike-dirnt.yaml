@@ -53,7 +53,9 @@ character:
   - tight low end, short decay
   - pick attack audible
 
-technique: pick, near the bridge
+technique:
+  attack: pick
+  position: bridge
 
 confidence: medium
 
@@ -63,4 +65,5 @@ target:
   # into every note that fingers do not, so a rig tuned from picked playing
   # reads duller under fingers — the compensation belongs in the amp and the
   # compressor.
-  technique: fingerstyle
+  technique:
+    attack: fingers

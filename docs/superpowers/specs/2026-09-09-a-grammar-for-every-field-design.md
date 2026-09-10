@@ -278,3 +278,33 @@ output against itself.
 **Label lengths are deferred.** A device truncates a label it cannot hold, and
 the limit is not written down anywhere here. Guessing a `maxLength` would refuse
 presets the hardware accepts. It needs measuring against a device first.
+
+## What step 2 did
+
+`technique` is three enums now, in both places it appears: the rig's own, and
+the one under `target` saying how the person using it plays.
+
+Five files carried the old spelling rather than the two this design counted. The
+other three are test fixtures, which is a reminder that a format change costs
+whatever exercises the format, not whatever ships it.
+
+**A `$ref` cannot carry a description in OpenAPI 3.0.** Wrapping it in `allOf`
+is the usual way round that, and it costs the error message: a rig with
+`attack: plectrum` was refused with "technique doesn't match all schemas from
+allOf", which names neither the field nor the value. With a plain `$ref` it
+reads
+`technique.attack value is not one of the allowed values ["pick", "fingers", "slap", "thumb", "hybrid"]`.
+The wording that sat beside the `$ref` moved into the component, which is the
+only place 3.0 will keep it.
+
+**`muting: none` earns its place.** The first draft said to leave it out when
+nothing damps the string, which makes `none` a second way to say what omission
+already says. It is worth stating when the notes ringing on is part of the sound
+rather than a decision nobody made, and the example says so on the one rig in
+the tree.
+
+**The sentence is still there.** `recipes show` prints "pick, near the bridge,
+palm muted" from the three fields, so what a person reads did not change and the
+test that asserted that line still passes untouched. `none` prints as nothing,
+because an unmuted note is what every note sounds like unless something damps
+it.

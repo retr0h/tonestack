@@ -119,6 +119,53 @@ components:
       enum: [low, medium, high]
       x-enum-varnames: [ConfidenceLow, ConfidenceMedium, ConfidenceHigh]
 
+    Technique:
+      type: object
+      additionalProperties: false
+      description: >
+        How the instrument is played, where it changes the sound. Not modelled
+        by any device, and it still decides what the rig has to do.
+
+
+        Three things rather than a sentence, because three things are being
+        said and a sentence has to be parsed to get at them.
+
+
+        Under `target` this says how the person using the rig plays, where
+        that differs from the rig's own. The distinction is not pedantry. A
+        pick puts high-frequency attack into every note that fingers do not,
+        so a rig tuned from a picked recording sounds duller played fingered,
+        and the fix is in the amp and the compressor rather than in the
+        player. Recording both lets the difference be compensated rather than
+        discovered, and that comparison needs both sides to be the same kind
+        of value: two `attack` values can be held against each other, and two
+        sentences cannot.
+      required: [attack]
+      properties:
+        attack:
+          type: string
+          description: >
+            What sets the string moving. Required, because there is no playing
+            without one.
+          enum: [pick, fingers, slap, thumb, hybrid]
+          x-enum-varnames:
+            [AttackPick, AttackFingers, AttackSlap, AttackThumb, AttackHybrid]
+        position:
+          type: string
+          description: >
+            Where along the string, which decides how much fundamental there
+            is against harmonics. Omit it where it does not matter.
+          enum: [bridge, middle, neck]
+          x-enum-varnames: [PositionBridge, PositionMiddle, PositionNeck]
+        muting:
+          type: string
+          description: >
+            What damps the string. Omit it where it does not matter, and say
+            `none` where the notes ringing on is part of the sound rather than
+            the absence of a decision.
+          enum: [none, palm]
+          x-enum-varnames: [MutingNone, MutingPalm]
+
     Subject:
       type: object
       additionalProperties: false
@@ -355,17 +402,7 @@ components:
           description: >
             The release the catalog came from, such as "HX Edit 3.82".
         technique:
-          type: string
-          description: >
-            How the person using this rig plays, where it differs from the
-            rig's own technique.
-
-
-            The distinction is not pedantry. A pick puts high-frequency
-            attack into every note that fingers do not, so a rig tuned from a
-            picked recording sounds duller played fingered — and the fix is in
-            the amp and the compressor, not in the player. Recording both
-            lets the difference be compensated rather than discovered.
+          $ref: "#/components/schemas/Technique"
 
     Change:
       type: object
@@ -774,11 +811,7 @@ components:
           items: { $ref: "#/components/schemas/ChainEntry" }
           description: The signal path, in order.
         technique:
-          type: string
-          description: >
-            How the instrument is played, where it changes the sound — "pick,
-            near the bridge", "fingerstyle", "palm muted". Not modelled by any
-            device, and it still decides what the rig has to do.
+          $ref: "#/components/schemas/Technique"
         character:
           type: array
           items: { type: string, minLength: 1, pattern: "\\S" }

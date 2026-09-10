@@ -29,6 +29,8 @@ character:
   - tight low end, short decay
   - pick attack audible
 
-technique: pick, near the bridge
+technique:
+  attack: pick
+  position: bridge
 
 confidence: medium

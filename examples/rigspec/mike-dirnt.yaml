@@ -101,7 +101,15 @@ character:
   - tight low end, short decay
   - pick attack audible
 
-technique: pick, near the bridge
+technique:
+  # What sets the string moving. The one part that is always true.
+  attack: pick
+  # Where along the string, which decides fundamental against harmonics.
+  position: bridge
+  # Said rather than left out: the notes ringing on is half of what this
+  # bassline sounds like, and a reader should not have to guess whether
+  # nobody thought about it.
+  muting: none
 
 # Anything a device does not ship with. Only what a catalog cannot already
 # see belongs here: whether a model exists on your device tier, or needs newer
@@ -138,7 +146,8 @@ target:
   # technique above. A pick puts high-frequency attack into every note that
   # fingers do not, so a rig tuned from picked playing reads duller under
   # fingers — and the compensation belongs in the amp and the compressor.
-  technique: fingerstyle
+  technique:
+    attack: fingers
 
 # What was asked for, what changed, and what it sounded like.
 #

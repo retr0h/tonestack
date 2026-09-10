@@ -208,6 +208,72 @@ func (e Role) Valid() bool {
 	}
 }
 
+// Defines values for TechniqueAttack.
+const (
+	AttackFingers TechniqueAttack = "fingers"
+	AttackHybrid  TechniqueAttack = "hybrid"
+	AttackPick    TechniqueAttack = "pick"
+	AttackSlap    TechniqueAttack = "slap"
+	AttackThumb   TechniqueAttack = "thumb"
+)
+
+// Valid indicates whether the value is a known member of the TechniqueAttack enum.
+func (e TechniqueAttack) Valid() bool {
+	switch e {
+	case AttackFingers:
+		return true
+	case AttackHybrid:
+		return true
+	case AttackPick:
+		return true
+	case AttackSlap:
+		return true
+	case AttackThumb:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for TechniqueMuting.
+const (
+	MutingNone TechniqueMuting = "none"
+	MutingPalm TechniqueMuting = "palm"
+)
+
+// Valid indicates whether the value is a known member of the TechniqueMuting enum.
+func (e TechniqueMuting) Valid() bool {
+	switch e {
+	case MutingNone:
+		return true
+	case MutingPalm:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for TechniquePosition.
+const (
+	PositionBridge TechniquePosition = "bridge"
+	PositionMiddle TechniquePosition = "middle"
+	PositionNeck   TechniquePosition = "neck"
+)
+
+// Valid indicates whether the value is a known member of the TechniquePosition enum.
+func (e TechniquePosition) Valid() bool {
+	switch e {
+	case PositionBridge:
+		return true
+	case PositionMiddle:
+		return true
+	case PositionNeck:
+		return true
+	default:
+		return false
+	}
+}
+
 // ChainEntry One piece of gear, in signal order.
 //
 // Order is the signal path. It is not decoration: drive ahead of an amp overdrives its input, drive after it does something else entirely.
@@ -521,8 +587,12 @@ type RigSpec struct {
 	// Advisory, never a restriction. A rig pinned to one device could not be used on another, which would cost the portability the format exists for. This says "these numbers were tuned here", so somebody on other hardware knows to re-tune rather than trust.
 	Target *Target `json:"target,omitempty"`
 
-	// Technique How the instrument is played, where it changes the sound — "pick, near the bridge", "fingerstyle", "palm muted". Not modelled by any device, and it still decides what the rig has to do.
-	Technique *string `json:"technique,omitempty"`
+	// Technique How the instrument is played, where it changes the sound. Not modelled by any device, and it still decides what the rig has to do.
+	//
+	// Three things rather than a sentence, because three things are being said and a sentence has to be parsed to get at them.
+	//
+	// Under `target` this says how the person using the rig plays, where that differs from the rig's own. The distinction is not pedantry. A pick puts high-frequency attack into every note that fingers do not, so a rig tuned from a picked recording sounds duller played fingered, and the fix is in the amp and the compressor rather than in the player. Recording both lets the difference be compensated rather than discovered, and that comparison needs both sides to be the same kind of value: two `attack` values can be held against each other, and two sentences cannot.
+	Technique *Technique `json:"technique,omitempty"`
 
 	// Version Which version of this contract the document was written against.
 	//
@@ -611,8 +681,35 @@ type Target struct {
 	// Device Human-readable device name, such as "HX Stomp".
 	Device *string `json:"device,omitempty"`
 
-	// Technique How the person using this rig plays, where it differs from the rig's own technique.
+	// Technique How the instrument is played, where it changes the sound. Not modelled by any device, and it still decides what the rig has to do.
 	//
-	// The distinction is not pedantry. A pick puts high-frequency attack into every note that fingers do not, so a rig tuned from a picked recording sounds duller played fingered — and the fix is in the amp and the compressor, not in the player. Recording both lets the difference be compensated rather than discovered.
-	Technique *string `json:"technique,omitempty"`
+	// Three things rather than a sentence, because three things are being said and a sentence has to be parsed to get at them.
+	//
+	// Under `target` this says how the person using the rig plays, where that differs from the rig's own. The distinction is not pedantry. A pick puts high-frequency attack into every note that fingers do not, so a rig tuned from a picked recording sounds duller played fingered, and the fix is in the amp and the compressor rather than in the player. Recording both lets the difference be compensated rather than discovered, and that comparison needs both sides to be the same kind of value: two `attack` values can be held against each other, and two sentences cannot.
+	Technique *Technique `json:"technique,omitempty"`
 }
+
+// Technique How the instrument is played, where it changes the sound. Not modelled by any device, and it still decides what the rig has to do.
+//
+// Three things rather than a sentence, because three things are being said and a sentence has to be parsed to get at them.
+//
+// Under `target` this says how the person using the rig plays, where that differs from the rig's own. The distinction is not pedantry. A pick puts high-frequency attack into every note that fingers do not, so a rig tuned from a picked recording sounds duller played fingered, and the fix is in the amp and the compressor rather than in the player. Recording both lets the difference be compensated rather than discovered, and that comparison needs both sides to be the same kind of value: two `attack` values can be held against each other, and two sentences cannot.
+type Technique struct {
+	// Attack What sets the string moving. Required, because there is no playing without one.
+	Attack TechniqueAttack `json:"attack"`
+
+	// Muting What damps the string. Omit it where it does not matter, and say `none` where the notes ringing on is part of the sound rather than the absence of a decision.
+	Muting *TechniqueMuting `json:"muting,omitempty"`
+
+	// Position Where along the string, which decides how much fundamental there is against harmonics. Omit it where it does not matter.
+	Position *TechniquePosition `json:"position,omitempty"`
+}
+
+// TechniqueAttack What sets the string moving. Required, because there is no playing without one.
+type TechniqueAttack string
+
+// TechniqueMuting What damps the string. Omit it where it does not matter, and say `none` where the notes ringing on is part of the sound rather than the absence of a decision.
+type TechniqueMuting string
+
+// TechniquePosition Where along the string, which decides how much fundamental there is against harmonics. Omit it where it does not matter.
+type TechniquePosition string
