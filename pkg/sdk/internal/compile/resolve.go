@@ -28,7 +28,7 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk/catalog"
 	"github.com/retr0h/tonestack/pkg/sdk/chain"
 	"github.com/retr0h/tonestack/pkg/sdk/corpus"
-	riggen "github.com/retr0h/tonestack/pkg/sdk/rig/gen"
+	riggen "github.com/retr0h/tonestack/pkg/sdk/internal/gen"
 )
 
 // Resolve turns a rig into a chain for the device the catalog describes.

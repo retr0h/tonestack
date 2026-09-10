@@ -32,8 +32,8 @@ import (
 
 	"github.com/retr0h/tonestack/pkg/sdk/catalog"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/compile"
+	riggen "github.com/retr0h/tonestack/pkg/sdk/internal/gen"
 	"github.com/retr0h/tonestack/pkg/sdk/preset"
-	riggen "github.com/retr0h/tonestack/pkg/sdk/rig/gen"
 )
 
 // corpusDir holds thousands of presets other people made. It is not committed

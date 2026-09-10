@@ -26,8 +26,8 @@ import (
 	"strconv"
 	"strings"
 
+	riggen "github.com/retr0h/tonestack/pkg/sdk/internal/gen"
 	"github.com/retr0h/tonestack/pkg/sdk/preset"
-	riggen "github.com/retr0h/tonestack/pkg/sdk/rig/gen"
 )
 
 // footswitchKey is the tone entry a preset stores footswitches under.

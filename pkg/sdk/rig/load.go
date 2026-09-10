@@ -27,7 +27,7 @@ import (
 
 	"sigs.k8s.io/yaml"
 
-	"github.com/retr0h/tonestack/pkg/sdk/rig/gen"
+	"github.com/retr0h/tonestack/pkg/sdk/internal/gen"
 )
 
 // Load reads a rig and checks it against its own contract.

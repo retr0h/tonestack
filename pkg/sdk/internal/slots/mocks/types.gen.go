@@ -14,9 +14,9 @@ import (
 
 	catalog "github.com/retr0h/tonestack/pkg/sdk/catalog"
 	chain "github.com/retr0h/tonestack/pkg/sdk/chain"
+	gen "github.com/retr0h/tonestack/pkg/sdk/internal/gen"
 	wire "github.com/retr0h/tonestack/pkg/sdk/internal/wire"
 	preset "github.com/retr0h/tonestack/pkg/sdk/preset"
-	gen "github.com/retr0h/tonestack/pkg/sdk/rig/gen"
 	gomock "go.uber.org/mock/gomock"
 )
 

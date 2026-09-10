@@ -1,6 +1,6 @@
 # The SDK is the library
 
-**Status:** proposed\
+**Status:** implemented\
 **Supersedes:**
 [2026-09-09-where-a-package-belongs-design.md](2026-09-09-where-a-package-belongs-design.md)
 
@@ -291,9 +291,21 @@ Each stage lands on its own and leaves the tree working.
    covers all of them, and a `cmd/` importing nothing but `sdk` and the
    renderer.
 
-5. **Own the types.** `pkg/sdk` declares what a caller holds, aliasing the
-   generated types where they are already right and converting where they are
-   not, so regenerating the contract cannot rename somebody else's field.
+5. **Own the types.** `pkg/sdk/rig` names what a caller holds, so regenerating
+   the contract cannot rename somebody else's field. A caller writes `rig.Spec`
+   and `rig.Technique`; nobody outside the library writes `gen.RigSpec`.
+
+   Aliases throughout. Every generated type turned out to be the right shape
+   already, and an alias means `rig.Spec` and the generated type are the same
+   type, so nothing converts at the seam and a rig the compiler built is a rig a
+   caller reads.
+
+   `gen` moves to `pkg/sdk/internal/gen`, not `rig/internal/gen` as this record
+   said. Five packages under `pkg/sdk/internal` name those types, and
+   `rig/internal` reaches none of them. That is the second time this record has
+   proposed a fence one level too tight, after `wire`, and the reason is the
+   same both times: a package with more than one consumer has exactly one place
+   it can live.
 
 ## What this does not do
 

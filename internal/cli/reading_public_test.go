@@ -31,7 +31,7 @@ import (
 	"github.com/retr0h/tonestack/internal/cli"
 	"github.com/retr0h/tonestack/pkg/sdk"
 	"github.com/retr0h/tonestack/pkg/sdk/preset"
-	riggen "github.com/retr0h/tonestack/pkg/sdk/rig/gen"
+	"github.com/retr0h/tonestack/pkg/sdk/rig"
 )
 
 // brokenWriter fails every write, so a reporting failure is reported rather
@@ -42,16 +42,16 @@ func (*brokenWriter) Write([]byte) (int, error) { return 0, errors.New("boom") }
 
 // valid is the smallest rig the contract accepts, so a test about rendering
 // one is not also a test about what a rig must carry.
-func valid() riggen.RigSpec {
-	v := riggen.RigSpecVersion(2)
+func valid() rig.Spec {
+	v := rig.SpecVersion(2)
 
-	return riggen.RigSpec{
+	return rig.Spec{
 		Schema:     "RigSpec",
 		Version:    &v,
 		ID:         "lead",
-		Subject:    riggen.Subject{Kind: "artist", Name: "Lead"},
+		Subject:    rig.Subject{Kind: "artist", Name: "Lead"},
 		Instrument: "bass",
-		Chain:      []riggen.ChainEntry{{Gear: "Ampeg SVT", Role: "amp"}},
+		Chain:      []rig.ChainEntry{{Gear: "Ampeg SVT", Role: "amp"}},
 	}
 }
 

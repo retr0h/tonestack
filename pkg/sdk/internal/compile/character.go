@@ -26,7 +26,7 @@ import (
 	"strings"
 	"unicode"
 
-	riggen "github.com/retr0h/tonestack/pkg/sdk/rig/gen"
+	riggen "github.com/retr0h/tonestack/pkg/sdk/internal/gen"
 )
 
 // UnknownTerm is a word a rig used to describe its sound that the shipped

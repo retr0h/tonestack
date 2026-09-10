@@ -29,7 +29,7 @@ import (
 
 	"github.com/retr0h/tonestack/internal/cli"
 	"github.com/retr0h/tonestack/pkg/sdk"
-	gen "github.com/retr0h/tonestack/pkg/sdk/rig/gen"
+	"github.com/retr0h/tonestack/pkg/sdk/rig"
 )
 
 type RecipePublicTestSuite struct {
@@ -38,31 +38,31 @@ type RecipePublicTestSuite struct {
 
 // rig builds a rig carrying everything a person can write down, so a test
 // about rendering one is not also a test about what a rig must hold.
-func rigWith(mutate func(*gen.RigSpec)) gen.RigSpec {
-	v := gen.RigSpecVersion(2)
+func rigWith(mutate func(*rig.Spec)) rig.Spec {
+	v := rig.SpecVersion(2)
 	band := "Green Day"
 	era := "Dookie through American Idiot"
-	conf := gen.ConfidenceHigh
-	pos := gen.PositionBridge
-	mute := gen.MutingPalm
-	cited := []gen.Evidence{{Kind: gen.EvidenceCited}}
+	conf := rig.ConfidenceHigh
+	pos := rig.PositionBridge
+	mute := rig.MutingPalm
+	cited := []rig.Evidence{{Kind: rig.EvidenceCited}}
 
-	spec := gen.RigSpec{
+	spec := rig.Spec{
 		Schema:     "RigSpec",
 		Version:    &v,
 		ID:         "mike-dirnt",
-		Subject:    gen.Subject{Kind: "artist", Name: "Mike Dirnt", Band: &band, Era: &era},
+		Subject:    rig.Subject{Kind: "artist", Name: "Mike Dirnt", Band: &band, Era: &era},
 		Instrument: "bass",
 		// Confirmed by default, so a rig that says nobody checked it is a
 		// case a test has to ask for rather than get by accident.
-		Chain: []gen.ChainEntry{
-			{Gear: "Ampeg SVT", Role: gen.RoleAmp, Evidence: &cited},
-			{Gear: "Ampeg 8x10", Role: gen.RoleCab, Evidence: &cited},
+		Chain: []rig.ChainEntry{
+			{Gear: "Ampeg SVT", Role: rig.RoleAmp, Evidence: &cited},
+			{Gear: "Ampeg 8x10", Role: rig.RoleCab, Evidence: &cited},
 		},
-		Character:  &[]gen.CharacterTerm{{Term: "mid-forward"}, {Term: "gritty"}},
+		Character:  &[]rig.CharacterTerm{{Term: "mid-forward"}, {Term: "gritty"}},
 		Confidence: &conf,
-		Technique: &gen.Technique{
-			Attack:   gen.AttackPick,
+		Technique: &rig.Technique{
+			Attack:   rig.AttackPick,
 			Position: &pos,
 			Muting:   &mute,
 		},
@@ -88,7 +88,7 @@ func (s *RecipePublicTestSuite) TestRecipes() {
 			name: "one row per recipe",
 			in: sdk.Recipes{
 				Dir:  "pkg/sdk/rigs",
-				Rigs: []gen.RigSpec{rigWith(nil)},
+				Rigs: []rig.Spec{rigWith(nil)},
 			},
 			want: []string{"mike-dirnt", "Mike Dirnt", "bass", "Ampeg SVT"},
 		},
@@ -99,7 +99,7 @@ func (s *RecipePublicTestSuite) TestRecipes() {
 			name: "a recipe nobody confirmed",
 			in: sdk.Recipes{
 				Dir: "pkg/sdk/rigs",
-				Rigs: []gen.RigSpec{rigWith(func(r *gen.RigSpec) {
+				Rigs: []rig.Spec{rigWith(func(r *rig.Spec) {
 					r.Chain[0].Evidence = nil
 				})},
 			},
@@ -114,7 +114,7 @@ func (s *RecipePublicTestSuite) TestRecipes() {
 			name: "nowhere to write it",
 			in: sdk.Recipes{
 				Dir:  "pkg/sdk/rigs",
-				Rigs: []gen.RigSpec{rigWith(nil)},
+				Rigs: []rig.Spec{rigWith(nil)},
 			},
 			to:  &brokenWriter{},
 			err: true,
@@ -183,7 +183,7 @@ func (s *RecipePublicTestSuite) TestRecipe() {
 			// Nothing about what nobody wrote. An empty band line reads as a
 			// band with no name rather than as a player without one.
 			name: "a rig with only the required fields",
-			in: sdk.Recipe{Rig: rigWith(func(r *gen.RigSpec) {
+			in: sdk.Recipe{Rig: rigWith(func(r *rig.Spec) {
 				r.Subject.Band = nil
 				r.Subject.Era = nil
 				r.Character = nil
@@ -195,7 +195,7 @@ func (s *RecipePublicTestSuite) TestRecipe() {
 			// An unstated confidence is the lowest one. A rig that says
 			// nothing about how far to trust it has not earned anything.
 			name: "an unstated confidence reads as low",
-			in: sdk.Recipe{Rig: rigWith(func(r *gen.RigSpec) {
+			in: sdk.Recipe{Rig: rigWith(func(r *rig.Spec) {
 				r.Confidence = nil
 			})},
 			want: []string{"low confidence"},
@@ -204,7 +204,7 @@ func (s *RecipePublicTestSuite) TestRecipe() {
 			// A rig nobody has confirmed says so, whatever it claims about
 			// itself.
 			name: "gear nobody confirmed",
-			in: sdk.Recipe{Rig: rigWith(func(r *gen.RigSpec) {
+			in: sdk.Recipe{Rig: rigWith(func(r *rig.Spec) {
 				r.Chain[0].Evidence = nil
 			})},
 			want: []string{"unverified"},

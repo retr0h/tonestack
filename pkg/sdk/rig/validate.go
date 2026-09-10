@@ -40,7 +40,7 @@ import (
 
 	"github.com/getkin/kin-openapi/openapi3"
 
-	"github.com/retr0h/tonestack/pkg/sdk/rig/gen"
+	"github.com/retr0h/tonestack/pkg/sdk/internal/gen"
 )
 
 // ErrInvalid reports a rig that does not meet its own contract.

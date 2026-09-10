@@ -21,7 +21,7 @@
 package rig
 
 import (
-	"github.com/retr0h/tonestack/pkg/sdk/rig/gen"
+	"github.com/retr0h/tonestack/pkg/sdk/internal/gen"
 )
 
 // gear returns the first entry filling a role, and whether the rig has one.

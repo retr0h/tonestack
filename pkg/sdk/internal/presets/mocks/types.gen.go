@@ -16,7 +16,7 @@ import (
 	chain "github.com/retr0h/tonestack/pkg/sdk/chain"
 	corpus "github.com/retr0h/tonestack/pkg/sdk/corpus"
 	compile "github.com/retr0h/tonestack/pkg/sdk/internal/compile"
-	gen "github.com/retr0h/tonestack/pkg/sdk/rig/gen"
+	gen "github.com/retr0h/tonestack/pkg/sdk/internal/gen"
 	gomock "go.uber.org/mock/gomock"
 )
 

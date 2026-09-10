@@ -25,8 +25,8 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk/chain"
 	"github.com/retr0h/tonestack/pkg/sdk/corpus"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/compile"
+	riggen "github.com/retr0h/tonestack/pkg/sdk/internal/gen"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/recipes"
-	riggen "github.com/retr0h/tonestack/pkg/sdk/rig/gen"
 )
 
 // Catalogs opens the catalog a rig is built against.

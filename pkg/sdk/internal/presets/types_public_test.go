@@ -29,9 +29,9 @@ import (
 	"go.uber.org/mock/gomock"
 
 	"github.com/retr0h/tonestack/pkg/sdk/chain"
+	riggen "github.com/retr0h/tonestack/pkg/sdk/internal/gen"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/presets"
 	presetmocks "github.com/retr0h/tonestack/pkg/sdk/internal/presets/mocks"
-	riggen "github.com/retr0h/tonestack/pkg/sdk/rig/gen"
 )
 
 // TypesPublicTestSuite covers standing something else in for a collaborator.
