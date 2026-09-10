@@ -122,17 +122,17 @@ func (s *TypesPublicTestSuite) TestTranslator() {
 	tr := slotmocks.NewMockTranslator(s.ctrl)
 	tr.EXPECT().Chain("", gomock.Any(), gomock.Any()).Return(chain.Chain{}, nil)
 
-	var buf bytes.Buffer
-
-	s.Require().NoError(slots.ListWith(
-		context.Background(), &buf, dev,
+	listing, err := slots.ListWith(context.Background(), dev,
 		slots.DeviceOptions{
 			All:  true,
 			Deps: slots.Deps{Catalogs: cat, Translator: tr},
-		}))
+		})
+	s.Require().NoError(err)
 
-	s.Require().Contains(buf.String(), "Chunky Monkey")
-	s.Require().NotContains(buf.String(), "→")
+	s.Require().Len(listing.Slots, 1)
+	s.Require().Equal("Chunky Monkey", listing.Slots[0].Name)
+	s.Require().True(listing.Slots[0].Empty(),
+		"the double said the slot holds nothing, and it really holds six")
 }
 
 func TestTypesPublicTestSuite(t *testing.T) {
