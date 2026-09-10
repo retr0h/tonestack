@@ -25,7 +25,7 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
-	"github.com/retr0h/tonestack/internal/recipes"
+	"github.com/retr0h/tonestack/pkg/sdk/internal/recipes"
 )
 
 // StorePublicTestSuite covers finding a rig as something a caller can stand

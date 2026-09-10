@@ -24,10 +24,10 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/retr0h/tonestack/internal/cli"
-	"github.com/retr0h/tonestack/internal/recipes"
+	"github.com/retr0h/tonestack/pkg/sdk"
 )
 
-var recipesNewOptions recipes.NewOptions
+var recipesNewOptions sdk.NewRecipe
 
 // recipesNewCmd represents the recipes new command.
 var recipesNewCmd = &cobra.Command{
@@ -48,10 +48,10 @@ departs from another, such as one song played differently from the rest.`,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		recipesNewOptions.Dir = recipesDir
 		if recipesNewOptions.Dir == "" {
-			recipesNewOptions.Dir = "resources/recipes"
+			recipesNewOptions.Dir = "pkg/sdk/rigs"
 		}
 
-		made, err := recipes.New(recipesNewOptions)
+		made, err := sdk.New().Scaffold(recipesNewOptions)
 		if err != nil {
 			return err
 		}

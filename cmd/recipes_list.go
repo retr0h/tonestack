@@ -23,7 +23,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/retr0h/tonestack/internal/cli"
-	"github.com/retr0h/tonestack/internal/recipes"
+	"github.com/retr0h/tonestack/pkg/sdk"
 )
 
 // recipesListCmd represents the recipes list command.
@@ -32,7 +32,7 @@ var recipesListCmd = &cobra.Command{
 	Short: "List available recipes",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		all, err := recipes.List(recipesDir)
+		all, err := sdk.New().Recipes(recipesDir)
 		if err != nil {
 			return err
 		}

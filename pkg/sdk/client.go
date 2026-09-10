@@ -27,6 +27,8 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk/internal/attached"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/catalogview"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/corpusview"
+	"github.com/retr0h/tonestack/pkg/sdk/internal/presets"
+	"github.com/retr0h/tonestack/pkg/sdk/internal/recipes"
 )
 
 // Client is what a wrapper holds.
@@ -118,4 +120,88 @@ type Corpus struct {
 // first; leaving it empty asks the second.
 func (c *Client) Measurements(in Corpus) (Measured, error) {
 	return corpusview.Show(corpusview.Options(in))
+}
+
+// Recipes reads every rig under a directory.
+//
+// An empty dir means the rigs that ship with this library, which is the case
+// for anyone who has not written their own.
+func (c *Client) Recipes(dir string) (Recipes, error) {
+	return recipes.List(dir)
+}
+
+// Recipe reads one rig, and what the rest of the set says about it.
+func (c *Client) Recipe(dir, id string) (Recipe, error) {
+	return recipes.Show(dir, id)
+}
+
+// NewRecipe describes the rig to scaffold.
+type NewRecipe struct {
+	// Dir is where recipes live. Empty writes beside the ones that ship,
+	// which is not usually what anybody wants.
+	Dir string
+	// ID is the identifier, and the filename stem.
+	ID string
+	// Name is the player or style, as a person would write it.
+	Name string
+	// Band is the group, where there is one.
+	Band string
+	// Instrument is guitar or bass.
+	Instrument string
+	// Amp is the real-world amplifier. Required: it is the one thing nothing
+	// downstream recovers from getting wrong.
+	Amp string
+	// Cab is the real-world cabinet. Empty takes the amp's own pairing.
+	Cab string
+	// Pedals are real-world pedals, in signal order.
+	Pedals []string
+	// CatalogPath is a catalog to check against instead of the built-in one.
+	CatalogPath string
+	// From is a rig to copy, by identifier. The copy is a whole rig and
+	// records where it came from in `extends`; nothing merges the two.
+	From string
+	// Kind is what the new rig is attributed to: artist, band, song, genre
+	// or sound. Only read when copying, since a scaffold from nothing is an
+	// artist.
+	Kind string
+}
+
+// Scaffold writes a rig, after checking the gear it names exists.
+//
+// Checking first is the point. A rig naming gear no device models is only
+// found out when somebody tries to build from it, and by then the name has
+// usually been copied somewhere else too.
+func (c *Client) Scaffold(in NewRecipe) (Scaffolded, error) {
+	return recipes.New(recipes.NewOptions(in))
+}
+
+// Make says which rig to build and where to put it.
+type Make struct {
+	// RecipeID names the curated knowledge to build from.
+	RecipeID string
+	// RecipesDir is where recipes live. Empty means the ones that ship.
+	RecipesDir string
+	// CatalogPath is the generated catalog for the target device. Empty
+	// means the one built into this binary.
+	CatalogPath string
+	// StatsPath is measured corpus statistics. Empty means the ones built
+	// into this binary.
+	StatsPath string
+	// OutputPath is where the preset is written.
+	OutputPath string
+}
+
+// Build compiles a rig into a preset and writes it.
+//
+// Reporting what it chose matters as much as writing the file. A generated
+// preset is a set of decisions, and a wrong amp should be visible before
+// anybody plugs in rather than after.
+func (c *Client) Build(in Make) (Made, error) {
+	return presets.Make(presets.MakeOptions{
+		RecipeID:    in.RecipeID,
+		RecipesDir:  in.RecipesDir,
+		CatalogPath: in.CatalogPath,
+		StatsPath:   in.StatsPath,
+		OutputPath:  in.OutputPath,
+	})
 }

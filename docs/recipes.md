@@ -5,9 +5,9 @@ How to describe what somebody plays, so this project can build it.
 A rig is written as a **RigSpec**, the project's only hand-authored format,
 defined in
 [`pkg/sdk/rig/data/rigspec.openapi.yaml`](../pkg/sdk/rig/data/rigspec.openapi.yaml).
-One is a YAML file under `resources/recipes/`, and it is the only data here that
-is ours: the device catalog and the gear map are derived from Line 6's own
-files, while these are written by hand.
+One is a YAML file under `pkg/sdk/rigs/`, and it is the only data here that is
+ours: the device catalog and the gear map are derived from Line 6's own files,
+while these are written by hand.
 
 This page is how to write one. For what each field may say, read
 [`docs/rigspec.md`](rigspec.md), which is generated from the contract and lists

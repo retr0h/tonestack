@@ -130,8 +130,8 @@ order, for building a rig, reading a device, and correcting a preset.
   is the RigSpec contract, embedded in the package that reads it.
 - [`resources/schemas/`](resources/schemas/) holds the generated device catalog,
   the gear map, and the preset corpus.
-- [`resources/recipes/`](resources/recipes/) holds the curated rigs that ship in
-  the binary.
+- [`pkg/sdk/rigs/`](pkg/sdk/rigs/) holds the curated rigs that ship in the
+  binary.
 - [Package documentation](https://pkg.go.dev/github.com/retr0h/tonestack) is on
   pkg.go.dev.
 

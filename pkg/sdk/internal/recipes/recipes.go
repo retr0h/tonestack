@@ -38,11 +38,11 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk/result"
 	"github.com/retr0h/tonestack/pkg/sdk/rig"
 	"github.com/retr0h/tonestack/pkg/sdk/rig/gen"
-	recipedata "github.com/retr0h/tonestack/resources/recipes"
+	"github.com/retr0h/tonestack/pkg/sdk/rigs"
 )
 
 // DefaultDir is where recipes live.
-const DefaultDir = "resources/recipes"
+const DefaultDir = "pkg/sdk/rigs"
 
 // Load reads every rig under dir, in identifier order.
 //
@@ -52,7 +52,7 @@ func Load(dir string) ([]gen.RigSpec, error) {
 	// No directory means the recipes that ship in the binary, which is the
 	// case for anyone who has not written their own.
 	if dir == "" {
-		return loadFS(recipedata.FS, ".")
+		return loadFS(rigs.FS, ".")
 	}
 
 	return loadFS(os.DirFS(dir), ".")

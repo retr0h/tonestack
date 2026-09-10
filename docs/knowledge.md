@@ -15,7 +15,7 @@ tones come out generic.
 
 | Problem                 | Source                                      | State                     |
 | ----------------------- | ------------------------------------------- | ------------------------- |
-| Who plays what          | `resources/recipes/`, hand-written          | thin, grows by correction |
+| Who plays what          | `pkg/sdk/rigs/`, hand-written               | thin, grows by correction |
 | Gear to model ID        | `resources/schemas/gear-map.json`           | 547 models                |
 | What order blocks go in | statistics over `resources/schemas/corpus/` | not built                 |
 | Which way a knob moves  | the Pilot's Guide parameter tables          | not built                 |
@@ -170,7 +170,7 @@ assumes it:
 request      "a Mike Dirnt sound"
    │
    ▼
-recipe       resources/recipes/artists/mike-dirnt.yaml        who plays what
+recipe       pkg/sdk/rigs/artists/mike-dirnt.yaml             who plays what
    │         amp: Ampeg SVT
    ▼
 gear map     resources/schemas/gear-map.json                  gear to model
