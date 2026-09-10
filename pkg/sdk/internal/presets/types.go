@@ -21,11 +21,11 @@
 package presets
 
 import (
-	"github.com/retr0h/tonestack/internal/recipes"
 	"github.com/retr0h/tonestack/pkg/sdk/catalog"
 	"github.com/retr0h/tonestack/pkg/sdk/chain"
 	"github.com/retr0h/tonestack/pkg/sdk/compile"
 	"github.com/retr0h/tonestack/pkg/sdk/corpus"
+	"github.com/retr0h/tonestack/pkg/sdk/internal/recipes"
 	riggen "github.com/retr0h/tonestack/pkg/sdk/rig/gen"
 )
 

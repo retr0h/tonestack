@@ -23,7 +23,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/retr0h/tonestack/internal/cli"
-	"github.com/retr0h/tonestack/internal/recipes"
+	"github.com/retr0h/tonestack/pkg/sdk"
 )
 
 var recipesShowID string
@@ -34,7 +34,7 @@ var recipesShowCmd = &cobra.Command{
 	Short: "Show one recipe in full",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		one, err := recipes.Show(recipesDir, recipesShowID)
+		one, err := sdk.New().Recipe(recipesDir, recipesShowID)
 		if err != nil {
 			return err
 		}

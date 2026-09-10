@@ -21,6 +21,7 @@
 package compile_test
 
 import (
+	"io/fs"
 	"os"
 	"path/filepath"
 	"testing"
@@ -29,6 +30,7 @@ import (
 
 	"github.com/retr0h/tonestack/pkg/sdk/compile"
 	"github.com/retr0h/tonestack/pkg/sdk/rig"
+	"github.com/retr0h/tonestack/pkg/sdk/rigs"
 )
 
 // ShippedPublicTestSuite holds the rigs this repository ships to the
@@ -43,16 +45,19 @@ type ShippedPublicTestSuite struct {
 	suite.Suite
 }
 
-// TestEveryShippedRigUsesTheVocabulary covers the terms in resources/recipes.
+// TestEveryShippedRigUsesTheVocabulary covers the terms every shipped rig
+// describes itself with.
+//
+// Read through the embedded copy rather than off disk, so this counts no
+// directories and travels wherever the package does.
 func (s *ShippedPublicTestSuite) TestEveryShippedRigUsesTheVocabulary() {
-	paths, err := filepath.Glob(
-		filepath.Join("..", "..", "..", "resources", "recipes", "*", "*.yaml"))
+	paths, err := fs.Glob(rigs.FS, filepath.Join("*", "*.yaml"))
 	s.Require().NoError(err)
 	s.Require().NotEmpty(paths, "no rigs found to check")
 
 	for _, path := range paths {
 		s.Run(filepath.Base(path), func() {
-			f, err := os.Open(path)
+			f, err := rigs.FS.Open(path)
 			s.Require().NoError(err)
 
 			defer func() { s.Require().NoError(f.Close()) }()

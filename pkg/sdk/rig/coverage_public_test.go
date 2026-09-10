@@ -21,6 +21,7 @@
 package rig_test
 
 import (
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
@@ -29,6 +30,7 @@ import (
 	"github.com/getkin/kin-openapi/openapi3"
 
 	"github.com/retr0h/tonestack/pkg/sdk/rig"
+	"github.com/retr0h/tonestack/pkg/sdk/rigs"
 	"github.com/stretchr/testify/suite"
 	"sigs.k8s.io/yaml"
 )
@@ -77,7 +79,7 @@ func (s *CoveragePublicTestSuite) TestEveryFieldAppearsInARig() {
 	}
 
 	s.Require().Empty(missing,
-		"no rig under examples/rigspec or resources/recipes writes these. "+
+		"no rig under examples/rigspec or pkg/sdk/rigs writes these. "+
 			"Add one to a rig, or add it to exempt with a reason: %v", missing)
 }
 
@@ -126,9 +128,24 @@ func (s *CoveragePublicTestSuite) declared() []string {
 func (s *CoveragePublicTestSuite) written() map[string]bool {
 	out := map[string]bool{}
 
+	// The shipped rigs come through the embedded copy and the examples off
+	// disk, because only the first of those travels with this package.
+	shipped, err := fs.Glob(rigs.FS, filepath.Join("*", "*.yaml"))
+	s.Require().NoError(err)
+	s.Require().NotEmpty(shipped)
+
+	for _, path := range shipped {
+		raw, err := fs.ReadFile(rigs.FS, path)
+		s.Require().NoError(err)
+
+		var body any
+		s.Require().NoError(yaml.Unmarshal(raw, &body))
+
+		s.keys(body, out)
+	}
+
 	for _, pattern := range [][]string{
 		{"..", "..", "..", "examples", "rigspec", "*.yaml"},
-		{"..", "..", "..", "resources", "recipes", "*", "*.yaml"},
 	} {
 		paths, err := filepath.Glob(filepath.Join(pattern...))
 		s.Require().NoError(err)

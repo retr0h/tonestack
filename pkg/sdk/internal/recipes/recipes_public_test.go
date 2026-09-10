@@ -26,7 +26,7 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
-	"github.com/retr0h/tonestack/internal/recipes"
+	"github.com/retr0h/tonestack/pkg/sdk/internal/recipes"
 	riggen "github.com/retr0h/tonestack/pkg/sdk/rig/gen"
 )
 

@@ -18,13 +18,22 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// Package recipedata ships the curated gear knowledge inside the binary.
+// Package rigs ships the curated gear knowledge inside the binary.
 //
-// The YAML beside this file is the canonical copy — the one contributors edit
+// Who plays what is the first of the things this project has to know, and it
+// is the only one written by hand. The other four — which model emulates
+// which gear, what a device accepts, what order blocks go in, which way a
+// knob moves — are derived or not built yet, and every one of them already
+// travels inside the library. These do too.
+//
+// The YAML beside this file is the canonical copy, the one contributors edit
 // and review. Embedding it here rather than copying it elsewhere keeps one
 // source of truth, and means `presets make --id mike-dirnt` works from any
 // directory rather than only from a checkout.
-package recipedata
+//
+// Public, unlike the code that reads it. A caller that wants the rigs
+// themselves rather than what an operation makes of them can have them.
+package rigs
 
 import "embed"
 

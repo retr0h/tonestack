@@ -28,7 +28,7 @@ import (
 	"regexp"
 	"strings"
 
-	recipedata "github.com/retr0h/tonestack/resources/recipes"
+	"github.com/retr0h/tonestack/pkg/sdk/rigs"
 )
 
 // idLine, subjectKind and subjectName find the lines a copy has to change.
@@ -102,9 +102,9 @@ func findFile(dir, id string) (string, string, error) {
 	// Somebody's own directory first, then the ones in the binary. Copying a
 	// shipped rig into a directory of your own is the common case, and it
 	// would not work if the parent had to live beside the copy.
-	sources := []fs.FS{recipedata.FS}
+	sources := []fs.FS{rigs.FS}
 	if dir != "" {
-		sources = []fs.FS{os.DirFS(dir), recipedata.FS}
+		sources = []fs.FS{os.DirFS(dir), rigs.FS}
 	}
 
 	seen := 0

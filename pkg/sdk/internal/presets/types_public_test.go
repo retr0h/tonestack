@@ -28,9 +28,9 @@ import (
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/mock/gomock"
 
-	"github.com/retr0h/tonestack/internal/presets"
-	presetmocks "github.com/retr0h/tonestack/internal/presets/mocks"
 	"github.com/retr0h/tonestack/pkg/sdk/chain"
+	"github.com/retr0h/tonestack/pkg/sdk/internal/presets"
+	presetmocks "github.com/retr0h/tonestack/pkg/sdk/internal/presets/mocks"
 	riggen "github.com/retr0h/tonestack/pkg/sdk/rig/gen"
 )
 

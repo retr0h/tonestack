@@ -23,11 +23,11 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/retr0h/tonestack/internal/cli"
-	"github.com/retr0h/tonestack/internal/presets"
+	"github.com/retr0h/tonestack/pkg/sdk"
 	"github.com/retr0h/tonestack/pkg/sdk/catalog"
 )
 
-var presetsMakeOptions presets.MakeOptions
+var presetsMakeOptions sdk.Make
 
 // presetsMakeCmd represents the presets make command.
 var presetsMakeCmd = &cobra.Command{
@@ -40,7 +40,7 @@ parameter is set to what Line 6 states as its default — a recipe's character
 lines do not move knobs yet.`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		made, err := presets.Make(presetsMakeOptions)
+		made, err := sdk.New().Build(presetsMakeOptions)
 		if err != nil {
 			return err
 		}

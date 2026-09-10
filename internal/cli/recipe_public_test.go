@@ -87,7 +87,7 @@ func (s *RecipePublicTestSuite) TestRecipes() {
 		{
 			name: "one row per recipe",
 			in: sdk.Recipes{
-				Dir:  "resources/recipes",
+				Dir:  "pkg/sdk/rigs",
 				Rigs: []gen.RigSpec{rigWith(nil)},
 			},
 			want: []string{"mike-dirnt", "Mike Dirnt", "bass", "Ampeg SVT"},
@@ -98,7 +98,7 @@ func (s *RecipePublicTestSuite) TestRecipes() {
 			// one somebody did.
 			name: "a recipe nobody confirmed",
 			in: sdk.Recipes{
-				Dir: "resources/recipes",
+				Dir: "pkg/sdk/rigs",
 				Rigs: []gen.RigSpec{rigWith(func(r *gen.RigSpec) {
 					r.Chain[0].Evidence = nil
 				})},
@@ -107,13 +107,13 @@ func (s *RecipePublicTestSuite) TestRecipes() {
 		},
 		{
 			name: "a shelf with nothing on it",
-			in:   sdk.Recipes{Dir: "resources/recipes"},
+			in:   sdk.Recipes{Dir: "pkg/sdk/rigs"},
 			want: []string{"no recipes here"},
 		},
 		{
 			name: "nowhere to write it",
 			in: sdk.Recipes{
-				Dir:  "resources/recipes",
+				Dir:  "pkg/sdk/rigs",
 				Rigs: []gen.RigSpec{rigWith(nil)},
 			},
 			to:  &brokenWriter{},
@@ -121,7 +121,7 @@ func (s *RecipePublicTestSuite) TestRecipes() {
 		},
 		{
 			name: "nowhere to write the empty case either",
-			in:   sdk.Recipes{Dir: "resources/recipes"},
+			in:   sdk.Recipes{Dir: "pkg/sdk/rigs"},
 			to:   &brokenWriter{},
 			err:  true,
 		},
@@ -256,7 +256,7 @@ func (s *RecipePublicTestSuite) TestScaffolded() {
 		Amp:        "Ampeg SVT",
 		Cab:        "Ampeg 8x10",
 		Pedals:     []string{"Klon Centaur", "Boss DS-1"},
-		Path:       "resources/recipes/artists/test-player.yaml",
+		Path:       "pkg/sdk/rigs/artists/test-player.yaml",
 	}
 
 	tests := []struct {

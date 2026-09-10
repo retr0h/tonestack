@@ -23,6 +23,7 @@ package sdk_test
 import (
 	"context"
 	"errors"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
@@ -248,6 +249,149 @@ func (s *ClientPublicTestSuite) TestMeasurements() {
 			s.Require().NoError(err)
 			s.Require().NotNil(got.Stats)
 			s.Require().Equal(tt.aboutOne, got.AboutOne())
+		})
+	}
+}
+
+// TestRecipes covers reading the rigs that ship with this library.
+func (s *ClientPublicTestSuite) TestRecipes() {
+	tests := []struct {
+		name string
+		dir  string
+		// a shelf with nothing on it, which is an answer rather than a
+		// failure: somebody who just made the directory is owed one.
+		empty bool
+	}{
+		{
+			// No directory means the rigs that ship, which is the case for
+			// anyone who has not written their own.
+			name: "the rigs that ship",
+		},
+		{name: "a shelf that is not there", dir: "no-such-directory", empty: true},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			got, err := sdk.New().Recipes(tt.dir)
+
+			s.Require().NoError(err)
+			s.Require().Equal(tt.dir, got.Dir)
+
+			if tt.empty {
+				s.Require().Empty(got.Rigs)
+
+				return
+			}
+
+			s.Require().NotEmpty(got.Rigs)
+		})
+	}
+}
+
+// TestRecipe covers reading one of them.
+func (s *ClientPublicTestSuite) TestRecipe() {
+	tests := []struct {
+		name string
+		id   string
+		err  bool
+	}{
+		{name: "a rig that ships", id: "mike-dirnt"},
+		{name: "one nobody wrote", id: "nobody-at-all", err: true},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			got, err := sdk.New().Recipe("", tt.id)
+
+			if tt.err {
+				s.Require().Error(err)
+
+				return
+			}
+
+			s.Require().NoError(err)
+			s.Require().Equal(tt.id, got.Rig.ID)
+		})
+	}
+}
+
+// TestScaffold covers writing a rig, gear checked first.
+func (s *ClientPublicTestSuite) TestScaffold() {
+	tests := []struct {
+		name string
+		in   sdk.NewRecipe
+		err  bool
+	}{
+		{
+			name: "a rig naming gear this device models",
+			in: sdk.NewRecipe{
+				ID: "test-player", Name: "Test Player",
+				Instrument: "bass", Amp: "Ampeg SVT",
+			},
+		},
+		{
+			// Checked first, because a rig naming gear no device models is
+			// otherwise only found out when somebody builds from it.
+			name: "one naming gear nothing emulates",
+			in: sdk.NewRecipe{
+				ID: "test-player", Name: "Test Player",
+				Instrument: "bass", Amp: "No Such Amplifier",
+			},
+			err: true,
+		},
+		{
+			name: "an identifier that will not do",
+			in:   sdk.NewRecipe{ID: "Not An ID", Amp: "Ampeg SVT"},
+			err:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			in := tt.in
+			in.Dir = s.T().TempDir()
+
+			got, err := sdk.New().Scaffold(in)
+
+			if tt.err {
+				s.Require().Error(err)
+
+				return
+			}
+
+			s.Require().NoError(err)
+			s.Require().Equal(tt.in.ID, got.ID)
+			s.Require().FileExists(got.Path)
+		})
+	}
+}
+
+// TestBuild covers compiling a rig into a preset.
+func (s *ClientPublicTestSuite) TestBuild() {
+	tests := []struct {
+		name string
+		id   string
+		err  bool
+	}{
+		{name: "a rig that ships", id: "mike-dirnt"},
+		{name: "one nobody wrote", id: "nobody-at-all", err: true},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			out := filepath.Join(s.T().TempDir(), "out.hlx")
+
+			got, err := sdk.New().Build(sdk.Make{RecipeID: tt.id, OutputPath: out})
+
+			if tt.err {
+				s.Require().Error(err)
+
+				return
+			}
+
+			s.Require().NoError(err)
+			s.Require().Equal(out, got.Path)
+			s.Require().NotEmpty(got.Chain.Blocks)
 		})
 	}
 }

@@ -21,6 +21,7 @@
 package rig_test
 
 import (
+	"io/fs"
 	"os"
 	"path/filepath"
 	"testing"
@@ -28,6 +29,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/retr0h/tonestack/pkg/sdk/rig"
+	"github.com/retr0h/tonestack/pkg/sdk/rigs"
 )
 
 // ShippedPublicTestSuite checks the rigs this repository ships.
@@ -41,15 +43,13 @@ type ShippedPublicTestSuite struct {
 }
 
 func (s *ShippedPublicTestSuite) TestEveryShippedRigLoads() {
-	paths, err := filepath.Glob(
-		filepath.Join("..", "..", "..", "resources", "recipes", "*", "*.yaml"),
-	)
+	paths, err := fs.Glob(rigs.FS, filepath.Join("*", "*.yaml"))
 	s.Require().NoError(err)
 	s.Require().NotEmpty(paths, "no rigs found to check")
 
 	for _, path := range paths {
 		s.Run(filepath.Base(path), func() {
-			f, err := os.Open(path)
+			f, err := rigs.FS.Open(path)
 			s.Require().NoError(err)
 
 			defer func() { s.Require().NoError(f.Close()) }()
