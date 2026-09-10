@@ -22,12 +22,13 @@ package slots
 
 import (
 	"bytes"
-	"io"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
+
+	"github.com/retr0h/tonestack/pkg/sdk/rig"
 	"github.com/vmihailenco/msgpack/v5"
 
 	"github.com/retr0h/tonestack/internal/catalogview"
@@ -98,15 +99,15 @@ func (s *DeviceReadTestSuite) unknownModel() []byte {
 	return s.encode(map[int8]any{0: map[int8]any{22: []any{block(99999)}}})
 }
 
-// TestWriteDeviceRig turns what a device answered into a rig.
-func (s *DeviceReadTestSuite) TestWriteDeviceRig() {
+// TestDeviceReading turns what a device answered into a rig.
+func (s *DeviceReadTestSuite) TestDeviceReading() {
 	tests := []struct {
 		name string
 		// which answer to read: the capture unless a case says otherwise.
 		answer string
 		opts   DeviceOptions
-		// a writer that fails, so a rig nobody can read is an error.
-		deaf bool
+		// the slot holds nothing, which is an answer rather than a failure.
+		empty bool
 
 		contains []string
 		absent   []string
@@ -174,11 +175,13 @@ func (s *DeviceReadTestSuite) TestWriteDeviceRig() {
 		},
 		{
 			// A slot holding nothing is not a rig: it names no gear, and a
-			// rig holds at least one thing.
-			name:     "a slot holding nothing",
-			answer:   "empty",
-			opts:     DeviceOptions{Slot: 4},
-			contains: []string{"is empty"},
+			// rig holds at least one thing. It is still a slot with a name,
+			// which is what lets a backup tell "nothing here" from "this
+			// failed".
+			name:   "a slot holding nothing",
+			answer: "empty",
+			opts:   DeviceOptions{Slot: 4},
+			empty:  true,
 		},
 		{
 			name:     "a chain with no snapshots and no switches",
@@ -216,7 +219,6 @@ func (s *DeviceReadTestSuite) TestWriteDeviceRig() {
 			},
 			errText: "slot 01A",
 		},
-		{name: "a writer that fails", deaf: true, err: true},
 	}
 
 	for _, tt := range tests {
@@ -238,14 +240,7 @@ func (s *DeviceReadTestSuite) TestWriteDeviceRig() {
 				answer = s.answerFrom(tt.answer)
 			}
 
-			var out bytes.Buffer
-
-			w := io.Writer(&out)
-			if tt.deaf {
-				w = &brokenWriter{}
-			}
-
-			err := writeDeviceRig(w, answer, tt.opts)
+			read, err := deviceReading(answer, tt.opts)
 
 			if tt.err || tt.errText != "" {
 				s.Require().Error(err)
@@ -259,12 +254,29 @@ func (s *DeviceReadTestSuite) TestWriteDeviceRig() {
 
 			s.Require().NoError(err)
 
+			if tt.empty {
+				s.Require().True(read.Empty())
+
+				return
+			}
+
+			s.Require().False(read.Empty())
+
+			// The name and the rig together, because a slot the device did
+			// not name is answered by the first and everything else by the
+			// second.
+			var out bytes.Buffer
+
+			s.Require().NoError(rig.Write(&out, read.Rig))
+
+			got := read.Name + "\n" + out.String()
+
 			for _, want := range tt.contains {
-				s.Require().Contains(out.String(), want)
+				s.Require().Contains(got, want)
 			}
 
 			for _, unwanted := range tt.absent {
-				s.Require().NotContains(out.String(), unwanted)
+				s.Require().NotContains(got, unwanted)
 			}
 		})
 	}
@@ -278,8 +290,12 @@ func (s *DeviceReadTestSuite) TestARigReadOffTheDeviceRebuildsItsRouting() {
 	rigPath := filepath.Join(dir, "rig.yaml")
 	out := filepath.Join(dir, "out.hlx")
 
+	read, err := deviceReading(s.capture(), DeviceOptions{Slot: 0})
+	s.Require().NoError(err)
+
 	var buf bytes.Buffer
-	s.Require().NoError(writeDeviceRig(&buf, s.capture(), DeviceOptions{Slot: 0}))
+
+	s.Require().NoError(rig.Write(&buf, read.Rig))
 	s.Require().NoError(os.WriteFile(rigPath, buf.Bytes(), 0o600))
 
 	s.Require().NoError(Compile(&bytes.Buffer{}, CompileOptions{

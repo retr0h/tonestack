@@ -59,10 +59,11 @@ chain:
 func (s *CompilePublicTestSuite) exported(dir string) string {
 	out := filepath.Join(dir, "rig.yaml")
 
-	s.Require().NoError(slots.Export(&bytes.Buffer{}, slots.ExportOptions{
+	_, err := slots.Export(slots.ExportOptions{
 		Path: fixture("setlist.hls"), Slot: 0, OutputPath: out,
 		CatalogPath: catalogPath(),
-	}))
+	})
+	s.Require().NoError(err)
 
 	return out
 }

@@ -27,11 +27,11 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/retr0h/tonestack/internal/cli"
 	"github.com/retr0h/tonestack/pkg/sdk/device"
+	"github.com/retr0h/tonestack/pkg/sdk/preset"
 	slotpkg "github.com/retr0h/tonestack/pkg/sdk/slot"
 )
 
@@ -73,22 +73,26 @@ func backup(body []byte, opts DeviceOptions, dir string) (string, error) {
 		return "", nil
 	}
 
-	var buf bytes.Buffer
-
 	opts.As = FormatPreset
 
-	if err := writeDeviceRig(&buf, body, opts); err != nil {
+	read, err := deviceReading(body, opts)
+	if err != nil {
 		return "", fmt.Errorf("reading slot %s before replacing it: %w",
 			slotpkg.Label(opts.Slot), err)
 	}
 
-	// What ShowWith writes for a slot holding nothing. A comment is not a
-	// preset, and keeping one would be keeping nothing.
-	if strings.HasPrefix(buf.String(), "#") {
+	// A slot holding nothing. Keeping a file for one would be keeping
+	// nothing, and putting it back later would write a preset that is not one.
+	if read.Empty() {
 		return "", nil
 	}
 
-	dir, err := backupDir(dir)
+	var buf bytes.Buffer
+
+	// A payload that decoded encodes again.
+	_ = preset.Write(&buf, read.Doc)
+
+	dir, err = backupDir(dir)
 	if err != nil {
 		return "", err
 	}

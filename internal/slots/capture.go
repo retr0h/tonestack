@@ -23,23 +23,14 @@ package slots
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 
-	"github.com/retr0h/tonestack/internal/cli"
-	slotpkg "github.com/retr0h/tonestack/pkg/sdk/slot"
+	"github.com/retr0h/tonestack/pkg/sdk"
 )
-
-// dumpEnv names a file to write a device's raw answer to.
-//
-// Reading a preset off the hardware is the one call whose reply nobody has
-// seen. Capturing it is what turns a guess about the wire format into a test,
-// and it costs one plugged-in session rather than one per attempt.
-const dumpEnv = "TONESTACK_USB_DUMP"
 
 // dump writes a device's answer where somebody can read it, when asked.
 func dump(got any) error {
-	path := os.Getenv(dumpEnv)
+	path := os.Getenv(sdk.DumpEnv)
 	if path == "" {
 		return nil
 	}
@@ -75,20 +66,4 @@ func bytesOf(got any) ([]byte, error) {
 	default:
 		return json.MarshalIndent(got, "", "  ")
 	}
-}
-
-// describe reports what came back, in whatever detail can be had.
-//
-// The reply is a document nobody has decoded yet: a preset arrives as three
-// concatenated MessagePack values, and the models inside it are numbered by a
-// scheme that does not index the catalog. Until that is worked out, saying
-// plainly what arrived beats printing a chain that would be wrong.
-func describe(w io.Writer, model string, slot int, shape string) error {
-	return cli.Section{
-		Title:   model,
-		Detail:  "slot " + slotpkg.Label(slot),
-		Headers: []string{"the device answered"},
-		Rows:    [][]string{{shape}},
-		Summary: fmt.Sprintf("set %s to a path to keep it", dumpEnv),
-	}.Render(w)
 }

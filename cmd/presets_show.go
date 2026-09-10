@@ -22,7 +22,9 @@ package cmd
 import (
 	"github.com/spf13/cobra"
 
+	"github.com/retr0h/tonestack/internal/cli"
 	"github.com/retr0h/tonestack/internal/slots"
+	"github.com/retr0h/tonestack/pkg/sdk"
 	"github.com/retr0h/tonestack/pkg/sdk/slot"
 )
 
@@ -42,18 +44,14 @@ All three decode to the same chain, which is the point: what the device holds
 and what this tool generates are the same kind of thing.`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		// No file and no preset means the device itself, which is what
-		// somebody with one plugged in almost always wants.
-		if presetsShowOptions.Path == "" && presetsShowOptions.File == "" {
-			return slots.ShowDevice(cmd.Context(), cmd.OutOrStdout(),
-				slots.DeviceOptions{
-					Setlist:     presetsShowOptions.Setlist,
-					Slot:        presetsShowOptions.Slot,
-					CatalogPath: presetsShowOptions.CatalogPath,
-				})
+		// The operation answers with the rig; what it looks like is decided
+		// here, which is all this command does.
+		read, err := reading(cmd)
+		if err != nil {
+			return err
 		}
 
-		return slots.Show(cmd.OutOrStdout(), presetsShowOptions)
+		return cli.Reading(cmd.OutOrStdout(), read)
 	},
 }
 
@@ -88,4 +86,20 @@ func init() {
 	// backup both hold many, so one of the two has to be given: defaulting to
 	// the first slot would show somebody a preset they did not ask about.
 	presetsShowCmd.MarkFlagsOneRequired("preset", "slot")
+}
+
+// reading reads one preset, from the device or from a file.
+//
+// No file and no preset means the device itself, which is what somebody with
+// one plugged in almost always wants.
+func reading(cmd *cobra.Command) (sdk.Reading, error) {
+	if presetsShowOptions.Path == "" && presetsShowOptions.File == "" {
+		return slots.ShowDevice(cmd.Context(), slots.DeviceOptions{
+			Setlist:     presetsShowOptions.Setlist,
+			Slot:        presetsShowOptions.Slot,
+			CatalogPath: presetsShowOptions.CatalogPath,
+		})
+	}
+
+	return slots.Show(presetsShowOptions)
 }

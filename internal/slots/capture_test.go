@@ -21,21 +21,14 @@
 package slots
 
 import (
-	"bytes"
-	"errors"
-	"io"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
+
+	"github.com/retr0h/tonestack/pkg/sdk"
 )
-
-// brokenWriter fails every write, so a reporting failure is reported rather
-// than dropped.
-type brokenWriter struct{}
-
-func (*brokenWriter) Write([]byte) (int, error) { return 0, errors.New("boom") }
 
 // CaptureTestSuite covers what happens to a device's answer before anybody
 // knows how to decode it.
@@ -105,7 +98,7 @@ func (s *CaptureTestSuite) TestDump() {
 				path = filepath.Join(s.T().TempDir(), tt.file)
 			}
 
-			s.T().Setenv(dumpEnv, path)
+			s.T().Setenv(sdk.DumpEnv, path)
 
 			err := dump(tt.got)
 
@@ -136,51 +129,6 @@ func (s *CaptureTestSuite) TestDump() {
 }
 
 // TestDescribe says what arrived when nothing here can decode it.
-func (s *CaptureTestSuite) TestDescribe() {
-	tests := []struct {
-		name  string
-		shape string
-		to    io.Writer
-		want  string
-		err   bool
-	}{
-		{
-			name:  "what the device answered with",
-			shape: "map with 2 keys",
-			want:  "map with 2 keys",
-		},
-		{
-			name:  "nowhere to say it",
-			shape: "map with 2 keys",
-			to:    &brokenWriter{},
-			err:   true,
-		},
-	}
-
-	for _, tt := range tests {
-		s.Run(tt.name, func() {
-			var buf bytes.Buffer
-
-			to := tt.to
-			if to == nil {
-				to = &buf
-			}
-
-			err := describe(to, "HX Stomp", 3, tt.shape)
-
-			if tt.err {
-				s.Require().Error(err)
-
-				return
-			}
-
-			s.Require().NoError(err)
-			s.Require().Contains(buf.String(), tt.want)
-			s.Require().Contains(buf.String(), "slot 02A")
-		})
-	}
-}
-
 func TestCaptureTestSuite(t *testing.T) {
 	suite.Run(t, new(CaptureTestSuite))
 }
