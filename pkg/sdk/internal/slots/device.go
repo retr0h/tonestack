@@ -25,19 +25,23 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/retr0h/tonestack/pkg/sdk"
 	"github.com/retr0h/tonestack/pkg/sdk/catalog"
 	"github.com/retr0h/tonestack/pkg/sdk/chain"
 	"github.com/retr0h/tonestack/pkg/sdk/device"
 	"github.com/retr0h/tonestack/pkg/sdk/device/wire"
+	"github.com/retr0h/tonestack/pkg/sdk/result"
 	slotpkg "github.com/retr0h/tonestack/pkg/sdk/slot"
 )
 
-// openDevice is how a session is obtained, so a test can stand in for it.
+// OpenDevice is how a session is obtained, so a test can stand in for it.
+//
+// Exported because the Client's own tests have to stand in for it too, and
+// this package is private to pkg/sdk either way — the compiler says so, not
+// the case of a letter.
 //
 // The one line in this package that needs hardware; everything reached
 // through it takes the session as an argument instead.
-var openDevice = device.Open
+var OpenDevice = device.Open
 
 // DeviceOptions says which setlist to read off an attached device.
 type DeviceOptions struct {
@@ -62,10 +66,10 @@ type DeviceOptions struct {
 //
 // Read-only: the device hands back the preset and goes on playing whatever it
 // was. Nothing is selected, loaded or written.
-func ShowDevice(ctx context.Context, opts DeviceOptions) (sdk.Reading, error) {
-	s, err := openDevice(ctx)
+func ShowDevice(ctx context.Context, opts DeviceOptions) (result.Reading, error) {
+	s, err := OpenDevice(ctx)
 	if err != nil {
-		return sdk.Reading{}, err
+		return result.Reading{}, err
 	}
 
 	defer s.Close()
@@ -75,7 +79,7 @@ func ShowDevice(ctx context.Context, opts DeviceOptions) (sdk.Reading, error) {
 	// write.
 	read, err := ShowWith(ctx, s, opts)
 	if errors.Is(err, ErrEmptySlot) {
-		return sdk.Reading{Name: slotpkg.Label(opts.Slot)}, nil
+		return result.Reading{Name: slotpkg.Label(opts.Slot)}, nil
 	}
 
 	return read, err
@@ -89,7 +93,7 @@ func ShowWith(
 	ctx context.Context,
 	s device.Editor,
 	opts DeviceOptions,
-) (sdk.Reading, error) {
+) (result.Reading, error) {
 	// The name comes from the listing rather than the preset: what the device
 	// hands back for one slot does not carry it.
 	if opts.Name == "" {
@@ -106,12 +110,12 @@ func ShowWith(
 	var answer *device.NotAPresetError
 	if errors.As(err, &answer) {
 		if err := dump(answer.Result); err != nil {
-			return sdk.Reading{}, err
+			return result.Reading{}, err
 		}
 
-		return sdk.Reading{
+		return result.Reading{
 			Name: opts.Name,
-			Answer: &sdk.Answer{
+			Answer: &result.Answer{
 				Model: s.Model().Name,
 				Slot:  opts.Slot,
 				Shape: answer.Shape(),
@@ -120,19 +124,19 @@ func ShowWith(
 	}
 
 	if err != nil {
-		return sdk.Reading{}, fmt.Errorf(
+		return result.Reading{}, fmt.Errorf(
 			"reading slot %s: %w", slotpkg.Label(opts.Slot), err)
 	}
 
 	if err := dump(body); err != nil {
-		return sdk.Reading{}, err
+		return result.Reading{}, err
 	}
 
 	// A device answers an empty slot with no document at all. That is a slot
 	// holding nothing rather than a failure, and a backup has to know the
 	// difference to put a pedal back the way it was found.
 	if body == nil {
-		return sdk.Reading{}, fmt.Errorf(
+		return result.Reading{}, fmt.Errorf(
 			"%w: %s", ErrEmptySlot, slotpkg.Label(opts.Slot))
 	}
 
@@ -164,10 +168,10 @@ func nameOf(found []wire.Preset, slot int) string {
 //
 // The same rig `presets show` prints, which is the point: a slot read off the
 // hardware and one read out of a backup are the same document.
-func ExportDevice(ctx context.Context, opts ExportOptions) (sdk.Written, error) {
-	s, err := openDevice(ctx)
+func ExportDevice(ctx context.Context, opts ExportOptions) (result.Written, error) {
+	s, err := OpenDevice(ctx)
 	if err != nil {
-		return sdk.Written{}, err
+		return result.Written{}, err
 	}
 
 	defer s.Close()
@@ -180,7 +184,7 @@ func ExportWith(
 	ctx context.Context,
 	s device.Editor,
 	opts ExportOptions,
-) (sdk.Written, error) {
+) (result.Written, error) {
 	read, err := ShowWith(ctx, s, DeviceOptions{
 		Setlist:     opts.Setlist,
 		Slot:        opts.Slot,
@@ -188,7 +192,7 @@ func ExportWith(
 		CatalogPath: opts.CatalogPath,
 	})
 	if err != nil {
-		return sdk.Written{}, err
+		return result.Written{}, err
 	}
 
 	return write(read, opts)
@@ -198,10 +202,10 @@ func ExportWith(
 //
 // Read-only: it asks the device to describe a setlist and nothing more.
 // Nothing is selected, loaded or written.
-func ListDevice(ctx context.Context, opts DeviceOptions) (sdk.Listing, error) {
-	s, err := openDevice(ctx)
+func ListDevice(ctx context.Context, opts DeviceOptions) (result.Listing, error) {
+	s, err := OpenDevice(ctx)
 	if err != nil {
-		return sdk.Listing{}, err
+		return result.Listing{}, err
 	}
 
 	defer s.Close()
@@ -214,21 +218,21 @@ func ListWith(
 	ctx context.Context,
 	s device.Editor,
 	opts DeviceOptions,
-) (sdk.Listing, error) {
+) (result.Listing, error) {
 	presets, err := s.Presets(ctx, opts.Setlist)
 	if err != nil {
-		return sdk.Listing{}, fmt.Errorf("listing presets: %w", err)
+		return result.Listing{}, fmt.Errorf("listing presets: %w", err)
 	}
 
 	cat, err := opts.catalogs().Open(opts.CatalogPath)
 	if err != nil {
-		return sdk.Listing{}, err
+		return result.Listing{}, err
 	}
 
-	held := make([]sdk.Held, 0, len(presets))
+	held := make([]result.Held, 0, len(presets))
 
 	for _, p := range presets {
-		one := sdk.Held{Slot: p.Slot, Name: p.Name}
+		one := result.Held{Slot: p.Slot, Name: p.Name}
 
 		// A slot is always named, so a name says nothing about whether
 		// anything is in it. An untouched one keeps the name it shipped
@@ -236,7 +240,7 @@ func ListWith(
 		if p.Name != untouched {
 			blocks, err := chainAt(ctx, opts.Deps, s, cat, opts.Setlist, p.Slot)
 			if err != nil {
-				return sdk.Listing{}, err
+				return result.Listing{}, err
 			}
 
 			one.Blocks = blocks
@@ -245,7 +249,7 @@ func ListWith(
 		held = append(held, one)
 	}
 
-	return sdk.Listing{Name: s.Model().Name, Slots: held}, nil
+	return result.Listing{Name: s.Model().Name, Slots: held}, nil
 }
 
 // untouched is what a device calls a slot nobody has named.

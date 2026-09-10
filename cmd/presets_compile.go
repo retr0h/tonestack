@@ -24,10 +24,10 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/retr0h/tonestack/internal/cli"
-	"github.com/retr0h/tonestack/internal/slots"
+	"github.com/retr0h/tonestack/pkg/sdk"
 )
 
-var presetsCompileOptions slots.CompileOptions
+var presetsCompileOptions sdk.Compile
 
 // presetsCompileCmd represents the presets compile command.
 var presetsCompileCmd = &cobra.Command{
@@ -46,7 +46,7 @@ hardware has written. Pass --template to use a particular preset as that base,
 which is what makes a rig read off a device rebuild exactly.`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		built, err := slots.Compile(presetsCompileOptions)
+		built, err := sdk.New().Compile(presetsCompileOptions)
 		if err != nil {
 			return err
 		}

@@ -24,10 +24,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/retr0h/tonestack/pkg/sdk"
 	"github.com/retr0h/tonestack/pkg/sdk/device"
 	"github.com/retr0h/tonestack/pkg/sdk/device/wire"
 	"github.com/retr0h/tonestack/pkg/sdk/preset"
+	"github.com/retr0h/tonestack/pkg/sdk/result"
 	slotpkg "github.com/retr0h/tonestack/pkg/sdk/slot"
 )
 
@@ -38,10 +38,10 @@ import (
 // there. See wire.Blank.
 //
 // The destination is overwritten. There is no undo on a device.
-func ImportDevice(ctx context.Context, opts ImportOptions) (sdk.Change, error) {
-	s, err := openDevice(ctx)
+func ImportDevice(ctx context.Context, opts ImportOptions) (result.Change, error) {
+	s, err := OpenDevice(ctx)
 	if err != nil {
-		return sdk.Change{}, err
+		return result.Change{}, err
 	}
 
 	defer s.Close()
@@ -54,15 +54,15 @@ func ImportWith(
 	ctx context.Context,
 	s device.Editor,
 	opts ImportOptions,
-) (sdk.Change, error) {
+) (result.Change, error) {
 	doc, err := readPreset(opts.File)
 	if err != nil {
-		return sdk.Change{}, err
+		return result.Change{}, err
 	}
 
 	body, err := documentFor(opts.Deps, doc, opts.CatalogPath)
 	if err != nil {
-		return sdk.Change{}, err
+		return result.Change{}, err
 	}
 
 	// Before the backup rather than after it: a session that cannot write
@@ -70,27 +70,27 @@ func ImportWith(
 	// be a round trip to the device for nothing.
 	writer, err := writerFor(s)
 	if err != nil {
-		return sdk.Change{}, err
+		return result.Change{}, err
 	}
 
 	// What the slot holds now, before it stops holding it.
 	kept, err := replacing(ctx, s, opts.Deps, opts.CatalogPath, opts.BackupDir,
 		opts.Setlist, opts.Slot)
 	if err != nil {
-		return sdk.Change{}, err
+		return result.Change{}, err
 	}
 
 	name := doc.Data.Meta.Name
 
 	if err := writer.WriteNamedPreset(
 		ctx, opts.Setlist, opts.Slot, name, body); err != nil {
-		return sdk.Change{}, fmt.Errorf(
+		return result.Change{}, fmt.Errorf(
 			"writing slot %s: %w", slotpkg.Label(opts.Slot), err)
 	}
 
-	return sdk.Change{
-		Action: sdk.Imported,
-		To:     sdk.At{Slot: opts.Slot, Name: name},
+	return result.Change{
+		Action: result.Imported,
+		To:     result.At{Slot: opts.Slot, Name: name},
 		Kept:   kept,
 	}, nil
 }

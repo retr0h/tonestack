@@ -23,12 +23,11 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/retr0h/tonestack/internal/cli"
-	"github.com/retr0h/tonestack/internal/slots"
 	"github.com/retr0h/tonestack/pkg/sdk"
 	"github.com/retr0h/tonestack/pkg/sdk/slot"
 )
 
-var presetsCopyOptions slots.EditOptions
+var presetsCopyOptions sdk.Edit
 
 // presetsCopyCmd represents the presets copy command.
 var presetsCopyCmd = &cobra.Command{
@@ -58,7 +57,7 @@ func init() {
 }
 
 // editFlags declares the flags every two-slot edit shares.
-func editFlags(c *cobra.Command, o *slots.EditOptions) {
+func editFlags(c *cobra.Command, o *sdk.Edit) {
 	f := c.Flags()
 	f.StringVar(&o.Path, "file", "", "a .hls setlist or .hlb backup written by HX Edit")
 	f.IntVar(&o.FromSetlist, "from-setlist", 0, "which setlist the source is in")
@@ -85,9 +84,5 @@ func editFlags(c *cobra.Command, o *slots.EditOptions) {
 // No file means the device itself, which is what somebody with one plugged in
 // almost always wants.
 func copied(cmd *cobra.Command) (sdk.Change, error) {
-	if presetsCopyOptions.Path == "" {
-		return slots.CopyDevice(cmd.Context(), presetsCopyOptions)
-	}
-
-	return slots.Copy(presetsCopyOptions)
+	return sdk.New().Copy(cmd.Context(), presetsCopyOptions)
 }

@@ -23,12 +23,18 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/retr0h/tonestack/internal/cli"
-	"github.com/retr0h/tonestack/internal/slots"
 	"github.com/retr0h/tonestack/pkg/sdk"
 	"github.com/retr0h/tonestack/pkg/sdk/catalog"
 )
 
-var presetsListOptions slots.ListOptions
+var presetsListOptions sdk.Where
+
+// presetsListAll shows the slots holding nothing.
+//
+// A rendering choice rather than an operation one: a device answers for every
+// slot either way, and leaving the empty ones out is how somebody stops seeing
+// where the gaps are.
+var presetsListAll bool
 
 // presetsListCmd represents the presets list command.
 var presetsListCmd = &cobra.Command{
@@ -58,7 +64,7 @@ there.`,
 			return err
 		}
 
-		return cli.Listing(cmd.OutOrStdout(), listing, cat, presetsListOptions.All)
+		return cli.Listing(cmd.OutOrStdout(), listing, cat, presetsListAll)
 	},
 }
 
@@ -80,7 +86,7 @@ func init() {
 	)
 	f.StringVar(&presetsListOptions.CatalogPath, "catalog", "",
 		"a generated catalog to use instead of the built-in one")
-	f.BoolVar(&presetsListOptions.All, "all", false, "include empty slots")
+	f.BoolVar(&presetsListAll, "all", false, "include empty slots")
 }
 
 // listing reads a setlist, from the device or from a file.
@@ -88,13 +94,5 @@ func init() {
 // No file means the device itself, which is what somebody with one plugged in
 // almost always wants.
 func listing(cmd *cobra.Command) (sdk.Listing, error) {
-	if presetsListOptions.Path != "" {
-		return slots.List(presetsListOptions)
-	}
-
-	return slots.ListDevice(cmd.Context(), slots.DeviceOptions{
-		Setlist:     presetsListOptions.Setlist,
-		All:         presetsListOptions.All,
-		CatalogPath: presetsListOptions.CatalogPath,
-	})
+	return sdk.New().Presets(cmd.Context(), presetsListOptions)
 }

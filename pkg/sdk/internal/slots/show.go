@@ -24,8 +24,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/retr0h/tonestack/pkg/sdk"
 	"github.com/retr0h/tonestack/pkg/sdk/preset"
+	"github.com/retr0h/tonestack/pkg/sdk/result"
 	slotpkg "github.com/retr0h/tonestack/pkg/sdk/slot"
 )
 
@@ -55,31 +55,31 @@ type ShowOptions struct {
 // A rig, not a rendering of one. RigSpec is what this project reads, writes
 // and exchanges, so it is what looking at a preset produces — and what comes
 // out here compiles back into the preset it came from, unchanged.
-func Show(opts ShowOptions) (sdk.Reading, error) {
+func Show(opts ShowOptions) (result.Reading, error) {
 	doc, err := document(opts)
 	if err != nil {
-		return sdk.Reading{}, err
+		return result.Reading{}, err
 	}
 
 	cat, err := opts.catalogs().Open(opts.CatalogPath)
 	if err != nil {
-		return sdk.Reading{}, err
+		return result.Reading{}, err
 	}
 
 	// An empty slot is not a rig: it names no gear, and a rig holds at least
 	// one thing. Answering with the name and nothing else beats an error
 	// about a contract nobody broke.
 	if c, err := doc.Spec(); err == nil && len(c.Blocks) == 0 {
-		return sdk.Reading{Name: doc.Data.Meta.Name}, nil
+		return result.Reading{Name: doc.Data.Meta.Name}, nil
 	}
 
 	spec, err := opts.compiler().Lift(doc, cat)
 	if err != nil {
-		return sdk.Reading{}, fmt.Errorf(
+		return result.Reading{}, fmt.Errorf(
 			"reading slot %s: %w", slotpkg.Label(opts.Slot), err)
 	}
 
-	return sdk.Reading{Name: doc.Data.Meta.Name, Doc: doc, Rig: spec}, nil
+	return result.Reading{Name: doc.Data.Meta.Name, Doc: doc, Rig: spec}, nil
 }
 
 // document resolves the options to the preset they name.

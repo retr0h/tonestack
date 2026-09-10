@@ -21,7 +21,7 @@
 package slots
 
 import (
-	"github.com/retr0h/tonestack/pkg/sdk"
+	"github.com/retr0h/tonestack/pkg/sdk/result"
 	"github.com/retr0h/tonestack/pkg/sdk/setlist"
 )
 
@@ -53,8 +53,8 @@ type EditOptions struct {
 }
 
 // Copy overwrites one slot with another and writes the result.
-func Copy(opts EditOptions) (sdk.Change, error) {
-	return edit(opts, sdk.Copied, func(d *setlist.Document, from, to setlist.Address) error {
+func Copy(opts EditOptions) (result.Change, error) {
+	return edit(opts, result.Copied, func(d *setlist.Document, from, to setlist.Address) error {
 		return d.Copy(from, to)
 	})
 }
@@ -64,8 +64,8 @@ func Copy(opts EditOptions) (sdk.Change, error) {
 // This is what moving a preset means: a slot cannot be left blank without
 // writing an empty preset, and an empty preset carries routing that differs
 // by device and firmware. Swapping invents nothing.
-func Swap(opts EditOptions) (sdk.Change, error) {
-	return edit(opts, sdk.Swapped, func(d *setlist.Document, a, b setlist.Address) error {
+func Swap(opts EditOptions) (result.Change, error) {
+	return edit(opts, result.Swapped, func(d *setlist.Document, a, b setlist.Address) error {
 		return d.Swap(a, b)
 	})
 }
@@ -73,12 +73,12 @@ func Swap(opts EditOptions) (sdk.Change, error) {
 // edit applies an operation to two slots and answers with what moved.
 func edit(
 	opts EditOptions,
-	action sdk.Action,
+	action result.Action,
 	apply func(*setlist.Document, setlist.Address, setlist.Address) error,
-) (sdk.Change, error) {
+) (result.Change, error) {
 	doc, err := open(opts.Path)
 	if err != nil {
-		return sdk.Change{}, err
+		return result.Change{}, err
 	}
 
 	from := setlist.Address{Setlist: opts.FromSetlist, Slot: opts.FromSlot}
@@ -88,12 +88,12 @@ func edit(
 	// rather than what is there now.
 	fromName, err := name(doc, from)
 	if err != nil {
-		return sdk.Change{}, err
+		return result.Change{}, err
 	}
 
 	toName, err := name(doc, to)
 	if err != nil {
-		return sdk.Change{}, err
+		return result.Change{}, err
 	}
 
 	// Both addresses were resolved above, so the operation itself cannot
@@ -101,13 +101,13 @@ func edit(
 	_ = apply(doc, from, to)
 
 	if err := save(opts.OutputPath, doc); err != nil {
-		return sdk.Change{}, err
+		return result.Change{}, err
 	}
 
-	return sdk.Change{
+	return result.Change{
 		Action:   action,
-		From:     &sdk.At{Slot: from.Slot, Name: fromName},
-		To:       sdk.At{Slot: to.Slot, Name: toName},
+		From:     &result.At{Slot: from.Slot, Name: fromName},
+		To:       result.At{Slot: to.Slot, Name: toName},
 		Replaced: toName,
 		Path:     opts.OutputPath,
 	}, nil

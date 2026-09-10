@@ -23,6 +23,7 @@ package sdk
 import (
 	"github.com/retr0h/tonestack/pkg/sdk/device"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/attached"
+	"github.com/retr0h/tonestack/pkg/sdk/internal/slots"
 )
 
 // NewLister is the one line in this library that needs hardware, exported so
@@ -31,3 +32,7 @@ var NewLister = &attached.NewLister
 
 // Closer is a lister that holds something needing release.
 type Closer = device.Bus
+
+// OpenDevice is how a session is obtained, exported so a test can stand in
+// for the other line that needs hardware.
+var OpenDevice = &slots.OpenDevice

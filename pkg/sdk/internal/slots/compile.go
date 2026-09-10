@@ -25,8 +25,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/retr0h/tonestack/pkg/sdk"
 	"github.com/retr0h/tonestack/pkg/sdk/preset"
+	"github.com/retr0h/tonestack/pkg/sdk/result"
 	"github.com/retr0h/tonestack/pkg/sdk/rig"
 	riggen "github.com/retr0h/tonestack/pkg/sdk/rig/gen"
 )
@@ -55,27 +55,27 @@ type CompileOptions struct {
 // 98.6% of real presets carry them; one built without them is unlike anything
 // the hardware has written. Passing --template uses a specific preset as that
 // base, which is what makes a rig lifted off a device rebuild exactly.
-func Compile(opts CompileOptions) (sdk.Built, error) {
+func Compile(opts CompileOptions) (result.Built, error) {
 	spec, err := readRig(opts.RigPath)
 	if err != nil {
-		return sdk.Built{}, err
+		return result.Built{}, err
 	}
 
 	cat, err := opts.catalogs().Open(opts.CatalogPath)
 	if err != nil {
-		return sdk.Built{}, err
+		return result.Built{}, err
 	}
 
 	doc, err := template(opts.TemplatePath)
 	if err != nil {
-		return sdk.Built{}, err
+		return result.Built{}, err
 	}
 
 	doc.Data.Device = cat.DeviceID
 	doc.Data.Meta.Name = spec.Subject.Name
 
 	if err := opts.compiler().Lower(doc, spec, cat); err != nil {
-		return sdk.Built{}, err
+		return result.Built{}, err
 	}
 
 	var buf bytes.Buffer
@@ -84,10 +84,10 @@ func Compile(opts CompileOptions) (sdk.Built, error) {
 	_ = preset.Write(&buf, doc)
 
 	if err := os.WriteFile(opts.OutputPath, buf.Bytes(), 0o600); err != nil {
-		return sdk.Built{}, fmt.Errorf("writing %s: %w", opts.OutputPath, err)
+		return result.Built{}, fmt.Errorf("writing %s: %w", opts.OutputPath, err)
 	}
 
-	return sdk.Built{
+	return result.Built{
 		Name:   spec.Subject.Name,
 		Blocks: len(spec.Chain),
 		Path:   opts.OutputPath,

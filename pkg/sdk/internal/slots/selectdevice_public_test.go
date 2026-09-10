@@ -28,10 +28,10 @@ import (
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/mock/gomock"
 
-	"github.com/retr0h/tonestack/internal/slots"
 	"github.com/retr0h/tonestack/pkg/sdk/device"
 	"github.com/retr0h/tonestack/pkg/sdk/device/mocks"
 	"github.com/retr0h/tonestack/pkg/sdk/device/wire"
+	"github.com/retr0h/tonestack/pkg/sdk/internal/slots"
 )
 
 // SelectDevicePublicTestSuite covers loading a preset on a device.
@@ -192,12 +192,12 @@ func (s *SelectDevicePublicTestSuite) stand(
 	dev device.Editor,
 	err error,
 ) func() {
-	restore := *slots.OpenDevice
-	*slots.OpenDevice = func(context.Context) (device.Editor, error) {
+	restore := slots.OpenDevice
+	slots.OpenDevice = func(context.Context) (device.Editor, error) {
 		return dev, err
 	}
 
-	return func() { *slots.OpenDevice = restore }
+	return func() { slots.OpenDevice = restore }
 }
 
 func TestSelectDevicePublicTestSuite(t *testing.T) {

@@ -27,8 +27,8 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
-	"github.com/retr0h/tonestack/internal/slots"
-	"github.com/retr0h/tonestack/pkg/sdk"
+	"github.com/retr0h/tonestack/pkg/sdk/internal/slots"
+	"github.com/retr0h/tonestack/pkg/sdk/result"
 	"github.com/retr0h/tonestack/pkg/sdk/setlist"
 )
 
@@ -143,7 +143,7 @@ func (s *EditPublicTestSuite) TestSwap() {
 	doc := s.reread(out)
 	s.Require().Equal("Second", doc.Setlists[0].Slots[0].Meta.Name)
 	s.Require().Equal("First", doc.Setlists[0].Slots[1].Meta.Name)
-	s.Require().Equal(sdk.Swapped, change.Action)
+	s.Require().Equal(result.Swapped, change.Action)
 }
 
 // TestExport writes one slot to a file of its own.

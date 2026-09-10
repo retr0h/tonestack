@@ -75,7 +75,7 @@ type Translator interface {
 // nil Transport means the default one.
 //
 // It is what lets a command be tested without a catalog on disk, which is the
-// same argument the sdk.Editor parameter on ShowWith and its siblings already
+// same argument the result.Editor parameter on ShowWith and its siblings already
 // makes for the device.
 type Deps struct {
 	// Catalogs opens catalogs. Nil reads them from disk.

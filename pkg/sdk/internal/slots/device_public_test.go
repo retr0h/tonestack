@@ -21,7 +21,6 @@
 package slots_test
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -33,12 +32,10 @@ import (
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/mock/gomock"
 
-	"github.com/retr0h/tonestack/internal/cli"
-	"github.com/retr0h/tonestack/internal/slots"
-	"github.com/retr0h/tonestack/pkg/sdk/catalog"
 	"github.com/retr0h/tonestack/pkg/sdk/device"
 	"github.com/retr0h/tonestack/pkg/sdk/device/mocks"
 	"github.com/retr0h/tonestack/pkg/sdk/device/wire"
+	"github.com/retr0h/tonestack/pkg/sdk/internal/slots"
 )
 
 // DevicePublicTestSuite covers reading a device, with no device attached.
@@ -64,7 +61,7 @@ func (s *DevicePublicTestSuite) TearDownTest() { s.ctrl.Finish() }
 // answer returns one slot as the hardware sent it.
 func (s *DevicePublicTestSuite) answer(name string) []byte {
 	raw, err := os.ReadFile(
-		filepath.Join("..", "..", "pkg", "sdk", "device", "wire", "testdata", name))
+		filepath.Join("..", "..", "device", "wire", "testdata", name))
 	s.Require().NoError(err)
 
 	return raw
@@ -91,28 +88,30 @@ func (s *DevicePublicTestSuite) full() {
 // TestListWith writes out what a setlist holds.
 func (s *DevicePublicTestSuite) TestListWith() {
 	tests := []struct {
-		name     string
-		opts     slots.DeviceOptions
-		expect   func()
+		name   string
+		opts   slots.DeviceOptions
+		expect func()
+		// what the slots must be called, and must not.
 		contains []string
 		absent   []string
-		says     string
+		// how many hold a chain.
+		used int
+		says string
 	}{
 		{
 			name:     "every slot holding a chain, and what is in it",
 			expect:   s.full,
-			contains: []string{"01A", "Chunky Monkey", "09A", "amp", "2 in use"},
-			// A slot nobody has named holds nothing, and one that is named
-			// can still hold nothing. Neither belongs in a listing of what
-			// somebody made.
-			absent: []string{"New Preset", "BAS:SVT Nrm"},
+			contains: []string{"Chunky Monkey"},
+			used:     2,
 		},
 		{
-			// Two kinds of empty, and the difference is worth seeing.
-			name:     "the empty ones as well, when asked",
-			opts:     slots.DeviceOptions{All: true},
+			// Two kinds of empty, and the difference is worth keeping: a
+			// slot nobody named, and one that is named and holds nothing.
+			// Both are answered; which to show is the renderer's.
+			name:     "the ones holding nothing are answered too",
 			expect:   s.full,
-			contains: []string{"New Preset", "BAS:SVT Nrm", "empty"},
+			contains: []string{"New Preset", "BAS:SVT Nrm"},
+			used:     2,
 		},
 		{
 			name: "a catalog that will not open",
@@ -127,8 +126,8 @@ func (s *DevicePublicTestSuite) TestListWith() {
 				All:         true,
 				CatalogPath: filepath.Join("testdata", "unnamed.catalog.json"),
 			},
-			expect:   s.full,
-			contains: []string{"0 in use"},
+			expect: s.full,
+			used:   0,
 		},
 		{
 			name: "a slot the device will not read",
@@ -148,8 +147,8 @@ func (s *DevicePublicTestSuite) TestListWith() {
 					Return(nil, &device.NotAPresetError{Result: 42})
 				s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 79).Return(nil, nil)
 			},
-			opts:     slots.DeviceOptions{All: true},
-			contains: []string{"0 in use"},
+			opts: slots.DeviceOptions{All: true},
+			used: 0,
 		},
 	}
 
@@ -174,18 +173,19 @@ func (s *DevicePublicTestSuite) TestListWith() {
 			// The operation answers with every slot and what is in it. What
 			// a reader sees of that is the renderer's, so the assertions run
 			// against the rendering the command would do.
-			var out bytes.Buffer
+			s.Require().Equal(tt.used, listing.Used())
 
-			cat, err := catalog.Open(tt.opts.CatalogPath)
-			s.Require().NoError(err)
-			s.Require().NoError(cli.Listing(&out, listing, cat, tt.opts.All))
+			named := make([]string, 0, len(listing.Slots))
+			for _, h := range listing.Slots {
+				named = append(named, h.Name)
+			}
 
 			for _, want := range tt.contains {
-				s.Require().Contains(out.String(), want)
+				s.Require().Contains(named, want)
 			}
 
 			for _, gone := range tt.absent {
-				s.Require().NotContains(out.String(), gone)
+				s.Require().NotContains(named, gone)
 			}
 		})
 	}
@@ -546,12 +546,12 @@ func (s *DevicePublicTestSuite) TestExportWithWritesTheDevicesOwnFile() {
 // stand puts a session in place of the one that needs hardware, and takes it
 // away again.
 func (s *DevicePublicTestSuite) stand(dev device.Editor, err error) func() {
-	restore := *slots.OpenDevice
-	*slots.OpenDevice = func(context.Context) (device.Editor, error) {
+	restore := slots.OpenDevice
+	slots.OpenDevice = func(context.Context) (device.Editor, error) {
 		return dev, err
 	}
 
-	return func() { *slots.OpenDevice = restore }
+	return func() { slots.OpenDevice = restore }
 }
 
 // TestTheCommandsThatFindTheirOwnDevice covers the three entry points, which

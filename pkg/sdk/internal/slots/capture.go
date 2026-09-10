@@ -25,12 +25,12 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/retr0h/tonestack/pkg/sdk"
+	"github.com/retr0h/tonestack/pkg/sdk/result"
 )
 
 // dump writes a device's answer where somebody can read it, when asked.
 func dump(got any) error {
-	path := os.Getenv(sdk.DumpEnv)
+	path := os.Getenv(result.DumpEnv)
 	if path == "" {
 		return nil
 	}
