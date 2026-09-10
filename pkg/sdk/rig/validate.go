@@ -20,7 +20,7 @@
 
 // Package rig validates a RigSpec against the contract it declares.
 //
-// The types in gen/ are generated from resources/schemas/rigspec.openapi.yaml, and
+// The types in gen/ are generated from data/rigspec.openapi.yaml, and
 // generation gives them shape but not rules: nothing stops a required field
 // being empty or an enumeration holding a word that is not in it.
 //
@@ -41,7 +41,6 @@ import (
 	"github.com/getkin/kin-openapi/openapi3"
 
 	"github.com/retr0h/tonestack/pkg/sdk/rig/gen"
-	"github.com/retr0h/tonestack/resources/schemas"
 )
 
 // ErrInvalid reports a rig that does not meet its own contract.
@@ -88,7 +87,7 @@ const schemaName = "RigSpec"
 // Parsing an OpenAPI document is not cheap and the document never changes, so
 // it happens on the first rig checked and not again.
 var contract = sync.OnceValues(func() (*openapi3.Schema, error) {
-	return load(schemas.RigSpec)
+	return load(Schema)
 })
 
 // load reads the contract out of an OpenAPI document.

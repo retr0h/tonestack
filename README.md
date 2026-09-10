@@ -126,8 +126,10 @@ order, for building a rig, reading a device, and correcting a preset.
 - [`docs/catalog.md`](docs/catalog.md) covers what the device can do, and how
   that gets extracted from HX Edit.
 - [`docs/protocol.md`](docs/protocol.md) documents the USB protocol.
-- [`resources/schemas/`](resources/schemas/) holds the RigSpec contract, the
-  generated device catalog, and the preset corpus.
+- [`pkg/sdk/rig/data/rigspec.openapi.yaml`](pkg/sdk/rig/data/rigspec.openapi.yaml)
+  is the RigSpec contract, embedded in the package that reads it.
+- [`resources/schemas/`](resources/schemas/) holds the generated device catalog,
+  the gear map, and the preset corpus.
 - [`resources/recipes/`](resources/recipes/) holds the curated rigs that ship in
   the binary.
 - [Package documentation](https://pkg.go.dev/github.com/retr0h/tonestack) is on

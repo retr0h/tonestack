@@ -18,29 +18,16 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// Package schemas holds the contracts this project speaks, and ships them.
-//
-// The RigSpec schema is embedded rather than read from disk because it is
-// what validates every rig: a binary that had to find its own contract on the
-// filesystem could not validate anything once installed.
-package schemas
+package compile
 
 import _ "embed"
 
-// RigSpec is the contract a rig is checked against.
+// terms is the vocabulary a rig's character may use.
 //
-// The same file the Go types are generated from, so a constraint stated once
-// is both a type and a check.
+// Beside the check rather than in the contract: the list will churn, every
+// term needs a sentence of definition an OpenAPI enum has nowhere to put, and
+// adding a word should be a data change rather than a schema edit and a
+// regeneration.
 //
-//go:embed rigspec.openapi.yaml
-var RigSpec []byte
-
-// CharacterTerms is the vocabulary a rig's character may use.
-//
-// Beside the contract rather than in it. The list will churn for months,
-// every term needs a sentence of definition an OpenAPI enum has nowhere to
-// put, and adding a word should be a data change rather than a schema edit
-// and a regeneration.
-//
-//go:embed character-terms.json
-var CharacterTerms []byte
+//go:embed data/character-terms.json
+var terms []byte

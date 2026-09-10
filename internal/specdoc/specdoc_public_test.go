@@ -30,7 +30,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/retr0h/tonestack/internal/specdoc"
-	"github.com/retr0h/tonestack/resources/schemas"
+	"github.com/retr0h/tonestack/pkg/sdk/rig"
 )
 
 // SpecdocPublicTestSuite covers the page the contract generates.
@@ -197,7 +197,7 @@ paths: {}
 // something with no fields to tabulate — Settings is a map of numbers — has no
 // table to point at, and linked to a heading nobody emits.
 func (s *SpecdocPublicTestSuite) TestEveryLinkPointsAtASection() {
-	body, err := specdoc.Render(schemas.RigSpec)
+	body, err := specdoc.Render(rig.Schema)
 	s.Require().NoError(err)
 
 	page := string(body)
@@ -222,7 +222,7 @@ func (s *SpecdocPublicTestSuite) TestEveryLinkPointsAtASection() {
 // moved. This fails the moment the contract and the page disagree, in the
 // ordinary test run rather than in a step somebody has to remember.
 func (s *SpecdocPublicTestSuite) TestTheShippedPageIsCurrent() {
-	want, err := specdoc.Render(schemas.RigSpec)
+	want, err := specdoc.Render(rig.Schema)
 	s.Require().NoError(err)
 
 	path := filepath.Join("..", "..", "docs", "rigspec.md")

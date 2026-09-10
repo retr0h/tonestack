@@ -50,10 +50,13 @@ code. Read the one that matches the task rather than all of them:
 | Touching USB                                                                                          | [docs/protocol.md](docs/protocol.md), **including the rules that keep a device alive**                                  |
 | Changing the shape of the system                                                                      | [docs/superpowers/specs/](docs/superpowers/specs/), dated design records, superseded rather than rewritten              |
 
-The contracts themselves are in [resources/schemas/](resources/schemas/).
-`rigspec.openapi.yaml` is the only hand-authored format; everything else is
-compiled from it. [resources/README.md](resources/README.md) says what else is
-in that tree and which of it may be redistributed.
+The RigSpec contract is
+[`pkg/sdk/rig/data/rigspec.openapi.yaml`](pkg/sdk/rig/data/rigspec.openapi.yaml),
+embedded in the package that reads it. It is the only hand-authored format;
+everything else is compiled from it. The generated catalog, the gear map and the
+corpus are in [resources/schemas/](resources/schemas/), and
+[resources/README.md](resources/README.md) says what else is in that tree and
+which of it may be redistributed.
 
 ## Say which claim you have
 

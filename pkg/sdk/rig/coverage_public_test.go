@@ -27,6 +27,8 @@ import (
 	"testing"
 
 	"github.com/getkin/kin-openapi/openapi3"
+
+	"github.com/retr0h/tonestack/pkg/sdk/rig"
 	"github.com/stretchr/testify/suite"
 	"sigs.k8s.io/yaml"
 )
@@ -81,8 +83,7 @@ func (s *CoveragePublicTestSuite) TestEveryFieldAppearsInARig() {
 
 // declared returns every property the contract names, however deep.
 func (s *CoveragePublicTestSuite) declared() []string {
-	doc, err := openapi3.NewLoader().LoadFromFile(
-		filepath.Join("..", "..", "..", "resources", "schemas", "rigspec.openapi.yaml"))
+	doc, err := openapi3.NewLoader().LoadFromData(rig.Schema)
 	s.Require().NoError(err)
 
 	out := map[string]bool{}

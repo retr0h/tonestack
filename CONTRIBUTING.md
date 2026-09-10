@@ -68,7 +68,7 @@ internal/slots/      the commands that read and write what a device holds
 internal/attached/   listing what is on the bus
 internal/catalogen/  internal/corpusgen/  internal/specdoc/   generators
 pkg/sdk/             the library. One directory, and the one that leaves.
-pkg/sdk/rig/         RigSpec, the one authored format, and its validation
+pkg/sdk/rig/         RigSpec, its contract in data/, and its validation
 pkg/sdk/rig/gen/     generated from the contract, an implementation detail
 pkg/sdk/compile/     a rig becomes a preset, and a preset becomes a rig
 pkg/sdk/editor/      what a device says becomes a chain, and back again
@@ -81,7 +81,7 @@ pkg/sdk/slot/        addressing, 01A to 42C
 pkg/sdk/device/      talk to a device over USB. The only cgo in the tree.
 pkg/sdk/device/wire/ the framing a device speaks. Pure Go, no hardware needed.
 resources/
-  schemas/           the RigSpec contract, generated catalog, preset corpus
+  schemas/           the generated catalog, the gear map, the preset corpus
   recipes/           curated rigs: which gear a player uses
 docs/                how the format, catalog and generation work
 .github/workflows/   CI

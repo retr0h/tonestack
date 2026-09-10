@@ -4,7 +4,7 @@ How to describe what somebody plays, so this project can build it.
 
 A rig is written as a **RigSpec**, the project's only hand-authored format,
 defined in
-[`resources/schemas/rigspec.openapi.yaml`](../resources/schemas/rigspec.openapi.yaml).
+[`pkg/sdk/rig/data/rigspec.openapi.yaml`](../pkg/sdk/rig/data/rigspec.openapi.yaml).
 One is a YAML file under `resources/recipes/`, and it is the only data here that
 is ours: the device catalog and the gear map are derived from Line 6's own
 files, while these are written by hand.
@@ -146,7 +146,7 @@ $ tonestack presets make --id mine
 The preset is written, because nothing compiles a character term into a chain
 and refusing one would be refusing you the right to describe a sound. If the
 word you want is missing, add it to
-[`resources/schemas/character-terms.json`](../resources/schemas/character-terms.json)
+[`pkg/sdk/compile/data/character-terms.json`](../pkg/sdk/compile/data/character-terms.json)
 with a sentence saying what it means. The rigs this repository ships are held to
 the list by a test, which is what keeps the examples from drifting back into
 sentences.
@@ -373,3 +373,48 @@ reverb, lime for a compressor or EQ.
 Each is one hue at two brightnesses, bright while the block is engaged and dim
 while it is bypassed, which is why a palette covering twelve categories holds
 twenty-four values.
+
+## Where the contract lives
+
+The schema is at
+[`pkg/sdk/rig/data/rigspec.openapi.yaml`](../pkg/sdk/rig/data/rigspec.openapi.yaml),
+embedded into the package that reads it. It sits beside that code rather than in
+a directory of its own so the library can be lifted out without somebody
+remembering to bring a file along.
+
+RigSpec is this project's own invention. The Line 6 format has no equivalent. It
+stores blocks under `dsp0`/`block0` keys with no abstraction over where a chain
+came from. RigSpec exists so every input converges on one validated shape before
+anything writes a file.
+
+It is the contract in both senses. `pkg/sdk/rig/gen` is generated from it by
+`oapi-codegen`, and `rig.Validate` checks a document against the same file
+rather than against a second copy of the rules written in Go. Two copies drift:
+a constraint added to one becomes a type nothing enforces, or a check nothing
+asked for.
+
+There used to be two contracts, one for what a person writes and one for what
+the generator produces. They were the same document at two levels of detail, so
+now there is one. A rig is sparse when somebody types it and full once it has
+been compiled or lifted from a preset.
+
+### Why RigSpec does not enumerate models
+
+RigSpec is the *shape* of a signal chain and is stable across devices and
+firmware. Which models exist belongs to a device at a firmware version, and that
+is the catalog's job.
+
+Enumerating models inside RigSpec would tie its version to the firmware, make a
+preset using an unlisted model unrepresentable, and produce a schema tens of
+thousands of lines long. A per-device schema with the model enum inlined can be
+*generated* from the two when strict validation is wanted.
+
+### Generating clients
+
+The schema is the source for anything that needs to speak RigSpec, including
+this project's own Go types:
+
+```bash
+just generate    # regenerates pkg/sdk/rig/gen
+npx openapi-typescript pkg/sdk/rig/data/rigspec.openapi.yaml -o rigspec.d.ts
+```

@@ -3,7 +3,7 @@
 # The RigSpec grammar
 
 Every field a rig may carry, and what it may say. Generated from
-[the contract](../resources/schemas/rigspec.openapi.yaml), so it cannot drift
+[the contract](../pkg/sdk/rig/data/rigspec.openapi.yaml), so it cannot drift
 from what the code actually enforces.
 
 A field marked `*` is required. A field that holds another object has
