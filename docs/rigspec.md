@@ -29,7 +29,7 @@ A rig, complete. Sparse when hand-written; the same document carries settings an
 | --- | --- | --- | --- |
 | `aliases` | list of string | shaped | `\S` |
 | `chain *` | list of ChainEntry | — | [ChainEntry](#chainentry) |
-| `character` | list of string | shaped | `\S` |
+| `character` | list of CharacterTerm | — | [CharacterTerm](#characterterm) |
 | `confidence` | string | closed | `low`, `medium`, `high` |
 | `controllers` | list of Controller | — | [Controller](#controller) |
 | `default` | boolean | — | `true` or `false` |
@@ -74,6 +74,15 @@ One field a mutation moved.
 | `from` | any | open | — |
 | `path *` | string | shaped | `^[a-z]+(\[\d+\])?(\.[a-zA-Z_][a-zA-Z0-9_]*(\[\d+\])?)*$` |
 | `to` | any | open | — |
+
+## CharacterTerm
+
+One thing a rig should sound like, and why that is believed.
+
+| field | holds | grammar | allowed |
+| --- | --- | --- | --- |
+| `evidence` | list of Evidence | — | [Evidence](#evidence) |
+| `term *` | string | shaped | `\S` |
 
 ## Controller
 
@@ -201,5 +210,6 @@ How the instrument is played, where it changes the sound. Not modelled by any de
 | field | holds | grammar | allowed |
 | --- | --- | --- | --- |
 | `attack *` | string | closed | `pick`, `fingers`, `slap`, `thumb`, `hybrid` |
+| `evidence` | list of Evidence | — | [Evidence](#evidence) |
 | `muting` | string | closed | `none`, `palm` |
 | `position` | string | closed | `bridge`, `middle`, `neck` |

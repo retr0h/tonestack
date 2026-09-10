@@ -48,14 +48,30 @@ chain:
 # How it should sound, in the words a person would use. Describe the result,
 # not the control.
 character:
-  - mid-forward, not scooped
-  - minimal drive, grit only on hard attack
-  - tight low end, short decay
-  - pick attack audible
+  - term: mid-forward, not scooped
+    evidence:
+      - { kind: llm }
+  - term: minimal drive, grit only on hard attack
+    evidence:
+      - { kind: llm }
+  - term: tight low end, short decay
+    evidence:
+      - { kind: llm }
+  - term: pick attack audible
+    evidence:
+      - kind: video
+        url: https://www.youtube.com/watch?v=NDjtguZG6iw
+        note: audible on the recording, which is the one claim here anybody can check
 
 technique:
   attack: pick
   position: bridge
+  evidence:
+    - kind: video
+      url: https://www.youtube.com/watch?v=NDjtguZG6iw
+      note: visible in the footage
+      caveat: >-
+        one performance. Nothing here says it is what he does on the record.
 
 confidence: medium
 

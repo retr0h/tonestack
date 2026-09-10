@@ -109,6 +109,36 @@ func (s *LoadPublicTestSuite) TestLoad() {
 			errText: `property "attack" is missing`,
 		},
 		{
+			// character was a list of bare strings until each term had to
+			// carry why it is believed. Nothing outside this repository
+			// writes a rig, so the old spelling is refused rather than read
+			// alongside the new one.
+			name: "character as the bare list it used to be",
+			in: "schema: RigSpec\nid: x\nsubject: {kind: artist, name: X}\n" +
+				"instrument: bass\nchain:\n  - {role: amp, gear: Ampeg SVT}\n" +
+				"character: [mid-forward]\n",
+			errText: "character",
+		},
+		{
+			name: "a character term saying nothing",
+			in: "schema: RigSpec\nid: x\nsubject: {kind: artist, name: X}\n" +
+				"instrument: bass\nchain:\n  - {role: amp, gear: Ampeg SVT}\n" +
+				"character:\n  - evidence: [{kind: llm}]\n",
+			errText: `property "term" is missing`,
+		},
+		{
+			// A claim about how somebody plays is asserted or it is watched,
+			// and the format has to be able to say which.
+			name: "technique carrying why it is believed",
+			in: smallest + "technique:\n  attack: pick\n  evidence:\n" +
+				"    - {kind: video, url: \"https://x.test/v\", at: \"1:42\"}\n",
+		},
+		{
+			name: "a character term carrying why it is believed",
+			in: smallest +
+				"character:\n  - term: mid-forward\n    evidence: [{kind: llm}]\n",
+		},
+		{
 			// The contract calls this an integer and Go's int cannot hold
 			// it, so the decode fails on a document that validated. It came
 			// back as a rig with the field zeroed and no error at all.

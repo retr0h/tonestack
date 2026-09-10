@@ -292,7 +292,7 @@ func character(spec gen.RigSpec) []cli.Field {
 			label = "character"
 		}
 
-		out = append(out, cli.Field{Label: label, Value: c})
+		out = append(out, cli.Field{Label: label, Value: c.Term})
 	}
 
 	return out

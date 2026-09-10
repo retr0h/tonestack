@@ -332,6 +332,19 @@ type Change struct {
 	To   interface{} `json:"to,omitempty"`
 }
 
+// CharacterTerm One thing a rig should sound like, and why that is believed.
+//
+// Describe the result rather than the control: "mid-forward, not scooped", never "raise the mids". Nothing compiles a term into a chain, so what it earns is a reader deciding whether the preset came out right, and that is worth nothing if the reader cannot tell an assertion from something somebody listened to.
+//
+// A term is free text today. The vocabulary that closes it ships beside the catalog, and is not written yet.
+type CharacterTerm struct {
+	// Evidence Why this is believed.
+	Evidence *[]Evidence `json:"evidence,omitempty"`
+
+	// Term How it should sound, in the words a person would use.
+	Term string `json:"term"`
+}
+
 // Confidence How far a claim should be trusted. Set by a person, not derived. A claim asserting high confidence with no evidence behind it is worth showing as unverified whatever it says about itself.
 type Confidence string
 
@@ -525,8 +538,8 @@ type RigSpec struct {
 	// Chain The signal path, in order.
 	Chain []ChainEntry `json:"chain"`
 
-	// Character How it should sound, in the words a person would use. Describe the result, not the control: "mid-forward, not scooped", not "raise the mids".
-	Character *[]string `json:"character,omitempty"`
+	// Character How it should sound, in the words a person would use.
+	Character *[]CharacterTerm `json:"character,omitempty"`
 
 	// Confidence How far a claim should be trusted. Set by a person, not derived. A claim asserting high confidence with no evidence behind it is worth showing as unverified whatever it says about itself.
 	Confidence *Confidence `json:"confidence,omitempty"`
@@ -697,6 +710,9 @@ type Target struct {
 type Technique struct {
 	// Attack What sets the string moving. Required, because there is no playing without one.
 	Attack TechniqueAttack `json:"attack"`
+
+	// Evidence Why this is believed. Nothing measures how somebody plays out of a preset, so a claim here is asserted or it is watched, and which of those it was belongs beside it.
+	Evidence *[]Evidence `json:"evidence,omitempty"`
 
 	// Muting What damps the string. Omit it where it does not matter, and say `none` where the notes ringing on is part of the sound rather than the absence of a decision.
 	Muting *TechniqueMuting `json:"muting,omitempty"`

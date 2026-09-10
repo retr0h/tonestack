@@ -308,3 +308,47 @@ palm muted" from the three fields, so what a person reads did not change and the
 test that asserted that line still passes untouched. `none` prints as nothing,
 because an unmuted note is what every note sounds like unless something damps
 it.
+
+## A second axis: whether a field is a claim
+
+The four buckets say what a field may hold. They say nothing about how it came
+to hold it, and that turns out to be the more valuable question for exactly the
+fields this design started from.
+
+**A field that asserts something about the world must be able to carry evidence.
+A field that describes what a preset holds must not, because citing it would be
+citing ourselves.**
+
+Applied to the tree as it stood, two claims could be cited and two could not:
+
+| field              | could cite | can now |
+| ------------------ | ---------- | ------- |
+| `chain[].gear`     | yes        | yes     |
+| the rig as a whole | yes        | yes     |
+| `technique`        | no         | yes     |
+| `character[]`      | no         | yes     |
+
+The two that could not are the two nothing can measure. A corpus can be asked
+what parameter a model usually carries; nothing anywhere says how somebody
+picks, or that a tone is mid-forward. Those claims are asserted or somebody
+listened, and the gap between those is the whole reason the format records
+provenance at all. `Evidence` says as much in its own description, that it is
+attached per claim rather than per document, and then the two loudest claims in
+the file had only the per-document bucket to sit in.
+
+The other side of the rule is what it excludes. `snapshots`, `footswitches`,
+`controllers` and the `device` block are read off hardware or chosen by whoever
+wrote the rig. They are not claims about a player, and hanging evidence on them
+would be ceremony.
+
+`subject.era` is the one left undecided. "Dookie through American Idiot" is a
+claim, and making it citable means turning a string into an object for a field
+nothing reads yet.
+
+### What it cost
+
+`character` had to stop being a list of strings, which is the shape change step
+3 was going to make anyway for the term list. Doing it here means the format
+breaks once rather than twice, and step 3 is left with only the vocabulary: a
+term is free text until `character-terms.json` exists, and the contract says so
+where a reader will see it.
