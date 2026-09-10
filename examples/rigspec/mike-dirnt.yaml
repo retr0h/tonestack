@@ -185,6 +185,31 @@ target:
   technique:
     attack: fingers
 
+# What moves while you play, as distinct from what the chain holds.
+#
+# A rig records these because they are decisions somebody made about how they
+# play rather than device state. Nothing else in a rig says that the pedal
+# under your foot is on the amplifier's drive rather than its volume, and a
+# preset built without this is a preset with the pedal doing nothing.
+#
+# The parameter is named the way the catalog names it, and it is checked: a
+# controller on a parameter the model at that block does not have is refused
+# with the ones it does have listed.
+controllers:
+  # The expression pedal, which reads 2 on an HX Stomp.
+  - controller: 2
+    # Counted along the signal path the way the chain counts its entries, so
+    # 1 is the amplifier: the compressor above it is 0.
+    block: 1
+    parameter: Drive
+    # What it reads at either end of the sweep. Heel down is not silence
+    # here: it is the amp still driven, just less.
+    min: 0.3
+    max: 0.85
+    # Snapshots leave this alone, so the pedal stays where your foot put it
+    # when the snapshot changes underneath it.
+    no_snapshot: true
+
 # What was asked for, what changed, and what it sounded like.
 #
 # This is the only place in the whole system a human ear is written down.

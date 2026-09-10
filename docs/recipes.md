@@ -13,9 +13,17 @@ This page is how to write one. For what each field may say, read
 [`docs/rigspec.md`](rigspec.md), which is generated from the contract and lists
 every field, its grammar and its allowed values.
 
-[`examples/rigspec/mike-dirnt.yaml`](../examples/rigspec/mike-dirnt.yaml) shows
-much of it on one subject. Not all of it: a rig read off a device carries
-footswitches, snapshots and controllers that no hand-written example needs.
+Two rigs show the format between them, and they are worth reading together.
+[`examples/rigspec/mike-dirnt.yaml`](../examples/rigspec/mike-dirnt.yaml) is
+somebody saying what they want, with evidence, confidence and character.
+[`examples/rigspec/dir-angl-meteor.yaml`](../examples/rigspec/dir-angl-meteor.yaml)
+is a device saying what it has: produced by `presets show` from a preset an HX
+Stomp wrote, committed exactly as it came out, and carrying the footswitches,
+snapshots and routing no hand-written rig needs.
+
+A test holds the two of them to the contract. Every field it declares is written
+down in one of the rigs here, or named in that test with a reason nobody can
+write it, so a field added without an example fails the build.
 
 ## The smallest useful rig
 
