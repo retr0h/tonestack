@@ -24,7 +24,6 @@ import (
 	"compress/gzip"
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 )
 
@@ -32,7 +31,23 @@ import (
 //
 // This is the whole of the generate command's behaviour, so cmd/ holds only
 // flags.
-func Run(w io.Writer, opts Options) error {
+// Result is what a generation run produced.
+type Result struct {
+	// Path is the catalog that was written.
+	Path string
+	// Device is the hardware it describes.
+	Device string
+	// Source says which release it was extracted from. A catalog is only
+	// true of the one it came from, so it says which.
+	Source string
+	// Blocks is how many the device has.
+	Blocks int
+	// Named is how many of those map to real-world gear. The rest are
+	// modelled but unattributed, and the gap is the work left.
+	Named int
+}
+
+func Run(opts Options) (Result, error) {
 	if opts.SchemaVersion == 0 {
 		opts.SchemaVersion = defaultSchemaVersion
 	}
@@ -43,7 +58,7 @@ func Run(w io.Writer, opts Options) error {
 
 	c, err := Build(opts)
 	if err != nil {
-		return err
+		return Result{}, err
 	}
 
 	// A catalog holds no channels, functions or NaN floats, so encoding it
@@ -52,7 +67,7 @@ func Run(w io.Writer, opts Options) error {
 	raw, _ := json.Marshal(c)
 
 	if err := os.WriteFile(opts.OutputPath, compress(raw), 0o600); err != nil {
-		return fmt.Errorf("writing %s: %w", opts.OutputPath, err)
+		return Result{}, fmt.Errorf("writing %s: %w", opts.OutputPath, err)
 	}
 
 	named := 0
@@ -63,14 +78,13 @@ func Run(w io.Writer, opts Options) error {
 		}
 	}
 
-	_, err = fmt.Fprintf(w,
-		"wrote %s: %d blocks for %s from %s, %d mapped to real gear\n",
-		opts.OutputPath, len(c.Blocks), opts.DeviceName, c.Source, named)
-	if err != nil {
-		return fmt.Errorf("reporting: %w", err)
-	}
-
-	return nil
+	return Result{
+		Path:   opts.OutputPath,
+		Device: opts.DeviceName,
+		Source: c.Source,
+		Blocks: len(c.Blocks),
+		Named:  named,
+	}, nil
 }
 
 // compress gzips the catalog.

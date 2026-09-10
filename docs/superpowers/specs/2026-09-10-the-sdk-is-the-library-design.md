@@ -1,6 +1,6 @@
 # The SDK is the library
 
-**Status:** proposed\
+**Status:** implemented\
 **Supersedes:**
 [2026-09-09-where-a-package-belongs-design.md](2026-09-09-where-a-package-belongs-design.md)
 
@@ -86,25 +86,36 @@ generators. Everything a package owns lives in that package's own `internal`.
 
 ## The names
 
+Written after the fact. What this section first held was the shape the work was
+aiming at, and three parts of it turned out to be unreachable — see below.
+
 ```text
 pkg/sdk/              the library. One import root.
   client.go           Client, Options, and the operations
+  presets.go          the operations that address a device or a setlist
   alias.go            the answer types, named here and declared in result
   result/             what every operation answers with
-  internal/           shared private half. Invisible outside pkg/sdk.
-    slots/  presets/  recipes/   the flows, once they no longer render
-    compile/                     a rig to a preset and back
-    setlist/                     .hls and .hlb
-  rig/                RigSpec: the format a TUI and a service both need
-    internal/gen/     generated types, once rig owns the ones a caller holds
-  device/             USB: discovery, session, transport   (was pkg/sdk)
-    internal/wire/    framing and the device's own document (was pkg/sdk/wire)
-    internal/editor/  a device's document to a chain and back
+  rig/                RigSpec: its contract in data/, and the names a caller
+                      holds instead of the generated ones
+  rigs/               the curated rigs, hand-written and embedded
   catalog/            what a device can do
   corpus/             what real presets say, measured
   chain/              a resolved chain
   preset/             .hlx
   slot/               addressing, 01A to 42C
+  internal/           the private half. Invisible outside pkg/sdk.
+    slots/            reading and writing what a device holds
+    presets/          building a preset from a rig
+    recipes/          reading and scaffolding rigs
+    attached/         what is on the bus
+    catalogview/      the catalog, narrowed
+    corpusview/       the measurements, read
+    compile/          a rig to a preset and back
+    editor/           a device's document to a chain and back
+    setlist/          .hls and .hlb
+    device/           USB: discovery, session, transport
+    wire/             framing and the device's own document
+    gen/              generated from the contract
 
 internal/             belongs to no package here
   cli/                rendering: tables, colour, the visual language
@@ -113,11 +124,10 @@ internal/             belongs to no package here
 cmd/                  cobra wiring: flags to a Client call to a renderer
 ```
 
-`device` rather than `usb` because a session is not a transport. `wire` stays
-under it, now as its private half: it is the device's own vocabulary and means
-nothing without one. `editor` joins it there for the same reason. It translates
-the document a device hands back, so it is that device's business and nobody
-else's.
+`device` rather than `usb` because a session is not a transport. It was meant to
+stay public with `wire` and `editor` as its private half, and none of those
+three survived contact: everything a wrapper needs from a device now goes
+through the `Client`, so all three went private together.
 
 ### How far down the private half goes
 
@@ -143,18 +153,22 @@ where `wire` is private to one domain, because two domains need it. It sits in
 the shared `pkg/sdk/internal` and that is not a compromise — it is the tightest
 fence that exists for a package with two consumers.
 
-`rig/gen` is blocked, but not by `compile` as this record guessed. It is
-`internal/cli` that holds `gen.RigSpec`, `gen.Technique` and eight more
-generated types directly, which is precisely what stage 5 is for. `gen` stays
-public until the renderer stops naming it.
+`rig/gen` was blocked, but not by `compile` as this record guessed. It was
+`internal/cli` holding `gen.RigSpec`, `gen.Technique` and eight more generated
+types directly, which is precisely what stage 5 was for. Once `rig` named them,
+`gen` went private — to `pkg/sdk/internal/gen` rather than `rig/internal/gen`,
+because five packages under `pkg/sdk/internal` name those types and
+`rig/internal` reaches none of them. Three times now: a package with more than
+one consumer has exactly one place it can live.
 
 A shared private half is still private. The only thing a tighter fence would buy
 is saying *which* half of the library a package belongs to, and where two halves
 need it there is no such answer to give.
 
 What stays public is what a consumer holds: the `Client`, and the types it hands
-back. Roughly three thousand lines of the thirteen thousand there are today.
-Everything else is how, not what.
+back. Two hundred and fifty-six exported identifiers over four thousand two
+hundred lines, against four hundred and sixty-four over fourteen thousand behind
+the compiler. Everything else is how, not what.
 
 ### Why the domains sit under `sdk` rather than beside it
 
@@ -291,9 +305,21 @@ Each stage lands on its own and leaves the tree working.
    covers all of them, and a `cmd/` importing nothing but `sdk` and the
    renderer.
 
-5. **Own the types.** `pkg/sdk` declares what a caller holds, aliasing the
-   generated types where they are already right and converting where they are
-   not, so regenerating the contract cannot rename somebody else's field.
+5. **Own the types.** `pkg/sdk/rig` names what a caller holds, so regenerating
+   the contract cannot rename somebody else's field. A caller writes `rig.Spec`
+   and `rig.Technique`; nobody outside the library writes `gen.RigSpec`.
+
+   Aliases throughout. Every generated type turned out to be the right shape
+   already, and an alias means `rig.Spec` and the generated type are the same
+   type, so nothing converts at the seam and a rig the compiler built is a rig a
+   caller reads.
+
+   `gen` moves to `pkg/sdk/internal/gen`, not `rig/internal/gen` as this record
+   said. Five packages under `pkg/sdk/internal` name those types, and
+   `rig/internal` reaches none of them. That is the second time this record has
+   proposed a fence one level too tight, after `wire`, and the reason is the
+   same both times: a package with more than one consumer has exactly one place
+   it can live.
 
 ## What this does not do
 

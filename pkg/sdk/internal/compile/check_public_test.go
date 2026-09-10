@@ -29,7 +29,7 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk/catalog"
 	"github.com/retr0h/tonestack/pkg/sdk/chain"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/compile"
-	riggen "github.com/retr0h/tonestack/pkg/sdk/rig/gen"
+	riggen "github.com/retr0h/tonestack/pkg/sdk/internal/gen"
 )
 
 // CheckPublicTestSuite covers what a rig claims beside its chain.

@@ -24,8 +24,8 @@ import (
 	"encoding/json"
 
 	"github.com/retr0h/tonestack/pkg/sdk/catalog"
+	riggen "github.com/retr0h/tonestack/pkg/sdk/internal/gen"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/wire"
-	riggen "github.com/retr0h/tonestack/pkg/sdk/rig/gen"
 )
 
 // Keys a preset stores a routing entry under. A device owns these names.

@@ -20,20 +20,20 @@
 
 package result
 
-import riggen "github.com/retr0h/tonestack/pkg/sdk/rig/gen"
+import "github.com/retr0h/tonestack/pkg/sdk/rig"
 
 // Recipes is every rig under one directory.
 type Recipes struct {
 	// Dir is where they were read from.
 	Dir string
 	// Rigs are what was found, in the order they were read.
-	Rigs []riggen.RigSpec
+	Rigs []rig.Spec
 }
 
 // Recipe is one rig, and what reading it needs that the rig does not carry.
 type Recipe struct {
 	// Rig is the rig itself.
-	Rig riggen.RigSpec
+	Rig rig.Spec
 	// Variants are the rigs that say they are a small change on this one.
 	//
 	// A rig cannot know this about itself. The link points the other way —

@@ -26,8 +26,8 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
+	"github.com/retr0h/tonestack/pkg/sdk/internal/gen"
 	"github.com/retr0h/tonestack/pkg/sdk/rig"
-	"github.com/retr0h/tonestack/pkg/sdk/rig/gen"
 )
 
 type ValidatePublicTestSuite struct {

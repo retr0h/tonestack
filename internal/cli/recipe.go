@@ -27,7 +27,6 @@ import (
 
 	"github.com/retr0h/tonestack/pkg/sdk"
 	"github.com/retr0h/tonestack/pkg/sdk/rig"
-	"github.com/retr0h/tonestack/pkg/sdk/rig/gen"
 )
 
 // Recipes prints every rig a directory holds, one to a row.
@@ -39,7 +38,7 @@ func Recipes(w io.Writer, r sdk.Recipes) error {
 			Accent(w, spec.ID),
 			spec.Subject.Name,
 			Mute(w, string(spec.Instrument)),
-			rig.GearName(spec, gen.RoleAmp),
+			rig.GearName(spec, rig.RoleAmp),
 			source(w, spec),
 		})
 	}
@@ -119,7 +118,7 @@ func variants(all []sdk.Variant) []Field {
 // that carries colour. A rig is only shown as confirmed when every claim in
 // it rests on something checkable — the weakest link is what the reader needs
 // to know about.
-func source(w io.Writer, spec gen.RigSpec) string {
+func source(w io.Writer, spec rig.Spec) string {
 	if rig.Trusted(spec) {
 		return OK(w, string(rig.Sourced(spec)))
 	}
@@ -131,7 +130,7 @@ func source(w io.Writer, spec gen.RigSpec) string {
 //
 // Labelled by role rather than by position, because "amp" is what a person
 // reading this wants to find and "3" is not.
-func signalPath(spec gen.RigSpec) []Field {
+func signalPath(spec rig.Spec) []Field {
 	out := make([]Field, 0, len(spec.Chain))
 
 	for _, e := range spec.Chain {
@@ -142,9 +141,9 @@ func signalPath(spec gen.RigSpec) []Field {
 }
 
 // confidence reports how far a rig says it should be trusted.
-func confidence(spec gen.RigSpec) gen.Confidence {
+func confidence(spec rig.Spec) rig.Confidence {
 	if spec.Confidence == nil {
-		return gen.ConfidenceLow
+		return rig.ConfidenceLow
 	}
 
 	return *spec.Confidence
@@ -154,7 +153,7 @@ func confidence(spec gen.RigSpec) gen.Confidence {
 //
 // The label repeats as blank so the values line up in the same column as
 // every other field rather than starting a block of their own.
-func character(spec gen.RigSpec) []Field {
+func character(spec rig.Spec) []Field {
 	if spec.Character == nil || len(*spec.Character) == 0 {
 		return nil
 	}
@@ -174,10 +173,10 @@ func character(spec gen.RigSpec) []Field {
 }
 
 // where reads a position back as the phrase a player would use.
-var where = map[gen.TechniquePosition]string{
-	gen.PositionBridge: "near the bridge",
-	gen.PositionMiddle: "over the middle",
-	gen.PositionNeck:   "over the neck",
+var where = map[rig.Position]string{
+	rig.PositionBridge: "near the bridge",
+	rig.PositionMiddle: "over the middle",
+	rig.PositionNeck:   "over the neck",
 }
 
 // technique writes the three things a rig stores as the one sentence a person
@@ -186,14 +185,14 @@ var where = map[gen.TechniquePosition]string{
 // A rig stores them apart so that two rigs can be compared, and nobody says
 // "attack: pick, position: bridge" out loud. Muting is named only when there
 // is some, because "not muted" is what every unmuted note already sounds like.
-func technique(t gen.Technique) string {
+func technique(t rig.Technique) string {
 	parts := []string{string(t.Attack)}
 
 	if t.Position != nil {
 		parts = append(parts, where[*t.Position])
 	}
 
-	if t.Muting != nil && *t.Muting == gen.MutingPalm {
+	if t.Muting != nil && *t.Muting == rig.MutingPalm {
 		parts = append(parts, "palm muted")
 	}
 

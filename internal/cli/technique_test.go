@@ -25,7 +25,7 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
-	"github.com/retr0h/tonestack/pkg/sdk/rig/gen"
+	"github.com/retr0h/tonestack/pkg/sdk/rig"
 )
 
 // TechniqueTestSuite covers writing what a rig stores as what a person says.
@@ -35,46 +35,46 @@ type TechniqueTestSuite struct {
 
 // TestTechnique covers every shape a technique can take.
 func (s *TechniqueTestSuite) TestTechnique() {
-	at := func(p gen.TechniquePosition) *gen.TechniquePosition { return &p }
-	mute := func(m gen.TechniqueMuting) *gen.TechniqueMuting { return &m }
+	at := func(p rig.Position) *rig.Position { return &p }
+	mute := func(m rig.Muting) *rig.Muting { return &m }
 
 	tests := []struct {
 		name string
-		in   gen.Technique
+		in   rig.Technique
 		want string
 	}{
 		{
 			name: "attack alone, which is all a rig has to say",
-			in:   gen.Technique{Attack: gen.AttackFingers},
+			in:   rig.Technique{Attack: rig.AttackFingers},
 			want: "fingers",
 		},
 		{
 			name: "with a place along the string",
-			in: gen.Technique{
-				Attack: gen.AttackPick, Position: at(gen.PositionBridge),
+			in: rig.Technique{
+				Attack: rig.AttackPick, Position: at(rig.PositionBridge),
 			},
 			want: "pick, near the bridge",
 		},
 		{
 			name: "over the middle",
-			in: gen.Technique{
-				Attack: gen.AttackThumb, Position: at(gen.PositionMiddle),
+			in: rig.Technique{
+				Attack: rig.AttackThumb, Position: at(rig.PositionMiddle),
 			},
 			want: "thumb, over the middle",
 		},
 		{
 			name: "over the neck",
-			in: gen.Technique{
-				Attack: gen.AttackSlap, Position: at(gen.PositionNeck),
+			in: rig.Technique{
+				Attack: rig.AttackSlap, Position: at(rig.PositionNeck),
 			},
 			want: "slap, over the neck",
 		},
 		{
 			name: "all three",
-			in: gen.Technique{
-				Attack:   gen.AttackHybrid,
-				Position: at(gen.PositionBridge),
-				Muting:   mute(gen.MutingPalm),
+			in: rig.Technique{
+				Attack:   rig.AttackHybrid,
+				Position: at(rig.PositionBridge),
+				Muting:   mute(rig.MutingPalm),
 			},
 			want: "hybrid, near the bridge, palm muted",
 		},
@@ -82,8 +82,8 @@ func (s *TechniqueTestSuite) TestTechnique() {
 			// Nothing damping the string is what an unmuted note already
 			// sounds like, so saying so adds a word and no information.
 			name: "muting stated as none, which reads no differently",
-			in: gen.Technique{
-				Attack: gen.AttackPick, Muting: mute(gen.MutingNone),
+			in: rig.Technique{
+				Attack: rig.AttackPick, Muting: mute(rig.MutingNone),
 			},
 			want: "pick",
 		},

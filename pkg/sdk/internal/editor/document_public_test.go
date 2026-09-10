@@ -28,8 +28,8 @@ import (
 
 	"github.com/retr0h/tonestack/pkg/sdk/catalog"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/editor"
+	riggen "github.com/retr0h/tonestack/pkg/sdk/internal/gen"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/wire"
-	riggen "github.com/retr0h/tonestack/pkg/sdk/rig/gen"
 )
 
 // DocumentPublicTestSuite covers the rig fragments a device's answer carries.

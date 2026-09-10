@@ -23,6 +23,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/retr0h/tonestack/internal/catalogen"
+	"github.com/retr0h/tonestack/internal/cli"
 )
 
 var catalogGenerateOptions catalogen.Options
@@ -33,7 +34,12 @@ var catalogGenerateCmd = &cobra.Command{
 	Short: "Rebuild the catalog from HX Edit's model definitions",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		return catalogen.Run(cmd.OutOrStdout(), catalogGenerateOptions)
+		built, err := catalogen.Run(catalogGenerateOptions)
+		if err != nil {
+			return err
+		}
+
+		return cli.Catalogued(cmd.OutOrStdout(), built)
 	},
 }
 

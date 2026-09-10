@@ -24,8 +24,8 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk/catalog"
 	"github.com/retr0h/tonestack/pkg/sdk/chain"
 	"github.com/retr0h/tonestack/pkg/sdk/corpus"
+	riggen "github.com/retr0h/tonestack/pkg/sdk/internal/gen"
 	"github.com/retr0h/tonestack/pkg/sdk/preset"
-	riggen "github.com/retr0h/tonestack/pkg/sdk/rig/gen"
 )
 
 // Compiler is this package's work as a value.

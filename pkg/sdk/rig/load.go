@@ -26,8 +26,6 @@ import (
 	"io"
 
 	"sigs.k8s.io/yaml"
-
-	"github.com/retr0h/tonestack/pkg/sdk/rig/gen"
 )
 
 // Load reads a rig and checks it against its own contract.
@@ -35,10 +33,10 @@ import (
 // YAML, because a rig is written and corrected by hand and JSON is a poor
 // format to argue with. The schema is JSON Schema either way; sigs.k8s.io/yaml
 // converts, so the generated types need no second set of tags.
-func Load(r io.Reader) (gen.RigSpec, error) {
+func Load(r io.Reader) (Spec, error) {
 	raw, err := io.ReadAll(r)
 	if err != nil {
-		return gen.RigSpec{}, fmt.Errorf("reading rig: %w", err)
+		return Spec{}, fmt.Errorf("reading rig: %w", err)
 	}
 
 	// The file as it was written, checked before anything decodes it.
@@ -50,7 +48,7 @@ func Load(r io.Reader) (gen.RigSpec, error) {
 	// nothing said.
 	body, err := yaml.YAMLToJSON(raw)
 	if err != nil {
-		return gen.RigSpec{}, fmt.Errorf("decoding rig: %w", err)
+		return Spec{}, fmt.Errorf("decoding rig: %w", err)
 	}
 
 	// What YAMLToJSON produced is JSON, so reading it back cannot fail.
@@ -58,16 +56,16 @@ func Load(r io.Reader) (gen.RigSpec, error) {
 	_ = json.Unmarshal(body, &document)
 
 	if err := against(document); err != nil {
-		return gen.RigSpec{}, err
+		return Spec{}, err
 	}
 
 	// Checked rather than assumed. A document can satisfy the contract and
 	// still not fit the types: JSON Schema calls 99999999999999999999 an
 	// integer and Go's int cannot hold it, so this returned a rig with the
 	// field silently zeroed and no error at all.
-	var spec gen.RigSpec
+	var spec Spec
 	if err := json.Unmarshal(body, &spec); err != nil {
-		return gen.RigSpec{}, fmt.Errorf("decoding rig: %w", err)
+		return Spec{}, fmt.Errorf("decoding rig: %w", err)
 	}
 
 	return spec, nil
@@ -77,7 +75,7 @@ func Load(r io.Reader) (gen.RigSpec, error) {
 //
 // Validated first: writing one that does not meet its own contract would put
 // a file into the world that nothing else will accept.
-func Write(w io.Writer, spec gen.RigSpec) error {
+func Write(w io.Writer, spec Spec) error {
 	if err := Validate(spec); err != nil {
 		return err
 	}

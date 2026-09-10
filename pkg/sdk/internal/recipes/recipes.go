@@ -35,9 +35,9 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/retr0h/tonestack/pkg/sdk/internal/gen"
 	"github.com/retr0h/tonestack/pkg/sdk/result"
 	"github.com/retr0h/tonestack/pkg/sdk/rig"
-	"github.com/retr0h/tonestack/pkg/sdk/rig/gen"
 	"github.com/retr0h/tonestack/pkg/sdk/rigs"
 )
 

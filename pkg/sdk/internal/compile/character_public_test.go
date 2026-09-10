@@ -26,7 +26,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/retr0h/tonestack/pkg/sdk/internal/compile"
-	riggen "github.com/retr0h/tonestack/pkg/sdk/rig/gen"
+	riggen "github.com/retr0h/tonestack/pkg/sdk/internal/gen"
 )
 
 // CharacterPublicTestSuite covers the words a rig may use for how it sounds.

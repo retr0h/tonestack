@@ -21,10 +21,7 @@
 package corpusgen_test
 
 import (
-	"bytes"
 	"compress/gzip"
-	"errors"
-	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -75,9 +72,7 @@ func (s *CorpusgenPublicTestSuite) TestRun() {
 		catalog    string
 		out        string
 		minSamples int
-		deaf       bool
 
-		logs []string
 		// what the measurement must say about one parameter of the amp.
 		param      string
 		wantN      int
@@ -96,7 +91,6 @@ func (s *CorpusgenPublicTestSuite) TestRun() {
 	}{
 		{
 			name: "a corpus of presets",
-			logs: []string{"presets measured", "bass"},
 
 			// Eleven presets sit between 0.40 and 0.47, two outliers at 0.95,
 			// and one belongs to another device entirely. The median ignores
@@ -162,7 +156,6 @@ func (s *CorpusgenPublicTestSuite) TestRun() {
 			out:     filepath.Join("no", "s.gz"),
 			errText: "writing",
 		},
-		{name: "a writer that fails", deaf: true, errText: "reporting"},
 	}
 
 	for _, tt := range tests {
@@ -191,14 +184,7 @@ func (s *CorpusgenPublicTestSuite) TestRun() {
 				o.CatalogPath = tt.catalog
 			}
 
-			var log bytes.Buffer
-
-			w := io.Writer(&log)
-			if tt.deaf {
-				w = &failingWriter{}
-			}
-
-			err := corpusgen.Run(w, o)
+			counted, err := corpusgen.Run(o)
 
 			if tt.err != nil || tt.errText != "" {
 				s.Require().Error(err)
@@ -214,10 +200,11 @@ func (s *CorpusgenPublicTestSuite) TestRun() {
 
 			s.Require().NoError(err)
 			s.Require().FileExists(out)
+			s.Require().Equal(out, counted.Path)
 
-			for _, want := range tt.logs {
-				s.Require().Contains(log.String(), want)
-			}
+			// The answer carries the measurements, so nothing has to read
+			// the file back to find out what was written.
+			s.Require().Equal(s.read(out).Presets, counted.Stats.Presets)
 
 			stats := s.read(out)
 
@@ -278,10 +265,6 @@ func (s *CorpusgenPublicTestSuite) read(path string) *corpus.Stats {
 
 	return stats
 }
-
-type failingWriter struct{}
-
-func (*failingWriter) Write([]byte) (int, error) { return 0, errors.New("boom") }
 
 func TestCorpusgenPublicTestSuite(t *testing.T) {
 	suite.Run(t, new(CorpusgenPublicTestSuite))

@@ -20,7 +20,7 @@ info:
     docs/superpowers/specs/2026-09-06-rigspec-as-the-one-model-design.md.
 
 
-    This document is the source for the Go types in pkg/rig/gen. Do not
+    This document is the source for the Go types in pkg/sdk/internal/gen. Do not
     hand-edit those; change this and run `just generate`.
 
 paths: {}

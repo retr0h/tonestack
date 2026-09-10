@@ -25,9 +25,9 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk/chain"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/compile"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/editor"
+	riggen "github.com/retr0h/tonestack/pkg/sdk/internal/gen"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/wire"
 	"github.com/retr0h/tonestack/pkg/sdk/preset"
-	riggen "github.com/retr0h/tonestack/pkg/sdk/rig/gen"
 )
 
 // Catalogs opens the catalog a command reads model names out of.

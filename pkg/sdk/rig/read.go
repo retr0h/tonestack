@@ -21,7 +21,7 @@
 package rig
 
 import (
-	"github.com/retr0h/tonestack/pkg/sdk/rig/gen"
+	"github.com/retr0h/tonestack/pkg/sdk/internal/gen"
 )
 
 // gear returns the first entry filling a role, and whether the rig has one.
@@ -29,18 +29,18 @@ import (
 // A chain is ordered by what the signal does rather than grouped by kind, so
 // finding the amplifier means looking for it. Every caller that displays a rig
 // wants this and none of them should search the chain themselves.
-func gear(spec gen.RigSpec, role gen.Role) (gen.ChainEntry, bool) {
+func gear(spec Spec, role Role) (ChainEntry, bool) {
 	for _, e := range spec.Chain {
 		if e.Role == role {
 			return e, true
 		}
 	}
 
-	return gen.ChainEntry{}, false
+	return ChainEntry{}, false
 }
 
 // GearName returns the gear filling a role, or an empty string.
-func GearName(spec gen.RigSpec, role gen.Role) string {
+func GearName(spec Spec, role Role) string {
 	if e, ok := gear(spec, role); ok {
 		return e.Gear
 	}
@@ -60,7 +60,7 @@ func GearName(spec gen.RigSpec, role gen.Role) string {
 // Evidence on the rig answers for all of it — a rig rundown covers every
 // piece of gear in it, and requiring the citation to be repeated on each
 // entry would only encourage repeating it.
-func Trusted(spec gen.RigSpec) bool {
+func Trusted(spec Spec) bool {
 	if checkable(spec.Evidence) {
 		return true
 	}
@@ -82,7 +82,7 @@ func Trusted(spec gen.RigSpec) bool {
 //
 // Absent evidence is not checkable either. A claim nobody supported and a
 // claim a model asserted are the same claim.
-func checkable(evidence *[]gen.Evidence) bool {
+func checkable(evidence *[]Evidence) bool {
 	if evidence == nil {
 		return false
 	}
@@ -101,9 +101,9 @@ func checkable(evidence *[]gen.Evidence) bool {
 // Ranked by how far somebody has to go to disagree with it. A person who
 // listened outranks a citation, because this project's founding constraint is
 // that nothing in it can hear.
-func Sourced(spec gen.RigSpec) gen.EvidenceKind {
-	best := gen.EvidenceKind("")
-	rank := func(k gen.EvidenceKind) int {
+func Sourced(spec Spec) EvidenceKind {
+	best := EvidenceKind("")
+	rank := func(k EvidenceKind) int {
 		switch k {
 		case gen.EvidenceUser:
 			return 6
@@ -124,7 +124,7 @@ func Sourced(spec gen.RigSpec) gen.EvidenceKind {
 		}
 	}
 
-	each := func(evidence *[]gen.Evidence) {
+	each := func(evidence *[]Evidence) {
 		if evidence == nil {
 			return
 		}

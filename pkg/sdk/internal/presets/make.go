@@ -28,9 +28,9 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk/chain"
 	"github.com/retr0h/tonestack/pkg/sdk/corpus"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/compile"
+	riggen "github.com/retr0h/tonestack/pkg/sdk/internal/gen"
 	"github.com/retr0h/tonestack/pkg/sdk/preset"
 	"github.com/retr0h/tonestack/pkg/sdk/result"
-	riggen "github.com/retr0h/tonestack/pkg/sdk/rig/gen"
 )
 
 // MakeOptions says what to build and where to put it.

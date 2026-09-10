@@ -28,7 +28,7 @@ import (
 
 	"github.com/retr0h/tonestack/pkg/sdk/catalog"
 	"github.com/retr0h/tonestack/pkg/sdk/chain"
-	riggen "github.com/retr0h/tonestack/pkg/sdk/rig/gen"
+	riggen "github.com/retr0h/tonestack/pkg/sdk/internal/gen"
 )
 
 // check reports what a rig claims that this device cannot supply.

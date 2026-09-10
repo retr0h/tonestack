@@ -25,8 +25,8 @@ import (
 	"strconv"
 	"strings"
 
+	riggen "github.com/retr0h/tonestack/pkg/sdk/internal/gen"
 	"github.com/retr0h/tonestack/pkg/sdk/preset"
-	riggen "github.com/retr0h/tonestack/pkg/sdk/rig/gen"
 )
 
 // processorPrefix marks a tone entry holding a chain rather than state.

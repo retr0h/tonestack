@@ -20,7 +20,7 @@
 
 package recipes
 
-import "github.com/retr0h/tonestack/pkg/sdk/rig/gen"
+import "github.com/retr0h/tonestack/pkg/sdk/internal/gen"
 
 // Store finds curated rigs, in a directory or in the binary.
 //

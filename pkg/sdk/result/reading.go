@@ -22,7 +22,7 @@ package result
 
 import (
 	"github.com/retr0h/tonestack/pkg/sdk/preset"
-	riggen "github.com/retr0h/tonestack/pkg/sdk/rig/gen"
+	"github.com/retr0h/tonestack/pkg/sdk/rig"
 )
 
 // Reading is one preset, read out of a slot or a file.
@@ -41,7 +41,7 @@ type Reading struct {
 	Doc *preset.Document
 	// Rig is what the preset describes. Zero when the slot holds nothing, or
 	// when only the device's own document was asked for.
-	Rig riggen.RigSpec
+	Rig rig.Spec
 	// Answer is what a device replied with when the reply was not a preset.
 	// Nil otherwise.
 	Answer *Answer
