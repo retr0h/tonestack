@@ -144,23 +144,61 @@ func holds(ctx context.Context, s sdk.Editor, setlist, slot int) ([]byte, error)
 	return body, nil
 }
 
-// keep backs up one slot an edit is about to replace.
+// at is one slot's contents, and which slot they came out of.
+type at struct {
+	body []byte
+	slot int
+}
+
+// keep backs up every slot an edit is about to replace.
 //
-// A slice rather than a string so a caller replacing two slots can gather
-// both, and so a slot holding nothing contributes nothing to report.
-func keep(body []byte, opts EditOptions, slot int) ([]string, error) {
-	path, err := backup(body, DeviceOptions{
-		Deps:        opts.Deps,
-		Slot:        slot,
-		CatalogPath: opts.CatalogPath,
-	}, opts.BackupDir)
+// Several, because a swap replaces two, and a loop rather than a call each so
+// that there is one place a backup can fail rather than one per slot.
+func keep(
+	deps Deps,
+	catalogPath, dir string,
+	all ...at,
+) ([]string, error) {
+	out := []string(nil)
+
+	for _, one := range all {
+		path, err := backup(one.body, DeviceOptions{
+			Deps:        deps,
+			Slot:        one.slot,
+			CatalogPath: catalogPath,
+		}, dir)
+		if err != nil {
+			return nil, err
+		}
+
+		// A slot holding nothing was not kept and has nothing to report.
+		if path == "" {
+			continue
+		}
+
+		out = append(out, path)
+	}
+
+	return out, nil
+}
+
+// replacing reads what a slot holds and keeps it, for a write that is about
+// to put something else there.
+//
+// The read and the keeping together, because a caller that did one without
+// the other would be either reading for nothing or replacing something it
+// never looked at.
+func replacing(
+	ctx context.Context,
+	s sdk.Editor,
+	deps Deps,
+	catalogPath, dir string,
+	setlist, slot int,
+) ([]string, error) {
+	body, err := holds(ctx, s, setlist, slot)
 	if err != nil {
 		return nil, err
 	}
 
-	if path == "" {
-		return nil, nil
-	}
-
-	return []string{path}, nil
+	return keep(deps, catalogPath, dir, at{body: body, slot: slot})
 }

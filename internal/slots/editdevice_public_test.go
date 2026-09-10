@@ -24,6 +24,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -84,6 +85,27 @@ func (s *EditDevicePublicTestSuite) listing() []wire.Preset {
 		{Slot: 3, Name: "Black Rusty"},
 	}
 }
+
+// backupDir returns somewhere a backup can go, or somewhere it cannot.
+func (s *EditDevicePublicTestSuite) backupDir(bad bool) string {
+	dir := s.T().TempDir()
+	if !bad {
+		return dir
+	}
+
+	// A file where a directory would have to be, so nothing can be made
+	// under it.
+	path := filepath.Join(dir, "in-the-way")
+	s.Require().NoError(os.WriteFile(path, []byte("x"), 0o600))
+
+	return filepath.Join(path, "under-it")
+}
+
+// deafWriter is a writer nothing can be written to. It stands in for a
+// standard library interface, so it is written by hand.
+type deafWriter struct{}
+
+func (*deafWriter) Write([]byte) (int, error) { return 0, errors.New("no") }
 
 // expectListing sets up the listing every edit starts from.
 func (s *EditDevicePublicTestSuite) expectListing(reader *mocks.MockEditor, ok bool) {
@@ -147,6 +169,12 @@ func (s *EditDevicePublicTestSuite) TestCopyWith() {
 		write  string
 		// a session that can read but not write.
 		readOnly bool
+		// how the destination read is answered. Empty means answered.
+		readTo string
+		// somewhere a backup cannot be written.
+		badBackup bool
+		// a writer nothing can be written to.
+		deaf bool
 
 		contains []string
 		errText  string
@@ -164,6 +192,33 @@ func (s *EditDevicePublicTestSuite) TestCopyWith() {
 			},
 		},
 		{name: "a listing it cannot get", errText: "listing presets"},
+		{
+			// The destination is read so it can be kept. A device that will
+			// not say what is there is a device that cannot be replaced
+			// safely.
+			name:    "a destination it cannot read",
+			listed:  true,
+			read:    "answered",
+			readTo:  "refused",
+			errText: "before replacing it",
+		},
+		{
+			// Nowhere to put what the destination held, so it is not
+			// replaced. A write nobody can undo does not happen.
+			name:      "a backup it cannot write",
+			listed:    true,
+			read:      "answered",
+			badBackup: true,
+			errText:   "making room for a backup",
+		},
+		{
+			name:    "a reader nobody can be told about it through",
+			listed:  true,
+			read:    "answered",
+			write:   "landed",
+			deaf:    true,
+			errText: "no",
+		},
 		{
 			name:    "a slot it cannot read",
 			listed:  true,
@@ -215,7 +270,12 @@ func (s *EditDevicePublicTestSuite) TestCopyWith() {
 			// it has already read both slots to move them. A session that
 			// cannot write never gets that far.
 			if tt.read == "answered" && !tt.readOnly {
-				s.expectRead(reader, 3, "answered")
+				outcome := tt.readTo
+				if outcome == "" {
+					outcome = "answered"
+				}
+
+				s.expectRead(reader, 3, outcome)
 			}
 
 			if tt.write != "" {
@@ -224,9 +284,14 @@ func (s *EditDevicePublicTestSuite) TestCopyWith() {
 
 			var out bytes.Buffer
 
-			err := slots.CopyWith(context.Background(), &out, dev,
+			w := io.Writer(&out)
+			if tt.deaf {
+				w = &deafWriter{}
+			}
+
+			err := slots.CopyWith(context.Background(), w, dev,
 				slots.EditOptions{
-					FromSlot: 0, ToSlot: 3, BackupDir: s.T().TempDir(),
+					FromSlot: 0, ToSlot: 3, BackupDir: s.backupDir(tt.badBackup),
 				})
 
 			if tt.errText != "" {
@@ -256,6 +321,8 @@ func (s *EditDevicePublicTestSuite) TestSwapWith() {
 		reads    []string
 		writes   []string
 		readOnly bool
+		// somewhere a backup cannot be written.
+		badBackup bool
 
 		contains string
 		errText  string
@@ -268,6 +335,15 @@ func (s *EditDevicePublicTestSuite) TestSwapWith() {
 			contains: "swapped",
 		},
 		{name: "a listing it cannot get", errText: "listing presets"},
+		{
+			// A swap reads both slots to move them and keeps them from those
+			// same reads, so nowhere to put them stops it.
+			name:      "a backup it cannot write",
+			listed:    true,
+			reads:     []string{"answered", "answered"},
+			badBackup: true,
+			errText:   "making room for a backup",
+		},
 		{
 			name:    "the first slot, which it cannot read",
 			listed:  true,
@@ -344,7 +420,7 @@ func (s *EditDevicePublicTestSuite) TestSwapWith() {
 
 			err := slots.SwapWith(context.Background(), &out, dev,
 				slots.EditOptions{
-					FromSlot: 0, ToSlot: 3, BackupDir: s.T().TempDir(),
+					FromSlot: 0, ToSlot: 3, BackupDir: s.backupDir(tt.badBackup),
 				})
 
 			if tt.errText != "" {

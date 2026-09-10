@@ -139,6 +139,8 @@ func (s *BackupTestSuite) TestBackup() {
 		readOnly bool
 		// a path that is a file, so no directory can be made under it.
 		blocked bool
+		// nowhere to work out a default from.
+		noHome  bool
 		kept    bool
 		errText string
 	}{
@@ -171,6 +173,13 @@ func (s *BackupTestSuite) TestBackup() {
 			errText: "making room for a backup",
 		},
 		{
+			// Nobody said where, and there is nowhere to work it out from.
+			name:    "nowhere to work out where it goes",
+			body:    s.answer,
+			noHome:  true,
+			errText: "finding somewhere to keep a backup",
+		},
+		{
 			name:     "a directory it cannot write into",
 			body:     s.answer,
 			readOnly: true,
@@ -181,6 +190,13 @@ func (s *BackupTestSuite) TestBackup() {
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
 			dir := s.T().TempDir()
+
+			if tt.noHome {
+				s.T().Setenv("XDG_STATE_HOME", "")
+				s.T().Setenv("HOME", "")
+
+				dir = ""
+			}
 
 			switch {
 			case tt.blocked:
@@ -326,22 +342,73 @@ func (s *BackupTestSuite) TestHolds() {
 	}
 }
 
-// TestKeep covers backing up one slot an edit is about to replace.
+// TestKeep covers backing up every slot an edit is about to replace.
 func (s *BackupTestSuite) TestKeep() {
 	dir := s.T().TempDir()
 
-	got, err := keep(nil, EditOptions{BackupDir: dir}, 3)
+	got, err := keep(Deps{}, "", dir, at{slot: 3})
 	s.Require().NoError(err)
 	s.Require().Empty(got, "a slot holding nothing contributes nothing")
 
-	got, err = keep(s.answer(), EditOptions{BackupDir: dir}, 3)
+	// Two, because a swap replaces two.
+	got, err = keep(Deps{}, "", dir,
+		at{body: s.answer(), slot: 3}, at{body: s.answer(), slot: 0})
 	s.Require().NoError(err)
-	s.Require().Len(got, 1)
+	s.Require().Len(got, 2)
 
-	_, err = keep(s.answer(), EditOptions{
-		BackupDir: dir, CatalogPath: filepath.Join("testdata", "nope.json"),
-	}, 3)
+	_, err = keep(Deps{}, filepath.Join("testdata", "nope.json"), dir,
+		at{body: s.answer(), slot: 3})
 	s.Require().Error(err)
+}
+
+// TestReplacing covers reading a slot and keeping what it held.
+func (s *BackupTestSuite) TestReplacing() {
+	tests := []struct {
+		name    string
+		body    []byte
+		err     error
+		dir     string
+		kept    int
+		errText string
+	}{
+		{name: "a slot with a preset in it", body: s.answer(), kept: 1},
+		{name: "a slot with nothing in it"},
+		{
+			name:    "a device that will not say what is there",
+			err:     errors.New("boom"),
+			errText: "before replacing it",
+		},
+		{
+			name:    "nowhere to keep it",
+			body:    s.answer(),
+			dir:     "\x00",
+			errText: "making room for a backup",
+		},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			dir := tt.dir
+			if dir == "" {
+				dir = s.T().TempDir()
+			}
+
+			dev := mocks.NewMockEditor(s.ctrl)
+			dev.EXPECT().ReadPreset(gomock.Any(), 0, 3).Return(tt.body, tt.err)
+
+			got, err := replacing(
+				context.Background(), dev, Deps{}, "", dir, 0, 3)
+
+			if tt.errText != "" {
+				s.Require().ErrorContains(err, tt.errText)
+
+				return
+			}
+
+			s.Require().NoError(err)
+			s.Require().Len(got, tt.kept)
+		})
+	}
 }
 
 // failing is a writer nothing can be written to. Standing in for a standard

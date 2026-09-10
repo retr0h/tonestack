@@ -76,16 +76,8 @@ func ImportWith(
 	}
 
 	// What the slot holds now, before it stops holding it.
-	replaced, err := holds(ctx, s, opts.Setlist, opts.Slot)
-	if err != nil {
-		return err
-	}
-
-	kept, err := backup(replaced, DeviceOptions{
-		Deps:        opts.Deps,
-		Slot:        opts.Slot,
-		CatalogPath: opts.CatalogPath,
-	}, opts.BackupDir)
+	kept, err := replacing(ctx, s, opts.Deps, opts.CatalogPath, opts.BackupDir,
+		opts.Setlist, opts.Slot)
 	if err != nil {
 		return err
 	}
@@ -97,7 +89,7 @@ func ImportWith(
 		return fmt.Errorf("writing slot %s: %w", slotpkg.Label(opts.Slot), err)
 	}
 
-	if err := said(w, kept); err != nil {
+	if err := said(w, kept...); err != nil {
 		return err
 	}
 

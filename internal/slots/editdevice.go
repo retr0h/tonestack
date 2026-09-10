@@ -129,12 +129,8 @@ func copyOne(
 
 	// The destination is about to stop being what it was, and unlike the
 	// source nobody has read it yet.
-	replaced, err := holds(ctx, s, opts.ToSetlist, opts.ToSlot)
-	if err != nil {
-		return "", "", nil, err
-	}
-
-	kept, err := keep(replaced, opts, opts.ToSlot)
+	kept, err := replacing(ctx, s, opts.Deps, opts.CatalogPath, opts.BackupDir,
+		opts.ToSetlist, opts.ToSlot)
 	if err != nil {
 		return "", "", nil, err
 	}
@@ -183,17 +179,12 @@ func swapTwo(
 
 	// Both of them, because a swap replaces both. No extra reads: a swap has
 	// already read what it is about to move.
-	kept, err := keep(destination, opts, opts.ToSlot)
+	kept, err := keep(opts.Deps, opts.CatalogPath, opts.BackupDir,
+		at{body: destination, slot: opts.ToSlot},
+		at{body: source, slot: opts.FromSlot})
 	if err != nil {
 		return "", "", nil, err
 	}
-
-	also, err := keep(source, opts, opts.FromSlot)
-	if err != nil {
-		return "", "", nil, err
-	}
-
-	kept = append(kept, also...)
 
 	if err := w.WriteNamedPreset(
 		ctx, opts.ToSetlist, opts.ToSlot, from, source); err != nil {
