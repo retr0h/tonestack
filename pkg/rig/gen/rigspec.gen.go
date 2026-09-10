@@ -35,6 +35,7 @@ const (
 	EvidenceCorpus   EvidenceKind = "corpus"
 	EvidenceLLM      EvidenceKind = "llm"
 	EvidenceMeasured EvidenceKind = "measured"
+	EvidenceStore    EvidenceKind = "store"
 	EvidenceUser     EvidenceKind = "user"
 	EvidenceVideo    EvidenceKind = "video"
 )
@@ -51,6 +52,8 @@ func (e EvidenceKind) Valid() bool {
 	case EvidenceLLM:
 		return true
 	case EvidenceMeasured:
+		return true
+	case EvidenceStore:
 		return true
 	case EvidenceUser:
 		return true
@@ -321,6 +324,13 @@ type ChainEntry struct {
 	//
 	// A rig that carried device parameters would not survive being read on different hardware, which is the whole point of the format.
 	Settings *Settings `json:"settings,omitempty"`
+
+	// Substitute What to use when the device cannot do what the rig names.
+	//
+	// The rig goes on naming the real gear, because a rig outlives any one device: the day Line 6 model the amplifier, this block is deleted and nothing else moves. Naming the stand-in in `gear` instead would make the rig assert something false about the player, and would make `gear` mean two different things depending on whether anybody substituted.
+	//
+	// A substitution is a claim like any other and carries why it is believed. Somebody on a forum saying two amplifiers share a power section is `user`; an A/B somebody recorded is `video`; a model asserting it is `llm`. Where the stand-in is content that did not ship with the device, `store` says where to get it, and without that the rig names something the reader cannot obtain.
+	Substitute *Substitute `json:"substitute,omitempty"`
 }
 
 // Change One field a mutation moved.
@@ -425,6 +435,8 @@ type Evidence struct {
 	// Kind How something came to be believed. Open by design: a new way of learning is a new value here, not a new document.
 	//
 	// `llm` means a model asserted it and nobody checked — reliable for well-known players, unreliable for obscure ones, and the model cannot always tell which it is doing.
+	//
+	// `store` is where content that did not ship with the device comes from, bought or free. It is the one kind that answers "where do I get this" rather than "why is this believed", and a substitute naming something nobody can obtain is worth nothing without it.
 	Kind EvidenceKind `json:"kind"`
 
 	// Measured Figures taken from audio, keyed by feature. Measuring a record measures the record — the bass, the player, the amp, the mic, the desk and the master — so these compare against another measurement rather than name a knob position.
@@ -436,6 +448,8 @@ type Evidence struct {
 // EvidenceKind How something came to be believed. Open by design: a new way of learning is a new value here, not a new document.
 //
 // `llm` means a model asserted it and nobody checked — reliable for well-known players, unreliable for obscure ones, and the model cannot always tell which it is doing.
+//
+// `store` is where content that did not ship with the device comes from, bought or free. It is the one kind that answers "where do I get this" rather than "why is this believed", and a substitute naming something nobody can obtain is worth nothing without it.
 type EvidenceKind string
 
 // Footswitch One thing a switch on the pedal does.
@@ -682,6 +696,22 @@ type Subject struct {
 	// Kind What a rig is attributed to. Artist is the common case, but a rig can belong to a song, a genre, or to nothing at all.
 	Kind Kind   `json:"kind"`
 	Name string `json:"name"`
+}
+
+// Substitute What to use when the device cannot do what the rig names.
+//
+// The rig goes on naming the real gear, because a rig outlives any one device: the day Line 6 model the amplifier, this block is deleted and nothing else moves. Naming the stand-in in `gear` instead would make the rig assert something false about the player, and would make `gear` mean two different things depending on whether anybody substituted.
+//
+// A substitution is a claim like any other and carries why it is believed. Somebody on a forum saying two amplifiers share a power section is `user`; an A/B somebody recorded is `video`; a model asserting it is `llm`. Where the stand-in is content that did not ship with the device, `store` says where to get it, and without that the rig names something the reader cannot obtain.
+type Substitute struct {
+	// Confidence How far a claim should be trusted. Set by a person, not derived. A claim asserting high confidence with no evidence behind it is worth showing as unverified whatever it says about itself.
+	Confidence *Confidence `json:"confidence,omitempty"`
+
+	// Evidence Why this is a fair stand-in, and where it comes from.
+	Evidence *[]Evidence `json:"evidence,omitempty"`
+
+	// Gear Real-world gear, as a person would say it, the same as any other entry names.
+	Gear string `json:"gear"`
 }
 
 // Target Where the settings in this rig were arrived at.

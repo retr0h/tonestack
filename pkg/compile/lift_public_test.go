@@ -258,6 +258,13 @@ func withSwitch(spec riggen.RigSpec, led string) riggen.RigSpec {
 }
 
 // TestLower writes a rig into a preset.
+// substituted says what to put in place of the gear a rig names.
+func substituted(spec riggen.RigSpec, instead string) riggen.RigSpec {
+	spec.Chain[0].Substitute = &riggen.Substitute{Gear: instead}
+
+	return spec
+}
+
 func (s *LiftPublicTestSuite) TestLower() {
 	tests := []struct {
 		name   string
@@ -283,6 +290,23 @@ func (s *LiftPublicTestSuite) TestLower() {
 			name:    "gear nothing on this device models",
 			spec:    rigOf("nope", "Nonesuch 900", riggen.InstrumentGuitar, nil),
 			errText: "emulates \"Nonesuch 900\"",
+		},
+		{
+			// The rig names what was really played and says what this device
+			// should put there, so building it lands on the stand-in.
+			name: "gear nothing models, with a stand-in the rig names",
+			spec: substituted(
+				rigOf("stood-in", "Nonesuch 900", riggen.InstrumentBass, nil),
+				"Ampeg SVT (normal"),
+			wantModel: "HD2_AmpSVBeastNrm",
+			exact:     -1,
+		},
+		{
+			name: "a stand-in nothing models either",
+			spec: substituted(
+				rigOf("nope", "Nonesuch 900", riggen.InstrumentBass, nil),
+				"Also Nonesuch"),
+			errText: `"Also Nonesuch" stands in for "Nonesuch 900"`,
 		},
 		{
 			// A rig describing gear rather than a block gets Line 6's own

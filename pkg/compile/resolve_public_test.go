@@ -94,6 +94,22 @@ func recipe(amp string, cab string, pedals ...string) riggen.RigSpec {
 // "Ampeg SVT" names neither the normal nor the bright channel, so which of
 // the two comes back is arbitrary. It is pinned here because a row wants a
 // value, and TestResolveIsDeterministic is what guards that it stays put.
+// substituting names gear this catalog has no model for, and says what to put
+// there instead.
+func substituting(gear, instead string) riggen.RigSpec {
+	spec := recipe("Ampeg SVT", "")
+	spec.Chain[len(spec.Chain)-1] = riggen.ChainEntry{
+		Role: riggen.RoleAmp,
+		Gear: gear,
+	}
+
+	if instead != "" {
+		spec.Chain[len(spec.Chain)-1].Substitute = &riggen.Substitute{Gear: instead}
+	}
+
+	return spec
+}
+
 func (s *ResolvePublicTestSuite) TestResolve() {
 	tests := []struct {
 		name   string
@@ -133,6 +149,25 @@ func (s *ResolvePublicTestSuite) TestResolve() {
 			name:   "a cabinet the recipe names beats the amp's own",
 			spec:   recipe("Ampeg SVT", "Ampeg SVT 410HLF"),
 			models: []catalog.ModelID{"HD2_AmpSVBeastBrt", "HD2_CabNamed"},
+		},
+		{
+			// A rig outlives any one device, so it goes on naming what was
+			// really played and says separately what this device can do.
+			name:   "gear nobody models, with a stand-in the rig names",
+			spec:   substituting("Orange AD200B", "Ampeg SVT"),
+			models: []catalog.ModelID{"HD2_AmpSVBeastBrt", "HD2_Cab8x10SVBeast"},
+		},
+		{
+			name: "a stand-in nobody models either",
+			spec: substituting("Orange AD200B", "Also Not A Thing"),
+			err:  `"Also Not A Thing" stands in for "Orange AD200B"`,
+		},
+		{
+			// Substituting an amplifier is not a detail, so without one the
+			// build fails rather than picking something.
+			name: "gear nobody models and no stand-in",
+			spec: substituting("Orange AD200B", ""),
+			err:  `no amp in this device's bass amps emulates "Orange AD200B"`,
 		},
 		{
 			// Line 6 does not describe every cabinet in terms of real gear,
