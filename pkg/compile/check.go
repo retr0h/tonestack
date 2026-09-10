@@ -20,6 +20,7 @@
 package compile
 
 import (
+	"errors"
 	"fmt"
 	"maps"
 	"slices"
@@ -41,15 +42,15 @@ import (
 // it moves by position and the parameter by name, and only the model sitting
 // at that position says whether the name is one of its own.
 func check(spec riggen.RigSpec, blocks []chain.Block, cat *catalog.Catalog) error {
-	if err := checkTarget(spec, cat); err != nil {
-		return err
-	}
-
-	if err := checkFootswitches(spec, cat); err != nil {
-		return err
-	}
-
-	return checkControllers(spec, blocks, cat)
+	// Every complaint at once. A rig with four bad colours in it took four
+	// runs to fix when this reported the first one, and each run hid the
+	// next. errors.Is and errors.As reach through a join, so a caller
+	// matching on ErrNoSuchValue still matches.
+	return errors.Join(
+		checkTarget(spec, cat),
+		checkFootswitches(spec, cat),
+		checkControllers(spec, blocks, cat),
+	)
 }
 
 // checkTarget refuses a rig built for another device.
@@ -79,6 +80,8 @@ func checkFootswitches(spec riggen.RigSpec, cat *catalog.Catalog) error {
 		return nil
 	}
 
+	out := []error(nil)
+
 	for i, fs := range *spec.Footswitches {
 		if fs.Led == nil || *fs.Led == "" {
 			continue
@@ -90,15 +93,15 @@ func checkFootswitches(spec riggen.RigSpec, cat *catalog.Catalog) error {
 
 		hits, whole := near(cat.LEDColours, *fs.Led)
 
-		return &NoSuchValueError{
+		out = append(out, &NoSuchValueError{
 			Field: fmt.Sprintf("footswitches[%d].led", i),
 			Value: *fs.Led,
 			Near:  hits,
 			Whole: whole,
-		}
+		})
 	}
 
-	return nil
+	return errors.Join(out...)
 }
 
 // checkControllers refuses a parameter the block it moves does not have.
@@ -115,17 +118,21 @@ func checkControllers(
 		return nil
 	}
 
+	out := []error(nil)
+
 	for i, c := range *spec.Controllers {
 		// By position along the path rather than by place in the list. A rig
 		// read off a device numbers its blocks the way the device lays them
 		// out, and a chain that states its positions leaves gaps in them.
 		at, ok := blockAt(blocks, c.Block)
 		if !ok {
-			return &NoSuchBlockError{
+			out = append(out, &NoSuchBlockError{
 				Field: fmt.Sprintf("controllers[%d].block", i),
 				Block: c.Block,
 				Have:  len(blocks),
-			}
+			})
+
+			continue
 		}
 
 		b, ok := cat.Block(at.Model)
@@ -143,15 +150,15 @@ func checkControllers(
 
 		hits, whole := near(names, c.Parameter)
 
-		return &NoSuchValueError{
+		out = append(out, &NoSuchValueError{
 			Field: fmt.Sprintf("controllers[%d].parameter", i),
 			Value: c.Parameter,
 			Near:  hits,
 			Whole: whole,
-		}
+		})
 	}
 
-	return nil
+	return errors.Join(out...)
 }
 
 // blockAt finds the block sitting at a position along the path.

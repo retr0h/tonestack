@@ -21,6 +21,7 @@
 package compile_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
@@ -270,6 +271,50 @@ func (s *CheckPublicTestSuite) TestCheck() {
 			}
 		})
 	}
+}
+
+// TestCheckReportsEveryBadValue covers a rig that is wrong four ways.
+//
+// It used to report the first mistake and stop, so a rig with four in it took
+// four runs to fix and each run hid the next. What is held here is that they
+// arrive together, and that matching on the sentinel still reaches through
+// the join.
+func (s *CheckPublicTestSuite) TestCheckReportsEveryBadValue() {
+	first, second := "nonsense", "alsonot"
+
+	spec := recipe("Ampeg SVT (normal", "")
+	spec.Footswitches = &[]riggen.Footswitch{{Led: &first}, {Led: &second}}
+	spec.Controllers = &[]riggen.Controller{
+		{Controller: 2, Block: 0, Parameter: "NotAParameter"},
+		{Controller: 3, Block: 99, Parameter: "Drive"},
+	}
+
+	err := compile.Check(spec, s.blocks(), s.cat)
+	s.Require().Error(err)
+
+	for _, want := range []string{
+		"footswitches[0].led",
+		"footswitches[1].led",
+		"controllers[0].parameter",
+		"controllers[1].block",
+	} {
+		s.Require().Contains(err.Error(), want,
+			"every complaint arrives at once, not one run at a time")
+	}
+
+	// Joined rather than run together, so each complaint starts a line.
+	s.Require().Greater(strings.Count(err.Error(), "\n"), 2)
+
+	// A join is still matchable, so nothing that caught these before stops
+	// catching them.
+	s.Require().ErrorIs(err, compile.ErrNoSuchValue)
+	s.Require().ErrorIs(err, compile.ErrNoSuchBlock)
+
+	// And reachable, so a caller can still read the detail off the first.
+	var detail *compile.NoSuchValueError
+
+	s.Require().ErrorAs(err, &detail)
+	s.Require().Equal("nonsense", detail.Value)
 }
 
 func TestCheckPublicTestSuite(t *testing.T) {
