@@ -39,12 +39,17 @@ chain:
     confidence: medium
 
 character:
-  - term: thumping low end under a hard top
+  - term: loose-low-end
     evidence:
       - kind: cited
         url: https://mixdownmag.com.au/features/rig-rundown-les-claypool/
         note: described there as a heavy, thumping tone
-  - term: percussive, the string hitting the fretboard
+  - term: bright
+    evidence:
+      - kind: cited
+        url: https://mixdownmag.com.au/features/rig-rundown-les-claypool/
+        note: described there as a heavy, thumping tone
+  - term: percussive
     evidence:
       - kind: llm
 

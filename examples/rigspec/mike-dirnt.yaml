@@ -108,16 +108,22 @@ character:
   # These are the claims least likely to be checkable from a preset, so the
   # difference between "somebody asserted it" and "somebody listened" is the
   # whole value of writing them down.
-  - term: mid-forward, not scooped
+  - term: mid-forward
     evidence:
       - { kind: llm }
-  - term: minimal drive, grit only on hard attack
+  - term: minimal-drive
     evidence:
       - { kind: llm }
-  - term: tight low end, short decay
+  - term: grit-on-attack
     evidence:
       - { kind: llm }
-  - term: pick attack audible
+  - term: tight-low-end
+    evidence:
+      - { kind: llm }
+  - term: short-decay
+    evidence:
+      - { kind: llm }
+  - term: audible-pick-attack
     evidence:
       # A timestamp says somebody went and listened. Do not write one you did
       # not check: it is the most checkable claim in the file and the easiest

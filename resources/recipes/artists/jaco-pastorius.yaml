@@ -51,13 +51,16 @@ chain:
     confidence: medium
 
 character:
-  - term: bridge-pickup forward, nasal rather than round
+  - term: bridge-forward
     evidence:
       - kind: user
         url: https://ebass.bestbassgear.com/article/jaco-pastorius.html
         note: fingers over the bridge pickup
         caveat: from the comments on that page rather than the article
-  - term: bright, and hearing the fingerboard is the point
+  - term: bright
+    evidence:
+      - kind: llm
+  - term: audible-strings
     evidence:
       - kind: llm
 

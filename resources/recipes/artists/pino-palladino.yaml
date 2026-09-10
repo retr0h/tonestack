@@ -36,12 +36,20 @@ chain:
     confidence: high
 
 character:
-  - term: dark, tone rolled almost off
+  - term: dark
     evidence:
       - kind: cited
         url: https://mixdownmag.com.au/features/rig-rundown-pino-palladino/
         note: '"keeping the volume turned all the way up and the tone all the way down"' 
-  - term: short-decay, flatwound thud
+  - term: short-decay
+    evidence:
+      - kind: cited
+        url: https://mixdownmag.com.au/features/rig-rundown-pino-palladino/
+        note: flatwounds named there as a major component of the sound
+        caveat: >-
+          strings are not modelled by anything. This term is here for a
+          reader, not for the compiler.
+  - term: quiet-strings
     evidence:
       - kind: cited
         url: https://mixdownmag.com.au/features/rig-rundown-pino-palladino/

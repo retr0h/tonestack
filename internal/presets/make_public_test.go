@@ -74,6 +74,18 @@ func (s *MakePublicTestSuite) TestMake() {
 			},
 		},
 		{
+			// A word nothing defines is said and not refused. Nothing
+			// compiles a character term into a chain, so the preset is
+			// written and the note tells whoever wrote it.
+			name:     "a recipe describing itself in its own words",
+			id:       "own-words",
+			loadable: true,
+			contains: []string{
+				`no such character term "sounds like a wet paper bag"`,
+				"wrote ",
+			},
+		},
+		{
 			// A recipe names an amp; a rig is several blocks. Whatever the
 			// corpus contributed has to be visible before anybody plugs in.
 			name:  "what the corpus added unasked",
@@ -210,6 +222,7 @@ func (s *MakePublicTestSuite) TestMakeReportsAFailingWriter() {
 		name    string
 		ok      int
 		stats   bool
+		id      string
 		errText string
 	}{
 		{name: "before anything is written", errText: "reporting"},
@@ -221,11 +234,19 @@ func (s *MakePublicTestSuite) TestMakeReportsAFailingWriter() {
 		{name: "one line into the explanation", ok: 6, stats: true},
 		{name: "two lines in", ok: 7, stats: true},
 		{name: "at the last line of it", ok: 8, stats: true},
+		// The note about words nothing defines is written after all of that.
+		{name: "at the note", ok: 5, id: "own-words"},
+		{name: "one line into the note", ok: 6, id: "own-words"},
 	}
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			o := s.opts("test-player", filepath.Join(s.T().TempDir(), "test.hlx"))
+			id := tt.id
+			if id == "" {
+				id = "test-player"
+			}
+
+			o := s.opts(id, filepath.Join(s.T().TempDir(), "test.hlx"))
 			if tt.stats {
 				o.StatsPath = filepath.Join("testdata", "stats.json.gz")
 			}

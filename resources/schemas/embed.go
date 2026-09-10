@@ -34,3 +34,13 @@ import _ "embed"
 //
 //go:embed rigspec.openapi.yaml
 var RigSpec []byte
+
+// CharacterTerms is the vocabulary a rig's character may use.
+//
+// Beside the contract rather than in it. The list will churn for months,
+// every term needs a sentence of definition an OpenAPI enum has nowhere to
+// put, and adding a word should be a data change rather than a schema edit
+// and a regeneration.
+//
+//go:embed character-terms.json
+var CharacterTerms []byte

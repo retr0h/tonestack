@@ -41,10 +41,10 @@ chain:
     confidence: high
 
 character:
-  - term: hard and dry, no room on it
+  - term: dry
     evidence:
       - kind: llm
-  - term: grind at the top rather than fuzz
+  - term: minimal-drive
     evidence:
       - kind: llm
 

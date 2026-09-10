@@ -47,10 +47,10 @@ chain:
     confidence: medium
 
 character:
-  - term: round and forward, melodic rather than supporting
+  - term: neck-forward
     evidence:
       - kind: llm
-  - term: flatwound, little string noise
+  - term: quiet-strings
     evidence:
       - kind: cited
         url: https://www.talkbass.com/threads/paul-mccartneys-rig.469978/

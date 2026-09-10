@@ -23,10 +23,12 @@ rig:
 # How it should sound, in words a person would use. The generator turns these
 # into parameter moves against the catalog's real ranges.
 character:
-  - term: mid-forward, not scooped
-  - term: minimal drive, grit only on hard attack
-  - term: tight low end, short decay
-  - term: pick attack audible
+  - term: mid-forward
+  - term: minimal-drive
+  - term: grit-on-attack
+  - term: tight-low-end
+  - term: short-decay
+  - term: audible-pick-attack
 
 # Per-song or per-era departures from the stable layer. Only the settings move;
 # the gear does not.
@@ -34,9 +36,9 @@ variants:
   - id: longview
     name: Longview
     character:
-      - term: fingers rather than pick
-      - term: rounder, more low-mid
-      - term: cleaner — the part carries the song
+      - term: soft-attack
+      - term: neck-forward
+      - term: clean
 
 provenance:
   source: llm
