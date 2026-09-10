@@ -23,11 +23,10 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/retr0h/tonestack/internal/cli"
-	"github.com/retr0h/tonestack/internal/slots"
 	"github.com/retr0h/tonestack/pkg/sdk"
 )
 
-var presetsSwapOptions slots.EditOptions
+var presetsSwapOptions sdk.Edit
 
 // presetsSwapCmd represents the presets swap command.
 var presetsSwapCmd = &cobra.Command{
@@ -62,9 +61,5 @@ func init() {
 // No file means the device itself, which is what somebody with one plugged in
 // almost always wants.
 func swapped(cmd *cobra.Command) (sdk.Change, error) {
-	if presetsSwapOptions.Path == "" {
-		return slots.SwapDevice(cmd.Context(), presetsSwapOptions)
-	}
-
-	return slots.Swap(presetsSwapOptions)
+	return sdk.New().Swap(cmd.Context(), presetsSwapOptions)
 }

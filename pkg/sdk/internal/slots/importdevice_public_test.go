@@ -32,10 +32,10 @@ import (
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/mock/gomock"
 
-	"github.com/retr0h/tonestack/internal/slots"
 	"github.com/retr0h/tonestack/pkg/sdk/device"
 	"github.com/retr0h/tonestack/pkg/sdk/device/mocks"
 	"github.com/retr0h/tonestack/pkg/sdk/device/wire"
+	"github.com/retr0h/tonestack/pkg/sdk/internal/slots"
 )
 
 // ImportDevicePublicTestSuite covers putting a preset file on a device.
@@ -71,14 +71,14 @@ func (s *ImportDevicePublicTestSuite) TearDownTest() { s.ctrl.Finish() }
 // preset is a .hlx the corpus carries, with a real chain in it.
 func (s *ImportDevicePublicTestSuite) answer() []byte {
 	raw, err := os.ReadFile(
-		filepath.Join("..", "..", "pkg", "sdk", "device", "wire", "testdata", "preset.bin"))
+		filepath.Join("..", "..", "device", "wire", "testdata", "preset.bin"))
 	s.Require().NoError(err)
 
 	return raw
 }
 
 func (s *ImportDevicePublicTestSuite) preset() string {
-	return filepath.Join("..", "..", "pkg", "sdk", "compile", "testdata", "preset0.hlx")
+	return filepath.Join("..", "..", "compile", "testdata", "preset0.hlx")
 }
 
 // unknownGear writes a preset naming a model no catalog carries.
@@ -293,8 +293,8 @@ func (s *ImportDevicePublicTestSuite) TestImportDevice() {
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			restore := *slots.OpenDevice
-			defer func() { *slots.OpenDevice = restore }()
+			restore := slots.OpenDevice
+			defer func() { slots.OpenDevice = restore }()
 
 			if tt.attached {
 				// The destination is read first, so what it held is kept.
@@ -308,11 +308,11 @@ func (s *ImportDevicePublicTestSuite) TestImportDevice() {
 						gomock.Any(), gomock.Any()).
 					Return(nil)
 
-				*slots.OpenDevice = func(context.Context) (device.Editor, error) {
+				slots.OpenDevice = func(context.Context) (device.Editor, error) {
 					return s.dev, nil
 				}
 			} else {
-				*slots.OpenDevice = func(context.Context) (device.Editor, error) {
+				slots.OpenDevice = func(context.Context) (device.Editor, error) {
 					return nil, errors.New("nothing on the bus")
 				}
 			}

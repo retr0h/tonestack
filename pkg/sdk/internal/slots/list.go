@@ -21,7 +21,7 @@
 package slots
 
 import (
-	"github.com/retr0h/tonestack/pkg/sdk"
+	"github.com/retr0h/tonestack/pkg/sdk/result"
 	"github.com/retr0h/tonestack/pkg/sdk/setlist"
 )
 
@@ -45,30 +45,30 @@ type ListOptions struct {
 // Empty slots are hidden by default. A device-written setlist always holds
 // 128 of them and most are untouched, so listing them all buries the ones
 // somebody actually made.
-func List(opts ListOptions) (sdk.Listing, error) {
+func List(opts ListOptions) (result.Listing, error) {
 	doc, err := open(opts.Path)
 	if err != nil {
-		return sdk.Listing{}, err
+		return result.Listing{}, err
 	}
 
 	if opts.Setlist < 0 || opts.Setlist >= len(doc.Setlists) {
-		return sdk.Listing{}, &setlist.NoSuchSlotError{Setlist: opts.Setlist}
+		return result.Listing{}, &setlist.NoSuchSlotError{Setlist: opts.Setlist}
 	}
 
 	sl := doc.Setlists[opts.Setlist]
-	held := make([]sdk.Held, 0, len(sl.Slots))
+	held := make([]result.Held, 0, len(sl.Slots))
 
 	for i := range sl.Slots {
 		// A slot that fails to parse is still a slot. Reporting it as empty
 		// beats refusing to list the hundred and twenty-seven around it.
 		spec, _ := sl.Slots[i].Spec()
 
-		held = append(held, sdk.Held{
+		held = append(held, result.Held{
 			Slot:   i,
 			Name:   sl.Slots[i].Meta.Name,
 			Blocks: spec.Blocks,
 		})
 	}
 
-	return sdk.Listing{Name: sl.Name(), Slots: held}, nil
+	return result.Listing{Name: sl.Name(), Slots: held}, nil
 }

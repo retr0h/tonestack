@@ -57,7 +57,7 @@ func (s *DeviceReadTestSuite) capture() []byte { return s.answerFrom("preset.bin
 // answerFrom returns one slot as the hardware sent it.
 func (s *DeviceReadTestSuite) answerFrom(name string) []byte {
 	raw, err := os.ReadFile(
-		filepath.Join("..", "..", "pkg", "sdk", "device", "wire", "testdata", name))
+		filepath.Join("..", "..", "device", "wire", "testdata", name))
 	s.Require().NoError(err)
 
 	return raw

@@ -27,7 +27,7 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
-	"github.com/retr0h/tonestack/pkg/sdk"
+	"github.com/retr0h/tonestack/pkg/sdk/result"
 )
 
 // CaptureTestSuite covers what happens to a device's answer before anybody
@@ -98,7 +98,7 @@ func (s *CaptureTestSuite) TestDump() {
 				path = filepath.Join(s.T().TempDir(), tt.file)
 			}
 
-			s.T().Setenv(sdk.DumpEnv, path)
+			s.T().Setenv(result.DumpEnv, path)
 
 			err := dump(tt.got)
 

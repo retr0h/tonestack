@@ -24,8 +24,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/retr0h/tonestack/pkg/sdk"
 	"github.com/retr0h/tonestack/pkg/sdk/device"
+	"github.com/retr0h/tonestack/pkg/sdk/result"
 	slotpkg "github.com/retr0h/tonestack/pkg/sdk/slot"
 )
 
@@ -37,25 +37,25 @@ import (
 // to keep those right is to change nothing.
 //
 // The destination is overwritten. There is no undo on a device.
-func CopyDevice(ctx context.Context, opts EditOptions) (sdk.Change, error) {
-	return editDevice(ctx, opts, sdk.Copied, copyOne)
+func CopyDevice(ctx context.Context, opts EditOptions) (result.Change, error) {
+	return editDevice(ctx, opts, result.Copied, copyOne)
 }
 
 // SwapDevice exchanges what two slots hold.
-func SwapDevice(ctx context.Context, opts EditOptions) (sdk.Change, error) {
-	return editDevice(ctx, opts, sdk.Swapped, swapTwo)
+func SwapDevice(ctx context.Context, opts EditOptions) (result.Change, error) {
+	return editDevice(ctx, opts, result.Swapped, swapTwo)
 }
 
 // editDevice opens a session and hands it to one of the two above.
 func editDevice(
 	ctx context.Context,
 	opts EditOptions,
-	action sdk.Action,
+	action result.Action,
 	apply applier,
-) (sdk.Change, error) {
-	s, err := openDevice(ctx)
+) (result.Change, error) {
+	s, err := OpenDevice(ctx)
 	if err != nil {
-		return sdk.Change{}, err
+		return result.Change{}, err
 	}
 
 	defer s.Close()
@@ -79,8 +79,8 @@ func CopyWith(
 	ctx context.Context,
 	s device.Editor,
 	opts EditOptions,
-) (sdk.Change, error) {
-	return editWith(ctx, s, opts, sdk.Copied, copyOne)
+) (result.Change, error) {
+	return editWith(ctx, s, opts, result.Copied, copyOne)
 }
 
 // SwapWith exchanges what two slots hold, on the given session.
@@ -88,8 +88,8 @@ func SwapWith(
 	ctx context.Context,
 	s device.Editor,
 	opts EditOptions,
-) (sdk.Change, error) {
-	return editWith(ctx, s, opts, sdk.Swapped, swapTwo)
+) (result.Change, error) {
+	return editWith(ctx, s, opts, result.Swapped, swapTwo)
 }
 
 // editWith performs one edit against the given session.
@@ -97,18 +97,18 @@ func editWith(
 	ctx context.Context,
 	s device.Editor,
 	opts EditOptions,
-	action sdk.Action,
+	action result.Action,
 	apply applier,
-) (sdk.Change, error) {
+) (result.Change, error) {
 	did, err := apply(ctx, s, opts)
 	if err != nil {
-		return sdk.Change{}, err
+		return result.Change{}, err
 	}
 
-	return sdk.Change{
+	return result.Change{
 		Action:   action,
-		From:     &sdk.At{Slot: opts.FromSlot, Name: did.from},
-		To:       sdk.At{Slot: opts.ToSlot, Name: did.to},
+		From:     &result.At{Slot: opts.FromSlot, Name: did.from},
+		To:       result.At{Slot: opts.ToSlot, Name: did.to},
 		Replaced: did.to,
 		Kept:     did.kept,
 	}, nil

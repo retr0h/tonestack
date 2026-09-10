@@ -55,7 +55,7 @@ func (s *BackupTestSuite) TearDownTest() { s.ctrl.Finish() }
 // answer returns one slot as an HX Stomp sent it.
 func (s *BackupTestSuite) answer() []byte {
 	raw, err := os.ReadFile(
-		filepath.Join("..", "..", "pkg", "sdk", "device", "wire", "testdata", "preset.bin"))
+		filepath.Join("..", "..", "device", "wire", "testdata", "preset.bin"))
 	s.Require().NoError(err)
 
 	return raw

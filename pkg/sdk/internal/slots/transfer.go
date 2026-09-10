@@ -25,8 +25,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/retr0h/tonestack/pkg/sdk"
 	"github.com/retr0h/tonestack/pkg/sdk/preset"
+	"github.com/retr0h/tonestack/pkg/sdk/result"
 	"github.com/retr0h/tonestack/pkg/sdk/rig"
 )
 
@@ -69,15 +69,15 @@ type ExportOptions struct {
 // one that reads on other hardware. The device's own file is available for a
 // faithful copy, which is a different thing: it carries the routing and
 // snapshots a rig models but nobody chooses.
-func Export(opts ExportOptions) (sdk.Written, error) {
+func Export(opts ExportOptions) (result.Written, error) {
 	doc, err := open(opts.Path)
 	if err != nil {
-		return sdk.Written{}, err
+		return result.Written{}, err
 	}
 
 	data, err := doc.Slot(opts.Setlist, opts.Slot)
 	if err != nil {
-		return sdk.Written{}, err
+		return result.Written{}, err
 	}
 
 	out := &preset.Document{
@@ -86,19 +86,19 @@ func Export(opts ExportOptions) (sdk.Written, error) {
 		Data:    *data,
 	}
 
-	read := sdk.Reading{Name: data.Meta.Name, Doc: out}
+	read := result.Reading{Name: data.Meta.Name, Doc: out}
 
 	// Only the device's own file was asked for, so the lift is work nobody
 	// wants.
 	if opts.As != FormatPreset {
 		cat, err := opts.catalogs().Open(opts.CatalogPath)
 		if err != nil {
-			return sdk.Written{}, err
+			return result.Written{}, err
 		}
 
 		spec, err := opts.compiler().Lift(out, cat)
 		if err != nil {
-			return sdk.Written{}, err
+			return result.Written{}, err
 		}
 
 		read.Rig = spec
@@ -112,21 +112,21 @@ func Export(opts ExportOptions) (sdk.Written, error) {
 // One place, so a slot read off the hardware and one read out of a backup
 // land as the same bytes. They describe the same preset, and an export that
 // depended on which end it came from would be saying otherwise.
-func write(read sdk.Reading, opts ExportOptions) (sdk.Written, error) {
+func write(read result.Reading, opts ExportOptions) (result.Written, error) {
 	var buf bytes.Buffer
 
 	if opts.As == FormatPreset {
 		// A payload that decoded encodes again.
 		_ = preset.Write(&buf, read.Doc)
 	} else if err := rig.Write(&buf, read.Rig); err != nil {
-		return sdk.Written{}, fmt.Errorf("writing the rig: %w", err)
+		return result.Written{}, fmt.Errorf("writing the rig: %w", err)
 	}
 
 	if err := os.WriteFile(opts.OutputPath, buf.Bytes(), 0o600); err != nil {
-		return sdk.Written{}, fmt.Errorf("writing %s: %w", opts.OutputPath, err)
+		return result.Written{}, fmt.Errorf("writing %s: %w", opts.OutputPath, err)
 	}
 
-	return sdk.Written{
+	return result.Written{
 		Slot: opts.Slot,
 		Name: read.Name,
 		Path: opts.OutputPath,
@@ -159,20 +159,20 @@ type ImportOptions struct {
 // Import puts a standalone preset into a slot.
 //
 // Whatever the slot held is gone, which is why the result goes to a new file.
-func Import(opts ImportOptions) (sdk.Change, error) {
+func Import(opts ImportOptions) (result.Change, error) {
 	doc, err := open(opts.Path)
 	if err != nil {
-		return sdk.Change{}, err
+		return result.Change{}, err
 	}
 
 	src, err := readPreset(opts.File)
 	if err != nil {
-		return sdk.Change{}, err
+		return result.Change{}, err
 	}
 
 	dst, err := doc.Slot(opts.Setlist, opts.Slot)
 	if err != nil {
-		return sdk.Change{}, err
+		return result.Change{}, err
 	}
 
 	replaced := dst.Meta.Name
@@ -181,12 +181,12 @@ func Import(opts ImportOptions) (sdk.Change, error) {
 	*dst = src.Data
 
 	if err := save(opts.OutputPath, doc); err != nil {
-		return sdk.Change{}, err
+		return result.Change{}, err
 	}
 
-	return sdk.Change{
-		Action:   sdk.Imported,
-		To:       sdk.At{Slot: opts.Slot, Name: src.Data.Meta.Name},
+	return result.Change{
+		Action:   result.Imported,
+		To:       result.At{Slot: opts.Slot, Name: src.Data.Meta.Name},
 		Replaced: replaced,
 		Mismatch: mismatch,
 		Path:     opts.OutputPath,

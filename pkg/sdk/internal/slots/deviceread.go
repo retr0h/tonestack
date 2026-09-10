@@ -23,8 +23,8 @@ package slots
 import (
 	"fmt"
 
-	"github.com/retr0h/tonestack/pkg/sdk"
 	"github.com/retr0h/tonestack/pkg/sdk/device/wire"
+	"github.com/retr0h/tonestack/pkg/sdk/result"
 	slotpkg "github.com/retr0h/tonestack/pkg/sdk/slot"
 )
 
@@ -34,16 +34,16 @@ import (
 // the same preset. What arrives here names nothing — a model is a number and
 // parameters are a bare array — so the catalog's model table is what makes it
 // readable.
-func deviceReading(body []byte, opts DeviceOptions) (sdk.Reading, error) {
+func deviceReading(body []byte, opts DeviceOptions) (result.Reading, error) {
 	got, err := wire.DecodePreset(body)
 	if err != nil {
-		return sdk.Reading{}, fmt.Errorf(
+		return result.Reading{}, fmt.Errorf(
 			"reading slot %s: %w", slotpkg.Label(opts.Slot), err)
 	}
 
 	cat, err := opts.catalogs().Open(opts.CatalogPath)
 	if err != nil {
-		return sdk.Reading{}, err
+		return result.Reading{}, err
 	}
 
 	name := opts.Name
@@ -53,23 +53,23 @@ func deviceReading(body []byte, opts DeviceOptions) (sdk.Reading, error) {
 
 	doc, empty, err := opts.translator().Document(got, cat, name)
 	if err != nil {
-		return sdk.Reading{}, err
+		return result.Reading{}, err
 	}
 
 	if empty {
-		return sdk.Reading{Name: name}, nil
+		return result.Reading{Name: name}, nil
 	}
 
 	// Only the device's own file was asked for, so the lift is work nobody
 	// wants. A rig is the default because it reads on other hardware; this is
 	// the faithful copy.
 	if opts.As == FormatPreset {
-		return sdk.Reading{Name: name, Doc: doc}, nil
+		return result.Reading{Name: name, Doc: doc}, nil
 	}
 
 	spec, err := opts.compiler().Lift(doc, cat)
 	if err != nil {
-		return sdk.Reading{}, fmt.Errorf(
+		return result.Reading{}, fmt.Errorf(
 			"reading slot %s: %w", slotpkg.Label(opts.Slot), err)
 	}
 
@@ -84,5 +84,5 @@ func deviceReading(body []byte, opts DeviceOptions) (sdk.Reading, error) {
 	spec.Footswitches = opts.translator().Footswitches(got, cat)
 	spec.Controllers = opts.translator().Controllers(got, cat)
 
-	return sdk.Reading{Name: name, Doc: doc, Rig: spec}, nil
+	return result.Reading{Name: name, Doc: doc, Rig: spec}, nil
 }

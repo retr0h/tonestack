@@ -24,11 +24,11 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/retr0h/tonestack/internal/cli"
-	"github.com/retr0h/tonestack/internal/slots"
+	"github.com/retr0h/tonestack/pkg/sdk"
 	"github.com/retr0h/tonestack/pkg/sdk/slot"
 )
 
-var presetsSelectOptions slots.DeviceOptions
+var presetsSelectOptions sdk.Read
 
 // presetsSelectCmd represents the presets select command.
 var presetsSelectCmd = &cobra.Command{
@@ -42,7 +42,7 @@ is the one device command that changes what you hear without changing what the
 device holds.`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		change, err := slots.SelectDevice(cmd.Context(), presetsSelectOptions)
+		change, err := sdk.New().Select(cmd.Context(), presetsSelectOptions)
 		if err != nil {
 			return err
 		}

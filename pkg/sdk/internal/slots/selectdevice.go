@@ -24,16 +24,16 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/retr0h/tonestack/pkg/sdk"
 	"github.com/retr0h/tonestack/pkg/sdk/device"
+	"github.com/retr0h/tonestack/pkg/sdk/result"
 	slotpkg "github.com/retr0h/tonestack/pkg/sdk/slot"
 )
 
 // SelectDevice makes one preset the active one on an attached device.
-func SelectDevice(ctx context.Context, opts DeviceOptions) (sdk.Change, error) {
-	s, err := openDevice(ctx)
+func SelectDevice(ctx context.Context, opts DeviceOptions) (result.Change, error) {
+	s, err := OpenDevice(ctx)
 	if err != nil {
-		return sdk.Change{}, err
+		return result.Change{}, err
 	}
 
 	defer s.Close()
@@ -51,27 +51,27 @@ func SelectWith(
 	ctx context.Context,
 	s device.Editor,
 	opts DeviceOptions,
-) (sdk.Change, error) {
+) (result.Change, error) {
 	sel, ok := s.(device.Selector)
 	if !ok {
-		return sdk.Change{}, fmt.Errorf("this session cannot select a preset")
+		return result.Change{}, fmt.Errorf("this session cannot select a preset")
 	}
 
 	// Read before selecting, so the name is the one being switched to rather
 	// than whatever the device answers with mid-switch.
 	found, err := s.Presets(ctx, opts.Setlist)
 	if err != nil {
-		return sdk.Change{}, fmt.Errorf(
+		return result.Change{}, fmt.Errorf(
 			"listing setlist %d: %w", opts.Setlist, err)
 	}
 
 	if err := sel.SelectPreset(ctx, opts.Setlist, opts.Slot); err != nil {
-		return sdk.Change{}, fmt.Errorf(
+		return result.Change{}, fmt.Errorf(
 			"selecting slot %s: %w", slotpkg.Label(opts.Slot), err)
 	}
 
-	return sdk.Change{
-		Action: sdk.Selected,
-		To:     sdk.At{Slot: opts.Slot, Name: nameOf(found, opts.Slot)},
+	return result.Change{
+		Action: result.Selected,
+		To:     result.At{Slot: opts.Slot, Name: nameOf(found, opts.Slot)},
 	}, nil
 }

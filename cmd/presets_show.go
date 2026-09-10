@@ -23,12 +23,11 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/retr0h/tonestack/internal/cli"
-	"github.com/retr0h/tonestack/internal/slots"
 	"github.com/retr0h/tonestack/pkg/sdk"
 	"github.com/retr0h/tonestack/pkg/sdk/slot"
 )
 
-var presetsShowOptions slots.ShowOptions
+var presetsShowOptions sdk.Read
 
 // presetsShowCmd represents the presets show command.
 var presetsShowCmd = &cobra.Command{
@@ -93,13 +92,5 @@ func init() {
 // No file and no preset means the device itself, which is what somebody with
 // one plugged in almost always wants.
 func reading(cmd *cobra.Command) (sdk.Reading, error) {
-	if presetsShowOptions.Path == "" && presetsShowOptions.File == "" {
-		return slots.ShowDevice(cmd.Context(), slots.DeviceOptions{
-			Setlist:     presetsShowOptions.Setlist,
-			Slot:        presetsShowOptions.Slot,
-			CatalogPath: presetsShowOptions.CatalogPath,
-		})
-	}
-
-	return slots.Show(presetsShowOptions)
+	return sdk.New().Preset(cmd.Context(), presetsShowOptions)
 }

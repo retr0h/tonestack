@@ -23,12 +23,11 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/retr0h/tonestack/internal/cli"
-	"github.com/retr0h/tonestack/internal/slots"
 	"github.com/retr0h/tonestack/pkg/sdk"
 	"github.com/retr0h/tonestack/pkg/sdk/slot"
 )
 
-var presetsExportOptions slots.ExportOptions
+var presetsExportOptions sdk.Export
 
 // presetsExportCmd represents the presets export command.
 var presetsExportCmd = &cobra.Command{
@@ -90,9 +89,5 @@ func init() {
 // No file means the device itself, which is what somebody with one plugged in
 // almost always wants.
 func exported(cmd *cobra.Command) (sdk.Written, error) {
-	if presetsExportOptions.Path == "" {
-		return slots.ExportDevice(cmd.Context(), presetsExportOptions)
-	}
-
-	return slots.Export(presetsExportOptions)
+	return sdk.New().Export(cmd.Context(), presetsExportOptions)
 }

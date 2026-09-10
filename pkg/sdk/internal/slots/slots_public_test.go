@@ -22,8 +22,6 @@ package slots_test
 
 import (
 	"bytes"
-	"errors"
-	"io"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -31,10 +29,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/retr0h/tonestack/internal/cli"
-	"github.com/retr0h/tonestack/internal/slots"
-	"github.com/retr0h/tonestack/pkg/sdk"
 	"github.com/retr0h/tonestack/pkg/sdk/catalog"
+	"github.com/retr0h/tonestack/pkg/sdk/internal/slots"
+	"github.com/retr0h/tonestack/pkg/sdk/result"
 	"github.com/retr0h/tonestack/pkg/sdk/rig"
 	slotpkg "github.com/retr0h/tonestack/pkg/sdk/slot"
 )
@@ -49,7 +46,7 @@ func catalogPath() string { return fixture("catalog.json") }
 
 // did flattens what a write reported, so a test can assert on the facts of it
 // without also asserting on how a terminal paints them.
-func did(c sdk.Change) string {
+func did(c result.Change) string {
 	parts := []string{
 		string(c.Action),
 		slotpkg.Label(c.To.Slot), c.To.Name,
@@ -68,7 +65,7 @@ func did(c sdk.Change) string {
 // The assertions here are about what was read, and what was read is a rig.
 // Rendering it in the test rather than importing the one renderer keeps these
 // operations free of anything that knows what a terminal is.
-func said(t *testing.T, r sdk.Reading) string {
+func said(t *testing.T, r result.Reading) string {
 	t.Helper()
 
 	if r.Answer != nil {
@@ -89,46 +86,47 @@ func said(t *testing.T, r sdk.Reading) string {
 // TestList prints what a setlist holds.
 func (s *SlotsPublicTestSuite) TestList() {
 	tests := []struct {
-		name     string
-		opts     slots.ListOptions
-		contains []string
-		absent   []string
-		errText  string
+		name string
+		opts slots.ListOptions
+		// what the setlist is called, and how many slots it answers with.
+		called  string
+		slots   int
+		used    int
+		holding []string
+		errText string
 	}{
 		{
-			name: "the slots in use",
+			// Every slot, including the ones holding nothing. A device
+			// answers for all of them either way, and which to show is the
+			// renderer's decision rather than this one's.
+			name: "what a setlist holds",
 			opts: slots.ListOptions{
 				Path: fixture("setlist.hls"), CatalogPath: catalogPath(),
 			},
-			contains: []string{"Test Setlist", "4 slots · 3 in use", "01A", "First"},
-			// The empty slot is hidden unless asked for.
-			absent: []string{"New Preset"},
-		},
-		{
-			name: "every slot, when somebody asks",
-			opts: slots.ListOptions{
-				Path: fixture("setlist.hls"), CatalogPath: catalogPath(), All: true,
-			},
-			// A bank holds three, so the fourth slot opens the second bank.
-			// This file labelled slots in banks of four while the flag that
-			// addresses them parsed banks of three, so `--slot 04A` came
-			// back as `03B`.
-			contains: []string{"New Preset", "01C", "02A"},
-			absent:   []string{"01D"},
+			called:  "Test Setlist",
+			slots:   4,
+			used:    3,
+			holding: []string{"First", "New Preset"},
 		},
 		{
 			name: "one setlist out of a bundle",
 			opts: slots.ListOptions{
 				Path: fixture("bundle.hlb"), Setlist: 1, CatalogPath: catalogPath(),
 			},
-			contains: []string{"Second Setlist", "Only"},
+			called:  "Second Setlist",
+			slots:   1,
+			used:    1,
+			holding: []string{"Only"},
 		},
 		{
-			name: "a setlist holding nothing",
+			// A slot that is there and holds no chain, which is a different
+			// thing from a setlist with no slots in it.
+			name: "a setlist whose slots hold nothing",
 			opts: slots.ListOptions{
 				Path: fixture("broken.hls"), CatalogPath: catalogPath(),
 			},
-			contains: []string{"no presets"},
+			slots: 1,
+			used:  0,
 		},
 		{
 			name: "a file that is not there",
@@ -138,14 +136,16 @@ func (s *SlotsPublicTestSuite) TestList() {
 			errText: "opening",
 		},
 		{
+			// A file that opens and is not a setlist fails at the read
+			// rather than at the open, and both have to be reported.
 			name: "a file that is not a setlist",
 			opts: slots.ListOptions{
 				Path: fixture("notasetlist.hls"), CatalogPath: catalogPath(),
 			},
-			errText: "not a setlist",
+			errText: "reading",
 		},
 		{
-			name: "a setlist that is not there",
+			name: "a setlist a bundle does not hold",
 			opts: slots.ListOptions{
 				Path: fixture("setlist.hls"), Setlist: 9, CatalogPath: catalogPath(),
 			},
@@ -165,21 +165,20 @@ func (s *SlotsPublicTestSuite) TestList() {
 			}
 
 			s.Require().NoError(err)
+			s.Require().Len(listing.Slots, tt.slots)
+			s.Require().Equal(tt.used, listing.Used())
 
-			// Rendered the way the command renders it, because what a reader
-			// sees is the renderer's answer rather than the operation's.
-			var out bytes.Buffer
-
-			cat, err := catalog.Open(tt.opts.CatalogPath)
-			s.Require().NoError(err)
-			s.Require().NoError(cli.Listing(&out, listing, cat, tt.opts.All))
-
-			for _, want := range tt.contains {
-				s.Require().Contains(out.String(), want)
+			if tt.called != "" {
+				s.Require().Equal(tt.called, listing.Name)
 			}
 
-			for _, unwanted := range tt.absent {
-				s.Require().NotContains(out.String(), unwanted)
+			named := make([]string, 0, len(listing.Slots))
+			for _, h := range listing.Slots {
+				named = append(named, h.Name)
+			}
+
+			for _, want := range tt.holding {
+				s.Require().Contains(named, want)
 			}
 		})
 	}
@@ -198,37 +197,6 @@ func (s *SlotsPublicTestSuite) TestListNeedsNoCatalogToRead() {
 
 	_, err = catalog.Open(fixture("nope.json"))
 	s.Require().ErrorContains(err, "catalog")
-}
-
-// TestListReportsAWriterThatFails covers a listing nobody can read.
-//
-// The failure belongs to the renderer now rather than to the operation, which
-// is the point of the split: reading a setlist cannot fail because somebody's
-// terminal went away.
-func (s *SlotsPublicTestSuite) TestListReportsAWriterThatFails() {
-	tests := []struct {
-		name string
-		path string
-		w    io.Writer
-	}{
-		{name: "on the header", path: "setlist.hls", w: &failingWriter{}},
-		{name: "on the rows", path: "setlist.hls", w: &oneGoodWrite{}},
-		{name: "with no presets to show", path: "broken.hls", w: &failingWriter{}},
-	}
-
-	for _, tt := range tests {
-		s.Run(tt.name, func() {
-			listing, err := slots.List(slots.ListOptions{
-				Path: fixture(tt.path), CatalogPath: catalogPath(),
-			})
-			s.Require().NoError(err)
-
-			cat, err := catalog.Open(catalogPath())
-			s.Require().NoError(err)
-
-			s.Require().Error(cli.Listing(tt.w, listing, cat, false))
-		})
-	}
 }
 
 // TestShow reads one slot as a rig.
@@ -353,23 +321,6 @@ func (s *SlotsPublicTestSuite) TestShowOnASlotHoldingNothing() {
 	s.Require().NoError(err)
 	s.Require().True(read.Empty())
 	s.Require().NotEmpty(read.Name)
-}
-
-type failingWriter struct{}
-
-func (*failingWriter) Write([]byte) (int, error) { return 0, errors.New("boom") }
-
-// oneGoodWrite fails only after the first write, so a caller that writes a
-// header before its body reports the body's failure rather than the header's.
-type oneGoodWrite struct{ n int }
-
-func (w *oneGoodWrite) Write(p []byte) (int, error) {
-	w.n++
-	if w.n > 1 {
-		return 0, errors.New("boom")
-	}
-
-	return len(p), nil
 }
 
 func TestSlotsPublicTestSuite(t *testing.T) {

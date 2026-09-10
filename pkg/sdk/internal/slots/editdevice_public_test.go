@@ -30,10 +30,10 @@ import (
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/mock/gomock"
 
-	"github.com/retr0h/tonestack/internal/slots"
 	"github.com/retr0h/tonestack/pkg/sdk/device"
 	"github.com/retr0h/tonestack/pkg/sdk/device/mocks"
 	"github.com/retr0h/tonestack/pkg/sdk/device/wire"
+	"github.com/retr0h/tonestack/pkg/sdk/internal/slots"
 )
 
 // EditDevicePublicTestSuite covers moving a preset between slots on a device.
@@ -70,7 +70,7 @@ func (s *EditDevicePublicTestSuite) TearDownTest() { s.ctrl.Finish() }
 // answer returns one slot as the hardware sent it.
 func (s *EditDevicePublicTestSuite) answer() []byte {
 	raw, err := os.ReadFile(
-		filepath.Join("..", "..", "pkg", "sdk", "device", "wire", "testdata", "preset.bin"))
+		filepath.Join("..", "..", "device", "wire", "testdata", "preset.bin"))
 	s.Require().NoError(err)
 
 	return raw
@@ -423,15 +423,15 @@ func (s *EditDevicePublicTestSuite) TestCopyDeviceAndSwapDevice() {
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			restore := *slots.OpenDevice
-			defer func() { *slots.OpenDevice = restore }()
+			restore := slots.OpenDevice
+			defer func() { slots.OpenDevice = restore }()
 
 			if !tt.attached {
-				*slots.OpenDevice = func(context.Context) (device.Editor, error) {
+				slots.OpenDevice = func(context.Context) (device.Editor, error) {
 					return nil, errors.New("no device found")
 				}
 			} else {
-				*slots.OpenDevice = func(context.Context) (device.Editor, error) {
+				slots.OpenDevice = func(context.Context) (device.Editor, error) {
 					return s.dev, nil
 				}
 
