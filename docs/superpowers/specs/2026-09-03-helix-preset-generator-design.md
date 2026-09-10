@@ -7,8 +7,16 @@
 > addendum at the end of this file for the catalog change, and `CONTRIBUTING.md`
 > for the current layout.
 
-**Date:** 2026-09-03 **Status:** approved, pending review **Scope:** free text →
-validated `.hlx` preset, delivered as a CLI
+**Date:** 2026-09-03 **Status:** implemented, with the value half unbuilt
+**Scope:** free text → validated `.hlx` preset, delivered as a CLI
+
+The shape ships: a catalog, a rig, validation in four layers, and a CLI that
+writes a `.hlx` HX Edit imports. Free text reaches it through an agent driving
+those commands rather than through the tool itself, which is what the README
+describes. What is not built is the half that decides values:
+[knowledge.md](../../knowledge.md) still marks two of its four problems unbuilt,
+block order and knob direction, so a generated preset is the right gear at its
+factory settings.
 
 ## Problem
 

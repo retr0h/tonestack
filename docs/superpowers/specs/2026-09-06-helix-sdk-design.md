@@ -7,8 +7,14 @@
 > protocol findings, the staging, and the API sketch all still stand. Only the
 > module argument is retracted.
 
-**Date:** 2026-09-06 **Status:** draft, not approved **Scope:** talk to an HX
-Stomp over USB from Go, without HX Edit
+**Date:** 2026-09-06 **Status:** implemented through stage C **Scope:** talk to
+an HX Stomp over USB from Go, without HX Edit
+
+Stages A, B and C ship: a device is found and identified, its presets are listed
+and read, and a preset is written to a slot with the target kept first. Stage D,
+writing scribble strips and colours, is not built. Neither is the `--device`
+build tag that would gate tests needing real hardware, nor the MCP server this
+record calls the point of the exercise.
 
 ## Why
 

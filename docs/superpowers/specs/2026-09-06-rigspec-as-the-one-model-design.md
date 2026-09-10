@@ -1,6 +1,6 @@
 # RigSpec as the one model
 
-**Status:** accepted, not yet implemented\
+**Status:** implemented\
 **Supersedes:** the two-schema split in
 [2026-09-03-helix-preset-generator-design.md](2026-09-03-helix-preset-generator-design.md)
 
