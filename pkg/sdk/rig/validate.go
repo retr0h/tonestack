@@ -39,8 +39,6 @@ import (
 	"sync"
 
 	"github.com/getkin/kin-openapi/openapi3"
-
-	"github.com/retr0h/tonestack/pkg/sdk/internal/gen"
 )
 
 // ErrInvalid reports a rig that does not meet its own contract.
@@ -61,7 +59,7 @@ func (e *InvalidError) Error() string {
 func (*InvalidError) Unwrap() error { return ErrInvalid }
 
 // Validate reports whether a rig meets the contract in the schema.
-func Validate(s gen.RigSpec) error {
+func Validate(s Spec) error {
 	// Through JSON, because that is the shape a schema describes. The tags on
 	// the generated types map one to the other, and they came from the same
 	// document as the rules.

@@ -21,10 +21,7 @@
 package catalogen
 
 import (
-	"bytes"
 	"compress/gzip"
-	"errors"
-	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -70,21 +67,20 @@ func (s *RunTestSuite) written(path string) *catalog.Catalog {
 // TestRun builds a catalog out of somebody's HX Edit installation.
 func (s *RunTestSuite) TestRun() {
 	tests := []struct {
-		name       string
-		resources  string
-		out        string
-		deaf       bool
-		contains   []string
+		name      string
+		resources string
+		out       string
+		// what the answer must say about what it built.
+		device     string
+		named      bool
 		wantSchema int
 		err        error
 		errText    string
 	}{
 		{
-			name: "a catalog, and a report of what went into it",
-			contains: []string{
-				"blocks for HX Stomp",
-				"mapped to real gear",
-			},
+			name:   "a catalog, and an answer about what went into it",
+			device: "HX Stomp",
+			named:  true,
 			// Nobody said which version to write, so it takes the current one.
 			wantSchema: 6,
 		},
@@ -97,11 +93,6 @@ func (s *RunTestSuite) TestRun() {
 			name:    "nowhere to write it",
 			out:     filepath.Join("no", "such", "dir.json"),
 			errText: "writing",
-		},
-		{
-			name:    "a writer that fails",
-			deaf:    true,
-			errText: "reporting",
 		},
 	}
 
@@ -119,14 +110,7 @@ func (s *RunTestSuite) TestRun() {
 				o.ResourcesDir = tt.resources
 			}
 
-			var buf bytes.Buffer
-
-			log := io.Writer(&buf)
-			if tt.deaf {
-				log = &failingWriter{}
-			}
-
-			err := Run(log, o)
+			built, err := Run(o)
 
 			if tt.err != nil || tt.errText != "" {
 				s.Require().Error(err)
@@ -145,17 +129,16 @@ func (s *RunTestSuite) TestRun() {
 			s.Require().NoError(err)
 			s.Require().FileExists(out)
 			s.Require().Equal(tt.wantSchema, s.written(out).SchemaVersion)
+			s.Require().Equal(out, built.Path)
+			s.Require().Equal(tt.device, built.Device)
+			s.Require().NotZero(built.Blocks)
 
-			for _, want := range tt.contains {
-				s.Require().Contains(buf.String(), want)
+			if tt.named {
+				s.Require().NotZero(built.Named)
 			}
 		})
 	}
 }
-
-type failingWriter struct{}
-
-func (*failingWriter) Write([]byte) (int, error) { return 0, errors.New("boom") }
 
 func TestRunTestSuite(t *testing.T) {
 	suite.Run(t, new(RunTestSuite))

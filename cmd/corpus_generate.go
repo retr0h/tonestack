@@ -23,6 +23,7 @@ package cmd
 import (
 	"github.com/spf13/cobra"
 
+	"github.com/retr0h/tonestack/internal/cli"
 	"github.com/retr0h/tonestack/internal/corpusgen"
 )
 
@@ -38,7 +39,12 @@ Runs when the corpus changes, not on every build. The result is committed and
 ships in the binary, so nobody needs the presets to use what was measured.`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		return corpusgen.Run(cmd.OutOrStdout(), corpusGenerateOptions)
+		counted, err := corpusgen.Run(corpusGenerateOptions)
+		if err != nil {
+			return err
+		}
+
+		return cli.Counted(cmd.OutOrStdout(), counted)
 	},
 }
 
