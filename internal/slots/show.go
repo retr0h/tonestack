@@ -27,10 +27,10 @@ import (
 	"os"
 
 	"github.com/retr0h/tonestack/internal/cli"
-	"github.com/retr0h/tonestack/pkg/preset"
-	"github.com/retr0h/tonestack/pkg/rig"
-	riggen "github.com/retr0h/tonestack/pkg/rig/gen"
-	slotpkg "github.com/retr0h/tonestack/pkg/slot"
+	"github.com/retr0h/tonestack/pkg/sdk/preset"
+	"github.com/retr0h/tonestack/pkg/sdk/rig"
+	riggen "github.com/retr0h/tonestack/pkg/sdk/rig/gen"
+	slotpkg "github.com/retr0h/tonestack/pkg/sdk/slot"
 )
 
 // ShowOptions says which preset to show.

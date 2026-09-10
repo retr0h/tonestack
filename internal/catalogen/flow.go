@@ -23,7 +23,7 @@ package catalogen
 import (
 	"strings"
 
-	"github.com/retr0h/tonestack/pkg/catalog"
+	"github.com/retr0h/tonestack/pkg/sdk/catalog"
 )
 
 // Suffixes Line 6 give the models a device wraps a chain in.

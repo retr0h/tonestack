@@ -33,9 +33,9 @@ import (
 	"go.uber.org/mock/gomock"
 
 	"github.com/retr0h/tonestack/internal/slots"
-	"github.com/retr0h/tonestack/pkg/sdk"
-	"github.com/retr0h/tonestack/pkg/sdk/mocks"
-	"github.com/retr0h/tonestack/pkg/sdk/wire"
+	"github.com/retr0h/tonestack/pkg/sdk/device"
+	"github.com/retr0h/tonestack/pkg/sdk/device/mocks"
+	"github.com/retr0h/tonestack/pkg/sdk/device/wire"
 )
 
 // EditDevicePublicTestSuite covers moving a preset between slots on a device.
@@ -72,7 +72,7 @@ func (s *EditDevicePublicTestSuite) TearDownTest() { s.ctrl.Finish() }
 // answer returns one slot as the hardware sent it.
 func (s *EditDevicePublicTestSuite) answer() []byte {
 	raw, err := os.ReadFile(
-		filepath.Join("..", "..", "pkg", "sdk", "wire", "testdata", "preset.bin"))
+		filepath.Join("..", "..", "pkg", "sdk", "device", "wire", "testdata", "preset.bin"))
 	s.Require().NoError(err)
 
 	return raw
@@ -253,10 +253,10 @@ func (s *EditDevicePublicTestSuite) TestCopyWith() {
 		s.Run(tt.name, func() {
 			reader := s.dev.MockEditor
 
-			dev := sdk.Editor(s.dev)
+			dev := device.Editor(s.dev)
 			if tt.readOnly {
 				reader = mocks.NewMockEditor(s.ctrl)
-				dev = sdk.Editor(reader)
+				dev = device.Editor(reader)
 			}
 
 			s.expectListing(reader, tt.listed)
@@ -383,10 +383,10 @@ func (s *EditDevicePublicTestSuite) TestSwapWith() {
 		s.Run(tt.name, func() {
 			reader := s.dev.MockEditor
 
-			dev := sdk.Editor(s.dev)
+			dev := device.Editor(s.dev)
 			if tt.readOnly {
 				reader = mocks.NewMockEditor(s.ctrl)
-				dev = sdk.Editor(reader)
+				dev = device.Editor(reader)
 			}
 
 			s.expectListing(reader, tt.listed)
@@ -453,11 +453,11 @@ func (s *EditDevicePublicTestSuite) TestCopyDeviceAndSwapDevice() {
 			defer func() { *slots.OpenDevice = restore }()
 
 			if !tt.attached {
-				*slots.OpenDevice = func(context.Context) (sdk.Editor, error) {
+				*slots.OpenDevice = func(context.Context) (device.Editor, error) {
 					return nil, errors.New("no device found")
 				}
 			} else {
-				*slots.OpenDevice = func(context.Context) (sdk.Editor, error) {
+				*slots.OpenDevice = func(context.Context) (device.Editor, error) {
 					return s.dev, nil
 				}
 

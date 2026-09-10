@@ -25,7 +25,7 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
-	"github.com/retr0h/tonestack/pkg/rig/gen"
+	"github.com/retr0h/tonestack/pkg/sdk/rig/gen"
 )
 
 // TechniqueTestSuite covers writing what a rig stores as what a person says.

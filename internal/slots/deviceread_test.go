@@ -31,12 +31,12 @@ import (
 	"github.com/vmihailenco/msgpack/v5"
 
 	"github.com/retr0h/tonestack/internal/catalogview"
-	"github.com/retr0h/tonestack/pkg/catalog"
+	"github.com/retr0h/tonestack/pkg/sdk/catalog"
 )
 
 // DeviceReadTestSuite reads what an HX Stomp actually answered.
 //
-// pkg/sdk/wire/testdata/preset.bin is one slot as the hardware handed it back.
+// pkg/sdk/device/wire/testdata/preset.bin is one slot as the hardware handed it back.
 // Everything from the wire to a rig runs here, so the live path is covered by
 // a real answer rather than by a device being plugged in.
 type DeviceReadTestSuite struct {
@@ -57,7 +57,7 @@ func (s *DeviceReadTestSuite) capture() []byte { return s.answerFrom("preset.bin
 // answerFrom returns one slot as the hardware sent it.
 func (s *DeviceReadTestSuite) answerFrom(name string) []byte {
 	raw, err := os.ReadFile(
-		filepath.Join("..", "..", "pkg", "sdk", "wire", "testdata", name))
+		filepath.Join("..", "..", "pkg", "sdk", "device", "wire", "testdata", name))
 	s.Require().NoError(err)
 
 	return raw

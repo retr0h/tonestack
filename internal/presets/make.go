@@ -28,12 +28,12 @@ import (
 	"strings"
 
 	"github.com/retr0h/tonestack/internal/cli"
-	"github.com/retr0h/tonestack/pkg/catalog"
-	"github.com/retr0h/tonestack/pkg/chain"
-	"github.com/retr0h/tonestack/pkg/compile"
-	"github.com/retr0h/tonestack/pkg/corpus"
-	"github.com/retr0h/tonestack/pkg/preset"
-	riggen "github.com/retr0h/tonestack/pkg/rig/gen"
+	"github.com/retr0h/tonestack/pkg/sdk/catalog"
+	"github.com/retr0h/tonestack/pkg/sdk/chain"
+	"github.com/retr0h/tonestack/pkg/sdk/compile"
+	"github.com/retr0h/tonestack/pkg/sdk/corpus"
+	"github.com/retr0h/tonestack/pkg/sdk/preset"
+	riggen "github.com/retr0h/tonestack/pkg/sdk/rig/gen"
 )
 
 // MakeOptions says what to build and where to put it.

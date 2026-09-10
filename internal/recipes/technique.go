@@ -23,7 +23,7 @@ package recipes
 import (
 	"strings"
 
-	"github.com/retr0h/tonestack/pkg/rig/gen"
+	"github.com/retr0h/tonestack/pkg/sdk/rig/gen"
 )
 
 // where reads a position back as the phrase a player would use.

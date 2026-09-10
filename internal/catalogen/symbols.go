@@ -27,7 +27,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/retr0h/tonestack/pkg/catalog"
+	"github.com/retr0h/tonestack/pkg/sdk/catalog"
 )
 
 // symbolFile is where HX Edit keeps a device's own model table.

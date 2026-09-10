@@ -27,8 +27,8 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/retr0h/tonestack/pkg/catalog"
-	"github.com/retr0h/tonestack/pkg/chain"
+	"github.com/retr0h/tonestack/pkg/sdk/catalog"
+	"github.com/retr0h/tonestack/pkg/sdk/chain"
 )
 
 // Category colours.

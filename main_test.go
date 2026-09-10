@@ -24,12 +24,16 @@ import (
 	"go/parser"
 	"go/token"
 	"io/fs"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
 )
+
+// mod is this module, so a test can tell its own packages from anybody's.
+const mod = "github.com/retr0h/tonestack/"
 
 // MainTestSuite covers the shape of the repository rather than its behaviour.
 type MainTestSuite struct {
@@ -47,7 +51,7 @@ type MainTestSuite struct {
 // call. A package that imports `internal/` cannot be lifted out, so the import
 // is the thing that says the code is on the wrong side.
 func (s *MainTestSuite) TestPkgDoesNotImportInternal() {
-	const internal = "github.com/retr0h/tonestack/internal/"
+	const internal = mod + "internal/"
 
 	fset := token.NewFileSet()
 
@@ -118,6 +122,41 @@ func (s *MainTestSuite) TestATestFileSaysWhichKindItIs() {
 	})
 
 	s.Require().NoError(err)
+}
+
+// TestTheSDKTakesNothingElseWithIt holds the device half where the argument
+// for it being liftable assumes it is.
+//
+// pkg/device, its wire and pkg/slot are one unit: framing, transport,
+// session and addressing. Everything the SDK needs from this module is those
+// three, which is what makes "the device half could be its own repository" a
+// fact rather than a hope.
+//
+// Nothing in the compiler stops somebody importing a format package from the
+// device half on a Tuesday, and the day that happens the seam is welded shut
+// without anybody noticing. Hence a test.
+//
+// The reverse is asserted by its absence: the format packages are free to
+// depend on each other, and none of them reaches the device.
+func (s *MainTestSuite) TestTheSDKTakesNothingElseWithIt() {
+	unit := map[string]bool{
+		mod + "pkg/sdk/device":      true,
+		mod + "pkg/sdk/device/wire": true,
+		mod + "pkg/sdk/slot":        true,
+	}
+
+	out, err := exec.Command("go", "list", "-deps", "./pkg/sdk/device").Output()
+	s.Require().NoError(err)
+
+	for _, dep := range strings.Fields(string(out)) {
+		if !strings.HasPrefix(dep, mod) {
+			continue
+		}
+
+		s.Require().True(unit[dep],
+			"%s is not part of the SDK, and the SDK reaching it means the "+
+				"device half can no longer be lifted out on its own", dep)
+	}
 }
 
 func TestMainTestSuite(t *testing.T) {

@@ -30,7 +30,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/retr0h/tonestack/internal/cli"
-	"github.com/retr0h/tonestack/pkg/catalog"
+	"github.com/retr0h/tonestack/pkg/sdk/catalog"
 )
 
 // DefaultPath is where the generated catalog lives.

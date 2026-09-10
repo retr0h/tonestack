@@ -33,12 +33,12 @@ import (
 
 	"github.com/retr0h/tonestack/internal/slots"
 	slotmocks "github.com/retr0h/tonestack/internal/slots/mocks"
-	"github.com/retr0h/tonestack/pkg/catalog"
-	"github.com/retr0h/tonestack/pkg/chain"
-	riggen "github.com/retr0h/tonestack/pkg/rig/gen"
-	"github.com/retr0h/tonestack/pkg/sdk"
-	"github.com/retr0h/tonestack/pkg/sdk/mocks"
-	"github.com/retr0h/tonestack/pkg/sdk/wire"
+	"github.com/retr0h/tonestack/pkg/sdk/catalog"
+	"github.com/retr0h/tonestack/pkg/sdk/chain"
+	"github.com/retr0h/tonestack/pkg/sdk/device"
+	"github.com/retr0h/tonestack/pkg/sdk/device/mocks"
+	"github.com/retr0h/tonestack/pkg/sdk/device/wire"
+	riggen "github.com/retr0h/tonestack/pkg/sdk/rig/gen"
 )
 
 // TypesPublicTestSuite covers standing something else in for a collaborator.
@@ -58,7 +58,7 @@ func (s *TypesPublicTestSuite) TearDownTest() { s.ctrl.Finish() }
 
 // preset returns a standalone .hlx a command can read.
 func (s *TypesPublicTestSuite) preset() string {
-	return filepath.Join("..", "..", "pkg", "compile", "testdata", "preset0.hlx")
+	return filepath.Join("..", "..", "pkg", "sdk", "compile", "testdata", "preset0.hlx")
 }
 
 // TestCatalogs covers a command opening its catalog through a double.
@@ -105,11 +105,11 @@ func (s *TypesPublicTestSuite) TestTranslator() {
 	s.Require().NoError(err)
 
 	raw, err := os.ReadFile(
-		filepath.Join("..", "..", "pkg", "sdk", "wire", "testdata", "preset.bin"))
+		filepath.Join("..", "..", "pkg", "sdk", "device", "wire", "testdata", "preset.bin"))
 	s.Require().NoError(err)
 
 	dev := mocks.NewMockEditor(s.ctrl)
-	dev.EXPECT().Model().Return(sdk.Model{Name: "HX Stomp"}).AnyTimes()
+	dev.EXPECT().Model().Return(device.Model{Name: "HX Stomp"}).AnyTimes()
 	dev.EXPECT().Presets(gomock.Any(), 0).
 		Return([]wire.Preset{{Slot: 0, Name: "Chunky Monkey"}}, nil)
 	dev.EXPECT().ReadPreset(gomock.Any(), 0, 0).Return(raw, nil)

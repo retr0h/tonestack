@@ -23,7 +23,7 @@ import (
 	"encoding/json"
 	"strings"
 
-	"github.com/retr0h/tonestack/pkg/catalog"
+	"github.com/retr0h/tonestack/pkg/sdk/catalog"
 )
 
 // block converts one Line 6 model definition into a catalog block.

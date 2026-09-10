@@ -30,10 +30,10 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/retr0h/tonestack/pkg/catalog"
-	"github.com/retr0h/tonestack/pkg/chain"
-	"github.com/retr0h/tonestack/pkg/corpus"
-	"github.com/retr0h/tonestack/pkg/preset"
+	"github.com/retr0h/tonestack/pkg/sdk/catalog"
+	"github.com/retr0h/tonestack/pkg/sdk/chain"
+	"github.com/retr0h/tonestack/pkg/sdk/corpus"
+	"github.com/retr0h/tonestack/pkg/sdk/preset"
 )
 
 // ErrNoPresets reports that a corpus directory held nothing to measure.

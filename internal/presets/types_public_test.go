@@ -31,8 +31,8 @@ import (
 
 	"github.com/retr0h/tonestack/internal/presets"
 	presetmocks "github.com/retr0h/tonestack/internal/presets/mocks"
-	"github.com/retr0h/tonestack/pkg/chain"
-	riggen "github.com/retr0h/tonestack/pkg/rig/gen"
+	"github.com/retr0h/tonestack/pkg/sdk/chain"
+	riggen "github.com/retr0h/tonestack/pkg/sdk/rig/gen"
 )
 
 // TypesPublicTestSuite covers standing something else in for a collaborator.

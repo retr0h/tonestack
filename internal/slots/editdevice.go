@@ -26,8 +26,8 @@ import (
 	"io"
 
 	"github.com/retr0h/tonestack/internal/cli"
-	"github.com/retr0h/tonestack/pkg/sdk"
-	slotpkg "github.com/retr0h/tonestack/pkg/slot"
+	"github.com/retr0h/tonestack/pkg/sdk/device"
+	slotpkg "github.com/retr0h/tonestack/pkg/sdk/slot"
 )
 
 // CopyDevice puts what one slot holds into another, on an attached device.
@@ -53,7 +53,7 @@ func editDevice(
 	w io.Writer,
 	opts EditOptions,
 	verb string,
-	apply func(context.Context, sdk.Editor, EditOptions) (string, string, []string, error),
+	apply func(context.Context, device.Editor, EditOptions) (string, string, []string, error),
 ) error {
 	s, err := openDevice(ctx)
 	if err != nil {
@@ -66,12 +66,12 @@ func editDevice(
 }
 
 // CopyWith puts what one slot holds into another, on the given session.
-func CopyWith(ctx context.Context, w io.Writer, s sdk.Editor, opts EditOptions) error {
+func CopyWith(ctx context.Context, w io.Writer, s device.Editor, opts EditOptions) error {
 	return editWith(ctx, w, s, opts, "copied", copyOne)
 }
 
 // SwapWith exchanges what two slots hold, on the given session.
-func SwapWith(ctx context.Context, w io.Writer, s sdk.Editor, opts EditOptions) error {
+func SwapWith(ctx context.Context, w io.Writer, s device.Editor, opts EditOptions) error {
 	return editWith(ctx, w, s, opts, "swapped", swapTwo)
 }
 
@@ -79,10 +79,10 @@ func SwapWith(ctx context.Context, w io.Writer, s sdk.Editor, opts EditOptions) 
 func editWith(
 	ctx context.Context,
 	w io.Writer,
-	s sdk.Editor,
+	s device.Editor,
 	opts EditOptions,
 	verb string,
-	apply func(context.Context, sdk.Editor, EditOptions) (string, string, []string, error),
+	apply func(context.Context, device.Editor, EditOptions) (string, string, []string, error),
 ) error {
 	fromName, toName, kept, err := apply(ctx, s, opts)
 	if err != nil {
@@ -106,7 +106,7 @@ func editWith(
 // copyOne writes what the source holds into the destination.
 func copyOne(
 	ctx context.Context,
-	s sdk.Editor,
+	s device.Editor,
 	opts EditOptions,
 ) (string, string, []string, error) {
 	from, to, err := names(ctx, s, opts)
@@ -154,7 +154,7 @@ func copyOne(
 // gone.
 func swapTwo(
 	ctx context.Context,
-	s sdk.Editor,
+	s device.Editor,
 	opts EditOptions,
 ) (string, string, []string, error) {
 	from, to, err := names(ctx, s, opts)
@@ -204,7 +204,7 @@ func swapTwo(
 // slotBytes reads one slot as the bytes the device holds.
 func slotBytes(
 	ctx context.Context,
-	s sdk.Editor,
+	s device.Editor,
 	setlist, slot int,
 ) ([]byte, error) {
 	body, err := s.ReadPreset(ctx, setlist, slot)
@@ -221,7 +221,7 @@ func slotBytes(
 }
 
 // names reads what the device calls both slots, before either is changed.
-func names(ctx context.Context, s sdk.Editor, opts EditOptions) (string, string, error) {
+func names(ctx context.Context, s device.Editor, opts EditOptions) (string, string, error) {
 	found, err := s.Presets(ctx, opts.FromSetlist)
 	if err != nil {
 		return "", "", fmt.Errorf("listing presets: %w", err)
@@ -235,8 +235,8 @@ func names(ctx context.Context, s sdk.Editor, opts EditOptions) (string, string,
 // Reading and writing are separate abilities because writing is the half that
 // can destroy somebody's work. A session that only reads says so here rather
 // than partway through an edit.
-func writerFor(s sdk.Editor) (sdk.Writer, error) {
-	w, ok := s.(sdk.Writer)
+func writerFor(s device.Editor) (device.Writer, error) {
+	w, ok := s.(device.Writer)
 	if !ok {
 		return nil, fmt.Errorf("this session cannot write to a device")
 	}

@@ -26,8 +26,8 @@ import (
 	"io"
 
 	"github.com/retr0h/tonestack/internal/cli"
-	"github.com/retr0h/tonestack/pkg/sdk"
-	slotpkg "github.com/retr0h/tonestack/pkg/slot"
+	"github.com/retr0h/tonestack/pkg/sdk/device"
+	slotpkg "github.com/retr0h/tonestack/pkg/sdk/slot"
 )
 
 // SelectDevice makes one preset the active one on an attached device.
@@ -51,10 +51,10 @@ func SelectDevice(ctx context.Context, w io.Writer, opts DeviceOptions) error {
 func SelectWith(
 	ctx context.Context,
 	w io.Writer,
-	s sdk.Editor,
+	s device.Editor,
 	opts DeviceOptions,
 ) error {
-	sel, ok := s.(sdk.Selector)
+	sel, ok := s.(device.Selector)
 	if !ok {
 		return fmt.Errorf("this session cannot select a preset")
 	}

@@ -20,7 +20,7 @@
 
 package catalogview
 
-import "github.com/retr0h/tonestack/pkg/catalog"
+import "github.com/retr0h/tonestack/pkg/sdk/catalog"
 
 // Files opens catalogs the way a command does: the path it was given, or the
 // one built into the binary.

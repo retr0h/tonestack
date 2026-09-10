@@ -1,6 +1,7 @@
 # Where a package belongs
 
-**Status:** implemented\
+**Status:** implemented, and superseded by
+[2026-09-10-the-sdk-is-the-library-design.md](2026-09-10-the-sdk-is-the-library-design.md)\
 **Relates to:**
 [2026-09-06-rigspec-as-the-one-model-design.md](2026-09-06-rigspec-as-the-one-model-design.md),
 [2026-09-06-helix-sdk-design.md](2026-09-06-helix-sdk-design.md)
@@ -415,3 +416,18 @@ grammar record with all five of its steps built, and the RigSpec record said
 on. A record that lies about its own state is worse than no record, because
 somebody trusts it. All of them say what they are now, including the two that
 are only partly built and say which parts.
+
+## Superseded
+
+Everything measured here holds. What it got wrong is the question: it was asked
+whether the SDK is split correctly for a library somebody brings in, and it
+answered where an individual package belongs.
+
+The rule it settles, that `pkg/` holds what something outside would call, is
+still the rule. It is just not an answer to "what does a TUI import", and the
+line about not maximising `internal/` reads as an argument against a layering
+nobody was proposing.
+
+[The SDK is the library](2026-09-10-the-sdk-is-the-library-design.md) answers
+the question that was asked. The packages this record placed all moved under
+`pkg/sdk` there, unchanged in what they hold.

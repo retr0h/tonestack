@@ -12,11 +12,11 @@ package mocks
 import (
 	reflect "reflect"
 
-	catalog "github.com/retr0h/tonestack/pkg/catalog"
-	chain "github.com/retr0h/tonestack/pkg/chain"
-	compile "github.com/retr0h/tonestack/pkg/compile"
-	corpus "github.com/retr0h/tonestack/pkg/corpus"
-	gen "github.com/retr0h/tonestack/pkg/rig/gen"
+	catalog "github.com/retr0h/tonestack/pkg/sdk/catalog"
+	chain "github.com/retr0h/tonestack/pkg/sdk/chain"
+	compile "github.com/retr0h/tonestack/pkg/sdk/compile"
+	corpus "github.com/retr0h/tonestack/pkg/sdk/corpus"
+	gen "github.com/retr0h/tonestack/pkg/sdk/rig/gen"
 	gomock "go.uber.org/mock/gomock"
 )
 

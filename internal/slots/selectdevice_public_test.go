@@ -31,9 +31,9 @@ import (
 	"go.uber.org/mock/gomock"
 
 	"github.com/retr0h/tonestack/internal/slots"
-	"github.com/retr0h/tonestack/pkg/sdk"
-	"github.com/retr0h/tonestack/pkg/sdk/mocks"
-	"github.com/retr0h/tonestack/pkg/sdk/wire"
+	"github.com/retr0h/tonestack/pkg/sdk/device"
+	"github.com/retr0h/tonestack/pkg/sdk/device/mocks"
+	"github.com/retr0h/tonestack/pkg/sdk/device/wire"
 )
 
 // SelectDevicePublicTestSuite covers loading a preset on a device.
@@ -115,7 +115,7 @@ func (s *SelectDevicePublicTestSuite) TestSelectWith() {
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			dev := sdk.Editor(s.dev)
+			dev := device.Editor(s.dev)
 
 			if tt.readOnly {
 				dev = mocks.NewMockEditor(s.ctrl)
@@ -208,11 +208,11 @@ func (s *SelectDevicePublicTestSuite) TestSelectDevice() {
 // stand puts a session in place of the one that needs hardware, and takes it
 // away again.
 func (s *SelectDevicePublicTestSuite) stand(
-	dev sdk.Editor,
+	dev device.Editor,
 	err error,
 ) func() {
 	restore := *slots.OpenDevice
-	*slots.OpenDevice = func(context.Context) (sdk.Editor, error) {
+	*slots.OpenDevice = func(context.Context) (device.Editor, error) {
 		return dev, err
 	}
 

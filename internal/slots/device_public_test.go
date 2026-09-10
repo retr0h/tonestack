@@ -34,14 +34,14 @@ import (
 	"go.uber.org/mock/gomock"
 
 	"github.com/retr0h/tonestack/internal/slots"
-	"github.com/retr0h/tonestack/pkg/sdk"
-	"github.com/retr0h/tonestack/pkg/sdk/mocks"
-	"github.com/retr0h/tonestack/pkg/sdk/wire"
+	"github.com/retr0h/tonestack/pkg/sdk/device"
+	"github.com/retr0h/tonestack/pkg/sdk/device/mocks"
+	"github.com/retr0h/tonestack/pkg/sdk/device/wire"
 )
 
 // DevicePublicTestSuite covers reading a device, with no device attached.
 //
-// The answers are real: pkg/sdk/wire/testdata holds three slots exactly as an
+// The answers are real: pkg/sdk/device/wire/testdata holds three slots exactly as an
 // HX Stomp handed them back — one full preset, one whose switches somebody
 // labelled and coloured, and one empty slot.
 type DevicePublicTestSuite struct {
@@ -54,7 +54,7 @@ type DevicePublicTestSuite struct {
 func (s *DevicePublicTestSuite) SetupTest() {
 	s.ctrl = gomock.NewController(s.T())
 	s.dev = mocks.NewMockEditor(s.ctrl)
-	s.dev.EXPECT().Model().Return(sdk.Model{Name: "HX Stomp"}).AnyTimes()
+	s.dev.EXPECT().Model().Return(device.Model{Name: "HX Stomp"}).AnyTimes()
 }
 
 func (s *DevicePublicTestSuite) TearDownTest() { s.ctrl.Finish() }
@@ -62,7 +62,7 @@ func (s *DevicePublicTestSuite) TearDownTest() { s.ctrl.Finish() }
 // answer returns one slot as the hardware sent it.
 func (s *DevicePublicTestSuite) answer(name string) []byte {
 	raw, err := os.ReadFile(
-		filepath.Join("..", "..", "pkg", "sdk", "wire", "testdata", name))
+		filepath.Join("..", "..", "pkg", "sdk", "device", "wire", "testdata", name))
 	s.Require().NoError(err)
 
 	return raw
@@ -143,7 +143,7 @@ func (s *DevicePublicTestSuite) TestListWith() {
 				s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 0).
 					Return([]byte("not a preset"), nil)
 				s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 24).
-					Return(nil, &sdk.NotAPresetError{Result: 42})
+					Return(nil, &device.NotAPresetError{Result: 42})
 				s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 79).Return(nil, nil)
 			},
 			opts:     slots.DeviceOptions{All: true},
@@ -274,7 +274,7 @@ func (s *DevicePublicTestSuite) TestShowWith() {
 					Return(nil, errors.New("boom"))
 			case tt.notPreset != nil:
 				s.dev.EXPECT().ReadPreset(gomock.Any(), 0, tt.slot).
-					Return(nil, &sdk.NotAPresetError{Result: tt.notPreset})
+					Return(nil, &device.NotAPresetError{Result: tt.notPreset})
 			default:
 				s.dev.EXPECT().ReadPreset(gomock.Any(), 0, tt.slot).
 					Return(tt.answer, nil)
@@ -352,7 +352,7 @@ func (s *DevicePublicTestSuite) TestShowWithKeepsTheAnswer() {
 
 			if tt.notPreset {
 				s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 0).
-					Return(nil, &sdk.NotAPresetError{Result: map[any]any{1: 2}})
+					Return(nil, &device.NotAPresetError{Result: map[any]any{1: 2}})
 			} else {
 				s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 0).
 					Return(s.answer("preset.bin"), nil)
@@ -537,9 +537,9 @@ func (s *DevicePublicTestSuite) TestExportWithWritesTheDevicesOwnFile() {
 
 // stand puts a session in place of the one that needs hardware, and takes it
 // away again.
-func (s *DevicePublicTestSuite) stand(dev sdk.Editor, err error) func() {
+func (s *DevicePublicTestSuite) stand(dev device.Editor, err error) func() {
 	restore := *slots.OpenDevice
-	*slots.OpenDevice = func(context.Context) (sdk.Editor, error) {
+	*slots.OpenDevice = func(context.Context) (device.Editor, error) {
 		return dev, err
 	}
 
