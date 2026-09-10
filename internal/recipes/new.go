@@ -113,6 +113,13 @@ type NewOptions struct {
 	Pedals []string
 	// CatalogPath is a catalog to check against instead of the built-in one.
 	CatalogPath string
+	// From is a rig to copy, by identifier. The copy is a whole rig and
+	// records where it came from in `extends`; nothing merges the two.
+	From string
+	// Kind is what the new rig is attributed to: artist, band, song, genre
+	// or sound. Only read when copying, since a scaffold from nothing is an
+	// artist.
+	Kind string
 }
 
 // New writes a recipe, after checking the gear it names exists.
@@ -125,12 +132,8 @@ func New(w io.Writer, opts NewOptions) error {
 		return &BadIDError{ID: opts.ID}
 	}
 
-	cat, err := catalogview.Open(opts.CatalogPath)
+	body, err := scaffoldFor(opts)
 	if err != nil {
-		return err
-	}
-
-	if err := checkGear(cat, opts); err != nil {
 		return err
 	}
 
@@ -143,7 +146,7 @@ func New(w io.Writer, opts NewOptions) error {
 		return fmt.Errorf("making room for %s: %w", path, err)
 	}
 
-	if err := os.WriteFile(path, []byte(render(opts)), 0o600); err != nil {
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
 		return fmt.Errorf("writing %s: %w", path, err)
 	}
 
@@ -254,4 +257,32 @@ func report(w io.Writer, opts NewOptions, path string) error {
 	}
 
 	return nil
+}
+
+// scaffoldFor decides what goes in the new file.
+//
+// Copying an existing rig checks nothing, because the rig it copies already
+// resolved when it was written and the copy has not changed any gear yet.
+// Scaffolding from flags checks every name against the catalog, which is the
+// only moment a typo is cheap to fix.
+func scaffoldFor(opts NewOptions) (string, error) {
+	if opts.From != "" {
+		parent, from, err := findFile(opts.Dir, opts.From)
+		if err != nil {
+			return "", err
+		}
+
+		return scaffold(parent, from, opts), nil
+	}
+
+	cat, err := catalogview.Open(opts.CatalogPath)
+	if err != nil {
+		return "", err
+	}
+
+	if err := checkGear(cat, opts); err != nil {
+		return "", err
+	}
+
+	return render(opts), nil
 }

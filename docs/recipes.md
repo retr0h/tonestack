@@ -195,6 +195,36 @@ makes them siblings, not variations. Each is a complete RigSpec with its own
 no qualifier has to land somewhere. Use `extends` only where a rig genuinely is
 a small departure from another.
 
+### `extends` records lineage, and nothing merges
+
+This is the part people expect to work the other way, so it is worth saying
+plainly: **a rig that extends another still holds everything itself.** Nothing
+is inherited, nothing is looked up at build time, and deleting the parent leaves
+the child working. All `extends` does is record where the rig came from, which
+is what lets `recipes show` list a rig's variants underneath it.
+
+The reason is that a rig is meant to be read. If a file only held its
+differences, the rig that compiled would not be the rig on the page, and
+answering "why is this amp here" would mean opening two files and knowing the
+merge rules. Duplication across nine rigs is cheaper than that.
+
+So copy the parent and edit the copy:
+
+```bash
+tonestack recipes new --from flea \
+  --id flea-under-the-bridge --kind song --name "Under the Bridge"
+```
+
+That writes a whole rig: the chain, the character, the comments and every
+citation, with `extends: flea` recorded and the parent's `aliases` and `default`
+dropped, since those belong to the parent alone.
+
+The citations coming across is the point and also the trap. A claim sourced for
+one rig is not evidence for another, so anything you change loses its evidence
+with it. The file says so at the top, and the honest move is to drop what you
+cannot stand behind rather than leave a citation pointing at a rig that no
+longer exists.
+
 ## Checking your work
 
 ```bash

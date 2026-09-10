@@ -37,7 +37,12 @@ var recipesNewCmd = &cobra.Command{
 Every gear name is resolved against the device catalog before anything is
 written. A recipe naming an amplifier no device models is otherwise only
 discovered when somebody tries to build from it, and by then the name has
-usually been copied somewhere else too.`,
+usually been copied somewhere else too.
+
+--from copies an existing recipe instead, comments and citations included, and
+records where it came from in extends. Nothing merges the two: the copy is a
+whole rig and editing it does not touch the original. Use it for a rig that
+departs from another, such as one song played differently from the rest.`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		recipesNewOptions.Dir = recipesDir
@@ -67,7 +72,16 @@ func init() {
 		"real-world pedal, in signal order; repeat for more")
 	f.StringVar(&recipesNewOptions.CatalogPath, "catalog", "",
 		"a generated catalog to check against instead of the built-in one")
+	f.StringVar(&recipesNewOptions.From, "from", "",
+		"copy an existing recipe by identifier, rather than naming gear")
+	f.StringVar(&recipesNewOptions.Kind, "kind", "",
+		"what the copy is attributed to: artist, band, song, genre or sound")
 	_ = recipesNewCmd.MarkFlagRequired("id")
-	_ = recipesNewCmd.MarkFlagRequired("name")
-	_ = recipesNewCmd.MarkFlagRequired("amp")
+	// A copy takes its gear from the rig it copies, so naming any is either a
+	// mistake or a misunderstanding of what a copy is.
+	recipesNewCmd.MarkFlagsOneRequired("from", "amp")
+	recipesNewCmd.MarkFlagsMutuallyExclusive("from", "amp")
+	recipesNewCmd.MarkFlagsMutuallyExclusive("from", "cab")
+	recipesNewCmd.MarkFlagsMutuallyExclusive("from", "pedal")
+	recipesNewCmd.MarkFlagsMutuallyExclusive("from", "band")
 }
