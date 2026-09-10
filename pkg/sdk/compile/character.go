@@ -27,7 +27,6 @@ import (
 	"unicode"
 
 	riggen "github.com/retr0h/tonestack/pkg/sdk/rig/gen"
-	"github.com/retr0h/tonestack/resources/schemas"
 )
 
 // UnknownTerm is a word a rig used to describe its sound that the shipped
@@ -62,7 +61,7 @@ func CharacterTerms() []string {
 	var v vocabulary
 
 	// Embedded and written by this repository, so it parses.
-	_ = json.Unmarshal(schemas.CharacterTerms, &v)
+	_ = json.Unmarshal(terms, &v)
 
 	out := []string(nil)
 

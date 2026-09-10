@@ -1,21 +1,24 @@
 # schemas
 
-The data contracts, the generated catalog, and the presets everything was
-learned from.
+What a device can do, which gear each of its models emulates, and the presets
+all of that was learned from.
 
 How the `.hlx` format works, and how the catalog is generated, is in
 [CONTRIBUTING.md](../CONTRIBUTING.md). This file describes what is in this
 directory.
 
-| Path                    |               |                                                     |
-| ----------------------- | ------------- | --------------------------------------------------- |
-| `rigspec.openapi.yaml`  | hand-written  | The RigSpec contract, the only format anybody types |
-| `hx-stomp.catalog.json` | **generated** | Which blocks an HX Stomp has and what each accepts  |
-| `gear-map.json`         | **generated** | Which real-world gear each Line 6 model emulates    |
-| `extract_gear_map.py`   | hand-written  | Writes `gear-map.json`, and lives beside it         |
-| `corpus/`               | collected     | ~4,400 real presets                                 |
+| Path                    |               |                                                    |
+| ----------------------- | ------------- | -------------------------------------------------- |
+| `hx-stomp.catalog.json` | **generated** | Which blocks an HX Stomp has and what each accepts |
+| `gear-map.json`         | **generated** | Which real-world gear each Line 6 model emulates   |
+| `extract_gear_map.py`   | hand-written  | Writes `gear-map.json`, and lives beside it        |
+| `corpus/`               | collected     | ~4,400 real presets                                |
 
-## RigSpec is the only contract
+The RigSpec contract is not here. It is embedded in the package that reads it,
+at `pkg/sdk/rig/data/rigspec.openapi.yaml`, and
+[docs/recipes.md](../../docs/recipes.md#where-the-contract-lives) says why.
+
+## What the catalog and the gear map are for
 
 ```text
 RigSpec                   gear-map + catalog             .hlx
@@ -24,48 +27,9 @@ RigSpec                   gear-map + catalog             .hlx
 what a person means       what the device understands    what the file needs
 ```
 
-There used to be two contracts, one for what a person writes and one for what
-the generator produces. They were the same document at two levels of detail, so
-now there is one. A rig is sparse when somebody types it and full once it has
-been compiled or lifted from a preset.
-
 `../recipes/` is the only data in this tree that is ours and publishable. The
 catalog and the gear map come from a licensed HX Edit installation, so we do not
 redistribute them.
-
-## rigspec.openapi.yaml
-
-RigSpec is this project's own invention. The Line 6 format has no equivalent. It
-stores blocks under `dsp0`/`block0` keys with no abstraction over where a chain
-came from. RigSpec exists so every input converges on one validated shape before
-anything writes a file.
-
-The schema is the contract in both senses. `pkg/rig/gen` is generated from it by
-`oapi-codegen`, and `pkg/rig.Validate` checks a document against the same file
-rather than against a second copy of the rules written in Go. Two copies drift:
-a constraint added to one becomes a type nothing enforces, or a check nothing
-asked for.
-
-### Why RigSpec does not enumerate models
-
-RigSpec is the *shape* of a signal chain and is stable across devices and
-firmware. Which models exist belongs to a device at a firmware version, and that
-is the catalog's job.
-
-Enumerating models inside RigSpec would tie its version to the firmware, make a
-preset using an unlisted model unrepresentable, and produce a schema tens of
-thousands of lines long. A per-device schema with the model enum inlined can be
-*generated* from the two when strict validation is wanted.
-
-### Generating clients
-
-The schema is the source for anything that needs to speak RigSpec, including
-this project's own Go types:
-
-```bash
-just generate                                    # regenerates pkg/rig/gen
-npx openapi-typescript resources/schemas/rigspec.openapi.yaml -o rigspec.d.ts
-```
 
 ## hx-stomp.catalog.json
 

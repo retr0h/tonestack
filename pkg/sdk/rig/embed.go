@@ -17,11 +17,20 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
-// Package gen is the shape of a signal chain, generated from the RigSpec
-// contract.
-//
-// Do not hand-edit rigspec.gen.go. Change rig/data/rigspec.openapi.yaml and run
-// `just generate`.
-package gen
 
-//go:generate go tool github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen -config cfg.yaml ../data/rigspec.openapi.yaml
+package rig
+
+import _ "embed"
+
+// Schema is what a rig is checked against.
+//
+// Beside the code that checks it rather than in a directory of its own, for
+// the same reason the catalog and the corpus keep their data beside
+// themselves: a package that cannot be moved without remembering to bring a
+// file with it is a package nobody can move.
+//
+// The same file the Go types are generated from, so a constraint stated once
+// is both a type and a check.
+//
+//go:embed data/rigspec.openapi.yaml
+var Schema []byte

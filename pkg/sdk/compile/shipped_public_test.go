@@ -62,7 +62,7 @@ func (s *ShippedPublicTestSuite) TestEveryShippedRigUsesTheVocabulary() {
 
 			for _, u := range compile.CheckCharacter(spec) {
 				s.Require().Fail("no such character term",
-					"%q. Add it to resources/schemas/character-terms.json "+
+					"%q. Add it to pkg/sdk/compile/data/character-terms.json "+
 						"with a definition, or use one of: %v", u.Term, u.Near)
 			}
 		})

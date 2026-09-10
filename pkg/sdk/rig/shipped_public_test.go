@@ -33,7 +33,7 @@ import (
 // ShippedPublicTestSuite checks the rigs this repository ships.
 //
 // Drift between the Go types and the contract is impossible — the types are
-// generated from resources/schemas/rigspec.openapi.yaml. What generation does not
+// generated from data/rigspec.openapi.yaml. What generation does not
 // guarantee is that the files on disk satisfy it, or that a rig's filename
 // matches the identifier inside it.
 type ShippedPublicTestSuite struct {

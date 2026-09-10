@@ -32,7 +32,7 @@ import (
 	"runtime"
 
 	"github.com/retr0h/tonestack/internal/specdoc"
-	"github.com/retr0h/tonestack/resources/schemas"
+	"github.com/retr0h/tonestack/pkg/sdk/rig"
 )
 
 // out is where the page goes, worked out from this file rather than from
@@ -51,7 +51,7 @@ func out() (string, error) {
 }
 
 func main() {
-	body, err := specdoc.Render(schemas.RigSpec)
+	body, err := specdoc.Render(rig.Schema)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

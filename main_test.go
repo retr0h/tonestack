@@ -159,6 +159,38 @@ func (s *MainTestSuite) TestTheSDKTakesNothingElseWithIt() {
 	}
 }
 
+// TestTheSDKStandsAlone asserts that pkg/sdk needs nothing outside itself.
+//
+// The question this answers is whether the library is usable if somebody
+// lifts it into a repository of its own, and "it does not import internal/"
+// is not that answer. It imported resources/schemas until somebody asked:
+// the contract every rig is checked against, and the vocabulary a character
+// term comes from, both embedded files sitting outside the directory that
+// was supposed to be able to leave.
+//
+// So the rule is stronger than the one about internal/. Nothing under
+// pkg/sdk may reach anything in this module that is not also under pkg/sdk,
+// which includes data. Where a package needs a file, the file lives beside
+// it, the way the catalog, the corpus and the preset template already do.
+func (s *MainTestSuite) TestTheSDKStandsAlone() {
+	out, err := exec.Command("go", "list", "./pkg/sdk/...").Output()
+	s.Require().NoError(err)
+
+	for _, pkg := range strings.Fields(string(out)) {
+		deps, err := exec.Command("go", "list", "-deps", pkg).Output()
+		s.Require().NoError(err)
+
+		for _, dep := range strings.Fields(string(deps)) {
+			if !strings.HasPrefix(dep, mod) {
+				continue
+			}
+
+			s.Require().True(strings.HasPrefix(dep, mod+"pkg/sdk"),
+				"%s reaches %s, which would not travel with the SDK", pkg, dep)
+		}
+	}
+}
+
 func TestMainTestSuite(t *testing.T) {
 	suite.Run(t, new(MainTestSuite))
 }

@@ -29,7 +29,7 @@
 // device-bound, holding one manufacturer's model identifiers and one
 // manufacturer's parameter keys.
 //
-// [RigSpec]: https://github.com/retr0h/tonestack/blob/main/resources/schemas/rigspec.openapi.yaml
+// [RigSpec]: https://github.com/retr0h/tonestack/blob/main/pkg/sdk/rig/data/rigspec.openapi.yaml
 package chain
 
 import (

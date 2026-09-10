@@ -30,7 +30,6 @@ import (
 
 	"github.com/retr0h/tonestack/pkg/sdk/rig"
 	"github.com/retr0h/tonestack/pkg/sdk/rig/gen"
-	"github.com/retr0h/tonestack/resources/schemas"
 )
 
 // SchemaPublicTestSuite covers reading the contract a rig is checked against.
@@ -49,7 +48,7 @@ func (s *SchemaPublicTestSuite) TestLoadSchema() {
 		doc     []byte
 		errText string
 	}{
-		{name: "the contract this binary ships", doc: schemas.RigSpec},
+		{name: "the contract this binary ships", doc: rig.Schema},
 		{
 			name:    "a document it cannot read",
 			doc:     []byte("not a schema"),
