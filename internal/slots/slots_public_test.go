@@ -31,10 +31,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/retr0h/tonestack/internal/catalogview"
 	"github.com/retr0h/tonestack/internal/cli"
 	"github.com/retr0h/tonestack/internal/slots"
 	"github.com/retr0h/tonestack/pkg/sdk"
+	"github.com/retr0h/tonestack/pkg/sdk/catalog"
 	"github.com/retr0h/tonestack/pkg/sdk/rig"
 	slotpkg "github.com/retr0h/tonestack/pkg/sdk/slot"
 )
@@ -170,7 +170,7 @@ func (s *SlotsPublicTestSuite) TestList() {
 			// sees is the renderer's answer rather than the operation's.
 			var out bytes.Buffer
 
-			cat, err := catalogview.Open(tt.opts.CatalogPath)
+			cat, err := catalog.Open(tt.opts.CatalogPath)
 			s.Require().NoError(err)
 			s.Require().NoError(cli.Listing(&out, listing, cat, tt.opts.All))
 
@@ -196,7 +196,7 @@ func (s *SlotsPublicTestSuite) TestListNeedsNoCatalogToRead() {
 	s.Require().NoError(err)
 	s.Require().NotEmpty(listing.Slots)
 
-	_, err = catalogview.Open(fixture("nope.json"))
+	_, err = catalog.Open(fixture("nope.json"))
 	s.Require().ErrorContains(err, "catalog")
 }
 
@@ -223,7 +223,7 @@ func (s *SlotsPublicTestSuite) TestListReportsAWriterThatFails() {
 			})
 			s.Require().NoError(err)
 
-			cat, err := catalogview.Open(catalogPath())
+			cat, err := catalog.Open(catalogPath())
 			s.Require().NoError(err)
 
 			s.Require().Error(cli.Listing(tt.w, listing, cat, false))

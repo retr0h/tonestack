@@ -26,7 +26,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/retr0h/tonestack/internal/catalogview"
 	"github.com/retr0h/tonestack/pkg/sdk"
 	"github.com/retr0h/tonestack/pkg/sdk/catalog"
 	"github.com/retr0h/tonestack/pkg/sdk/corpus"
@@ -81,7 +80,7 @@ func Show(opts Options) (sdk.Measured, error) {
 		return sdk.Measured{}, &NotMeasuredError{Model: id}
 	}
 
-	cat, err := catalogview.Open(opts.CatalogPath)
+	cat, err := catalog.Open(opts.CatalogPath)
 	if err != nil {
 		return sdk.Measured{}, err
 	}

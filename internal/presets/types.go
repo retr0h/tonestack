@@ -21,7 +21,6 @@
 package presets
 
 import (
-	"github.com/retr0h/tonestack/internal/catalogview"
 	"github.com/retr0h/tonestack/internal/recipes"
 	"github.com/retr0h/tonestack/pkg/sdk/catalog"
 	"github.com/retr0h/tonestack/pkg/sdk/chain"
@@ -73,7 +72,7 @@ func (d Deps) catalogs() Catalogs {
 		return d.Catalogs
 	}
 
-	return catalogview.Files{}
+	return catalog.Files{}
 }
 
 func (d Deps) recipes() Recipes {

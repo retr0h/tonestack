@@ -29,7 +29,6 @@ import (
 	"os"
 	"sort"
 
-	"github.com/retr0h/tonestack/internal/catalogview"
 	"github.com/retr0h/tonestack/internal/cli"
 	"github.com/retr0h/tonestack/pkg/sdk/catalog"
 	"github.com/retr0h/tonestack/pkg/sdk/corpus"
@@ -45,7 +44,7 @@ func Run(w io.Writer, opts Options) error {
 		opts.MinSamples = defaultMinSamples
 	}
 
-	cat, err := catalogview.Open(opts.CatalogPath)
+	cat, err := catalog.Open(opts.CatalogPath)
 	if err != nil {
 		return err
 	}

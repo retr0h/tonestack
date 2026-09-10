@@ -29,7 +29,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/retr0h/tonestack/internal/catalogview"
 	"github.com/retr0h/tonestack/pkg/sdk"
 	"github.com/retr0h/tonestack/pkg/sdk/catalog"
 )
@@ -253,7 +252,7 @@ func scaffoldFor(opts NewOptions) (string, error) {
 		return scaffold(parent, from, opts), nil
 	}
 
-	cat, err := catalogview.Open(opts.CatalogPath)
+	cat, err := catalog.Open(opts.CatalogPath)
 	if err != nil {
 		return "", err
 	}

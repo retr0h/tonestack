@@ -33,9 +33,9 @@ import (
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/mock/gomock"
 
-	"github.com/retr0h/tonestack/internal/catalogview"
 	"github.com/retr0h/tonestack/internal/cli"
 	"github.com/retr0h/tonestack/internal/slots"
+	"github.com/retr0h/tonestack/pkg/sdk/catalog"
 	"github.com/retr0h/tonestack/pkg/sdk/device"
 	"github.com/retr0h/tonestack/pkg/sdk/device/mocks"
 	"github.com/retr0h/tonestack/pkg/sdk/device/wire"
@@ -176,7 +176,7 @@ func (s *DevicePublicTestSuite) TestListWith() {
 			// against the rendering the command would do.
 			var out bytes.Buffer
 
-			cat, err := catalogview.Open(tt.opts.CatalogPath)
+			cat, err := catalog.Open(tt.opts.CatalogPath)
 			s.Require().NoError(err)
 			s.Require().NoError(cli.Listing(&out, listing, cat, tt.opts.All))
 
