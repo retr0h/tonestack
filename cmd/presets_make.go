@@ -22,6 +22,8 @@ package cmd
 import (
 	"github.com/spf13/cobra"
 
+	"github.com/retr0h/tonestack/internal/catalogview"
+	"github.com/retr0h/tonestack/internal/cli"
 	"github.com/retr0h/tonestack/internal/presets"
 )
 
@@ -38,7 +40,17 @@ parameter is set to what Line 6 states as its default — a recipe's character
 lines do not move knobs yet.`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		return presets.Make(cmd.OutOrStdout(), presetsMakeOptions)
+		made, err := presets.Make(presetsMakeOptions)
+		if err != nil {
+			return err
+		}
+
+		cat, err := catalogview.Open(presetsMakeOptions.CatalogPath)
+		if err != nil {
+			return err
+		}
+
+		return cli.Made(cmd.OutOrStdout(), made, cat)
 	},
 }
 

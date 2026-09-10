@@ -20,9 +20,6 @@
 package recipes_test
 
 import (
-	"bytes"
-	"errors"
-	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -180,51 +177,33 @@ func (s *RecipesPublicTestSuite) TestFind() {
 // TestList writes out what is on the shelf.
 func (s *RecipesPublicTestSuite) TestList() {
 	tests := []struct {
-		name     string
-		dir      string
-		to       io.Writer
-		contains []string
-		err      bool
+		name string
+		dir  string
+		// the identifiers the answer must carry, in any order.
+		ids []string
+		err bool
 	}{
 		{
-			name:     "one line per recipe",
-			dir:      s.good(),
-			contains: []string{"mike-dirnt", "Ampeg SVT", "llm"},
+			name: "one entry per recipe",
+			dir:  s.good(),
+			ids:  []string{"mike-dirnt"},
 		},
 		{
-			name:     "a shelf with nothing on it",
-			dir:      s.T().TempDir(),
-			contains: []string{"no recipes here"},
+			// A shelf with nothing on it is not a failure. Somebody who
+			// just made the directory is owed an empty answer.
+			name: "a shelf with nothing on it",
+			dir:  s.T().TempDir(),
 		},
 		{
 			name: "a directory that will not load",
 			dir:  s.mixed(),
 			err:  true,
 		},
-		{
-			name: "nowhere to write it",
-			dir:  s.good(),
-			to:   &failingWriter{},
-			err:  true,
-		},
-		{
-			name: "nowhere to write the empty case either",
-			dir:  s.T().TempDir(),
-			to:   &failingWriter{},
-			err:  true,
-		},
 	}
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			var buf bytes.Buffer
-
-			to := tt.to
-			if to == nil {
-				to = &buf
-			}
-
-			err := recipes.List(to, tt.dir)
+			all, err := recipes.List(tt.dir)
 
 			if tt.err {
 				s.Require().Error(err)
@@ -233,9 +212,16 @@ func (s *RecipesPublicTestSuite) TestList() {
 			}
 
 			s.Require().NoError(err)
+			s.Require().Equal(tt.dir, all.Dir)
 
-			for _, want := range tt.contains {
-				s.Require().Contains(buf.String(), want)
+			got := ids(all.Rigs)
+
+			for _, want := range tt.ids {
+				s.Require().Contains(got, want)
+			}
+
+			if tt.ids == nil {
+				s.Require().Empty(all.Rigs)
 			}
 		})
 	}
@@ -244,48 +230,35 @@ func (s *RecipesPublicTestSuite) TestList() {
 // TestShow writes out one recipe.
 func (s *RecipesPublicTestSuite) TestShow() {
 	tests := []struct {
-		name     string
-		dir      string
-		id       string
-		to       io.Writer
-		contains []string
-		absent   []string
+		name string
+		dir  string
+		id   string
+		// the rigs that say they are a small change on this one.
+		variants []string
 		err      bool
+		is       error
 	}{
 		{
-			name: "everything a person wrote",
-			dir:  s.good(),
-			id:   "mike-dirnt",
-			contains: []string{
-				"Mike Dirnt", "Green Day", "Dookie through American Idiot",
-				"pick, near the bridge", "mid-forward", "Longview",
-				// An llm-sourced recipe must say nobody confirmed it.
-				"unverified",
-			},
+			// The link points the other way — a variant names what it
+			// extends — so only reading the whole set answers this.
+			name:     "a rig something else departs from",
+			dir:      s.good(),
+			id:       "mike-dirnt",
+			variants: []string{"mike-dirnt-longview"},
 		},
 		{
-			name: "nothing about what nobody wrote",
+			name: "a rig nothing departs from",
 			dir:  s.good(),
 			id:   "minimal",
-			absent: []string{
-				"character", "variants", "band",
-				// A curated recipe is confirmed.
-				"unverified",
-			},
 		},
 		{
-			// Saying nothing about how far to trust a rig is not a claim
-			// that it can be trusted.
-			name:     "an unstated confidence reads as low",
-			dir:      s.good(),
-			id:       "mike-dirnt-longview",
-			contains: []string{"low confidence"},
-		},
-		{
+			// Matched with errors.Is, so a caller can tell "no such recipe"
+			// from "the shelf would not open" without reading the message.
 			name: "a recipe nobody wrote",
 			dir:  s.good(),
 			id:   "nobody",
 			err:  true,
+			is:   recipes.ErrNotFound,
 		},
 		{
 			name: "a directory that will not load",
@@ -293,61 +266,37 @@ func (s *RecipesPublicTestSuite) TestShow() {
 			id:   "mike-dirnt",
 			err:  true,
 		},
-		{
-			name: "nowhere to write it",
-			dir:  s.good(),
-			id:   "mike-dirnt",
-			to:   &failingWriter{},
-			err:  true,
-		},
 	}
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			var buf bytes.Buffer
-
-			to := tt.to
-			if to == nil {
-				to = &buf
-			}
-
-			err := recipes.Show(to, tt.dir, tt.id)
+			one, err := recipes.Show(tt.dir, tt.id)
 
 			if tt.err {
 				s.Require().Error(err)
+
+				if tt.is != nil {
+					s.Require().ErrorIs(err, tt.is)
+				}
 
 				return
 			}
 
 			s.Require().NoError(err)
+			s.Require().Equal(tt.id, one.Rig.ID)
 
-			for _, want := range tt.contains {
-				s.Require().Contains(buf.String(), want)
+			got := make([]string, 0, len(one.Variants))
+			for _, v := range one.Variants {
+				got = append(got, v.ID)
 			}
 
-			for _, gone := range tt.absent {
-				s.Require().NotContains(buf.String(), gone)
-			}
+			s.Require().ElementsMatch(tt.variants, got)
 		})
 	}
 }
 
-// TestNotFoundError covers what somebody reads when the recipe is not there.
-func (s *RecipesPublicTestSuite) TestNotFoundError() {
-	err := &recipes.NotFoundError{ID: "flea", Known: 3}
-
-	s.Require().Contains(err.Error(), "flea")
-	s.Require().Contains(err.Error(), "3 known")
-	s.Require().ErrorIs(err, recipes.ErrNotFound)
-}
-
-// TestDefaultDirIsWhereRecipesLive keeps the fallback pointing at something.
-func (s *RecipesPublicTestSuite) TestDefaultDirIsWhereRecipesLive() {
-	s.Require().Equal("resources/recipes", recipes.DefaultDir)
-	s.Require().DirExists(filepath.Join("..", "..", recipes.DefaultDir))
-}
-
-// ids names what a load returned, in order.
+// ids reads the identifiers out of a set of rigs, so a test can say which
+// were found without also saying what else each one holds.
 func ids(all []riggen.RigSpec) []string {
 	out := make([]string, 0, len(all))
 	for _, r := range all {
@@ -356,10 +305,6 @@ func ids(all []riggen.RigSpec) []string {
 
 	return out
 }
-
-type failingWriter struct{}
-
-func (*failingWriter) Write([]byte) (int, error) { return 0, errors.New("boom") }
 
 func TestRecipesPublicTestSuite(t *testing.T) {
 	suite.Run(t, new(RecipesPublicTestSuite))

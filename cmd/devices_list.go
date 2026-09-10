@@ -23,6 +23,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/retr0h/tonestack/internal/attached"
+	"github.com/retr0h/tonestack/internal/cli"
 )
 
 // devicesListCmd represents the devices list command.
@@ -35,7 +36,12 @@ Devices are enumerated by descriptor only — none is opened — so this needs n
 special privileges and cannot disturb a device in use by other software.`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		return attached.List(cmd.Context(), cmd.OutOrStdout())
+		found, err := attached.List(cmd.Context())
+		if err != nil {
+			return err
+		}
+
+		return cli.Attached(cmd.OutOrStdout(), found)
 	},
 }
 

@@ -28,7 +28,6 @@ package recipes
 import (
 	"bytes"
 	"fmt"
-	"io"
 	"io/fs"
 	"os"
 	"path"
@@ -36,7 +35,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/retr0h/tonestack/internal/cli"
+	"github.com/retr0h/tonestack/pkg/sdk"
 	"github.com/retr0h/tonestack/pkg/sdk/rig"
 	"github.com/retr0h/tonestack/pkg/sdk/rig/gen"
 	recipedata "github.com/retr0h/tonestack/resources/recipes"
@@ -139,170 +138,41 @@ func matchesAlias(spec gen.RigSpec, id string) bool {
 // a spine they may not share. A rig that genuinely is a small change says so
 // with `extends`, and this is the other end of that link: reading the
 // characteristic rig should show what departs from it.
-func departures(all []gen.RigSpec, spec gen.RigSpec) []cli.Field {
-	out := []cli.Field(nil)
+func departures(all []gen.RigSpec, spec gen.RigSpec) []sdk.Variant {
+	out := []sdk.Variant(nil)
 
 	for _, other := range all {
 		if other.Extends == nil || *other.Extends != spec.ID {
 			continue
 		}
 
-		label := ""
-		if len(out) == 0 {
-			label = "variants"
-		}
-
-		out = append(out, cli.Field{
-			Label: label,
-			Value: fmt.Sprintf("%s (%s)", other.Subject.Name, other.ID),
-		})
+		out = append(out, sdk.Variant{ID: other.ID, Name: other.Subject.Name})
 	}
 
 	return out
 }
 
-// List writes every rig under dir to w.
-func List(w io.Writer, dir string) error {
+// List reads every rig under dir.
+func List(dir string) (sdk.Recipes, error) {
 	all, err := Load(dir)
 	if err != nil {
-		return err
+		return sdk.Recipes{}, err
 	}
 
-	rows := make([][]string, 0, len(all))
-
-	for _, spec := range all {
-		rows = append(rows, []string{
-			cli.Accent(w, spec.ID),
-			spec.Subject.Name,
-			cli.Mute(w, string(spec.Instrument)),
-			rig.GearName(spec, gen.RoleAmp),
-			source(w, spec),
-		})
-	}
-
-	return wrapReport(cli.Section{
-		Title:   "Recipes",
-		Detail:  dir,
-		Headers: []string{"id", "name", "instrument", "amp", "source"},
-		Rows:    rows,
-		Empty:   "no recipes here",
-	}.Render(w))
+	return sdk.Recipes{Dir: dir, Rigs: all}, nil
 }
 
-// source names where a rig's knowledge came from, and marks it when nobody
-// has confirmed it.
-//
-// This is the column that decides whether to trust the row, so it is the one
-// that carries colour. A rig is only shown as confirmed when every claim in
-// it rests on something checkable — the weakest link is what the reader needs
-// to know about.
-func source(w io.Writer, spec gen.RigSpec) string {
-	if rig.Trusted(spec) {
-		return cli.OK(w, string(rig.Sourced(spec)))
-	}
-
-	return cli.Info(w, string(rig.Sourced(spec)))
-}
-
-// Show writes one rig to w in full.
-func Show(w io.Writer, dir, id string) error {
+// Show reads one rig, and what the rest of the set says about it.
+func Show(dir, id string) (sdk.Recipe, error) {
 	all, err := Load(dir)
 	if err != nil {
-		return err
+		return sdk.Recipe{}, err
 	}
 
 	spec, err := find(all, id)
 	if err != nil {
-		return err
+		return sdk.Recipe{}, err
 	}
 
-	d := cli.Detail{Title: spec.Subject.Name, Subtitle: spec.ID}
-
-	if spec.Subject.Band != nil && *spec.Subject.Band != "" {
-		d.Fields = append(d.Fields,
-			cli.Field{Label: "band", Value: *spec.Subject.Band})
-	}
-
-	if spec.Subject.Era != nil && *spec.Subject.Era != "" {
-		d.Fields = append(d.Fields,
-			cli.Field{Label: "era", Value: *spec.Subject.Era})
-	}
-
-	d.Fields = append(d.Fields,
-		cli.Field{Label: "instrument", Value: string(spec.Instrument)})
-	d.Fields = append(d.Fields, chain(spec)...)
-
-	if spec.Technique != nil {
-		d.Fields = append(d.Fields,
-			cli.Field{Label: "technique", Value: technique(*spec.Technique)})
-	}
-
-	d.Fields = append(d.Fields, character(spec)...)
-	d.Fields = append(d.Fields, departures(all, spec)...)
-	d.Fields = append(d.Fields, cli.Field{
-		Label: "source",
-		Value: fmt.Sprintf("%s, %s confidence",
-			rig.Sourced(spec), confidence(spec)),
-	})
-
-	if !rig.Trusted(spec) {
-		d.Note = "unverified — nobody has confirmed this gear"
-	}
-
-	return wrapReport(d.Render(w))
-}
-
-// chain renders the signal path, in order, one row per piece of gear.
-//
-// Labelled by role rather than by position, because "amp" is what a person
-// reading this wants to find and "3" is not.
-func chain(spec gen.RigSpec) []cli.Field {
-	out := make([]cli.Field, 0, len(spec.Chain))
-
-	for _, e := range spec.Chain {
-		out = append(out, cli.Field{Label: string(e.Role), Value: e.Gear})
-	}
-
-	return out
-}
-
-// confidence reports how far a rig says it should be trusted.
-func confidence(spec gen.RigSpec) gen.Confidence {
-	if spec.Confidence == nil {
-		return gen.ConfidenceLow
-	}
-
-	return *spec.Confidence
-}
-
-// character renders the intent lines, one per row, labelled only once.
-//
-// The label repeats as blank so the values line up in the same column as
-// every other field rather than starting a block of their own.
-func character(spec gen.RigSpec) []cli.Field {
-	if spec.Character == nil || len(*spec.Character) == 0 {
-		return nil
-	}
-
-	out := make([]cli.Field, 0, len(*spec.Character))
-
-	for i, c := range *spec.Character {
-		label := ""
-		if i == 0 {
-			label = "character"
-		}
-
-		out = append(out, cli.Field{Label: label, Value: c.Term})
-	}
-
-	return out
-}
-
-// wrapReport gives a reporting failure the same shape everywhere.
-func wrapReport(err error) error {
-	if err == nil {
-		return nil
-	}
-
-	return fmt.Errorf("reporting: %w", err)
+	return sdk.Recipe{Rig: spec, Variants: departures(all, spec)}, nil
 }

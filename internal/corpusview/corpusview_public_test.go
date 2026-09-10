@@ -21,9 +21,6 @@
 package corpusview_test
 
 import (
-	"bytes"
-	"errors"
-	"io"
 	"path/filepath"
 	"testing"
 
@@ -43,7 +40,10 @@ func (s *CorpusViewPublicTestSuite) opts() corpusview.Options {
 	}
 }
 
-// TestShow prints what the corpus measured.
+// TestShow reads what the corpus measured.
+//
+// What it says about the measurements is the renderer's; this covers which
+// question was asked and what had to be opened to answer it.
 func (s *CorpusViewPublicTestSuite) TestShow() {
 	tests := []struct {
 		name       string
@@ -52,85 +52,42 @@ func (s *CorpusViewPublicTestSuite) TestShow() {
 		// files to read instead of this suite's own.
 		stats   string
 		catalog string
-		// the statistics and catalog this binary ships, rather than fixtures.
+		// the statistics this binary ships, rather than a fixture.
 		builtIn bool
-		deaf    bool
-		// show it three times, for an ordering that must not shuffle.
-		stable bool
 
-		contains []string
+		// a model was asked about, so the catalog comes with the answer.
+		aboutOne bool
 		err      error
 		errText  string
 	}{
 		{
-			name:  "one model's distributions",
-			model: "HD2_AmpSVBeastNrm",
-			contains: []string{
-				// The model is named, not just identified.
-				"Ampeg SVT Nrm",
-				"Drive",
-				// The median is what people actually set.
-				"0.440",
-				// A parameter nobody varies says so.
-				"unanimous",
-			},
-		},
-		{
-			name: "the grammar of a chain",
-			// Every drive in this corpus precedes the amp.
-			contains: []string{"bass", "drive", "100%"},
-		},
-		{
-			name:       "an instrument nobody measured",
-			instrument: "guitar",
-			contains:   []string{"nothing measured"},
-		},
-		{
-			// An unnamed model is shown by identifier rather than hidden.
-			name:     "a model the catalog does not name",
-			model:    "HD2_Cab8x10SVBeast",
-			catalog:  filepath.Join("testdata", "empty-catalog.json"),
-			contains: []string{"HD2_Cab8x10SVBeast"},
-		},
-		{
-			name:  "agreement, graded against each parameter's range",
-			stats: filepath.Join("testdata", "bands.json.gz"),
-			model: "HD2_AmpSVBeastNrm",
-			contains: []string{
-				// Each band must be reachable, or the grading says nothing.
-				"unanimous", "close", "loose", "none",
-				// A parameter the catalog does not carry has no range to
-				// grade against.
-				"Ghost",
-			},
-		},
-		{
-			// Two categories used equally often must not shuffle between
-			// runs.
-			name:   "categories used equally often",
-			stats:  filepath.Join("testdata", "bands.json.gz"),
-			stable: true,
-		},
-		{
-			name:     "the statistics this binary ships",
-			builtIn:  true,
-			contains: []string{"guitar"},
+			name:     "one model's distributions",
+			model:    "HD2_AmpSVBeastNrm",
+			aboutOne: true,
 		},
 		{
 			// The corpus measures whatever presets contained; a catalog for
-			// one device will not carry all of it. Showing the identifier is
-			// more useful than pretending the model does not exist.
+			// one device will not carry all of it. Answering with the
+			// identifier beats pretending the model does not exist.
 			name:     "a measured model the catalog never heard of",
 			stats:    filepath.Join("testdata", "bands.json.gz"),
 			model:    "HD2_GhostModel",
-			contains: []string{"HD2_GhostModel", "Drive"},
+			aboutOne: true,
 		},
 		{
-			name:     "a corpus nobody measured anything from",
-			stats:    filepath.Join("testdata", "empty.json.gz"),
-			contains: []string{"nothing measured"},
+			name: "the grammar of a chain",
 		},
 		{
+			name:       "the grammar of one instrument",
+			instrument: "guitar",
+		},
+		{
+			name:    "the statistics this binary ships",
+			builtIn: true,
+		},
+		{
+			// Refused by the operation rather than drawn as a table with
+			// nothing in it.
 			name:    "a model nobody used",
 			model:   "HD2_NoSuchModel",
 			err:     corpusview.ErrNotMeasured,
@@ -147,16 +104,12 @@ func (s *CorpusViewPublicTestSuite) TestShow() {
 			errText: "decoding",
 		},
 		{
+			// Only a model needs one, so this is the one shape where a
+			// missing catalog is a failure.
 			name:    "a catalog that is not there",
 			model:   "HD2_AmpSVBeastNrm",
 			catalog: filepath.Join("testdata", "no.json"),
 			errText: "catalog",
-		},
-		{name: "a writer that fails on the grammar", deaf: true},
-		{
-			name:  "a writer that fails on a model",
-			model: "HD2_AmpSVBeastNrm",
-			deaf:  true,
 		},
 	}
 
@@ -178,56 +131,38 @@ func (s *CorpusViewPublicTestSuite) TestShow() {
 				o.CatalogPath = tt.catalog
 			}
 
-			if tt.deaf {
-				s.Require().Error(corpusview.Show(&failingWriter{}, o))
+			measured, err := corpusview.Show(o)
+
+			if tt.err != nil || tt.errText != "" {
+				s.Require().Error(err)
+
+				if tt.err != nil {
+					s.Require().ErrorIs(err, tt.err)
+				}
+
+				if tt.errText != "" {
+					s.Require().Contains(err.Error(), tt.errText)
+				}
 
 				return
 			}
 
-			var first string
+			s.Require().NoError(err)
+			s.Require().NotNil(measured.Stats)
+			s.Require().Equal(tt.aboutOne, measured.AboutOne())
+			s.Require().Equal(tt.instrument, measured.Instrument)
 
-			runs := 1
-			if tt.stable {
-				runs = 3
+			if tt.aboutOne {
+				s.Require().Equal(tt.model, string(measured.Model))
+				s.Require().NotNil(measured.Catalog)
+
+				return
 			}
 
-			for range runs {
-				var out bytes.Buffer
-
-				err := corpusview.Show(io.Writer(&out), o)
-
-				if tt.err != nil || tt.errText != "" {
-					s.Require().Error(err)
-
-					if tt.err != nil {
-						s.Require().ErrorIs(err, tt.err)
-					}
-
-					s.Require().Contains(err.Error(), tt.errText)
-
-					return
-				}
-
-				s.Require().NoError(err)
-
-				if first == "" {
-					first = out.String()
-				}
-
-				s.Require().Equal(first, out.String(),
-					"the same corpus must read the same way every run")
-
-				for _, want := range tt.contains {
-					s.Require().Contains(out.String(), want)
-				}
-			}
+			s.Require().Nil(measured.Catalog)
 		})
 	}
 }
-
-type failingWriter struct{}
-
-func (*failingWriter) Write([]byte) (int, error) { return 0, errors.New("boom") }
 
 func TestCorpusViewPublicTestSuite(t *testing.T) {
 	suite.Run(t, new(CorpusViewPublicTestSuite))
