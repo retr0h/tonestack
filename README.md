@@ -77,14 +77,25 @@ writes nothing:
 tonestack presets select --slot 27B
 ```
 
-**Put it on the device.** The destination is overwritten and a device has no
-undo:
+**Put it on the device.** A device has no undo, so whatever the destination held
+is read and kept first, and the write says where it went:
 
 ```bash
 tonestack presets import --preset mike.hlx --slot 07A
 tonestack presets copy   --from 01A --to 02A
 tonestack presets swap   --from 01A --to 02A
 ```
+
+```console
+  kept ~/.local/state/tonestack/presets/07A-20260910-041500.hlx
+
+  Mike Dirnt → 07A
+
+  written
+```
+
+Put one back with `presets import --preset` and the file it names. Override
+where they go with `--backup-dir`.
 
 Every command also takes `--file` for working from an HX Edit backup with no
 device attached.

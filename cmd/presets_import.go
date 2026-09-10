@@ -77,6 +77,8 @@ func init() {
 		"which slot — a label the pedal shows such as 31A, or a number from zero",
 	)
 	f.StringVar(&presetsImportOptions.OutputPath, "out", "", "where to write the edited setlist")
+	f.StringVar(&presetsImportOptions.BackupDir, "backup-dir", "",
+		"where to keep what a device slot held; the state directory by default")
 	f.StringVar(&presetsImportOptions.CatalogPath, "catalog", "",
 		"a catalog to resolve models against, when writing to a device")
 	_ = presetsImportCmd.MarkFlagRequired("preset")

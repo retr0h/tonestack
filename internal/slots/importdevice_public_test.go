@@ -71,6 +71,14 @@ func (s *ImportDevicePublicTestSuite) SetupTest() {
 func (s *ImportDevicePublicTestSuite) TearDownTest() { s.ctrl.Finish() }
 
 // preset is a .hlx the corpus carries, with a real chain in it.
+func (s *ImportDevicePublicTestSuite) answer() []byte {
+	raw, err := os.ReadFile(
+		filepath.Join("..", "..", "pkg", "sdk", "wire", "testdata", "preset.bin"))
+	s.Require().NoError(err)
+
+	return raw
+}
+
 func (s *ImportDevicePublicTestSuite) preset() string {
 	return filepath.Join("..", "..", "pkg", "compile", "testdata", "preset0.hlx")
 }
@@ -122,6 +130,9 @@ func (s *ImportDevicePublicTestSuite) TestImportWith() {
 		// a session that can read but not write.
 		readOnly bool
 		deaf     bool
+		// what the destination slot answers when it is read to be kept.
+		// Empty means it holds nothing.
+		destination string
 
 		// the document that left for the device must hold the file's chain.
 		sent     bool
@@ -161,6 +172,22 @@ func (s *ImportDevicePublicTestSuite) TestImportWith() {
 			writes:  true,
 			deaf:    true,
 			errText: "boom",
+		},
+		{
+			// The destination is read so that what it held is kept. A device
+			// that will not say what is there is one whose slot cannot be
+			// replaced safely.
+			name:        "a destination it cannot read",
+			destination: "refused",
+			errText:     "before replacing it",
+		},
+		{
+			// Something was kept, and the line saying where went nowhere.
+			name:        "a writer it cannot say where the backup went through",
+			writes:      true,
+			destination: "held",
+			deaf:        true,
+			errText:     "boom",
 		},
 		{
 			name:    "gear the model table does not carry",
@@ -212,6 +239,29 @@ func (s *ImportDevicePublicTestSuite) TestImportWith() {
 				dev = mocks.NewMockEditor(s.ctrl)
 			}
 
+			// The destination is read before it is replaced, so that what it
+			// held is kept. An empty answer is a slot with nothing in it,
+			// which is nothing to lose rather than a reason to stop.
+			// Exactly once, and only where the write gets far enough to
+			// reach it. The controller is shared across these rows, so an
+			// expectation left standing would answer a later one's call.
+			if tt.writes || tt.refuses || tt.destination != "" {
+				switch tt.destination {
+				case "refused":
+					s.dev.MockEditor.EXPECT().
+						ReadPreset(gomock.Any(), 0, 7).
+						Return(nil, errors.New("boom"))
+				case "held":
+					s.dev.MockEditor.EXPECT().
+						ReadPreset(gomock.Any(), 0, 7).
+						Return(s.answer(), nil)
+				default:
+					s.dev.MockEditor.EXPECT().
+						ReadPreset(gomock.Any(), 0, 7).
+						Return(nil, nil)
+				}
+			}
+
 			var out bytes.Buffer
 
 			w := io.Writer(&out)
@@ -221,6 +271,7 @@ func (s *ImportDevicePublicTestSuite) TestImportWith() {
 
 			err := slots.ImportWith(s.T().Context(), w, dev, slots.ImportOptions{
 				File: file, Slot: 7, CatalogPath: tt.catalog,
+				BackupDir: s.T().TempDir(),
 			})
 
 			if tt.errText != "" {
@@ -270,6 +321,11 @@ func (s *ImportDevicePublicTestSuite) TestImportDevice() {
 			defer func() { *slots.OpenDevice = restore }()
 
 			if tt.attached {
+				// The destination is read first, so what it held is kept.
+				s.dev.MockEditor.EXPECT().
+					ReadPreset(gomock.Any(), 0, 7).
+					Return(nil, nil)
+
 				s.dev.MockWriter.EXPECT().
 					WriteNamedPreset(
 						gomock.Any(), gomock.Any(), gomock.Any(),
@@ -288,7 +344,9 @@ func (s *ImportDevicePublicTestSuite) TestImportDevice() {
 			var out bytes.Buffer
 
 			err := slots.ImportDevice(s.T().Context(), &out,
-				slots.ImportOptions{File: s.preset(), Slot: 7})
+				slots.ImportOptions{
+					File: s.preset(), Slot: 7, BackupDir: s.T().TempDir(),
+				})
 
 			if tt.errText != "" {
 				s.Require().ErrorContains(err, tt.errText)

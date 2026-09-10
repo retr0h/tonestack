@@ -114,6 +114,12 @@ preset be compared against what the device stores. Stage C closes the loop.
 data and losing someone's tone to a bug in our sequence counters is not
 recoverable by apology.
 
+Stage C shipped without this, and it took until somebody re-read this record to
+notice. Every device write reads its destination first now and keeps it as a
+`.hlx` under the state directory, and a write whose backup fails does not
+happen. What that costs is one extra read per destination, except on a swap,
+which has already read both slots to move them.
+
 ## Testing
 
 The device cannot be assumed present, so:

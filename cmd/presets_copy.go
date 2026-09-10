@@ -65,6 +65,10 @@ func editFlags(c *cobra.Command, o *slots.EditOptions) {
 	f.Var(slot.NewValue(&o.ToSlot), "to",
 		"slot to write — a label such as 31A, or a number from zero")
 	f.StringVar(&o.OutputPath, "out", "", "where to write the edited setlist")
+	f.StringVar(&o.CatalogPath, "catalog", "",
+		"a generated catalog to use instead of the built-in one")
+	f.StringVar(&o.BackupDir, "backup-dir", "",
+		"where to keep what a device slot held; the state directory by default")
 	_ = c.MarkFlagRequired("from")
 	_ = c.MarkFlagRequired("to")
 	// Editing a backup writes a new file, and editing a device writes the
