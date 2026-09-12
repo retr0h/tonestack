@@ -253,7 +253,7 @@ func (s *FillPublicTestSuite) TestResolveFill() {
 			var first []catalog.ModelID
 
 			for range 3 {
-				spec, added, err := compile.Resolve(
+				spec, added, _, err := compile.Resolve(
 					recipe(gear, "", tt.extra...), s.cat, stats)
 
 				s.Require().NoError(err)

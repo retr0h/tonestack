@@ -65,7 +65,7 @@ func (*Compiler) Resolve(
 	spec riggen.RigSpec,
 	cat *catalog.Catalog,
 	stats *corpus.Stats,
-) (chain.Chain, []Added, error) {
+) (chain.Chain, []Added, []Moved, error) {
 	return Resolve(spec, cat, stats)
 }
 

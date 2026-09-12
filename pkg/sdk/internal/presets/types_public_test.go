@@ -89,7 +89,7 @@ func (s *TypesPublicTestSuite) TestCompiler() {
 
 	comp := presetmocks.NewMockCompiler(s.ctrl)
 	comp.EXPECT().Resolve(gomock.Any(), gomock.Any(), gomock.Any()).
-		Return(chain.Chain{}, nil, want)
+		Return(chain.Chain{}, nil, nil, want)
 
 	_, err := presets.Make(s.options(presets.Deps{Compiler: comp}))
 
