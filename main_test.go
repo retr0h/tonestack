@@ -241,6 +241,42 @@ func (s *MainTestSuite) TestEveryPathThisRepositoryNamesExists() {
 	s.Require().NoError(err)
 }
 
+// TestTheCLIStandsAlone asserts the CLI half could be its own repository.
+//
+// The mirror of TestTheSDKStandsAlone, for the other end. main.go, cmd/ and
+// the rendering are what a tonestack-cli would be, and the only thing it may
+// reach in this module is the library it would import as a dependency.
+//
+// A generator was the thing that broke it. The two that build the catalog and
+// the statistics sat in root internal/ and cmd/ called them directly, so the
+// CLI could not have left without taking a build tool for a licensed HX Edit
+// installation with it. They belong to the library, whose data they write.
+func (s *MainTestSuite) TestTheCLIStandsAlone() {
+	half := map[string]bool{
+		mod:                  true,
+		mod + "cmd":          true,
+		mod + "internal/cli": true,
+	}
+
+	for _, pkg := range []string{".", "./cmd", "./internal/cli"} {
+		out, err := exec.Command("go", "list", "-deps", pkg).Output()
+		s.Require().NoError(err)
+
+		for _, dep := range strings.Fields(string(out)) {
+			if !strings.HasPrefix(dep, mod) {
+				continue
+			}
+
+			if half[dep] || strings.HasPrefix(dep, mod+"pkg/sdk") {
+				continue
+			}
+
+			s.Require().Fail("reaches too far",
+				"%s reaches %s, which a tonestack-cli would not have", pkg, dep)
+		}
+	}
+}
+
 func TestMainTestSuite(t *testing.T) {
 	suite.Run(t, new(MainTestSuite))
 }

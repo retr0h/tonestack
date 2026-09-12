@@ -1,0 +1,48 @@
+// Copyright (c) 2026 John Dewey
+
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to
+// deal in the Software without restriction, including without limitation the
+// rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+// sell copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+// DEALINGS IN THE SOFTWARE.
+
+package result
+
+import "github.com/retr0h/tonestack/pkg/sdk/corpus"
+
+// Catalogued is what a catalog generation run produced.
+type Catalogued struct {
+	// Path is the catalog that was written.
+	Path string
+	// Device is the hardware it describes.
+	Device string
+	// Source says which release it was extracted from. A catalog is only
+	// true of the one it came from, so it says which.
+	Source string
+	// Blocks is how many the device has.
+	Blocks int
+	// Named is how many of those map to real-world gear. The rest are
+	// modelled but unattributed, and the gap is the work left.
+	Named int
+}
+
+// Counted is what a corpus measuring run produced.
+type Counted struct {
+	// Path is the statistics file that was written.
+	Path string
+	// Stats are the measurements themselves, so nothing has to read the
+	// file back to find out what went into it.
+	Stats *corpus.Stats
+}

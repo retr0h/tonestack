@@ -24,8 +24,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/retr0h/tonestack/internal/catalogen"
-	"github.com/retr0h/tonestack/internal/corpusgen"
+	"github.com/retr0h/tonestack/pkg/sdk"
 	"github.com/retr0h/tonestack/pkg/sdk/corpus"
 )
 
@@ -34,7 +33,7 @@ import (
 // The gear count is the number worth reading: a catalog names every block a
 // device has, and how many of those anybody can ask for by the name of the
 // thing they emulate is the gap between a model list and knowledge.
-func Catalogued(w io.Writer, r catalogen.Result) error {
+func Catalogued(w io.Writer, r sdk.Catalogued) error {
 	_, err := fmt.Fprintf(w,
 		"wrote %s: %d blocks for %s from %s, %d mapped to real gear\n",
 		r.Path, r.Blocks, r.Device, r.Source, r.Named)
@@ -46,7 +45,7 @@ func Catalogued(w io.Writer, r catalogen.Result) error {
 }
 
 // Counted says what a corpus measuring run produced.
-func Counted(w io.Writer, r corpusgen.Result) error {
+func Counted(w io.Writer, r sdk.Counted) error {
 	var measured int
 
 	for _, m := range r.Stats.Models {

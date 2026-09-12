@@ -22,11 +22,11 @@ package cmd
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/retr0h/tonestack/internal/catalogen"
 	"github.com/retr0h/tonestack/internal/cli"
+	"github.com/retr0h/tonestack/pkg/sdk"
 )
 
-var catalogGenerateOptions catalogen.Options
+var catalogGenerateOptions sdk.Catalog
 
 // catalogGenerateCmd represents the catalog generate command.
 var catalogGenerateCmd = &cobra.Command{
@@ -34,7 +34,7 @@ var catalogGenerateCmd = &cobra.Command{
 	Short: "Rebuild the catalog from HX Edit's model definitions",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		built, err := catalogen.Run(catalogGenerateOptions)
+		built, err := sdk.New().GenerateCatalog(catalogGenerateOptions)
 		if err != nil {
 			return err
 		}

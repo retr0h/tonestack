@@ -82,6 +82,11 @@ type (
 
 	// Measured is what the corpus recorded, and what was asked of it.
 	Measured = result.Measured
+
+	// Catalogued is what a catalog generation run produced.
+	Catalogued = result.Catalogued
+	// Counted is what a corpus measuring run produced.
+	Counted = result.Counted
 )
 
 // What a write did, named so a caller can match on it.
