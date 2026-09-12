@@ -20,4 +20,4 @@
 
 package specdoc
 
-//go:generate go run ./gen
+//go:generate go run ./docgen

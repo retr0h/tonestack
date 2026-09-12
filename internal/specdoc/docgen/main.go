@@ -18,7 +18,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// Command gen writes the RigSpec grammar page.
+// Command docgen writes the RigSpec grammar page.
 //
 // Run by `just generate` through the directive in generate.go, and checked by
 // a test that fails when the page and the contract disagree.
@@ -44,7 +44,7 @@ func out() (string, error) {
 		return "", errors.New("cannot tell where this generator lives")
 	}
 
-	// internal/specdoc/gen/main.go, so the repository is three above it.
+	// internal/specdoc/docgen/main.go, so the repository is three above it.
 	root := filepath.Dir(filepath.Dir(filepath.Dir(filepath.Dir(self))))
 
 	return filepath.Join(root, "docs", "rigspec.md"), nil
