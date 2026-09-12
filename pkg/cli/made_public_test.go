@@ -146,6 +146,22 @@ func (s *MadePublicTestSuite) TestMade() {
 			want: []string{"short-decay — nothing acts on this yet"},
 		},
 		{
+			// Not a silence at all: the rig asked for what the chain
+			// already is, and nothing needed turning.
+			name: "a word the chain already answers",
+			in: s.made(func(m *sdk.Made) {
+				m.Moved = []sdk.Moved{
+					{
+						Term:    "dry",
+						Already: "this chain has no reverb, so it is already dry",
+					},
+				}
+			}),
+			want: []string{
+				"dry — this chain has no reverb, so it is already dry",
+			},
+		},
+		{
 			// The other silence, and a different answer: this word has a
 			// control behind it, and this chain has nowhere to put it. The
 			// LA Studio Comp is an opto and genuinely has no attack knob.

@@ -45,6 +45,10 @@ type Moved struct {
 	// different answer: one says this rig cannot hear it, the other says
 	// nobody has taught the project to listen.
 	Because string
+	// Already says how the chain answers this word without a knob being
+	// turned. A rig asking for no room, in a chain holding no reverb, asked
+	// for something it already has.
+	Already string
 }
 
 // Acted says whether the term moved anything.
@@ -57,6 +61,9 @@ func (m Moved) Contested() bool { return m.Against != "" }
 // word moved nothing.
 func (m Moved) Unanswered() bool { return m.Because != "" }
 
+// Holds says whether the chain already answers the word as built.
+func (m Moved) Holds() bool { return m.Already != "" }
+
 // turn is one term's effect: which kind of block, which parameter, and how
 // many steps along it.
 //
@@ -68,6 +75,11 @@ type turn struct {
 	category catalog.Category
 	param    string
 	steps    float64
+	// absenceMeans is what it means for the chain to hold no block of this
+	// kind, where that already answers the term. Empty where it does not:
+	// a chain with no compressor is not a chain with a soft attack, but a
+	// chain with no reverb really does have no room on it.
+	absenceMeans string
 }
 
 // turns is what a term does, for the terms that do anything.
@@ -98,7 +110,10 @@ var turns = map[string]turn{
 
 	// How much of the room is on the part, which is the reverb's own
 	// question and nothing to do with the amplifier.
-	"dry":   {category: catalog.CategoryReverb, param: "Mix", steps: -1},
+	"dry": {
+		category: catalog.CategoryReverb, param: "Mix", steps: -1,
+		absenceMeans: "this chain has no reverb, so it is already dry",
+	},
 	"roomy": {category: catalog.CategoryReverb, param: "Mix", steps: 1},
 
 	// A compressor's attack decides how much of the front of a note gets
@@ -151,8 +166,18 @@ func move(
 
 		at := indexOf(blocks, t.category)
 		if at < 0 {
-			// Something would answer for this word. This chain holds none
-			// of it, which is the rig's shape rather than a gap here.
+			// A word can ask for what the chain already is. Mix at zero and
+			// no reverb at all are the same signal, so a rig asking to stay
+			// dry got what it asked for and nothing is missing.
+			if t.absenceMeans != "" {
+				out = append(out, Moved{Term: term, Already: t.absenceMeans})
+
+				continue
+			}
+
+			// Otherwise something would answer for this word and this chain
+			// holds none of it, which is the rig's shape rather than a gap
+			// here.
 			out = append(out, Moved{
 				Term:    term,
 				Because: "this chain holds no " + string(t.category),

@@ -195,6 +195,7 @@ func movedFrom(moved []compile.Moved) []result.Moved {
 			To:      m.To,
 			Against: m.Against,
 			Because: m.Because,
+			Already: m.Already,
 		})
 	}
 

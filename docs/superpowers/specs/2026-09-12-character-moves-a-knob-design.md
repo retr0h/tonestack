@@ -63,10 +63,9 @@ the instrument rather than the rig: `quiet-strings` is a left hand, and
 `decay` is the near miss, with three plausible controls and no rule for choosing
 between them.
 
-## The two silences
+## When a word turns nothing
 
-A word can move nothing for two different reasons, and telling somebody they are
-the same reason is a lie in either direction.
+Three reasons, and calling any of them by another's name is a lie.
 
 Nothing acts on `short-decay`, anywhere, in any chain. That is this project's
 gap, and the build says *nothing acts on this yet*.
@@ -74,8 +73,14 @@ gap, and the build says *nothing acts on this yet*.
 `audible-pick-attack` is different. It has a control behind it, and this chain
 has nowhere to put it: the LA Studio Comp is an opto emulation with no attack
 knob at all. The build says *the LA Studio Comp has no Attack*, which is a fact
-about the rig somebody can act on, and the same shape covers a chain holding no
-reverb at all when a rig asks for room.
+about the rig somebody can act on, and the same shape covers a chain asking for
+room while holding no reverb.
+
+`dry` is neither. Mix at zero and no reverb at all are the same signal, so a rig
+asking to stay dry in a chain holding no reverb asked for what it already has.
+Nothing was turned and nothing is missing. A `turn` says where that is true, per
+axis, because it does not generalise: a chain with no compressor is not a chain
+with a soft attack.
 
 A block that lacks the parameter is skipped rather than failed. Not every
 amplifier models sag.
