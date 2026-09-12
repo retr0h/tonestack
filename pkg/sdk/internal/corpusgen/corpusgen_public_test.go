@@ -83,8 +83,10 @@ func (s *CorpusgenPublicTestSuite) TestRun() {
 		chains     int
 		before     map[catalog.Category]float64
 		noCategory []catalog.Category
-		grammars   int
-		presets    int
+		// how many chains for the instrument held each model.
+		models   map[catalog.ModelID]int
+		grammars int
+		presets  int
 
 		err     error
 		errText string
@@ -118,7 +120,18 @@ func (s *CorpusgenPublicTestSuite) TestRun() {
 			// tagged neither, so a chain built around one belongs to no
 			// instrument's habits.
 			noCategory: []catalog.Category{catalog.CategoryUtility},
-			grammars:   1,
+			// Counted per instrument, once per chain. The Minotaur sits in
+			// nine bass chains, twice in one of them, and in two presets that
+			// belong to no instrument, one with no amp and one built around a
+			// preamp; those two are not counted, and the doubled one counts
+			// once. A model the catalog does not know is not counted at all.
+			models: map[catalog.ModelID]int{
+				"HD2_AmpSVBeastNrm": 14,
+				"HD2_DistMinotaur":  9,
+				"HD2_EqTest":        2,
+				"HD2_NotInCatalog":  0,
+			},
+			grammars: 1,
 		},
 		{
 			// A median over too few presets is an anecdote with a decimal
@@ -236,6 +249,10 @@ func (s *CorpusgenPublicTestSuite) TestRun() {
 
 				for _, cat := range tt.noCategory {
 					s.Require().NotContains(g.Categories, cat)
+				}
+
+				for id, want := range tt.models {
+					s.Require().Equal(want, g.Models[id], "chains holding %s", id)
 				}
 			}
 

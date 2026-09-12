@@ -82,6 +82,14 @@ type Grammar struct {
 	Chains int `json:"chains"`
 	// Categories is keyed by what a block does.
 	Categories map[catalog.Category]CategoryStats `json:"categories"`
+	// Models counts the chains for this instrument holding each model.
+	//
+	// Beside the categories rather than in Stats.Models, because a total
+	// across instruments is a guitar figure: guitar chains outnumber bass
+	// twenty to one, so the compressor bass players reach for loses to the
+	// one guitar players do. Empty in statistics measured before it was
+	// counted.
+	Models map[catalog.ModelID]int `json:"models,omitempty"`
 }
 
 // CategoryStats is how often a kind of block appears, and where it sits.

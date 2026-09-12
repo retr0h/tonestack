@@ -51,8 +51,8 @@ type Added struct {
 //
 // Only categories missing from the chain are considered, and only those the
 // corpus shows to be near-universal for this instrument. What gets added is
-// the model most people reach for, which is the only defensible choice when
-// nobody named one.
+// the model players of this instrument reach for most, which is the only
+// defensible choice when nobody named one.
 func fill(
 	blocks []catalog.Block,
 	cat *catalog.Catalog,
@@ -131,7 +131,13 @@ func insert(
 	return append(out, blocks[at:]...)
 }
 
-// commonest returns the model of a category that the corpus saw most often.
+// commonest returns the model of a category that chains for this instrument
+// held most often.
+//
+// Counted per instrument where the statistics carry it. A total across every
+// preset is a guitar figure, and on it bass gets the LA Studio Comp, which
+// guitar players use most and bass players do not. Statistics measured before
+// the count existed fall back to that total, which is what they have.
 //
 // Ties break on the identifier so a chain does not change between runs for
 // reasons nobody chose.
@@ -146,6 +152,8 @@ func commonest(
 		uses int
 		set  bool
 	)
+
+	byInstrument := stats.Grammar[instrument].Models
 
 	for id, ms := range stats.Models {
 		b, known := cat.Block(id)
@@ -165,8 +173,17 @@ func commonest(
 			continue
 		}
 
-		if !set || ms.Uses > uses || (ms.Uses == uses && id < best.ID) {
-			best, uses, set = b, ms.Uses, true
+		n := ms.Uses
+		if len(byInstrument) > 0 {
+			// A model no chain for this instrument held is not what its
+			// players reach for, however popular it is elsewhere.
+			if n = byInstrument[id]; n == 0 {
+				continue
+			}
+		}
+
+		if !set || n > uses || (n == uses && id < best.ID) {
+			best, uses, set = b, n, true
 		}
 	}
 
