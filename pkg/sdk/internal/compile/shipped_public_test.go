@@ -74,6 +74,36 @@ func (s *ShippedPublicTestSuite) TestEveryShippedRigUsesTheVocabulary() {
 	}
 }
 
+// TestEveryShippedRigAnswersEachAxisOnce covers a rig arguing with itself.
+//
+// A rig claiming two terms from one axis has claimed nothing: the two cancel,
+// the control stays where the corpus left it, and a build says so on every
+// run. mike-dirnt shipped claiming both minimal-drive and grit-on-attack, and
+// nothing caught it until the words started moving knobs.
+func (s *ShippedPublicTestSuite) TestEveryShippedRigAnswersEachAxisOnce() {
+	paths, err := fs.Glob(rigs.FS, filepath.Join("*", "*.yaml"))
+	s.Require().NoError(err)
+	s.Require().NotEmpty(paths, "no rigs found to check")
+
+	for _, path := range paths {
+		s.Run(filepath.Base(path), func() {
+			f, err := rigs.FS.Open(path)
+			s.Require().NoError(err)
+
+			defer func() { s.Require().NoError(f.Close()) }()
+
+			spec, err := rig.Load(f)
+			s.Require().NoError(err)
+
+			for _, c := range compile.CheckAxes(spec) {
+				s.Require().Fail("one axis answered twice",
+					"%q: %v. Keep the term that says the most and drop the "+
+						"rest, or neither will be applied.", c.Axis, c.Terms)
+			}
+		})
+	}
+}
+
 // TestEveryExampleUsesTheVocabulary covers the rigs the docs point at.
 func (s *ShippedPublicTestSuite) TestEveryExampleUsesTheVocabulary() {
 	paths, err := filepath.Glob(
@@ -92,6 +122,7 @@ func (s *ShippedPublicTestSuite) TestEveryExampleUsesTheVocabulary() {
 			s.Require().NoError(err)
 
 			s.Require().Empty(compile.CheckCharacter(spec))
+			s.Require().Empty(compile.CheckAxes(spec))
 		})
 	}
 }

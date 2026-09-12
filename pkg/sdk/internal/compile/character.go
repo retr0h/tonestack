@@ -98,6 +98,56 @@ func CheckCharacter(spec rig.Spec) []UnknownTerm {
 	return out
 }
 
+// ContestedAxis is one question a rig answered twice.
+//
+// Saying "mid-forward" has already said "not scooped". A rig naming both has
+// named a direction and its opposite, and the two cancel: apply them in turn
+// and the control lands where it started.
+type ContestedAxis struct {
+	// Axis is the question, named the way the vocabulary names it.
+	Axis string
+	// Terms are the words the rig used on it, in the order it used them.
+	Terms []string
+}
+
+// CheckAxes reports the axes a rig answered more than once.
+//
+// A build already says this out loud for any rig, and that is the right answer
+// for somebody else's: a description is theirs to write. The rigs this project
+// ships are the examples everybody copies, so they are held to one term per
+// axis by a test instead.
+func CheckAxes(spec rig.Spec) []ContestedAxis {
+	if spec.Character == nil {
+		return nil
+	}
+
+	seen := map[string][]string{}
+	order := []string(nil)
+
+	for _, c := range *spec.Character {
+		axis, ok := axisOf(c.Term)
+		if !ok {
+			continue
+		}
+
+		if len(seen[axis]) == 0 {
+			order = append(order, axis)
+		}
+
+		seen[axis] = append(seen[axis], c.Term)
+	}
+
+	out := []ContestedAxis(nil)
+
+	for _, axis := range order {
+		if len(seen[axis]) > 1 {
+			out = append(out, ContestedAxis{Axis: axis, Terms: seen[axis]})
+		}
+	}
+
+	return out
+}
+
 // closest returns the terms sharing the most words with what was written.
 //
 // Word overlap rather than the prefix match a gear name gets. What people

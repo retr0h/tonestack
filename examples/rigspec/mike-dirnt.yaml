@@ -111,9 +111,10 @@ character:
   - term: mid-forward
     evidence:
       - { kind: llm }
-  - term: minimal-drive
-    evidence:
-      - { kind: llm }
+  # One term per axis. This rig used to claim minimal-drive as well, which is
+  # the same question answered twice: apply both and the knob lands where it
+  # started. grit-on-attack is the more specific of the two, and it says where
+  # the dirt lives rather than only how much there is.
   - term: grit-on-attack
     evidence:
       - { kind: llm }

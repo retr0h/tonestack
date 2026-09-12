@@ -119,6 +119,62 @@ func (s *CharacterPublicTestSuite) TestCheckCharacter() {
 	}
 }
 
+// TestCheckAxes covers a rig answering one question twice.
+func (s *CharacterPublicTestSuite) TestCheckAxes() {
+	tests := []struct {
+		name  string
+		terms []string
+		want  []compile.ContestedAxis
+	}{
+		{
+			name:  "a direction and its opposite",
+			terms: []string{"mid-forward", "scooped"},
+			want: []compile.ContestedAxis{
+				{Axis: "mids", Terms: []string{"mid-forward", "scooped"}},
+			},
+		},
+		{
+			// Not opposites. Two adjacent points on one scale still answer
+			// the same question, and still cancel.
+			name:  "two points on one scale",
+			terms: []string{"minimal-drive", "grit-on-attack"},
+			want: []compile.ContestedAxis{
+				{Axis: "drive", Terms: []string{"minimal-drive", "grit-on-attack"}},
+			},
+		},
+		{
+			name:  "one term per axis",
+			terms: []string{"mid-forward", "saturated", "roomy"},
+		},
+		{
+			// Reported elsewhere as an unknown term. Nothing knows which
+			// axis it belongs to, so it contests nothing.
+			name:  "a word the vocabulary does not carry",
+			terms: []string{"sounds like a wet paper bag", "mid-forward"},
+		},
+		{
+			name: "a rig that describes nothing",
+		},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			spec := rig.Spec{}
+
+			if tt.terms != nil {
+				c := []rig.CharacterTerm(nil)
+				for _, term := range tt.terms {
+					c = append(c, rig.CharacterTerm{Term: term})
+				}
+
+				spec.Character = &c
+			}
+
+			s.Require().Equal(tt.want, compile.CheckAxes(spec))
+		})
+	}
+}
+
 func TestCharacterPublicTestSuite(t *testing.T) {
 	suite.Run(t, new(CharacterPublicTestSuite))
 }

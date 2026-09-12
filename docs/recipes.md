@@ -142,16 +142,20 @@ that control, so a build reports what it heard and what it did about it:
 ```console
 $ tonestack presets make --id mike-dirnt
   heard mid-forward — Mid 0.79 to 0.89
-  heard minimal-drive — another term already answered for drive, so neither moved
-  heard grit-on-attack — another term already answered for drive, so neither moved
+  heard grit-on-attack — Drive 0.60 to 0.76
   heard tight-low-end — Sag 0.50 to 0.40
   heard short-decay — nothing acts on this yet
   heard audible-pick-attack — the LA Studio Comp has no Attack
 ```
 
-`mike-dirnt` claims two points on the drive scale, which is one question
-answered twice. Applying both lands the knob where it started, so neither is
-applied and the build names the axis instead.
+Say two words from one axis and you have answered one question twice. Applying
+both lands the knob where it started, so neither is applied and the build names
+the axis instead:
+
+```console
+  heard minimal-drive — another term already answered for drive, so neither moved
+  heard grit-on-attack — another term already answered for drive, so neither moved
+```
 
 Those last two lines say different things. Nothing anywhere acts on
 `short-decay`, and that is this project's gap. `audible-pick-attack` has a
