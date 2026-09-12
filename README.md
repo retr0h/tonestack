@@ -40,100 +40,69 @@ go build .
 
 </details>
 
-## Usage
+## Quickstart
 
-Plug in the Helix and quit HX Edit. It holds the device open, and nothing else
-can talk to the Helix while it runs.
-
-**Read the device.** All three talk to the hardware over USB:
+The device catalog and a set of player rigs are built into the binary. Building
+a preset needs no HX Edit and no Helix.
 
 ```bash
-tonestack presets list                              # every slot
-tonestack presets show   --slot 31A                 # one slot, as a rig
-tonestack presets export --slot 31A --out lead.yaml # the same, to a file
-```
-
-Slots are addressed the way the pedal labels them, `01A` through `42C`.
-
-**Build a preset.** Name gear the way you say it. "Ampeg SVT", never a model
-identifier:
-
-```bash
-tonestack catalog list --search ampeg --subcategory bass    # is it modelled?
-
-tonestack recipes new \
-  --id mike-dirnt --name "Mike Dirnt" --band "Green Day" \
-  --instrument bass --amp "Ampeg SVT" --cab "Ampeg 8x10"
-
+tonestack recipes list                                  # the rigs that ship
 tonestack presets make --id mike-dirnt --out mike.hlx
 ```
 
-Then `HX Edit → Import`, and play it.
+```console
+  Mike Dirnt
 
-**Switch presets from here.** This loads a preset the way a footswitch does, and
-writes nothing:
+  ●  0.0  LA Studio Comp    Teletronix® LA-2A®          5.8
+  ●  0.1  Ampeg SVT Brt     Ampeg SVT (bright channel)  26.6
+  ●  0.2  8x10 Ampeg SVT-E                              7.2
 
-```bash
-tonestack presets select --slot 27B
+  dsp0  █████████░░░░░░░░░░░░░░░  39.6%
+
+  added LA Studio Comp — almost every chain has one (88% of chains)
+
+  heard mid-forward — Mid 0.79 to 0.89
+  heard grit-on-attack — Drive 0.60 to 0.76
+  heard tight-low-end — Sag 0.50 to 0.40
+  heard short-decay — nothing acts on this yet
+  heard audible-pick-attack — the LA Studio Comp has no Attack
+
+  [ok] wrote mike.hlx
 ```
 
-**Put it on the device.** A device has no undo, so whatever the destination held
-is read and kept first, and the write says where it went:
+Read that before you plug anything in. Each block names the real gear it models
+and what it costs. `added` is what tonestack put in that the rig did not ask
+for, and `heard` is what each word in the rig's description did to a knob.
+
+Then `HX Edit → Import`. Or, with the Helix plugged in and HX Edit quit, put it
+straight into a slot. Whatever the slot held is saved to a file first. This one
+needs a build that can reach USB, which the released binaries are not; see
+*Other ways* above.
 
 ```bash
 tonestack presets import --preset mike.hlx --slot 07A
-tonestack presets copy   --from 01A --to 02A
-tonestack presets swap   --from 01A --to 02A
 ```
 
-```console
-  kept ~/.local/state/tonestack/presets/07A-20260910-041500.hlx
+## Next
 
-  Mike Dirnt → 07A
+| To                                                    | Read                                                            |
+| ----------------------------------------------------- | --------------------------------------------------------------- |
+| build a preset for a player who is not in the list    | [Create a rig](docs/workflows.md#create-a-rig-for-a-player)     |
+| use a plugged-in Helix                                | [Read the device](docs/workflows.md#read-what-a-device-holds)   |
+| change a preset after you have played it              | [Correct a rig](docs/workflows.md#correct-a-rig-you-have-heard) |
+| see every flag a command takes                        | `tonestack <command> --help`                                    |
+| understand how it works                               | [docs/](docs/README.md)                                         |
+| work on tonestack, including regenerating the catalog | [CONTRIBUTING.md](CONTRIBUTING.md)                              |
 
-  written
-```
+[docs/workflows.md](docs/workflows.md) is the usage guide, for everything past
+the quickstart.
 
-Put one back with `presets import --preset` and the file it names. Override
-where they go with `--backup-dir`.
-
-Every command also takes `--file` for working from an HX Edit backup with no
-device attached.
-
-**Or just ask.** An agent runs those commands for you. The part worth doing
-yourself is listening:
-
-> What's on my Helix?
+**Or ask an agent.** It runs the commands. The part worth doing yourself is
+listening:
 
 > Build me a Mike Dirnt bass tone.
 
 > Too clunky. Loosen the low end and put the drive back.
-
-Claude edits the rig, rebuilds it, and writes down what you asked for and what
-you thought of the result. That log is the only record of a human ear in the
-system. [docs/workflows.md](docs/workflows.md) has the full loop.
-
-## Documentation
-
-Start with [`docs/workflows.md`](docs/workflows.md). It says what to do, in
-order, for building a rig, reading a device, and correcting a preset.
-
-- [`docs/recipes.md`](docs/recipes.md) covers how to write a rig by hand.
-- [`docs/rigspec.md`](docs/rigspec.md) is every field of the format, generated
-  from the contract: what each one holds, and what it may say.
-- [`docs/knowledge.md`](docs/knowledge.md) says where the gear knowledge comes
-  from and how far each source can be trusted.
-- [`docs/catalog.md`](docs/catalog.md) covers what the device can do, and how
-  that gets extracted from HX Edit.
-- [`docs/protocol.md`](docs/protocol.md) documents the USB protocol.
-- [`pkg/sdk/rig/data/rigspec.openapi.yaml`](pkg/sdk/rig/data/rigspec.openapi.yaml)
-  is the RigSpec contract, embedded in the package that reads it.
-- [`resources/schemas/`](resources/schemas/) holds the generated device catalog,
-  the gear map, and the preset corpus.
-- [`pkg/sdk/rigs/`](pkg/sdk/rigs/) holds the curated rigs that ship in the
-  binary.
-- [Package documentation](https://pkg.go.dev/github.com/retr0h/tonestack) is on
-  pkg.go.dev.
 
 ## Contributing
 

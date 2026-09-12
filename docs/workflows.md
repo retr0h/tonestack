@@ -2,10 +2,17 @@
 
 What to actually do, in order, for the things people come here to do.
 
-Everything else under [docs/](README.md) explains how one piece works. This
-explains which pieces to use and when. If you are an agent being asked for help
-with any of the tasks below, start here and follow the links rather than reading
-everything.
+This is the usage guide. Everything else under [docs/](README.md) explains how
+one piece works; this says which pieces to use and when. If you are an agent
+being asked for help with any of the tasks below, start here and follow the
+links rather than reading everything.
+
+Building a preset needs no device and no HX Edit, because the catalog, the
+corpus statistics and the rigs are built into the binary. Only the commands that
+read or write a device need a Helix plugged in, HX Edit quit, and a build with
+USB support, which the released binaries do not have. The
+[README](../README.md#install) says how to build one. Every command explains its
+own flags with `tonestack <command> --help`.
 
 | I want to…                              | Go to                                          |
 | --------------------------------------- | ---------------------------------------------- |
@@ -13,6 +20,7 @@ everything.
 | see what my device holds                | [Read the device](#read-what-a-device-holds)   |
 | change a rig that already exists        | [Correct a rig](#correct-a-rig-you-have-heard) |
 | get a preset onto the hardware          | [Load it](#get-it-onto-the-device)             |
+| switch presets, or move them around     | [Switch and rearrange](#switch-and-rearrange)  |
 | add knowledge from a video or recording | [Add evidence](#add-evidence-from-a-recording) |
 | know what the device can do at all      | [Ask the catalog](#ask-what-is-possible)       |
 
@@ -76,8 +84,8 @@ tonestack presets make --id mike-dirnt --out mike.hlx
 ```
 
 The output is the point. It reports every block chosen, what real gear each one
-emulates, what it costs, how much of the processor is used, and anything added
-that the rig did not ask for:
+emulates, what it costs, how much of the processor is used, anything added that
+the rig did not ask for, and what each word in the rig's `character` did:
 
 ```text
   ●  0.0  LA Studio Comp    Teletronix® LA-2A®          5.8
@@ -86,8 +94,17 @@ that the rig did not ask for:
 
   dsp0  █████████░░░░░░░░░░░░░░░  39.6%
 
-  added LA Studio Comp: almost every chain has one (88% of chains)
+  added LA Studio Comp — almost every chain has one (88% of chains)
+
+  heard mid-forward — Mid 0.79 to 0.89
+  heard grit-on-attack — Drive 0.60 to 0.76
+  heard tight-low-end — Sag 0.50 to 0.40
+  heard short-decay — nothing acts on this yet
+  heard audible-pick-attack — the LA Studio Comp has no Attack
 ```
+
+[recipes.md](recipes.md#character-describes-the-result-not-the-control) explains
+the `heard` lines.
 
 Read it before you plug anything in. A wrong amp is a bad miss that nothing
 downstream recovers from, and it is visible right there.
@@ -173,14 +190,29 @@ chooses.
 
 ## Get it onto the device
 
-Writing over USB is **not implemented**. Today the path is through HX Edit:
+Three ways, depending on what you have open.
+
+**Straight to the device.** Plug in the Helix and quit HX Edit:
 
 ```bash
-tonestack presets make --id mike-dirnt --out mike.hlx
-# HX Edit → Import
+tonestack presets import --preset mike.hlx --slot 07A
 ```
 
-Or into a backup, which is better when you want a preset in a particular slot:
+```console
+  kept ~/.local/state/tonestack/presets/07A-20260910-041500.hlx
+
+  Mike Dirnt → 07A
+
+  written
+```
+
+A device has no undo, so whatever the slot held is read and saved first, and the
+output says where. Put it back with `presets import --preset` and that file.
+`--backup-dir` changes where they go.
+
+**Through HX Edit.** `HX Edit → Import` and choose the `.hlx`.
+
+**Into a backup**, with no device attached:
 
 ```bash
 tonestack presets import --file device.hlb --preset mike.hlx \
@@ -188,9 +220,25 @@ tonestack presets import --file device.hlb --preset mike.hlx \
 # HX Edit → Restore
 ```
 
-One caveat worth knowing: a generated `.hlx` carries no routing entries, which
-98.6% of real presets have, and nobody has yet confirmed a device loads one.
-[device.md](device.md) explains what that means and what the fix is.
+Nobody has yet confirmed that a device loads a generated preset and it sounds
+right. The build validating against the catalog is the only claim this project
+can make today; [device.md](device.md) covers what is known about writing.
+
+## Switch and rearrange
+
+These need the Helix plugged in and HX Edit quit, or `--file` to work on a
+backup instead.
+
+```bash
+tonestack presets select --slot 27B              # load it, like a footswitch
+tonestack presets copy   --from 01A --to 02A     # 02A becomes a copy of 01A
+tonestack presets swap   --from 01A --to 02A     # exchange the two
+```
+
+`select` writes nothing. `copy` and `swap` keep what the destination held first,
+the same way `import` does. Moving a preset is a swap: leaving the source empty
+would mean inventing an empty preset, and an empty preset still carries routing
+that differs by model and firmware.
 
 ## Correct a rig you have heard
 
@@ -278,7 +326,7 @@ Two rules beyond the workflows above.
 
 **Say which claim you have.** "The rig validates against the catalog", "HX Edit
 imported the file" and "the hardware loaded it" are three different claims, and
-only the first two are currently possible here. Do not report one as another.
+only the first is currently possible here. Do not report one as another.
 
 **Never invent a model identifier.** If `catalog list --search` does not find
 the gear, the device does not model it. Say so and suggest what it does have,

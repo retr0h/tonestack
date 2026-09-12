@@ -38,17 +38,17 @@ committing, and put every markdown change through the unslop skill first. See
 [docs/](docs/) covers what the code is *for*, which is not derivable from the
 code. Read the one that matches the task rather than all of them:
 
-| Task                                                                                                  | Read                                                                                                                    |
-| ----------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| **Somebody asks for help doing something**: build a rig for a player, read a device, correct a preset | [docs/workflows.md](docs/workflows.md), the step-by-step, linking onward to whichever reference it needs                |
-| Understanding why any of this is shaped as it is                                                      | [docs/knowledge.md](docs/knowledge.md), how a request becomes a signal chain and which of the four problems is unsolved |
-| Writing or changing a rig                                                                             | [docs/recipes.md](docs/recipes.md), with [examples/rigspec/mike-dirnt.yaml](examples/rigspec/mike-dirnt.yaml) beside it |
-| **Whether a field may say a thing**: what is allowed, and what is refused                             | [docs/rigspec.md](docs/rigspec.md), generated from the contract and never hand-edited                                   |
-| Anything touching models, parameters or DSP cost                                                      | [docs/catalog.md](docs/catalog.md)                                                                                      |
-| Reading or writing a `.hlx`                                                                           | [docs/preset-format.md](docs/preset-format.md)                                                                          |
-| Reading or editing what a device holds                                                                | [docs/device.md](docs/device.md)                                                                                        |
-| Touching USB                                                                                          | [docs/protocol.md](docs/protocol.md), **including the rules that keep a device alive**                                  |
-| Changing the shape of the system                                                                      | [docs/superpowers/specs/](docs/superpowers/specs/), dated design records, superseded rather than rewritten              |
+| Task                                                                                                       | Read                                                                                                                    |
+| ---------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| **Somebody asks how to use it, or for help doing something**: build a rig, read a device, correct a preset | [docs/workflows.md](docs/workflows.md), the usage guide: step-by-step, linking onward to whichever reference it needs   |
+| Understanding why any of this is shaped as it is                                                           | [docs/knowledge.md](docs/knowledge.md), how a request becomes a signal chain and which of the four problems is unsolved |
+| Writing or changing a rig                                                                                  | [docs/recipes.md](docs/recipes.md), with [examples/rigspec/mike-dirnt.yaml](examples/rigspec/mike-dirnt.yaml) beside it |
+| **Whether a field may say a thing**: what is allowed, and what is refused                                  | [docs/rigspec.md](docs/rigspec.md), generated from the contract and never hand-edited                                   |
+| Anything touching models, parameters or DSP cost                                                           | [docs/catalog.md](docs/catalog.md)                                                                                      |
+| Reading or writing a `.hlx`                                                                                | [docs/preset-format.md](docs/preset-format.md)                                                                          |
+| Reading or editing what a device holds                                                                     | [docs/device.md](docs/device.md)                                                                                        |
+| Touching USB                                                                                               | [docs/protocol.md](docs/protocol.md), **including the rules that keep a device alive**                                  |
+| Changing the shape of the system                                                                           | [docs/superpowers/specs/](docs/superpowers/specs/), dated design records, superseded rather than rewritten              |
 
 The RigSpec contract is
 [`pkg/sdk/rig/data/rigspec.openapi.yaml`](pkg/sdk/rig/data/rigspec.openapi.yaml),

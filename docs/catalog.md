@@ -7,8 +7,8 @@ it reads, and run `just catalog`.
 
 ## It ships in the binary
 
-`pkg/catalog/data/hx-stomp.json.gz` is committed and embedded: 665 blocks, 1.5MB
-of JSON compressed to about 59KB.
+`pkg/sdk/catalog/data/hx-stomp.json.gz` is committed and embedded: 665 blocks,
+1.5MB of JSON compressed to about 59KB.
 
 **Nobody needs HX Edit to use this project.** Generating a catalog does; using
 one does not, and that distinction is the whole reason the file is committed

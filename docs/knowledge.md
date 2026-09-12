@@ -19,7 +19,7 @@ tones come out generic.
 | Gear to model ID        | `resources/schemas/gear-map.json`           | 547 models                |
 | What order blocks go in | statistics over `resources/schemas/corpus/` | added blocks placed       |
 | Which way a knob moves  | the Pilot's Guide parameter tables          | not built                 |
-| What values to set      | catalog defaults, corpus medians, intent    | four axes of ten          |
+| What values to set      | catalog defaults, corpus medians, intent    | six axes of ten           |
 
 One specification covers all of it.
 [The RigSpec design record](superpowers/specs/2026-09-06-rigspec-as-the-one-model-design.md)
