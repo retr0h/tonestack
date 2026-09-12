@@ -25,6 +25,8 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/retr0h/tonestack/pkg/cli/internal/paint"
+
 	"github.com/retr0h/tonestack/pkg/sdk"
 	"github.com/retr0h/tonestack/pkg/sdk/rig"
 	slotpkg "github.com/retr0h/tonestack/pkg/sdk/slot"
@@ -56,7 +58,7 @@ func Reading(w io.Writer, r sdk.Reading) error {
 		return err
 	}
 
-	if _, err := io.WriteString(w, YAML(w, buf.String())); err != nil {
+	if _, err := io.WriteString(w, paint.YAML(w, buf.String())); err != nil {
 		return fmt.Errorf("writing the rig: %w", err)
 	}
 
@@ -67,7 +69,7 @@ func Reading(w io.Writer, r sdk.Reading) error {
 //
 // Saying plainly what arrived beats printing a chain that would be wrong.
 func Answer(w io.Writer, a sdk.Answer) error {
-	return Section{
+	return paint.Section{
 		Title:   a.Model,
 		Detail:  "slot " + slotpkg.Label(a.Slot),
 		Headers: []string{"the device answered"},
@@ -82,8 +84,8 @@ func Answer(w io.Writer, a sdk.Answer) error {
 // several in a row is checking they got the one they meant.
 func Written(w io.Writer, x sdk.Written) error {
 	_, err := fmt.Fprintf(w, "\n%s%s %s\n\n%s%s\n\n",
-		Indent, Accent(w, slotpkg.Label(x.Slot)), x.Name,
-		Indent, Success(w, "wrote "+x.Path))
+		paint.Indent, paint.Accent(w, slotpkg.Label(x.Slot)), x.Name,
+		paint.Indent, paint.Success(w, "wrote "+x.Path))
 
 	return err
 }

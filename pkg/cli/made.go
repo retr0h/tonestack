@@ -25,6 +25,8 @@ import (
 	"io"
 	"strings"
 
+	"github.com/retr0h/tonestack/pkg/cli/internal/paint"
+
 	"github.com/retr0h/tonestack/pkg/sdk"
 	"github.com/retr0h/tonestack/pkg/sdk/catalog"
 )
@@ -46,12 +48,12 @@ func Made(w io.Writer, m sdk.Made, cat *catalog.Catalog) error {
 // than leaving a half-written summary and a success.
 func made(w io.Writer, m sdk.Made, cat *catalog.Catalog) error {
 	if _, err := fmt.Fprintf(
-		w, "\n%s%s\n\n", Indent, Title(w, m.Chain.Name),
+		w, "\n%s%s\n\n", paint.Indent, paint.Title(w, m.Chain.Name),
 	); err != nil {
 		return err
 	}
 
-	if err := Chain(w, m.Chain, cat); err != nil {
+	if err := paint.Chain(w, m.Chain, cat); err != nil {
 		return err
 	}
 
@@ -67,7 +69,7 @@ func made(w io.Writer, m sdk.Made, cat *catalog.Catalog) error {
 		return err
 	}
 
-	_, err := fmt.Fprintf(w, "\n%s%s\n\n", Indent, Success(w, "wrote "+m.Path))
+	_, err := fmt.Fprintf(w, "\n%s%s\n\n", paint.Indent, paint.Success(w, "wrote "+m.Path))
 
 	return err
 }
@@ -91,7 +93,7 @@ func added(w io.Writer, all []sdk.Added) error {
 			line += fmt.Sprintf(" (%.0f%% of chains)", a.Share*100)
 		}
 
-		if _, err := fmt.Fprintf(w, "%s%s %s\n", Indent, Mute(w, "added"), line); err != nil {
+		if _, err := fmt.Fprintf(w, "%s%s %s\n", paint.Indent, paint.Mute(w, "added"), line); err != nil {
 			return err
 		}
 	}
@@ -125,7 +127,7 @@ func heard(w io.Writer, all []sdk.Moved) error {
 		}
 
 		if _, err := fmt.Fprintf(w, "%s%s %s\n",
-			Indent, Mute(w, "heard"), line); err != nil {
+			paint.Indent, paint.Mute(w, "heard"), line); err != nil {
 			return err
 		}
 	}
@@ -150,7 +152,7 @@ func unfamiliar(w io.Writer, all []sdk.Unfamiliar) error {
 		}
 
 		if _, err := fmt.Fprintf(w, "%s%s %s\n",
-			Indent, Mute(w, "note"), line); err != nil {
+			paint.Indent, paint.Mute(w, "note"), line); err != nil {
 			return err
 		}
 	}

@@ -24,6 +24,8 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/retr0h/tonestack/pkg/cli/internal/paint"
+
 	"github.com/retr0h/tonestack/pkg/sdk"
 	"github.com/retr0h/tonestack/pkg/sdk/corpus"
 )
@@ -52,7 +54,7 @@ func Counted(w io.Writer, r sdk.Counted) error {
 		measured += len(m.Params)
 	}
 
-	if err := (Section{
+	if err := (paint.Section{
 		Title:  r.Stats.Device,
 		Detail: fmt.Sprintf("%d presets measured", r.Stats.Presets),
 		Headers: []string{
@@ -80,9 +82,9 @@ func grammarRows(w io.Writer, stats *corpus.Stats) [][]string {
 			c := g.Categories[category]
 
 			rows = append(rows, []string{
-				Accent(w, instrument),
+				paint.Accent(w, instrument),
 				fmt.Sprintf("%d", g.Chains),
-				Category(w, category),
+				paint.Category(w, category),
 				fmt.Sprintf("%.0f%%", c.Frequency(g.Chains)*100),
 				fmt.Sprintf("%.0f%%", c.BeforeAmp()*100),
 			})

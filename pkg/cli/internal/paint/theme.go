@@ -25,7 +25,7 @@
 // lipgloss renderer plumbing — so the retr0h CLIs share one shape.
 // tonestack ships one theme today; more can be added behind TONESTACK_THEME
 // later without touching callers.
-package cli
+package paint
 
 import (
 	"fmt"

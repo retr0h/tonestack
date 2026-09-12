@@ -25,6 +25,8 @@ import (
 	"io"
 	"sort"
 
+	"github.com/retr0h/tonestack/pkg/cli/internal/paint"
+
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/retr0h/tonestack/pkg/sdk"
@@ -37,16 +39,16 @@ func Blocks(w io.Writer, b sdk.Blocks) error {
 
 	for _, blk := range b.Matched {
 		rows = append(rows, []string{
-			Accent(w, string(blk.ID)),
+			paint.Accent(w, string(blk.ID)),
 			blk.Name,
-			Category(w, blk.Category),
-			Mute(w, blk.Subcategory),
+			paint.Category(w, blk.Category),
+			paint.Mute(w, blk.Subcategory),
 			fmt.Sprintf("%.1f", blk.DSP.Mono),
-			Mute(w, blk.BasedOn),
+			paint.Mute(w, blk.BasedOn),
 		})
 	}
 
-	return reporting(Section{
+	return reporting(paint.Section{
 		Title:   b.Device,
 		Detail:  fmt.Sprintf("%d blocks · %s", b.Total, origin(b.Source)),
 		Headers: []string{"model", "name", "category", "sub", "dsp", "based on"},
@@ -74,10 +76,10 @@ func origin(source string) string {
 
 // Block prints one block and everything it accepts.
 func Block(w io.Writer, b catalog.Block) error {
-	d := Detail{Title: b.Name, Subtitle: string(b.ID)}
+	d := paint.Detail{Title: b.Name, Subtitle: string(b.ID)}
 
 	if b.BasedOn != "" {
-		d.Fields = append(d.Fields, Field{Label: "based on", Value: b.BasedOn})
+		d.Fields = append(d.Fields, paint.Field{Label: "based on", Value: b.BasedOn})
 	}
 
 	category := string(b.Category)
@@ -91,8 +93,8 @@ func Block(w io.Writer, b catalog.Block) error {
 	}
 
 	d.Fields = append(d.Fields,
-		Field{Label: "category", Value: category},
-		Field{Label: "dsp", Value: dsp},
+		paint.Field{Label: "category", Value: category},
+		paint.Field{Label: "dsp", Value: dsp},
 	)
 
 	if !b.Prov.Trusted() {
@@ -129,14 +131,14 @@ func params(w io.Writer, b catalog.Block) error {
 		def, _ := p.Default.MarshalJSON()
 
 		rows = append(rows, []string{
-			Accent(w, k),
-			Mute(w, string(p.Type)),
-			Mute(w, rng),
+			paint.Accent(w, k),
+			paint.Mute(w, string(p.Type)),
+			paint.Mute(w, rng),
 			string(def),
 		})
 	}
 
-	return reporting(Section{
+	return reporting(paint.Section{
 		Headers: []string{"parameter", "kind", "range", "default"},
 		Rows:    rows,
 		Empty:   "no parameters",

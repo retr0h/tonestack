@@ -18,7 +18,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-package cli
+package paint
 
 // Exposed to the package's own tests: behaviour the exported surface cannot
 // reach, because it depends on the environment or on a terminal.
