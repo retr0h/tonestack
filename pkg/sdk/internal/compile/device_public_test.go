@@ -29,8 +29,8 @@ import (
 
 	"github.com/retr0h/tonestack/pkg/sdk/catalog"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/compile"
-	riggen "github.com/retr0h/tonestack/pkg/sdk/internal/gen"
 	"github.com/retr0h/tonestack/pkg/sdk/preset"
+	"github.com/retr0h/tonestack/pkg/sdk/rig"
 )
 
 // DevicePublicTestSuite covers what a hand-edited rig can put in the section
@@ -53,14 +53,14 @@ func (s *DevicePublicTestSuite) SetupSuite() {
 }
 
 // rig returns a buildable rig carrying the given device state.
-func (s *DevicePublicTestSuite) rig(state *riggen.DeviceState) riggen.RigSpec {
-	return riggen.RigSpec{
-		Schema:     riggen.RigSpecSchemaRigSpec,
+func (s *DevicePublicTestSuite) rig(state *rig.DeviceState) rig.Spec {
+	return rig.Spec{
+		Schema:     rig.SchemaName,
 		ID:         "test",
-		Subject:    riggen.Subject{Kind: riggen.KindSound, Name: "Test"},
-		Instrument: riggen.InstrumentBass,
-		Chain: []riggen.ChainEntry{
-			{Role: riggen.RoleAmp, Gear: "Ampeg SVT"},
+		Subject:    rig.Subject{Kind: rig.KindSound, Name: "Test"},
+		Instrument: rig.InstrumentBass,
+		Chain: []rig.ChainEntry{
+			{Role: rig.RoleAmp, Gear: "Ampeg SVT"},
 		},
 		Device: state,
 	}
@@ -118,7 +118,7 @@ func (s *DevicePublicTestSuite) TestLowerDeviceState() {
 			doc, err := preset.Blank()
 			s.Require().NoError(err)
 
-			state := &riggen.DeviceState{}
+			state := &rig.DeviceState{}
 
 			if tt.tone != nil {
 				state.Tone = &tt.tone

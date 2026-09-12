@@ -25,7 +25,6 @@ import (
 	"fmt"
 	"os"
 
-	riggen "github.com/retr0h/tonestack/pkg/sdk/internal/gen"
 	"github.com/retr0h/tonestack/pkg/sdk/preset"
 	"github.com/retr0h/tonestack/pkg/sdk/result"
 	"github.com/retr0h/tonestack/pkg/sdk/rig"
@@ -95,10 +94,10 @@ func Compile(opts CompileOptions) (result.Built, error) {
 }
 
 // readRig loads a rig from disk.
-func readRig(path string) (riggen.RigSpec, error) {
+func readRig(path string) (rig.Spec, error) {
 	f, err := os.Open(path) //nolint:gosec // the path is the user's own file
 	if err != nil {
-		return riggen.RigSpec{}, fmt.Errorf("opening %s: %w", path, err)
+		return rig.Spec{}, fmt.Errorf("opening %s: %w", path, err)
 	}
 
 	defer func() { _ = f.Close() }()

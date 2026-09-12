@@ -20,7 +20,7 @@
 
 package recipes
 
-import "github.com/retr0h/tonestack/pkg/sdk/internal/gen"
+import "github.com/retr0h/tonestack/pkg/sdk/rig"
 
 // Store finds curated rigs, in a directory or in the binary.
 //
@@ -30,4 +30,4 @@ import "github.com/retr0h/tonestack/pkg/sdk/internal/gen"
 type Store struct{}
 
 // Find returns the rig with the given identifier.
-func (Store) Find(dir, id string) (gen.RigSpec, error) { return Find(dir, id) }
+func (Store) Find(dir, id string) (rig.Spec, error) { return Find(dir, id) }

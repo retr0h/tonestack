@@ -26,8 +26,8 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
-	riggen "github.com/retr0h/tonestack/pkg/sdk/internal/gen"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/recipes"
+	"github.com/retr0h/tonestack/pkg/sdk/rig"
 )
 
 type RecipesPublicTestSuite struct {
@@ -297,7 +297,7 @@ func (s *RecipesPublicTestSuite) TestShow() {
 
 // ids reads the identifiers out of a set of rigs, so a test can say which
 // were found without also saying what else each one holds.
-func ids(all []riggen.RigSpec) []string {
+func ids(all []rig.Spec) []string {
 	out := make([]string, 0, len(all))
 	for _, r := range all {
 		out = append(out, r.ID)

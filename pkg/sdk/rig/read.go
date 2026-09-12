@@ -20,10 +20,6 @@
 
 package rig
 
-import (
-	"github.com/retr0h/tonestack/pkg/sdk/internal/gen"
-)
-
 // gear returns the first entry filling a role, and whether the rig has one.
 //
 // A chain is ordered by what the signal does rather than grouped by kind, so
@@ -88,7 +84,7 @@ func checkable(evidence *[]Evidence) bool {
 	}
 
 	for _, e := range *evidence {
-		if e.Kind != gen.EvidenceLLM {
+		if e.Kind != EvidenceLLM {
 			return true
 		}
 	}
@@ -105,19 +101,19 @@ func Sourced(spec Spec) EvidenceKind {
 	best := EvidenceKind("")
 	rank := func(k EvidenceKind) int {
 		switch k {
-		case gen.EvidenceUser:
+		case EvidenceUser:
 			return 6
-		case gen.EvidenceMeasured:
+		case EvidenceMeasured:
 			return 5
-		case gen.EvidenceCited:
+		case EvidenceCited:
 			return 4
-		case gen.EvidenceVideo:
+		case EvidenceVideo:
 			return 3
-		case gen.EvidenceAudio:
+		case EvidenceAudio:
 			return 2
-		case gen.EvidenceCorpus:
+		case EvidenceCorpus:
 			return 1
-		case gen.EvidenceLLM:
+		case EvidenceLLM:
 			return 0
 		default:
 			return 0
@@ -143,7 +139,7 @@ func Sourced(spec Spec) EvidenceKind {
 	}
 
 	if best == "" {
-		return gen.EvidenceLLM
+		return EvidenceLLM
 	}
 
 	return best

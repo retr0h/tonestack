@@ -26,8 +26,8 @@ import (
 	"strconv"
 	"strings"
 
-	riggen "github.com/retr0h/tonestack/pkg/sdk/internal/gen"
 	"github.com/retr0h/tonestack/pkg/sdk/preset"
+	"github.com/retr0h/tonestack/pkg/sdk/rig"
 )
 
 // snapshotPrefix marks a tone entry holding a snapshot.
@@ -51,7 +51,7 @@ const (
 // Modelled rather than carried as device state, because a snapshot is a
 // musical decision: which blocks are on, at what tempo, under what name. What
 // somebody put on a footswitch is part of the rig.
-func snapshotsOf(doc *preset.Document) *[]riggen.Snapshot {
+func snapshotsOf(doc *preset.Document) *[]rig.Snapshot {
 	keys := make([]string, 0, len(doc.Data.Tone))
 
 	for key := range doc.Data.Tone {
@@ -68,7 +68,7 @@ func snapshotsOf(doc *preset.Document) *[]riggen.Snapshot {
 		return snapshotIndex(keys[i]) < snapshotIndex(keys[j])
 	})
 
-	out := make([]riggen.Snapshot, 0, len(keys))
+	out := make([]rig.Snapshot, 0, len(keys))
 
 	for _, key := range keys {
 		out = append(out, snapshotOf(doc.Data.Tone[key]))
@@ -78,8 +78,8 @@ func snapshotsOf(doc *preset.Document) *[]riggen.Snapshot {
 }
 
 // snapshotOf reads one snapshot entry.
-func snapshotOf(entry preset.Tone) riggen.Snapshot {
-	var out riggen.Snapshot
+func snapshotOf(entry preset.Tone) rig.Snapshot {
+	var out rig.Snapshot
 
 	decode(entry[snapName], &out.Name)
 	decode(entry[snapTempo], &out.Tempo)
@@ -125,7 +125,7 @@ var modelled = map[string]bool{
 // Numbered from zero in the order the rig lists them, which is the order they
 // were read in. A device names them snapshot0 upward and nothing else refers
 // to them by name.
-func restoreSnapshots(doc *preset.Document, snapshots []riggen.Snapshot) {
+func restoreSnapshots(doc *preset.Document, snapshots []rig.Snapshot) {
 	for i, snap := range snapshots {
 		entry := preset.Tone{}
 

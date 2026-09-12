@@ -29,8 +29,8 @@ import (
 
 	"github.com/retr0h/tonestack/pkg/sdk/catalog"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/compile"
-	riggen "github.com/retr0h/tonestack/pkg/sdk/internal/gen"
 	"github.com/retr0h/tonestack/pkg/sdk/preset"
+	"github.com/retr0h/tonestack/pkg/sdk/rig"
 )
 
 // SnapshotsPublicTestSuite covers what a footswitch recalls.
@@ -152,7 +152,7 @@ func (s *SnapshotsPublicTestSuite) TestLowerSnapshots() {
 		// a rig lifted off a preset holding this one snapshot, or one
 		// somebody typed.
 		lifted string
-		typed  *riggen.RigSpec
+		typed  *rig.Spec
 		want   string
 	}{
 		{
@@ -165,13 +165,13 @@ func (s *SnapshotsPublicTestSuite) TestLowerSnapshots() {
 			// has already cleared the preset it is built into. Its snapshots
 			// still have to replace the three an untouched preset ships with.
 			name: "a rig somebody typed",
-			typed: &riggen.RigSpec{
-				Schema:     riggen.RigSpecSchemaRigSpec,
+			typed: &rig.Spec{
+				Schema:     rig.SchemaName,
 				ID:         "typed",
-				Subject:    riggen.Subject{Kind: riggen.KindSound, Name: "Typed"},
-				Instrument: riggen.InstrumentBass,
-				Chain:      []riggen.ChainEntry{{Role: riggen.RoleAmp, Gear: "Ampeg SVT"}},
-				Snapshots:  &[]riggen.Snapshot{{Name: &name}},
+				Subject:    rig.Subject{Kind: rig.KindSound, Name: "Typed"},
+				Instrument: rig.InstrumentBass,
+				Chain:      []rig.ChainEntry{{Role: rig.RoleAmp, Gear: "Ampeg SVT"}},
+				Snapshots:  &[]rig.Snapshot{{Name: &name}},
 			},
 			want: `"@name": "Verse"`,
 		},
@@ -179,7 +179,7 @@ func (s *SnapshotsPublicTestSuite) TestLowerSnapshots() {
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			var spec riggen.RigSpec
+			var spec rig.Spec
 
 			if tt.typed != nil {
 				spec = *tt.typed

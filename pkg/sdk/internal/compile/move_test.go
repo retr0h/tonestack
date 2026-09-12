@@ -28,7 +28,7 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk/catalog"
 	"github.com/retr0h/tonestack/pkg/sdk/chain"
 	"github.com/retr0h/tonestack/pkg/sdk/corpus"
-	riggen "github.com/retr0h/tonestack/pkg/sdk/internal/gen"
+	"github.com/retr0h/tonestack/pkg/sdk/rig"
 )
 
 type MoveTestSuite struct {
@@ -257,13 +257,13 @@ func (s *MoveTestSuite) TestMoveSkipsAValueItCannotDo() {
 func (s *MoveTestSuite) TestTermsOf() {
 	tests := []struct {
 		name string
-		in   *[]riggen.CharacterTerm
+		in   *[]rig.CharacterTerm
 		want []string
 	}{
 		{name: "a rig that said nothing about how it sounds"},
 		{
 			name: "the words, in the order they were written",
-			in: &[]riggen.CharacterTerm{
+			in: &[]rig.CharacterTerm{
 				{Term: "mid-forward"}, {Term: "saturated"},
 			},
 			want: []string{"mid-forward", "saturated"},
@@ -272,7 +272,7 @@ func (s *MoveTestSuite) TestTermsOf() {
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			got := termsOf(riggen.RigSpec{Character: tt.in})
+			got := termsOf(rig.Spec{Character: tt.in})
 
 			s.Require().Equal(tt.want, got)
 		})

@@ -28,8 +28,8 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk/catalog"
 	"github.com/retr0h/tonestack/pkg/sdk/chain"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/compile"
-	riggen "github.com/retr0h/tonestack/pkg/sdk/internal/gen"
 	"github.com/retr0h/tonestack/pkg/sdk/preset"
+	"github.com/retr0h/tonestack/pkg/sdk/rig"
 )
 
 // CompilePublicTestSuite covers the package's work reached as a value.
@@ -79,10 +79,10 @@ func (s *CompilePublicTestSuite) TestLift() {
 func (s *CompilePublicTestSuite) TestLower() {
 	tests := []struct {
 		name string
-		spec riggen.RigSpec
+		spec rig.Spec
 	}{
 		{name: "a rig naming an amplifier", spec: recipe("Ampeg SVT", "")},
-		{name: "a rig naming nothing that resolves", spec: riggen.RigSpec{}},
+		{name: "a rig naming nothing that resolves", spec: rig.Spec{}},
 	}
 
 	for _, tt := range tests {
@@ -103,7 +103,7 @@ func (s *CompilePublicTestSuite) TestLower() {
 func (s *CompilePublicTestSuite) TestResolve() {
 	tests := []struct {
 		name string
-		spec riggen.RigSpec
+		spec rig.Spec
 	}{
 		{name: "a rig naming an amplifier", spec: recipe("Ampeg SVT", "")},
 		{name: "a rig naming gear no model emulates", spec: recipe("Nothing At All", "")},

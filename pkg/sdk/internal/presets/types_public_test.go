@@ -29,9 +29,9 @@ import (
 	"go.uber.org/mock/gomock"
 
 	"github.com/retr0h/tonestack/pkg/sdk/chain"
-	riggen "github.com/retr0h/tonestack/pkg/sdk/internal/gen"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/presets"
 	presetmocks "github.com/retr0h/tonestack/pkg/sdk/internal/presets/mocks"
+	"github.com/retr0h/tonestack/pkg/sdk/rig"
 )
 
 // TypesPublicTestSuite covers standing something else in for a collaborator.
@@ -64,7 +64,7 @@ func (s *TypesPublicTestSuite) TestRecipes() {
 	want := errors.New("no such recipe here")
 
 	rec := presetmocks.NewMockRecipes(s.ctrl)
-	rec.EXPECT().Find(gomock.Any(), "mike-dirnt").Return(riggen.RigSpec{}, want)
+	rec.EXPECT().Find(gomock.Any(), "mike-dirnt").Return(rig.Spec{}, want)
 
 	_, err := presets.Make(s.options(presets.Deps{Recipes: rec}))
 

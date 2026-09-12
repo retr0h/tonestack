@@ -29,7 +29,6 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk/catalog"
 	"github.com/retr0h/tonestack/pkg/sdk/chain"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/compile"
-	riggen "github.com/retr0h/tonestack/pkg/sdk/internal/gen"
 	"github.com/retr0h/tonestack/pkg/sdk/preset"
 	"github.com/retr0h/tonestack/pkg/sdk/rig"
 )
@@ -74,14 +73,14 @@ func (s *LiftPublicTestSuite) catalogOf(
 }
 
 // rigOf returns a valid rig naming one piece of gear.
-func rigOf(id, gear string, inst riggen.Instrument, params *map[string]any) riggen.RigSpec {
-	return riggen.RigSpec{
-		Schema:     riggen.RigSpecSchemaRigSpec,
+func rigOf(id, gear string, inst rig.Instrument, params *map[string]any) rig.Spec {
+	return rig.Spec{
+		Schema:     rig.SchemaName,
 		ID:         id,
-		Subject:    riggen.Subject{Kind: riggen.KindSound, Name: id},
+		Subject:    rig.Subject{Kind: rig.KindSound, Name: id},
 		Instrument: inst,
-		Chain: []riggen.ChainEntry{
-			{Role: riggen.RoleAmp, Gear: gear, Params: params},
+		Chain: []rig.ChainEntry{
+			{Role: rig.RoleAmp, Gear: gear, Params: params},
 		},
 	}
 }
@@ -101,8 +100,8 @@ func (s *LiftPublicTestSuite) TestLift() {
 		bare bool
 
 		wantGear       string
-		wantRole       riggen.Role
-		wantInstrument riggen.Instrument
+		wantRole       rig.Role
+		wantInstrument rig.Instrument
 		wantID         string
 		err            error
 		errText        string
@@ -111,13 +110,13 @@ func (s *LiftPublicTestSuite) TestLift() {
 			name:           "an amp emulating real gear, named the way a person would",
 			model:          "HD2_AmpSVBeastNrm",
 			wantGear:       "Ampeg SVT® (normal channel)",
-			wantInstrument: riggen.InstrumentBass,
+			wantInstrument: rig.InstrumentBass,
 		},
 		{
 			name:           "a Line 6 original, by its own name, since it emulates nothing",
 			model:          "HD2_AmpLine6Litigator",
 			wantGear:       "Line 6 Litigator",
-			wantInstrument: riggen.InstrumentGuitar,
+			wantInstrument: rig.InstrumentGuitar,
 		},
 		{
 			// A rig has to say what every block is, and "something this
@@ -125,13 +124,13 @@ func (s *LiftPublicTestSuite) TestLift() {
 			name:           "a model the catalog has never heard of, by identifier",
 			model:          "HD2_NotInThisCatalog",
 			wantGear:       "HD2_NotInThisCatalog",
-			wantRole:       riggen.RoleOther,
-			wantInstrument: riggen.InstrumentGuitar,
+			wantRole:       rig.RoleOther,
+			wantInstrument: rig.InstrumentGuitar,
 		},
 		{
 			name:           "a preset with no amp in it",
 			model:          "HD2_DistMinotaur",
-			wantInstrument: riggen.InstrumentGuitar,
+			wantInstrument: rig.InstrumentGuitar,
 		},
 		{
 			// A handful of catalog entries carry an empty name and no gear,
@@ -153,7 +152,7 @@ func (s *LiftPublicTestSuite) TestLift() {
 					Category: catalog.Category("nonsense"),
 				},
 			},
-			wantRole: riggen.RoleOther,
+			wantRole: rig.RoleOther,
 		},
 		{
 			name:   "a name that is already an identifier",
@@ -251,16 +250,16 @@ func (s *LiftPublicTestSuite) TestLift() {
 }
 
 // withSwitch puts one footswitch on a rig, lit the given colour.
-func withSwitch(spec riggen.RigSpec, led string) riggen.RigSpec {
-	spec.Footswitches = &[]riggen.Footswitch{{Led: &led}}
+func withSwitch(spec rig.Spec, led string) rig.Spec {
+	spec.Footswitches = &[]rig.Footswitch{{Led: &led}}
 
 	return spec
 }
 
 // TestLower writes a rig into a preset.
 // substituted says what to put in place of the gear a rig names.
-func substituted(spec riggen.RigSpec, instead string) riggen.RigSpec {
-	spec.Chain[0].Substitute = &riggen.Substitute{Gear: instead}
+func substituted(spec rig.Spec, instead string) rig.Spec {
+	spec.Chain[0].Substitute = &rig.Substitute{Gear: instead}
 
 	return spec
 }
@@ -268,7 +267,7 @@ func substituted(spec riggen.RigSpec, instead string) riggen.RigSpec {
 func (s *LiftPublicTestSuite) TestLower() {
 	tests := []struct {
 		name   string
-		spec   riggen.RigSpec
+		spec   rig.Spec
 		blocks map[catalog.ModelID]catalog.Block
 		// the model the destination preset already holds.
 		into catalog.ModelID
@@ -288,7 +287,7 @@ func (s *LiftPublicTestSuite) TestLower() {
 		{name: "a rig that is not one", err: rig.ErrInvalid},
 		{
 			name:    "gear nothing on this device models",
-			spec:    rigOf("nope", "Nonesuch 900", riggen.InstrumentGuitar, nil),
+			spec:    rigOf("nope", "Nonesuch 900", rig.InstrumentGuitar, nil),
 			errText: "emulates \"Nonesuch 900\"",
 		},
 		{
@@ -296,7 +295,7 @@ func (s *LiftPublicTestSuite) TestLower() {
 			// should put there, so building it lands on the stand-in.
 			name: "gear nothing models, with a stand-in the rig names",
 			spec: substituted(
-				rigOf("stood-in", "Nonesuch 900", riggen.InstrumentBass, nil),
+				rigOf("stood-in", "Nonesuch 900", rig.InstrumentBass, nil),
 				"Ampeg SVT (normal"),
 			wantModel: "HD2_AmpSVBeastNrm",
 			exact:     -1,
@@ -304,7 +303,7 @@ func (s *LiftPublicTestSuite) TestLower() {
 		{
 			name: "a stand-in nothing models either",
 			spec: substituted(
-				rigOf("nope", "Nonesuch 900", riggen.InstrumentBass, nil),
+				rigOf("nope", "Nonesuch 900", rig.InstrumentBass, nil),
 				"Also Nonesuch"),
 			errText: `"Also Nonesuch" stands in for "Nonesuch 900"`,
 		},
@@ -312,12 +311,12 @@ func (s *LiftPublicTestSuite) TestLower() {
 			// A rig describing gear rather than a block gets Line 6's own
 			// defaults, which are never invalid.
 			name:  "a rig stating no parameters",
-			spec:  rigOf("plain", "Ampeg SVT (normal", riggen.InstrumentBass, nil),
+			spec:  rigOf("plain", "Ampeg SVT (normal", rig.InstrumentBass, nil),
 			exact: -1,
 		},
 		{
 			name: "a rig stating parameters, which are the whole truth",
-			spec: rigOf("exact", "Ampeg SVT (normal", riggen.InstrumentBass,
+			spec: rigOf("exact", "Ampeg SVT (normal", rig.InstrumentBass,
 				&map[string]any{
 					"Drive": 0.8, "MidFreq": 2.0,
 					"Bright": true, "Voicing": "Modern",
@@ -336,7 +335,7 @@ func (s *LiftPublicTestSuite) TestLower() {
 			// toward zero, so this arrived as -11: an octave down turned
 			// into a major seventh, in a preset nobody would think to check.
 			name: "a parameter somebody set below nothing",
-			spec: rigOf("octave", "Ampeg SVT (normal", riggen.InstrumentBass,
+			spec: rigOf("octave", "Ampeg SVT (normal", rig.InstrumentBass,
 				&map[string]any{"MidFreq": -12.0}),
 			types: map[string]catalog.ParamType{"MidFreq": catalog.ParamInt},
 			ints:  map[string]int64{"MidFreq": -12},
@@ -353,7 +352,7 @@ func (s *LiftPublicTestSuite) TestLower() {
 			// writing a value with no kind produces a preset the device
 			// rejects.
 			name: "a parameter with no stated default",
-			spec: rigOf("half", "Half A Thing", riggen.InstrumentGuitar, nil),
+			spec: rigOf("half", "Half A Thing", rig.InstrumentGuitar, nil),
 			blocks: map[catalog.ModelID]catalog.Block{
 				"HD2_Half": {
 					ID: "HD2_Half", Name: "Half", BasedOn: "Half A Thing",
@@ -374,13 +373,13 @@ func (s *LiftPublicTestSuite) TestLower() {
 			// rather than reaching a preset.
 			name: "a colour the device does not have",
 			spec: withSwitch(
-				rigOf("lit", "Ampeg SVT (normal", riggen.InstrumentBass, nil),
+				rigOf("lit", "Ampeg SVT (normal", rig.InstrumentBass, nil),
 				"chartruse"),
 			errText: "footswitches[0].led",
 		},
 		{
 			name: "a parameter of no known kind",
-			spec: rigOf("odd", "Ampeg SVT (normal", riggen.InstrumentBass,
+			spec: rigOf("odd", "Ampeg SVT (normal", rig.InstrumentBass,
 				&map[string]any{"Drive": 0.8, "Nonsense": []any{1, 2}}),
 			wantParams: []string{"Drive"},
 			absent:     []string{"Nonsense"},
@@ -469,7 +468,7 @@ func (s *LiftPublicTestSuite) TestLower() {
 // off a device was unaffected, because it carries the model identifier, which
 // is why nothing caught it.
 func (s *LiftPublicTestSuite) TestLowerPicksTheSameModelEveryTime() {
-	spec := rigOf("stable", "Ampeg SVT", riggen.InstrumentBass, nil)
+	spec := rigOf("stable", "Ampeg SVT", rig.InstrumentBass, nil)
 
 	var first catalog.ModelID
 

@@ -24,8 +24,8 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk/catalog"
 	"github.com/retr0h/tonestack/pkg/sdk/chain"
 	"github.com/retr0h/tonestack/pkg/sdk/corpus"
-	riggen "github.com/retr0h/tonestack/pkg/sdk/internal/gen"
 	"github.com/retr0h/tonestack/pkg/sdk/preset"
+	"github.com/retr0h/tonestack/pkg/sdk/rig"
 )
 
 // Compiler is this package's work as a value.
@@ -47,14 +47,14 @@ func New() *Compiler { return &Compiler{} }
 func (*Compiler) Lift(
 	doc *preset.Document,
 	cat *catalog.Catalog,
-) (riggen.RigSpec, error) {
+) (rig.Spec, error) {
 	return Lift(doc, cat)
 }
 
 // Lower writes a rig back into a preset.
 func (*Compiler) Lower(
 	doc *preset.Document,
-	spec riggen.RigSpec,
+	spec rig.Spec,
 	cat *catalog.Catalog,
 ) error {
 	return Lower(doc, spec, cat)
@@ -62,7 +62,7 @@ func (*Compiler) Lower(
 
 // Resolve turns a rig and a catalog into a chain.
 func (*Compiler) Resolve(
-	spec riggen.RigSpec,
+	spec rig.Spec,
 	cat *catalog.Catalog,
 	stats *corpus.Stats,
 ) (chain.Chain, []Added, []Moved, error) {

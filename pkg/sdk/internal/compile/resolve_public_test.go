@@ -29,7 +29,7 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk/catalog"
 	"github.com/retr0h/tonestack/pkg/sdk/chain"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/compile"
-	riggen "github.com/retr0h/tonestack/pkg/sdk/internal/gen"
+	"github.com/retr0h/tonestack/pkg/sdk/rig"
 )
 
 type ResolvePublicTestSuite struct {
@@ -65,25 +65,25 @@ func loadCatalog(s *suite.Suite) *catalog.Catalog {
 // They carry the `other` role rather than a guess, because these fixtures do
 // not say what the pedals are and stating a role they do not have would test
 // the wrong thing.
-func recipe(amp string, cab string, pedals ...string) riggen.RigSpec {
-	spec := riggen.RigSpec{
-		Schema:     riggen.RigSpecSchemaRigSpec,
+func recipe(amp string, cab string, pedals ...string) rig.Spec {
+	spec := rig.Spec{
+		Schema:     rig.SchemaName,
 		ID:         "test",
-		Subject:    riggen.Subject{Kind: riggen.KindArtist, Name: "Test Player"},
-		Instrument: riggen.InstrumentBass,
+		Subject:    rig.Subject{Kind: rig.KindArtist, Name: "Test Player"},
+		Instrument: rig.InstrumentBass,
 	}
 
 	for _, p := range pedals {
 		spec.Chain = append(spec.Chain,
-			riggen.ChainEntry{Role: riggen.RoleOther, Gear: p})
+			rig.ChainEntry{Role: rig.RoleOther, Gear: p})
 	}
 
 	spec.Chain = append(spec.Chain,
-		riggen.ChainEntry{Role: riggen.RoleAmp, Gear: amp})
+		rig.ChainEntry{Role: rig.RoleAmp, Gear: amp})
 
 	if cab != "" {
 		spec.Chain = append(spec.Chain,
-			riggen.ChainEntry{Role: riggen.RoleCab, Gear: cab})
+			rig.ChainEntry{Role: rig.RoleCab, Gear: cab})
 	}
 
 	return spec
@@ -96,15 +96,15 @@ func recipe(amp string, cab string, pedals ...string) riggen.RigSpec {
 // value, and TestResolveIsDeterministic is what guards that it stays put.
 // substituting names gear this catalog has no model for, and says what to put
 // there instead.
-func substituting(gear, instead string) riggen.RigSpec {
+func substituting(gear, instead string) rig.Spec {
 	spec := recipe("Ampeg SVT", "")
-	spec.Chain[len(spec.Chain)-1] = riggen.ChainEntry{
-		Role: riggen.RoleAmp,
+	spec.Chain[len(spec.Chain)-1] = rig.ChainEntry{
+		Role: rig.RoleAmp,
 		Gear: gear,
 	}
 
 	if instead != "" {
-		spec.Chain[len(spec.Chain)-1].Substitute = &riggen.Substitute{Gear: instead}
+		spec.Chain[len(spec.Chain)-1].Substitute = &rig.Substitute{Gear: instead}
 	}
 
 	return spec
@@ -113,7 +113,7 @@ func substituting(gear, instead string) riggen.RigSpec {
 func (s *ResolvePublicTestSuite) TestResolve() {
 	tests := []struct {
 		name   string
-		spec   riggen.RigSpec
+		spec   rig.Spec
 		models []catalog.ModelID
 		err    string
 	}{
@@ -262,7 +262,7 @@ func (s *ResolvePublicTestSuite) TestResolve() {
 func (s *ResolvePublicTestSuite) TestResolveChecksWhatTheRigClaims() {
 	spec := recipe("Ampeg SVT (normal", "")
 	device := "Kemper Profiler"
-	spec.Target = &riggen.Target{Device: &device}
+	spec.Target = &rig.Target{Device: &device}
 
 	_, _, _, err := compile.Resolve(spec, s.cat, nil)
 
@@ -273,7 +273,7 @@ func (s *ResolvePublicTestSuite) TestGear() {
 	tests := []struct {
 		name       string
 		gear       string
-		role       riggen.Role
+		role       rig.Role
 		instrument string
 		want       catalog.ModelID
 		err        error
@@ -281,7 +281,7 @@ func (s *ResolvePublicTestSuite) TestGear() {
 		{
 			name:       "an amplifier by name",
 			gear:       "Ampeg SVT (normal",
-			role:       riggen.RoleAmp,
+			role:       rig.RoleAmp,
 			instrument: "bass",
 			want:       "HD2_AmpSVBeastNrm",
 		},
@@ -291,21 +291,21 @@ func (s *ResolvePublicTestSuite) TestGear() {
 			// answer with the other.
 			name:       "a cabinet by the name it shares",
 			gear:       "Ampeg SVT",
-			role:       riggen.RoleCab,
+			role:       rig.RoleCab,
 			instrument: "bass",
 			want:       "HD2_Cab8x10SVBeast",
 		},
 		{
 			name:       "gear for the other instrument",
 			gear:       "Guitar Only",
-			role:       riggen.RoleAmp,
+			role:       rig.RoleAmp,
 			instrument: "bass",
 			err:        compile.ErrNoSuchGear,
 		},
 		{
 			name:       "gear nothing emulates",
 			gear:       "Nonesuch 900",
-			role:       riggen.RoleAmp,
+			role:       rig.RoleAmp,
 			instrument: "bass",
 			err:        compile.ErrNoSuchGear,
 		},
@@ -359,7 +359,7 @@ func (s *ResolvePublicTestSuite) TestResolveNamesWhatItChoseForYou() {
 func (s *ResolvePublicTestSuite) TestResolveSetsParameters() {
 	tests := []struct {
 		name  string
-		spec  riggen.RigSpec
+		spec  rig.Spec
 		check func(chain.Block)
 	}{
 		{
@@ -403,7 +403,7 @@ func (s *ResolvePublicTestSuite) TestResolveSetsParameters() {
 func (s *ResolvePublicTestSuite) TestFit() {
 	tests := []struct {
 		name    string
-		spec    riggen.RigSpec
+		spec    rig.Spec
 		limits  chain.Limits
 		spilled bool
 	}{

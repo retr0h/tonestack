@@ -25,8 +25,8 @@ import (
 	"strconv"
 	"strings"
 
-	riggen "github.com/retr0h/tonestack/pkg/sdk/internal/gen"
 	"github.com/retr0h/tonestack/pkg/sdk/preset"
+	"github.com/retr0h/tonestack/pkg/sdk/rig"
 )
 
 // processorPrefix marks a tone entry holding a chain rather than state.
@@ -45,8 +45,8 @@ const blockPrefix = "block"
 // Kept as raw JSON rather than decoded values, because a preset spells the
 // same number more than one way — `"0.00"` and `0` are both real — and
 // rewriting one as the other changes a file nobody asked to change.
-func deviceState(doc *preset.Document, modelled map[string]bool) *riggen.DeviceState {
-	out := &riggen.DeviceState{
+func deviceState(doc *preset.Document, modelled map[string]bool) *rig.DeviceState {
+	out := &rig.DeviceState{
 		Id:      &doc.Data.Device,
 		Format:  &doc.Version,
 		Name:    &doc.Data.Meta.Name,
@@ -104,7 +104,7 @@ func deviceState(doc *preset.Document, modelled map[string]bool) *riggen.DeviceS
 // Only what the rig carries. A rig somebody typed has none of this, and the
 // untouched preset underneath keeps whatever it came with — which is the
 // right answer for a rig that was never lifted from anything.
-func restore(doc *preset.Document, state *riggen.DeviceState) {
+func restore(doc *preset.Document, state *rig.DeviceState) {
 	if state == nil {
 		return
 	}

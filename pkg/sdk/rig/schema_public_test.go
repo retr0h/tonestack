@@ -28,7 +28,6 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
-	"github.com/retr0h/tonestack/pkg/sdk/internal/gen"
 	"github.com/retr0h/tonestack/pkg/sdk/rig"
 )
 
@@ -97,7 +96,7 @@ func (s *SchemaPublicTestSuite) TestValidate() {
 	boom := errors.New("no contract")
 	*rig.Contract = func() (*openapi3.Schema, error) { return nil, boom }
 
-	s.Require().ErrorIs(rig.Validate(gen.RigSpec{}), boom)
+	s.Require().ErrorIs(rig.Validate(rig.Spec{}), boom)
 }
 
 // TestAgainst checks a document against the contract.

@@ -29,7 +29,7 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk/catalog"
 	"github.com/retr0h/tonestack/pkg/sdk/chain"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/compile"
-	riggen "github.com/retr0h/tonestack/pkg/sdk/internal/gen"
+	"github.com/retr0h/tonestack/pkg/sdk/rig"
 )
 
 // CheckPublicTestSuite covers what a rig claims beside its chain.
@@ -214,20 +214,20 @@ func (s *CheckPublicTestSuite) TestCheck() {
 			spec := recipe("Ampeg SVT (normal", "")
 
 			if tt.device != "" {
-				spec.Target = &riggen.Target{Device: &tt.device}
+				spec.Target = &rig.Target{Device: &tt.device}
 			}
 
 			if tt.hasSwitch {
-				fs := riggen.Footswitch{}
+				fs := rig.Footswitch{}
 				if tt.led != "" {
 					fs.Led = &tt.led
 				}
 
-				spec.Footswitches = &[]riggen.Footswitch{fs}
+				spec.Footswitches = &[]rig.Footswitch{fs}
 			}
 
 			if tt.hasControl {
-				spec.Controllers = &[]riggen.Controller{{
+				spec.Controllers = &[]rig.Controller{{
 					Controller: 2, Block: tt.block, Parameter: tt.parameter,
 				}}
 			}
@@ -283,8 +283,8 @@ func (s *CheckPublicTestSuite) TestCheckReportsEveryBadValue() {
 	first, second := "nonsense", "alsonot"
 
 	spec := recipe("Ampeg SVT (normal", "")
-	spec.Footswitches = &[]riggen.Footswitch{{Led: &first}, {Led: &second}}
-	spec.Controllers = &[]riggen.Controller{
+	spec.Footswitches = &[]rig.Footswitch{{Led: &first}, {Led: &second}}
+	spec.Controllers = &[]rig.Controller{
 		{Controller: 2, Block: 0, Parameter: "NotAParameter"},
 		{Controller: 3, Block: 99, Parameter: "Drive"},
 	}

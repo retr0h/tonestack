@@ -27,7 +27,6 @@ import (
 
 	"github.com/retr0h/tonestack/pkg/sdk/catalog"
 	"github.com/retr0h/tonestack/pkg/sdk/chain"
-	riggen "github.com/retr0h/tonestack/pkg/sdk/internal/gen"
 	"github.com/retr0h/tonestack/pkg/sdk/preset"
 	"github.com/retr0h/tonestack/pkg/sdk/rig"
 )
@@ -38,18 +37,18 @@ import (
 // keyed by device. The name alone cannot identify a model — 665 of them share
 // 469 names — so a rig that only carried the name would rebuild into a
 // different preset.
-func Lift(doc *preset.Document, cat *catalog.Catalog) (riggen.RigSpec, error) {
+func Lift(doc *preset.Document, cat *catalog.Catalog) (rig.Spec, error) {
 	c, err := doc.Spec()
 	if err != nil {
-		return riggen.RigSpec{}, fmt.Errorf("reading the chain: %w", err)
+		return rig.Spec{}, fmt.Errorf("reading the chain: %w", err)
 	}
 
 	device := cat.Device
 	// The contract states one version and the generated types carry it as a
 	// kind of its own, so this is a conversion rather than a number.
-	version := riggen.RigSpecVersion(rig.Version)
+	version := rig.SpecVersion(rig.Version)
 
-	entries := make([]riggen.ChainEntry, 0, len(c.Blocks))
+	entries := make([]rig.ChainEntry, 0, len(c.Blocks))
 
 	for _, b := range c.Blocks {
 		entries = append(entries, entryFor(b, cat, device))
@@ -58,14 +57,14 @@ func Lift(doc *preset.Document, cat *catalog.Catalog) (riggen.RigSpec, error) {
 	snapshots := snapshotsOf(doc)
 	switches := footswitchesOf(doc)
 
-	out := riggen.RigSpec{
-		Schema:       riggen.RigSpecSchemaRigSpec,
+	out := rig.Spec{
+		Schema:       rig.SchemaName,
 		Version:      &version,
 		ID:           identifier(doc.Data.Meta.Name),
-		Subject:      riggen.Subject{Kind: riggen.KindSound, Name: subjectName(doc)},
+		Subject:      rig.Subject{Kind: rig.KindSound, Name: subjectName(doc)},
 		Chain:        entries,
 		Instrument:   instrumentOf(c, cat),
-		Target:       &riggen.Target{Device: &device},
+		Target:       &rig.Target{Device: &device},
 		Snapshots:    snapshots,
 		Footswitches: switches,
 		Device:       deviceState(doc, modelledKeys(doc, snapshots, switches)),
@@ -75,7 +74,7 @@ func Lift(doc *preset.Document, cat *catalog.Catalog) (riggen.RigSpec, error) {
 	// something that does not meet its own contract is a bug here, not input
 	// worth passing on.
 	if err := rig.Validate(out); err != nil {
-		return riggen.RigSpec{}, fmt.Errorf("lifting %q: %w", doc.Data.Meta.Name, err)
+		return rig.Spec{}, fmt.Errorf("lifting %q: %w", doc.Data.Meta.Name, err)
 	}
 
 	return out, nil
@@ -124,12 +123,12 @@ func collapse(s string) string {
 }
 
 // entryFor describes one block as gear.
-func entryFor(b chain.Block, cat *catalog.Catalog, device string) riggen.ChainEntry {
+func entryFor(b chain.Block, cat *catalog.Catalog, device string) rig.ChainEntry {
 	blk, known := cat.Block(b.Model)
 
 	pos, path := b.Pos, b.DSP
 
-	entry := riggen.ChainEntry{
+	entry := rig.ChainEntry{
 		Gear:     gearName(blk, b.Model, known),
 		Enabled:  &b.Enabled,
 		Models:   &map[string]string{device: string(b.Model)},
@@ -185,42 +184,42 @@ func gearName(blk catalog.Block, id catalog.ModelID, known bool) string {
 // A model the catalog has never heard of is described as other rather than
 // left blank: a rig has to say what every block is, and "something this
 // device carries and we do not recognise" is a truthful answer.
-func roleFor(c catalog.Category, known bool) riggen.Role {
+func roleFor(c catalog.Category, known bool) rig.Role {
 	if !known {
-		return riggen.RoleOther
+		return rig.RoleOther
 	}
 
 	if role, ok := roles[c]; ok {
 		return role
 	}
 
-	return riggen.RoleOther
+	return rig.RoleOther
 }
 
 // roles is the correspondence between what the catalog calls a block and what
 // a rig calls it. They are deliberately the same words.
-var roles = map[catalog.Category]riggen.Role{
-	catalog.CategoryAmp:     riggen.RoleAmp,
-	catalog.CategoryCab:     riggen.RoleCab,
-	catalog.CategoryDrive:   riggen.RoleDrive,
-	catalog.CategoryComp:    riggen.RoleComp,
-	catalog.CategoryGate:    riggen.RoleGate,
-	catalog.CategoryEQ:      riggen.RoleEQ,
-	catalog.CategoryMod:     riggen.RoleMod,
-	catalog.CategoryDelay:   riggen.RoleDelay,
-	catalog.CategoryReverb:  riggen.RoleReverb,
-	catalog.CategoryWah:     riggen.RoleWah,
-	catalog.CategoryPitch:   riggen.RolePitch,
-	catalog.CategoryFilter:  riggen.RoleFilter,
-	catalog.CategoryUtility: riggen.RoleUtility,
-	catalog.CategoryOther:   riggen.RoleOther,
+var roles = map[catalog.Category]rig.Role{
+	catalog.CategoryAmp:     rig.RoleAmp,
+	catalog.CategoryCab:     rig.RoleCab,
+	catalog.CategoryDrive:   rig.RoleDrive,
+	catalog.CategoryComp:    rig.RoleComp,
+	catalog.CategoryGate:    rig.RoleGate,
+	catalog.CategoryEQ:      rig.RoleEQ,
+	catalog.CategoryMod:     rig.RoleMod,
+	catalog.CategoryDelay:   rig.RoleDelay,
+	catalog.CategoryReverb:  rig.RoleReverb,
+	catalog.CategoryWah:     rig.RoleWah,
+	catalog.CategoryPitch:   rig.RolePitch,
+	catalog.CategoryFilter:  rig.RoleFilter,
+	catalog.CategoryUtility: rig.RoleUtility,
+	catalog.CategoryOther:   rig.RoleOther,
 }
 
 // instrumentOf reports which instrument a chain is for, from its amplifier.
 //
 // Line 6 tag amps Guitar or Bass. A chain with no amp names no instrument, so
 // guitar stands as the more common default.
-func instrumentOf(c chain.Chain, cat *catalog.Catalog) riggen.Instrument {
+func instrumentOf(c chain.Chain, cat *catalog.Catalog) rig.Instrument {
 	for _, b := range c.Blocks {
 		blk, known := cat.Block(b.Model)
 		if !known || blk.Category != catalog.CategoryAmp {
@@ -228,11 +227,11 @@ func instrumentOf(c chain.Chain, cat *catalog.Catalog) riggen.Instrument {
 		}
 
 		if blk.Subcategory == "Bass" {
-			return riggen.InstrumentBass
+			return rig.InstrumentBass
 		}
 	}
 
-	return riggen.InstrumentGuitar
+	return rig.InstrumentGuitar
 }
 
 // modelledKeys names the tone entries a rig carries as fields of its own.
@@ -241,8 +240,8 @@ func instrumentOf(c chain.Chain, cat *catalog.Catalog) riggen.Instrument {
 // section, which produces no fields and is still something the file said.
 func modelledKeys(
 	doc *preset.Document,
-	snapshots *[]riggen.Snapshot,
-	switches *[]riggen.Footswitch,
+	snapshots *[]rig.Snapshot,
+	switches *[]rig.Footswitch,
 ) map[string]bool {
 	out := map[string]bool{}
 
