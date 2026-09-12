@@ -49,7 +49,7 @@ type Compiler interface {
 	// Resolve turns a rig and a catalog into a chain.
 	Resolve(
 		spec riggen.RigSpec, cat *catalog.Catalog, stats *corpus.Stats,
-	) (chain.Chain, []compile.Added, error)
+	) (chain.Chain, []compile.Added, []compile.Moved, error)
 	// Fit drops what a device has no room for.
 	Fit(spec chain.Chain, cat *catalog.Catalog, lim chain.Limits) chain.Chain
 }

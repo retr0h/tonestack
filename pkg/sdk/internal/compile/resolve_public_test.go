@@ -227,7 +227,7 @@ func (s *ResolvePublicTestSuite) TestResolve() {
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			got, _, err := compile.Resolve(tt.spec, s.cat, nil)
+			got, _, _, err := compile.Resolve(tt.spec, s.cat, nil)
 
 			if tt.err != "" {
 				s.Require().ErrorIs(err, compile.ErrNoSuchGear)
@@ -264,7 +264,7 @@ func (s *ResolvePublicTestSuite) TestResolveChecksWhatTheRigClaims() {
 	device := "Kemper Profiler"
 	spec.Target = &riggen.Target{Device: &device}
 
-	_, _, err := compile.Resolve(spec, s.cat, nil)
+	_, _, _, err := compile.Resolve(spec, s.cat, nil)
 
 	s.Require().ErrorIs(err, compile.ErrNoSuchValue)
 }
@@ -332,11 +332,11 @@ func (s *ResolvePublicTestSuite) TestGear() {
 }
 
 func (s *ResolvePublicTestSuite) TestResolveIsDeterministic() {
-	first, _, err := compile.Resolve(recipe("Ampeg SVT", ""), s.cat, nil)
+	first, _, _, err := compile.Resolve(recipe("Ampeg SVT", ""), s.cat, nil)
 	s.Require().NoError(err)
 
 	for range 20 {
-		again, _, err := compile.Resolve(recipe("Ampeg SVT", ""), s.cat, nil)
+		again, _, _, err := compile.Resolve(recipe("Ampeg SVT", ""), s.cat, nil)
 
 		s.Require().NoError(err)
 		s.Require().Equal(models(first), models(again))
@@ -346,7 +346,7 @@ func (s *ResolvePublicTestSuite) TestResolveIsDeterministic() {
 // TestResolveNamesWhatItChoseForYou covers the second return, which is what
 // a person is told about decisions made on their behalf.
 func (s *ResolvePublicTestSuite) TestResolveNamesWhatItChoseForYou() {
-	_, added, err := compile.Resolve(
+	_, added, _, err := compile.Resolve(
 		recipe("Ampeg SVT", "Some Cabinet Nobody Models"), s.cat, nil)
 
 	s.Require().NoError(err)
@@ -389,7 +389,7 @@ func (s *ResolvePublicTestSuite) TestResolveSetsParameters() {
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			got, _, err := compile.Resolve(tt.spec, s.cat, nil)
+			got, _, _, err := compile.Resolve(tt.spec, s.cat, nil)
 
 			s.Require().NoError(err)
 			s.Require().NotEmpty(got.Blocks)
@@ -441,7 +441,7 @@ func (s *ResolvePublicTestSuite) TestFit() {
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			spec, _, err := compile.Resolve(tt.spec, s.cat, nil)
+			spec, _, _, err := compile.Resolve(tt.spec, s.cat, nil)
 			s.Require().NoError(err)
 
 			fitted := compile.Fit(spec, s.cat, tt.limits)
@@ -468,7 +468,7 @@ func (s *ResolvePublicTestSuite) TestFit() {
 // TestFitNumbersEachProcessorFromZero is a property of the whole result
 // rather than of any one chain.
 func (s *ResolvePublicTestSuite) TestFitNumbersEachProcessorFromZero() {
-	spec, _, err := compile.Resolve(
+	spec, _, _, err := compile.Resolve(
 		recipe("Ampeg SVT", "", "Heavy Thing", "Heavy Thing"), s.cat, nil)
 	s.Require().NoError(err)
 
@@ -494,7 +494,7 @@ func (s *ResolvePublicTestSuite) TestFitNumbersEachProcessorFromZero() {
 // TestFitIgnoresABlockTheCatalogLacks keeps a catalog from another release
 // from dropping blocks on the floor.
 func (s *ResolvePublicTestSuite) TestFitIgnoresABlockTheCatalogLacks() {
-	spec, _, err := compile.Resolve(recipe("Ampeg SVT", ""), s.cat, nil)
+	spec, _, _, err := compile.Resolve(recipe("Ampeg SVT", ""), s.cat, nil)
 	s.Require().NoError(err)
 
 	spec.Blocks[0].Model = "HD2_NotInThisCatalog"

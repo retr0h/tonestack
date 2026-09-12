@@ -39,9 +39,37 @@ type Made struct {
 	// nothing, and refusing a build over a word would be refusing somebody
 	// the right to describe a sound in their own words.
 	Unfamiliar []Unfamiliar
+	// Moved are the parameters a character term turned, and the terms that
+	// turned nothing. A word a rig described itself with that moved no knob
+	// is still something the rig said, and reporting only the ones that
+	// worked would read as if the rest had.
+	Moved []Moved
 	// Path is the file that was written.
 	Path string
 }
+
+// Moved is what a character term did to a parameter.
+type Moved struct {
+	// Term is the word that moved it.
+	Term string
+	// Param is the control it moved. Empty when nothing in the chain answers
+	// to this term yet, which is most of the vocabulary.
+	Param string
+	// From and To are where the parameter was and where it went.
+	From float64
+	To   float64
+	// Against names the axis another term in the same rig also spoke for.
+	// Two words from one axis are two answers to one question, so neither is
+	// applied: applying both lands back where it started and reads as though
+	// the rig said nothing.
+	Against string
+}
+
+// Acted says whether the term moved anything.
+func (m Moved) Acted() bool { return m.Param != "" }
+
+// Contested says whether another term spoke for the same axis.
+func (m Moved) Contested() bool { return m.Against != "" }
 
 // Added is a block put in the chain that the recipe did not name.
 type Added struct {

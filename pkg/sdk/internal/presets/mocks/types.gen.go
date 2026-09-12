@@ -137,13 +137,14 @@ func (mr *MockCompilerMockRecorder) Fit(spec, cat, lim any) *gomock.Call {
 }
 
 // Resolve mocks base method.
-func (m *MockCompiler) Resolve(spec gen.RigSpec, cat *catalog.Catalog, stats *corpus.Stats) (chain.Chain, []compile.Added, error) {
+func (m *MockCompiler) Resolve(spec gen.RigSpec, cat *catalog.Catalog, stats *corpus.Stats) (chain.Chain, []compile.Added, []compile.Moved, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Resolve", spec, cat, stats)
 	ret0, _ := ret[0].(chain.Chain)
 	ret1, _ := ret[1].([]compile.Added)
-	ret2, _ := ret[2].(error)
-	return ret0, ret1, ret2
+	ret2, _ := ret[2].([]compile.Moved)
+	ret3, _ := ret[3].(error)
+	return ret0, ret1, ret2, ret3
 }
 
 // Resolve indicates an expected call of Resolve.

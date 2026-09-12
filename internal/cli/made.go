@@ -59,6 +59,10 @@ func made(w io.Writer, m sdk.Made, cat *catalog.Catalog) error {
 		return err
 	}
 
+	if err := heard(w, m.Moved); err != nil {
+		return err
+	}
+
 	if err := unfamiliar(w, m.Unfamiliar); err != nil {
 		return err
 	}
@@ -88,6 +92,40 @@ func added(w io.Writer, all []sdk.Added) error {
 		}
 
 		if _, err := fmt.Fprintf(w, "%s%s %s\n", Indent, Mute(w, "added"), line); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// heard names the knobs a word turned, and the words that turned none.
+//
+// Both halves, because a term that moved nothing is still something the rig
+// said. Reporting only the ones that worked would read as if the rest had.
+func heard(w io.Writer, all []sdk.Moved) error {
+	if len(all) == 0 {
+		return nil
+	}
+
+	if _, err := fmt.Fprintln(w); err != nil {
+		return err
+	}
+
+	for _, m := range all {
+		line := fmt.Sprintf("%s — nothing acts on this yet", m.Term)
+
+		switch {
+		case m.Contested():
+			line = fmt.Sprintf(
+				"%s — another term already answered for %s, so neither moved",
+				m.Term, m.Against)
+		case m.Acted():
+			line = fmt.Sprintf("%s — %s %.2f to %.2f", m.Term, m.Param, m.From, m.To)
+		}
+
+		if _, err := fmt.Fprintf(w, "%s%s %s\n",
+			Indent, Mute(w, "heard"), line); err != nil {
 			return err
 		}
 	}

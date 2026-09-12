@@ -57,7 +57,7 @@ func init() {
 	f.StringVar(&corpusGenerateOptions.CatalogPath, "catalog", "",
 		"a generated catalog to use instead of the built-in one")
 	f.StringVar(&corpusGenerateOptions.OutputPath, "out",
-		"pkg/corpus/data/hx-stomp.stats.json.gz", "where to write the statistics")
+		"pkg/sdk/corpus/data/hx-stomp.stats.json.gz", "where to write the statistics")
 	f.IntVar(&corpusGenerateOptions.MinSamples, "min-samples", 0,
 		"how many values a parameter needs before its distribution is kept")
 }

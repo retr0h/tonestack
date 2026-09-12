@@ -63,7 +63,7 @@ func (s *SettingsPublicTestSuite) value(
 	stats *corpus.Stats,
 	key string,
 ) catalog.ParamValue {
-	spec, _, err := compile.Resolve(recipe("Ampeg SVT (normal", ""), s.cat, stats)
+	spec, _, _, err := compile.Resolve(recipe("Ampeg SVT (normal", ""), s.cat, stats)
 	s.Require().NoError(err)
 	s.Require().NotEmpty(spec.Blocks)
 
