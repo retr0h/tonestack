@@ -63,6 +63,11 @@ type Moved struct {
 	// applied: applying both lands back where it started and reads as though
 	// the rig said nothing.
 	Against string
+	// Because says why the chain could not answer this word, when the chain
+	// is the reason. Empty when nothing acts on the word at all, which is a
+	// different answer: one says this rig cannot hear it, the other says
+	// nobody has taught the project to listen.
+	Because string
 }
 
 // Acted says whether the term moved anything.
@@ -70,6 +75,10 @@ func (m Moved) Acted() bool { return m.Param != "" }
 
 // Contested says whether another term spoke for the same axis.
 func (m Moved) Contested() bool { return m.Against != "" }
+
+// Unanswered says whether the chain, rather than this project, is why the
+// word moved nothing.
+func (m Moved) Unanswered() bool { return m.Because != "" }
 
 // Added is a block put in the chain that the recipe did not name.
 type Added struct {

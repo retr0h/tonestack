@@ -134,6 +134,34 @@ claiming both has claimed nothing.
 | `space`        | what surrounds the part                             | `dry` · `roomy`                                            |
 | `string-noise` | what the hands make that is not a note              | `audible-strings` · `quiet-strings`                        |
 
+Six of those axes turn a knob. `mids`, `highs`, `drive` and `low-end` move the
+first amplifier in the chain, `space` moves the first reverb and `attack` moves
+the first compressor. Each word is worth one step from where the corpus left
+that control, so a build reports what it heard and what it did about it:
+
+```console
+$ tonestack presets make --id mike-dirnt
+  heard mid-forward — Mid 0.79 to 0.89
+  heard minimal-drive — another term already answered for drive, so neither moved
+  heard grit-on-attack — another term already answered for drive, so neither moved
+  heard tight-low-end — Sag 0.50 to 0.40
+  heard short-decay — nothing acts on this yet
+  heard audible-pick-attack — the LA Studio Comp has no Attack
+```
+
+`mike-dirnt` claims two points on the drive scale, which is one question
+answered twice. Applying both lands the knob where it started, so neither is
+applied and the build names the axis instead.
+
+Those last two lines say different things. Nothing anywhere acts on
+`short-decay`, and that is this project's gap. `audible-pick-attack` has a
+control behind it and this chain has nowhere to put it, because the LA Studio
+Comp is an opto with no attack knob, and that is worth knowing about the rig.
+
+The other four axes, `decay`, `string-noise`, `pickup` and `movement`, describe
+the player and the instrument rather than the rig. They are recorded and move
+nothing.
+
 A word that is not on the list is reported and not refused:
 
 ```console
@@ -143,9 +171,8 @@ $ tonestack presets make --id mine
   [ok] wrote mine.hlx
 ```
 
-The preset is written, because nothing compiles a character term into a chain
-and refusing one would be refusing you the right to describe a sound. If the
-word you want is missing, add it to
+The preset is written, because refusing a word would be refusing you the right
+to describe a sound. If the word you want is missing, add it to
 [`pkg/sdk/internal/compile/data/character-terms.json`](../pkg/sdk/internal/compile/data/character-terms.json)
 with a sentence saying what it means. The rigs this repository ships are held to
 the list by a test, which is what keeps the examples from drifting back into

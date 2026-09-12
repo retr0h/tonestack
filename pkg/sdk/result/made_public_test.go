@@ -46,11 +46,11 @@ func (s *MadePublicTestSuite) TestActed() {
 			want: true,
 		},
 		{
-			// Most of the vocabulary. Six of the ten axes are not amplifier
-			// controls, and a term from one of those is recorded and moves
-			// nothing.
+			// Four of the ten axes describe the player and the instrument
+			// rather than the rig, and a term from one of those is recorded
+			// and moves nothing.
 			name: "a word nothing acts on yet",
-			in:   result.Moved{Term: "glassy"},
+			in:   result.Moved{Term: "short-decay"},
 		},
 	}
 
@@ -84,6 +84,42 @@ func (s *MadePublicTestSuite) TestContested() {
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
 			s.Require().Equal(tt.want, tt.in.Contested())
+		})
+	}
+}
+
+// TestUnanswered covers telling the two silences apart.
+func (s *MadePublicTestSuite) TestUnanswered() {
+	tests := []struct {
+		name string
+		in   result.Moved
+		want bool
+	}{
+		{
+			// A control exists for this word. This chain does not have it,
+			// which is a fact about the rig and worth saying.
+			name: "the chain has nowhere to put it",
+			in: result.Moved{
+				Term:    "audible-pick-attack",
+				Because: "the LA Studio Comp has no Attack",
+			},
+			want: true,
+		},
+		{
+			// The other silence: nothing anywhere acts on this word, so the
+			// chain is not what is missing.
+			name: "nothing acts on it at all",
+			in:   result.Moved{Term: "short-decay"},
+		},
+		{
+			name: "a word that moved a control",
+			in:   result.Moved{Term: "mid-forward", Param: "Mid"},
+		},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			s.Require().Equal(tt.want, tt.in.Unanswered())
 		})
 	}
 }

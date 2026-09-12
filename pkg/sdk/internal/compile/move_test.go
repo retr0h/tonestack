@@ -35,16 +35,55 @@ type MoveTestSuite struct {
 	suite.Suite
 }
 
-// amp is a block carrying the four controls a term can turn.
-func (s *MoveTestSuite) amp() catalog.Block {
-	knob := catalog.Param{Type: catalog.ParamFloat, Min: 0, Max: 1}
+// knob is a control that runs from nothing to everything.
+var knob = catalog.Param{Type: catalog.ParamFloat, Min: 0, Max: 1}
 
+// amp carries the four controls an amplifier term can turn.
+func (s *MoveTestSuite) amp() catalog.Block {
 	return catalog.Block{
 		ID: "HD2_AmpTestBass", Category: catalog.CategoryAmp,
 		Params: map[string]catalog.Param{
 			"Mid": knob, "Treble": knob, "Drive": knob, "Sag": knob,
 		},
 	}
+}
+
+// chain is an amplifier, a reverb and a compressor, which between them answer
+// for every axis that acts.
+func (s *MoveTestSuite) blocks() []catalog.Block {
+	return []catalog.Block{
+		{
+			ID: "HD2_CompTest", Category: catalog.CategoryComp,
+			Params: map[string]catalog.Param{"Attack": knob},
+		},
+		s.amp(),
+		{
+			ID: "HD2_ReverbTest", Category: catalog.CategoryReverb,
+			Params: map[string]catalog.Param{"Mix": knob},
+		},
+	}
+}
+
+// built is where the corpus and the catalog left every block, before a word.
+func (s *MoveTestSuite) built() chain.Chain {
+	return chain.Chain{Blocks: []chain.Block{
+		{Model: "HD2_CompTest", Params: chain.Params{"Attack": catalog.Float(0.5)}},
+		{Model: "HD2_AmpTestBass", Params: s.params()},
+		{Model: "HD2_ReverbTest", Params: chain.Params{"Mix": catalog.Float(0.5)}},
+	}}
+}
+
+// paramOf reads one control off whichever block holds it.
+func (s *MoveTestSuite) paramOf(built chain.Chain, key string) float64 {
+	for _, b := range built.Blocks {
+		if v, ok := b.Params[key].Float(); ok {
+			return v
+		}
+	}
+
+	s.Require().Fail("nothing in the chain has " + key)
+
+	return 0
 }
 
 // params is where the corpus and the catalog left things, before any word.
@@ -134,28 +173,62 @@ func (s *MoveTestSuite) TestMove() {
 			param: "Treble", want: 0.6,
 		},
 		{
+			// The reverb's question, not the amplifier's.
+			name:  "room around the part",
+			terms: []string{"roomy"},
+			param: "Mix", want: 0.6,
+		},
+		{
+			name:  "none on it",
+			terms: []string{"dry"},
+			param: "Mix", want: 0.4,
+		},
+		{
+			// A compressor's attack decides how much of the front of a note
+			// gets past it. Slow lets the pick through; fast clamps it.
+			name:  "the pick as a sound of its own",
+			terms: []string{"percussive"},
+			param: "Attack", want: 0.6,
+		},
+		{
+			name:  "notes that arrive rather than start",
+			terms: []string{"soft-attack"},
+			param: "Attack", want: 0.4,
+		},
+		{
 			name:  "a word the vocabulary does not carry at all",
 			terms: []string{"sounds like a wet paper bag"},
 			inert: true,
 		},
 		{
+			// Its own words say the hands and the strings do this, and the
+			// rig has three plausible controls for it and no way to choose.
 			name:  "an axis nothing acts on yet",
 			terms: []string{"short-decay"},
+			inert: true,
+		},
+		{
+			// What the hands make is not something a knob answers for.
+			name:  "an axis about the player rather than the rig",
+			terms: []string{"audible-strings"},
 			inert: true,
 		},
 	}
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			params := s.params()
+			built := s.built()
 
-			got := move(s.amp(), params, tt.terms, s.stats())
+			got := move(s.blocks(), built, tt.terms, s.stats())
 
 			s.Require().Len(got, len(tt.terms))
 
 			if tt.inert {
 				s.Require().False(got[0].Acted())
 				s.Require().False(got[0].Contested())
+				// This chain answers every axis that acts, so silence here
+				// is the project's and not the rig's.
+				s.Require().False(got[0].Unanswered())
 
 				return
 			}
@@ -168,9 +241,7 @@ func (s *MoveTestSuite) TestMove() {
 				}
 			}
 
-			v, ok := params[tt.param].Float()
-			s.Require().True(ok)
-			s.Require().InDelta(tt.want, v, 1e-9)
+			s.Require().InDelta(tt.want, s.paramOf(built, tt.param), 1e-9)
 		})
 	}
 }
@@ -193,45 +264,71 @@ func (s *MoveTestSuite) TestMoveClampsToWhatTheDeviceAccepts() {
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			params := chain.Params{"Drive": catalog.Float(tt.at)}
+			built := chain.Chain{Blocks: []chain.Block{
+				{Model: "HD2_AmpTestBass", Params: chain.Params{
+					"Drive": catalog.Float(tt.at),
+				}},
+			}}
 
-			got := move(s.amp(), params, []string{tt.term}, s.stats())
+			got := move([]catalog.Block{s.amp()}, built, []string{tt.term}, s.stats())
 
 			s.Require().True(got[0].Acted())
-
-			v, _ := params["Drive"].Float()
-			s.Require().InDelta(tt.want, v, 1e-9)
+			s.Require().InDelta(tt.want, s.paramOf(built, "Drive"), 1e-9)
 		})
 	}
 }
 
 // TestMoveSkipsWhatTheBlockDoesNotHave covers an amplifier that models no sag.
+//
+// The word is answerable and this amplifier cannot answer it, which is worth
+// saying out loud rather than passing over.
 func (s *MoveTestSuite) TestMoveSkipsWhatTheBlockDoesNotHave() {
 	b := catalog.Block{
-		ID: "HD2_Plain", Category: catalog.CategoryAmp,
+		ID: "HD2_Plain", Name: "Plain Amp", Category: catalog.CategoryAmp,
 		Params: map[string]catalog.Param{
 			"Mid": {Type: catalog.ParamFloat, Min: 0, Max: 1},
 		},
 	}
 
-	got := move(b, chain.Params{"Mid": catalog.Float(0.5)},
-		[]string{"tight-low-end"}, nil)
+	built := chain.Chain{Blocks: []chain.Block{
+		{Model: "HD2_Plain", Params: chain.Params{"Mid": catalog.Float(0.5)}},
+	}}
+
+	got := move([]catalog.Block{b}, built, []string{"tight-low-end"}, nil)
 
 	s.Require().Len(got, 1)
 	s.Require().False(got[0].Acted())
+	s.Require().True(got[0].Unanswered())
+	s.Require().Equal("the Plain Amp has no Sag", got[0].Because)
+}
+
+// TestMoveWithoutTheBlockTheWordNeeds covers a word with nowhere to land.
+//
+// A rig asking for room in a chain holding no reverb is not a word nobody has
+// taught the project: it is a chain that cannot answer.
+func (s *MoveTestSuite) TestMoveWithoutTheBlockTheWordNeeds() {
+	built := chain.Chain{Blocks: []chain.Block{
+		{Model: "HD2_AmpTestBass", Params: s.params()},
+	}}
+
+	got := move([]catalog.Block{s.amp()}, built, []string{"roomy"}, s.stats())
+
+	s.Require().Len(got, 1)
+	s.Require().False(got[0].Acted())
+	s.Require().True(got[0].Unanswered())
+	s.Require().Equal("this chain holds no reverb", got[0].Because)
 }
 
 // TestMoveWithoutStatistics covers a build with no corpus to lean on.
 func (s *MoveTestSuite) TestMoveWithoutStatistics() {
-	params := s.params()
+	built := s.built()
 
-	got := move(s.amp(), params, []string{"mid-forward"}, nil)
+	got := move(s.blocks(), built, []string{"mid-forward"}, nil)
 
 	s.Require().True(got[0].Acted())
 
 	// A tenth of the range, since nothing measured this.
-	v, _ := params["Mid"].Float()
-	s.Require().InDelta(0.6, v, 1e-9)
+	s.Require().InDelta(0.6, s.paramOf(built, "Mid"), 1e-9)
 }
 
 // TestMoveSkipsAValueItCannotDo covers a control a word cannot turn.
@@ -246,8 +343,11 @@ func (s *MoveTestSuite) TestMoveSkipsAValueItCannotDo() {
 		},
 	}
 
-	got := move(b, chain.Params{"Mid": catalog.Bool(true)},
-		[]string{"mid-forward"}, nil)
+	built := chain.Chain{Blocks: []chain.Block{
+		{Model: "HD2_Switched", Params: chain.Params{"Mid": catalog.Bool(true)}},
+	}}
+
+	got := move([]catalog.Block{b}, built, []string{"mid-forward"}, nil)
 
 	s.Require().Len(got, 1)
 	s.Require().False(got[0].Acted())

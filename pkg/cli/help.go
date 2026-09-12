@@ -36,9 +36,9 @@ type Item struct {
 
 // Help is everything a command's help page shows.
 //
-// It holds no cobra types. The command layer adapts cobra to this, so the
-// layout is decided in one place and can be tested without building a
-// command tree.
+// It holds no types from any command framework. Whatever parses the flags
+// adapts itself to this, so the layout is decided in one place and can be
+// tested without building a command tree.
 type Help struct {
 	// Name is the full invocation, such as "tonestack presets make".
 	Name string

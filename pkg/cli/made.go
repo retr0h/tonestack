@@ -124,6 +124,8 @@ func heard(w io.Writer, all []sdk.Moved) error {
 				m.Term, m.Against)
 		case m.Acted():
 			line = fmt.Sprintf("%s — %s %.2f to %.2f", m.Term, m.Param, m.From, m.To)
+		case m.Unanswered():
+			line = fmt.Sprintf("%s — %s", m.Term, m.Because)
 		}
 
 		if _, err := fmt.Fprintf(w, "%s%s %s\n",

@@ -118,7 +118,7 @@ func (s *ThemePublicTestSuite) TestSuccessAndFailure() {
 	}
 }
 
-// TestFailurePrefix is the mark on its own, for cobra to print an error
+// TestFailurePrefix is the mark on its own, for an error to be printed
 // behind.
 func (s *ThemePublicTestSuite) TestFailurePrefix() {
 	s.Require().Equal("[err]", paint.FailurePrefix(&bytes.Buffer{}))

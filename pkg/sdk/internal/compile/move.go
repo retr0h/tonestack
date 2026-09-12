@@ -40,6 +40,11 @@ type Moved struct {
 	// Against names the axis another term in the same rig also spoke for.
 	// Empty unless two words answered one question.
 	Against string
+	// Because says why the chain could not answer this word, when the chain
+	// is the reason. Empty when nothing acts on the word at all, which is a
+	// different answer: one says this rig cannot hear it, the other says
+	// nobody has taught the project to listen.
+	Because string
 }
 
 // Acted says whether the term moved anything.
@@ -48,15 +53,21 @@ func (m Moved) Acted() bool { return m.Param != "" }
 // Contested says whether another term spoke for the same axis.
 func (m Moved) Contested() bool { return m.Against != "" }
 
-// turn is one term's effect: which parameter, and how many steps along it.
+// Unanswered says whether the chain, rather than this project, is why the
+// word moved nothing.
+func (m Moved) Unanswered() bool { return m.Because != "" }
+
+// turn is one term's effect: which kind of block, which parameter, and how
+// many steps along it.
 //
 // A step is signed and scaled rather than a direction, because two shapes of
 // axis need different arithmetic. `mids` is a pair, one step either side.
 // `drive` is a scale — clean, minimal-drive, grit-on-attack, saturated are
 // four positions on one line — so each term carries its own multiple.
 type turn struct {
-	param string
-	steps float64
+	category catalog.Category
+	param    string
+	steps    float64
 }
 
 // turns is what a term does, for the terms that do anything.
@@ -70,20 +81,32 @@ type turn struct {
 // are not amplifier controls. A term from one of those is recorded and moves
 // nothing, which a build says out loud.
 var turns = map[string]turn{
-	"mid-forward": {param: "Mid", steps: 1},
-	"scooped":     {param: "Mid", steps: -1},
+	"mid-forward": {category: catalog.CategoryAmp, param: "Mid", steps: 1},
+	"scooped":     {category: catalog.CategoryAmp, param: "Mid", steps: -1},
 
-	"dark":   {param: "Treble", steps: -1},
-	"bright": {param: "Treble", steps: 1},
-	"glassy": {param: "Treble", steps: 1},
+	"dark":   {category: catalog.CategoryAmp, param: "Treble", steps: -1},
+	"bright": {category: catalog.CategoryAmp, param: "Treble", steps: 1},
+	"glassy": {category: catalog.CategoryAmp, param: "Treble", steps: 1},
 
-	"clean":          {param: "Drive", steps: -1},
-	"minimal-drive":  {param: "Drive", steps: -0.5},
-	"grit-on-attack": {param: "Drive", steps: 0.5},
-	"saturated":      {param: "Drive", steps: 1},
+	"clean":          {category: catalog.CategoryAmp, param: "Drive", steps: -1},
+	"minimal-drive":  {category: catalog.CategoryAmp, param: "Drive", steps: -0.5},
+	"grit-on-attack": {category: catalog.CategoryAmp, param: "Drive", steps: 0.5},
+	"saturated":      {category: catalog.CategoryAmp, param: "Drive", steps: 1},
 
-	"tight-low-end": {param: "Sag", steps: -1},
-	"loose-low-end": {param: "Sag", steps: 1},
+	"tight-low-end": {category: catalog.CategoryAmp, param: "Sag", steps: -1},
+	"loose-low-end": {category: catalog.CategoryAmp, param: "Sag", steps: 1},
+
+	// How much of the room is on the part, which is the reverb's own
+	// question and nothing to do with the amplifier.
+	"dry":   {category: catalog.CategoryReverb, param: "Mix", steps: -1},
+	"roomy": {category: catalog.CategoryReverb, param: "Mix", steps: 1},
+
+	// A compressor's attack decides how much of the front of a note gets
+	// past it. Slow, and the pick is a sound of its own; fast, and notes
+	// arrive rather than start. A scale, like drive.
+	"soft-attack":         {category: catalog.CategoryComp, param: "Attack", steps: -1},
+	"audible-pick-attack": {category: catalog.CategoryComp, param: "Attack", steps: 0.5},
+	"percussive":          {category: catalog.CategoryComp, param: "Attack", steps: 1},
 }
 
 // fallbackStep is how far a term moves a parameter the corpus cannot measure.
@@ -93,14 +116,16 @@ var turns = map[string]turn{
 // for a spread to mean anything.
 const fallbackStep = 0.1
 
-// move applies a rig's character to one block's parameters.
+// move applies a rig's character to whichever blocks answer for it.
 //
-// Returns what it changed, including the terms it could not act on: a term
-// that moves nothing is still something the rig said, and a build that
-// reported only the ones that worked would read as if the rest had.
+// Each axis names the kind of block it speaks to, because a word is about a
+// part of the sound and not about a box: "roomy" is the reverb's question and
+// "mid-forward" is the amplifier's. A chain holding neither still reports the
+// words, because a term that moves nothing is still something the rig said and
+// reporting only the ones that worked would read as if the rest had.
 func move(
-	b catalog.Block,
-	params chain.Params,
+	blocks []catalog.Block,
+	built chain.Chain,
 	terms []string,
 	stats *corpus.Stats,
 ) []Moved {
@@ -124,28 +149,63 @@ func move(
 			continue
 		}
 
-		p, held := b.Params[t.param]
-		if !held {
-			// Not every amplifier models sag.
-			out = append(out, Moved{Term: term})
+		at := indexOf(blocks, t.category)
+		if at < 0 {
+			// Something would answer for this word. This chain holds none
+			// of it, which is the rig's shape rather than a gap here.
+			out = append(out, Moved{
+				Term:    term,
+				Because: "this chain holds no " + string(t.category),
+			})
 
 			continue
 		}
 
-		from, ok := params[t.param].Float()
-		if !ok {
-			out = append(out, Moved{Term: term})
-
-			continue
-		}
-
-		to := clamp(from+t.steps*step(b, t.param, p, stats), p.Min, p.Max)
-
-		params[t.param] = catalog.Float(to)
-		out = append(out, Moved{Term: term, Param: t.param, From: from, To: to})
+		out = append(out, apply(blocks[at], built.Blocks[at].Params, term, t, stats))
 	}
 
 	return out
+}
+
+// indexOf finds the first block of a kind, or reports that there is none.
+//
+// The first, because a chain may hold two reverbs and a word is one opinion:
+// spreading it over both would be two opinions nobody expressed.
+func indexOf(blocks []catalog.Block, want catalog.Category) int {
+	for i, b := range blocks {
+		if b.Category == want {
+			return i
+		}
+	}
+
+	return -1
+}
+
+// apply turns one knob, or reports why it could not.
+func apply(
+	b catalog.Block,
+	params chain.Params,
+	term string,
+	t turn,
+	stats *corpus.Stats,
+) Moved {
+	p, held := b.Params[t.param]
+	if !held {
+		// Not every amplifier models sag, and an opto compressor has no
+		// attack at all — the circuit decides it.
+		return Moved{Term: term, Because: "the " + b.Name + " has no " + t.param}
+	}
+
+	from, ok := params[t.param].Float()
+	if !ok {
+		return Moved{Term: term, Because: "the " + b.Name + " has no " + t.param}
+	}
+
+	to := clamp(from+t.steps*step(b, t.param, p, stats), p.Min, p.Max)
+
+	params[t.param] = catalog.Float(to)
+
+	return Moved{Term: term, Param: t.param, From: from, To: to}
 }
 
 // step is how far one term moves this parameter.

@@ -1,6 +1,6 @@
 # Character moves a knob
 
-**Status:** proposed\
+**Status:** implemented\
 **Scope:** `pkg/sdk/internal/compile`, and what a build reports
 
 ## The problem
@@ -44,19 +44,38 @@ the catalog's stated range. Values clamp to that range.
 
 ## Which knobs
 
-Four axes, because four have a direction that is not a guess.
+Six axes, because six have a direction that is not a guess. Each names the kind
+of block it asks of, not just the control.
 
-| axis      | parameter | why that direction                                                                                                   |
-| --------- | --------- | -------------------------------------------------------------------------------------------------------------------- |
-| `mids`    | `Mid`     | needs no explaining                                                                                                  |
-| `highs`   | `Treble`  | needs no explaining                                                                                                  |
-| `drive`   | `Drive`   | needs no explaining                                                                                                  |
-| `low-end` | `Sag`     | the Pilot's Guide: *lower values offer tighter responsiveness … higher values provide more touch dynamics & sustain* |
+| axis      | block  | parameter | why that direction                                                                                                   |
+| --------- | ------ | --------- | -------------------------------------------------------------------------------------------------------------------- |
+| `mids`    | amp    | `Mid`     | needs no explaining                                                                                                  |
+| `highs`   | amp    | `Treble`  | needs no explaining                                                                                                  |
+| `drive`   | amp    | `Drive`   | needs no explaining                                                                                                  |
+| `low-end` | amp    | `Sag`     | the Pilot's Guide: *lower values offer tighter responsiveness … higher values provide more touch dynamics & sustain* |
+| `space`   | reverb | `Mix`     | how much of the room is in the signal                                                                                |
+| `attack`  | comp   | `Attack`  | how fast the compressor closes on a note's front edge                                                                |
 
-The other six — `decay`, `attack`, `space`, `string-noise`, `pickup`, `movement`
-— are not amplifier controls. They stay inert, and a build says which terms it
-acted on and which it only recorded, so nobody reads a preset believing `glassy`
-did something.
+The remaining four, `decay`, `string-noise`, `pickup` and `movement`, stay
+inert, and not for want of effort. Their own definitions describe the player and
+the instrument rather than the rig: `quiet-strings` is a left hand, and
+`bridge-forward` is a switch position on a guitar this project never sees.
+`decay` is the near miss, with three plausible controls and no rule for choosing
+between them.
+
+## The two silences
+
+A word can move nothing for two different reasons, and telling somebody they are
+the same reason is a lie in either direction.
+
+Nothing acts on `short-decay`, anywhere, in any chain. That is this project's
+gap, and the build says *nothing acts on this yet*.
+
+`audible-pick-attack` is different. It has a control behind it, and this chain
+has nowhere to put it: the LA Studio Comp is an opto emulation with no attack
+knob at all. The build says *the LA Studio Comp has no Attack*, which is a fact
+about the rig somebody can act on, and the same shape covers a chain holding no
+reverb at all when a rig asks for room.
 
 A block that lacks the parameter is skipped rather than failed. Not every
 amplifier models sag.
@@ -86,12 +105,13 @@ This is not hypothetical. `mike-dirnt`, shipped, claims both `minimal-drive` and
 `grit-on-attack` — two adjacent points on one scale from no breakup to breakup
 throughout. Before this was detected they cancelled silently.
 
-## The amplifier only
+## One block per axis
 
-First pass. `mid-forward` moves the amplifier's `Mid` and nothing else, even
-where an EQ block in the chain has one too. Two blocks arguing over one axis
-needs a rule nobody has written, and the amplifier is where the described
-character mostly lives.
+An axis names one kind of block and takes the first of that kind in the chain.
+`mid-forward` moves the amplifier's `Mid` and nothing else, even where an EQ
+block has one too, and `roomy` moves the first reverb even where the chain holds
+two. Two blocks arguing over one axis needs a rule nobody has written, and the
+first of a kind is where the described character mostly lives.
 
 ## What a build says
 
