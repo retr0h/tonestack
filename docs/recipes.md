@@ -158,6 +158,13 @@ Those last two lines say different things. Nothing anywhere acts on
 control behind it and this chain has nowhere to put it, because the LA Studio
 Comp is an opto with no attack knob, and that is worth knowing about the rig.
 
+There is a third thing a word can do, which is nothing at all because the chain
+is already what it asked for:
+
+```console
+  heard dry — this chain has no reverb, so it is already dry
+```
+
 The other four axes, `decay`, `string-noise`, `pickup` and `movement`, describe
 the player and the instrument rather than the rig. They are recorded and move
 nothing.

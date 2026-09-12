@@ -122,6 +122,8 @@ func heard(w io.Writer, all []sdk.Moved) error {
 			line = fmt.Sprintf(
 				"%s — another term already answered for %s, so neither moved",
 				m.Term, m.Against)
+		case m.Holds():
+			line = fmt.Sprintf("%s — %s", m.Term, m.Already)
 		case m.Acted():
 			line = fmt.Sprintf("%s — %s %.2f to %.2f", m.Term, m.Param, m.From, m.To)
 		case m.Unanswered():

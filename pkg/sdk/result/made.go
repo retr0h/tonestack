@@ -68,6 +68,10 @@ type Moved struct {
 	// different answer: one says this rig cannot hear it, the other says
 	// nobody has taught the project to listen.
 	Because string
+	// Already says how the chain answers this word without a knob being
+	// turned. A rig asking for no room, in a chain holding no reverb, asked
+	// for something it already has.
+	Already string
 }
 
 // Acted says whether the term moved anything.
@@ -79,6 +83,9 @@ func (m Moved) Contested() bool { return m.Against != "" }
 // Unanswered says whether the chain, rather than this project, is why the
 // word moved nothing.
 func (m Moved) Unanswered() bool { return m.Because != "" }
+
+// Holds says whether the chain already answers the word as built.
+func (m Moved) Holds() bool { return m.Already != "" }
 
 // Added is a block put in the chain that the recipe did not name.
 type Added struct {

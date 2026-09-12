@@ -124,6 +124,43 @@ func (s *MadePublicTestSuite) TestUnanswered() {
 	}
 }
 
+// TestHolds covers a word the chain answers without a knob being turned.
+func (s *MadePublicTestSuite) TestHolds() {
+	tests := []struct {
+		name string
+		in   result.Moved
+		want bool
+	}{
+		{
+			// Nothing was turned and nothing is missing. A chain with no
+			// reverb in it has no room on it, which is what dry asked for.
+			name: "the chain is already what was asked for",
+			in: result.Moved{
+				Term:    "dry",
+				Already: "this chain has no reverb, so it is already dry",
+			},
+			want: true,
+		},
+		{
+			name: "a word the chain could not answer",
+			in: result.Moved{
+				Term:    "roomy",
+				Because: "this chain holds no reverb",
+			},
+		},
+		{
+			name: "a word that moved a control",
+			in:   result.Moved{Term: "mid-forward", Param: "Mid"},
+		},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			s.Require().Equal(tt.want, tt.in.Holds())
+		})
+	}
+}
+
 func TestMadePublicTestSuite(t *testing.T) {
 	suite.Run(t, new(MadePublicTestSuite))
 }

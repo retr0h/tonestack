@@ -229,6 +229,7 @@ func (s *MoveTestSuite) TestMove() {
 				// This chain answers every axis that acts, so silence here
 				// is the project's and not the rig's.
 				s.Require().False(got[0].Unanswered())
+				s.Require().False(got[0].Holds())
 
 				return
 			}
@@ -300,6 +301,41 @@ func (s *MoveTestSuite) TestMoveSkipsWhatTheBlockDoesNotHave() {
 	s.Require().False(got[0].Acted())
 	s.Require().True(got[0].Unanswered())
 	s.Require().Equal("the Plain Amp has no Sag", got[0].Because)
+}
+
+// TestMoveWhenTheChainIsAlreadyWhatTheWordAsked covers asking for what you
+// already have.
+//
+// Mix at zero and no reverb at all are the same signal. A rig asking to stay
+// dry, in a chain holding no reverb, got what it asked for, and saying the
+// chain could not answer would be backwards.
+func (s *MoveTestSuite) TestMoveWhenTheChainIsAlreadyWhatTheWordAsked() {
+	built := chain.Chain{Blocks: []chain.Block{
+		{Model: "HD2_AmpTestBass", Params: s.params()},
+	}}
+
+	got := move([]catalog.Block{s.amp()}, built, []string{"dry"}, s.stats())
+
+	s.Require().Len(got, 1)
+	s.Require().True(got[0].Holds())
+	s.Require().False(got[0].Acted())
+	s.Require().False(got[0].Unanswered())
+	s.Require().Equal("this chain has no reverb, so it is already dry", got[0].Already)
+}
+
+// TestMoveTurnsTheReverbThatIsThere covers the same word with somewhere to go.
+//
+// Absence answers dry; a reverb in the chain does not, and the word has to
+// reach for the knob.
+func (s *MoveTestSuite) TestMoveTurnsTheReverbThatIsThere() {
+	built := s.built()
+
+	got := move(s.blocks(), built, []string{"dry"}, s.stats())
+
+	s.Require().Len(got, 1)
+	s.Require().False(got[0].Holds())
+	s.Require().True(got[0].Acted())
+	s.Require().Less(s.paramOf(built, "Mix"), 0.5)
 }
 
 // TestMoveWithoutTheBlockTheWordNeeds covers a word with nowhere to land.
