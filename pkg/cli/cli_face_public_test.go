@@ -34,7 +34,7 @@ import (
 //
 // The language itself is private: how a table is drawn and what a colour
 // resolves to belong to whoever draws them. What is public is picking a theme
-// and the two marks cobra needs, because those are the things a command
+// and the two marks a command needs, because those are the things a command
 // configures rather than paints.
 type ThemeFacePublicTestSuite struct {
 	suite.Suite
@@ -82,10 +82,10 @@ func (s *ThemeFacePublicTestSuite) TestThemeNames() {
 	s.Require().True(cli.SetTheme(got[0]))
 }
 
-// TestFailurePrefix covers the mark cobra puts in front of an error.
+// TestFailurePrefix covers the mark that goes in front of an error line.
 //
-// Cobra prints the error and the flags beside it, so this is what makes that
-// line read in this project's voice rather than Go's.
+// Whatever reports the error prints it; this is what makes that line read in
+// this project's voice rather than the framework's.
 func (s *ThemeFacePublicTestSuite) TestFailurePrefix() {
 	var buf bytes.Buffer
 

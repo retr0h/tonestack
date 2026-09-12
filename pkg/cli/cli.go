@@ -52,8 +52,11 @@ func ActiveTheme() *Theme { return paint.ActiveTheme() }
 // ThemeNames is every theme there is, the default first.
 func ThemeNames() []string { return paint.ThemeNames() }
 
-// FailurePrefix is the mark cobra puts in front of an error, so one line
-// reads in this project's voice with nothing suppressed.
+// FailurePrefix is the mark that goes in front of an error line.
+//
+// Handed out rather than printed here, because whatever reports the error
+// already knows how to print one. This is what makes that line read in this
+// project's voice instead of the framework's.
 func FailurePrefix(w io.Writer) string { return paint.FailurePrefix(w) }
 
 // Banner is the heading a help page opens with.

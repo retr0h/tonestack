@@ -136,12 +136,10 @@ func Resolve(
 	return built, append(sub, added...), moved, nil
 }
 
-// character moves the amplifier's knobs to match the words a rig used.
+// character moves whatever in the chain answers for the words a rig used.
 //
-// The amplifier only, first pass. Two blocks arguing over one axis needs a
-// rule nobody has written, and the amplifier is where the described character
-// mostly lives. A rig with no amplifier still has its terms reported, moving
-// nothing.
+// After the corpus has had its say, because a term is an opinion about where
+// players land rather than a replacement for knowing.
 func character(
 	spec rig.Spec,
 	blocks []catalog.Block,
@@ -153,21 +151,7 @@ func character(
 		return nil
 	}
 
-	for i, b := range blocks {
-		if b.Category != catalog.CategoryAmp {
-			continue
-		}
-
-		return move(b, built.Blocks[i].Params, terms, stats)
-	}
-
-	// Nothing to turn. The words are still what the rig said.
-	out := make([]Moved, 0, len(terms))
-	for _, term := range terms {
-		out = append(out, Moved{Term: term})
-	}
-
-	return out
+	return move(blocks, built, terms, stats)
 }
 
 // categoryFor maps a rig's role onto the catalog's own grouping.

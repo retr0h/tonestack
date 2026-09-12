@@ -136,13 +136,31 @@ func (s *MadePublicTestSuite) TestMade() {
 			want: []string{"heard", "mid-forward", "Mid 0.52 to 0.60"},
 		},
 		{
-			// Six of the ten axes are not amplifier controls. Saying so
+			// Four of the ten axes describe the player and the instrument
+			// rather than the rig, so no control answers them. Saying so
 			// beats letting somebody believe the word did something.
 			name: "a word nothing acts on yet",
 			in: s.made(func(m *sdk.Made) {
-				m.Moved = []sdk.Moved{{Term: "glassy"}}
+				m.Moved = []sdk.Moved{{Term: "short-decay"}}
 			}),
-			want: []string{"glassy — nothing acts on this yet"},
+			want: []string{"short-decay — nothing acts on this yet"},
+		},
+		{
+			// The other silence, and a different answer: this word has a
+			// control behind it, and this chain has nowhere to put it. The
+			// LA Studio Comp is an opto and genuinely has no attack knob.
+			name: "a word this chain cannot answer",
+			in: s.made(func(m *sdk.Made) {
+				m.Moved = []sdk.Moved{
+					{
+						Term:    "audible-pick-attack",
+						Because: "the LA Studio Comp has no Attack",
+					},
+				}
+			}),
+			want: []string{
+				"audible-pick-attack — the LA Studio Comp has no Attack",
+			},
 		},
 		{
 			// Two words from one axis are two answers to one question.
