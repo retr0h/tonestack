@@ -35,15 +35,35 @@ mise install
 
 ### Claude Code
 
-If you use [Claude Code] for development, install this plugin from the default
-marketplace:
+If you use [Claude Code] for development, install two plugins.
 
 ```
 /plugin install commit-commands@claude-plugins-official
+
+/plugin marketplace add pcvelz/superpowers
+/plugin install superpowers-extended-cc@superpowers-extended-cc-marketplace
 ```
 
 - **commit-commands.** Provides `/commit` and `/commit-push-pr` slash commands
   that follow the project's commit conventions.
+- **[superpowers].** Required, not a suggestion. Every change to the shape of
+  the system starts as a design record in `docs/superpowers/specs/`, and this is
+  the plugin that writes them, turns them into plans and tracks the tasks those
+  plans break into.
+
+superpowers is built on Claude Code's task tools, and Claude Code 2.1.233 turned
+those off by default. `.claude/settings.json` in this repository sets two things
+so nobody has to remember them:
+
+- `CLAUDE_CODE_ENABLE_TODO_TOOLS` turns the task tools back on. Without it the
+  plugin still loads, but every step that says to create a task does nothing.
+- `CLAUDE_CODE_TASK_LIST_ID` names the list `tonestack`. By default a list
+  belongs to one session and disappears with it. A named list lives in
+  `~/.claude/tasks/tonestack/`, survives a restart, and is the same list in
+  every session opened here.
+
+Settings are read at startup, so restart Claude Code after pulling a change to
+that file.
 
 Install the [unslop] skill as well. Every markdown change here goes through it,
 so working without it means the next person runs it over your text.
@@ -562,5 +582,6 @@ If you have questions, open a [Discussion] on GitHub.
 [just]: https://just.systems
 [mdformat]: https://pypi.org/project/mdformat/
 [mise]: https://mise.jdx.dev
+[superpowers]: https://github.com/pcvelz/superpowers
 [unslop]: https://github.com/cursor/plugins/blob/main/pstack/skills/unslop/SKILL.md
 [uv]: https://docs.astral.sh/uv/

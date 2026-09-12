@@ -67,6 +67,25 @@ possible in this repository.
 Do not report one as another, and do not describe work as verified on evidence
 you did not gather. If you did not run it, say you did not run it.
 
+## Task tracking
+
+Work is tracked with Claude Code's task tools, which the superpowers plugin is
+built on. `.claude/settings.json` turns them on and names the list `tonestack`,
+so it is one list across sessions rather than one per session. See
+[CONTRIBUTING.md](CONTRIBUTING.md#claude-code) for setup.
+
+- Check `TaskList` at the start of a session, before picking up work.
+- When somebody asks for something to be done later, create a task for it and
+  carry on with the current work. Do not start it.
+- Mark a task `in_progress` when starting it and `completed` only once the work
+  is merged or the decision is made. An open pull request is not done.
+- Anything left over at the end of a piece of work, a follow-up, a decision
+  nobody has made, a bug found on the way, becomes a task rather than a sentence
+  in a reply. A sentence in a reply is gone after the next session.
+
+If `TaskCreate` is not available, the tools are off. Say so instead of carrying
+on without them.
+
 ## Commit trailer
 
 When committing via Claude Code, end the message with:
