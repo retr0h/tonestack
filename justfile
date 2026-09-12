@@ -73,7 +73,7 @@ license-check:
     fi
     echo "licence header present on every .go file"
 
-# Rebuild resources/schemas/hx-stomp.catalog.json from a local HX Edit installation
+# Rebuild the embedded catalog (pkg/sdk/catalog/data/hx-stomp.json.gz) from a local HX Edit installation
 catalog:
     go run . catalog generate
 

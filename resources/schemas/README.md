@@ -27,9 +27,9 @@ RigSpec                   gear-map + catalog             .hlx
 what a person means       what the device understands    what the file needs
 ```
 
-`../recipes/` is the only data in this tree that is ours and publishable. The
-catalog and the gear map come from a licensed HX Edit installation, so we do not
-redistribute them.
+The curated rigs in `pkg/sdk/rigs/` are the only gear knowledge that is ours and
+publishable. The catalog and the gear map come from a licensed HX Edit
+installation, so we do not redistribute them.
 
 ## hx-stomp.catalog.json
 

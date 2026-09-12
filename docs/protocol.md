@@ -36,8 +36,8 @@ measured one by capturing another preset.
 | Footswitch label, colour and block keys           | measured here, confirmed against HX Edit      |
 | The cabinet an amplifier carries, and `@type`     | measured here, confirmed against the corpus   |
 
-Captures live in `pkg/sdk/wire/testdata`. Three slots off an HX Stomp on
-firmware 3.71, which is what every measurement above was taken from.
+Captures live in `pkg/sdk/internal/wire/testdata`. Three slots off an HX Stomp
+on firmware 3.71, which is what every measurement above was taken from.
 
 ## It is not MIDI
 
@@ -243,8 +243,9 @@ hardware sessions to this before fixing it.
 
 Measured here rather than taken on trust. Decoding one of these presets and
 encoding it again with an ordinary MessagePack encoder changes its length by
-+99, +135 and -25 bytes on the three captures in `pkg/sdk/wire/testdata`. Every
-offset after the first change would point at the wrong byte.
++99, +135 and -25 bytes on the three captures in
+`pkg/sdk/internal/wire/testdata`. Every offset after the first change would
+point at the wrong byte.
 
 `wire.Document` is the answer: it keeps every section as the bytes the device
 sent, writes the magic and the table at the widths the device used, and

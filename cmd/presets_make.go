@@ -37,7 +37,7 @@ var presetsMakeCmd = &cobra.Command{
 
 The recipe names real-world gear; the catalog says what this device has. Every
 parameter is set to what Line 6 states as its default — a recipe's character
-lines do not move knobs yet.`,
+words then move the controls they name.`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		made, err := sdk.New().Build(presetsMakeOptions)

@@ -192,8 +192,8 @@ imports `internal/` is a package that cannot be lifted out.
 The domain lives in [docs/](docs/), not here. That covers turning a request into
 a signal chain, the preset format, and the device:
 
-- [docs/workflows.md](docs/workflows.md) says what to do, in order, for the
-  common tasks
+- [docs/workflows.md](docs/workflows.md) is the usage guide: what to do, in
+  order, for the common tasks
 - [docs/knowledge.md](docs/knowledge.md) covers how a request becomes a signal
   chain
 - [docs/recipes.md](docs/recipes.md) covers writing a rig, and the worked
@@ -330,6 +330,27 @@ build. `just gear-map` invokes it; nothing in `just test` or `just ready` does.
 It sits beside `resources/schemas/gear-map.json` for the same reason every other
 generator sits beside its output. It writes there by a path relative to itself,
 so which directory you run it from does not matter.
+
+### Regenerating the catalog and corpus
+
+Nobody using tonestack does this. The catalog and the corpus statistics are
+committed and embedded in the binary. Regenerate them when Line 6 ships a new HX
+Edit release, or when the corpus grows. The catalog and gear map need a licensed
+HX Edit installation; the corpus needs network access.
+
+```bash
+just gear-map                          # which real gear each model emulates
+just catalog                           # writes pkg/sdk/catalog/data/hx-stomp.json.gz
+resources/schemas/corpus/fetch.sh      # pulls the presets listed in repos.txt
+go run . corpus generate               # writes pkg/sdk/corpus/data/hx-stomp.stats.json.gz
+```
+
+In that order: the corpus is measured against the catalog, so a new catalog
+means measuring again. Commit both `.json.gz` files.
+
+You do not have to remember when. With HX Edit installed, `just test` fails once
+the installed release is not the one the catalog was generated from
+(`TestTheCatalogMatchesTheInstalledRelease`). Without HX Edit it skips.
 
 ### Go patterns
 
