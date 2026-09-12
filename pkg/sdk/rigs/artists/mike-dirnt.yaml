@@ -56,9 +56,6 @@ character:
   - term: mid-forward
     evidence:
       - { kind: llm }
-  - term: minimal-drive
-    evidence:
-      - { kind: llm }
   - term: grit-on-attack
     evidence:
       - { kind: llm }
