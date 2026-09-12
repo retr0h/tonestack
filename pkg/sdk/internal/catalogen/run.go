@@ -25,29 +25,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+
+	"github.com/retr0h/tonestack/pkg/sdk/result"
 )
 
 // Run builds a catalog and writes it, reporting what it did to w.
 //
 // This is the whole of the generate command's behaviour, so cmd/ holds only
 // flags.
-// Result is what a generation run produced.
-type Result struct {
-	// Path is the catalog that was written.
-	Path string
-	// Device is the hardware it describes.
-	Device string
-	// Source says which release it was extracted from. A catalog is only
-	// true of the one it came from, so it says which.
-	Source string
-	// Blocks is how many the device has.
-	Blocks int
-	// Named is how many of those map to real-world gear. The rest are
-	// modelled but unattributed, and the gap is the work left.
-	Named int
-}
 
-func Run(opts Options) (Result, error) {
+func Run(opts Options) (result.Catalogued, error) {
 	if opts.SchemaVersion == 0 {
 		opts.SchemaVersion = defaultSchemaVersion
 	}
@@ -58,7 +45,7 @@ func Run(opts Options) (Result, error) {
 
 	c, err := Build(opts)
 	if err != nil {
-		return Result{}, err
+		return result.Catalogued{}, err
 	}
 
 	// A catalog holds no channels, functions or NaN floats, so encoding it
@@ -67,7 +54,7 @@ func Run(opts Options) (Result, error) {
 	raw, _ := json.Marshal(c)
 
 	if err := os.WriteFile(opts.OutputPath, compress(raw), 0o600); err != nil {
-		return Result{}, fmt.Errorf("writing %s: %w", opts.OutputPath, err)
+		return result.Catalogued{}, fmt.Errorf("writing %s: %w", opts.OutputPath, err)
 	}
 
 	named := 0
@@ -78,7 +65,7 @@ func Run(opts Options) (Result, error) {
 		}
 	}
 
-	return Result{
+	return result.Catalogued{
 		Path:   opts.OutputPath,
 		Device: opts.DeviceName,
 		Source: c.Source,

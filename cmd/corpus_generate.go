@@ -24,10 +24,10 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/retr0h/tonestack/internal/cli"
-	"github.com/retr0h/tonestack/internal/corpusgen"
+	"github.com/retr0h/tonestack/pkg/sdk"
 )
 
-var corpusGenerateOptions corpusgen.Options
+var corpusGenerateOptions sdk.Measure
 
 // corpusGenerateCmd represents the corpus generate command.
 var corpusGenerateCmd = &cobra.Command{
@@ -39,7 +39,7 @@ Runs when the corpus changes, not on every build. The result is committed and
 ships in the binary, so nobody needs the presets to use what was measured.`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		counted, err := corpusgen.Run(corpusGenerateOptions)
+		counted, err := sdk.New().MeasureCorpus(corpusGenerateOptions)
 		if err != nil {
 			return err
 		}

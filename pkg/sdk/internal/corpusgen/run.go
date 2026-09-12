@@ -28,7 +28,7 @@ import (
 	"os"
 
 	"github.com/retr0h/tonestack/pkg/sdk/catalog"
-	"github.com/retr0h/tonestack/pkg/sdk/corpus"
+	"github.com/retr0h/tonestack/pkg/sdk/result"
 )
 
 // defaultMinSamples is how many values a parameter needs before its
@@ -36,37 +36,30 @@ import (
 const defaultMinSamples = 5
 
 // Run measures a corpus and writes the statistics, reporting what it found.
-// Result is what a measuring run produced.
-type Result struct {
-	// Path is the statistics file that was written.
-	Path string
-	// Stats are the measurements themselves.
-	Stats *corpus.Stats
-}
 
-func Run(opts Options) (Result, error) {
+func Run(opts Options) (result.Counted, error) {
 	if opts.MinSamples == 0 {
 		opts.MinSamples = defaultMinSamples
 	}
 
 	cat, err := catalog.Open(opts.CatalogPath)
 	if err != nil {
-		return Result{}, err
+		return result.Counted{}, err
 	}
 
 	stats, err := Measure(opts, cat)
 	if err != nil {
-		return Result{}, err
+		return result.Counted{}, err
 	}
 
 	// Statistics hold only numbers and strings, so encoding cannot fail.
 	raw, _ := json.Marshal(stats)
 
 	if err := os.WriteFile(opts.OutputPath, compress(raw), 0o600); err != nil {
-		return Result{}, fmt.Errorf("writing %s: %w", opts.OutputPath, err)
+		return result.Counted{}, fmt.Errorf("writing %s: %w", opts.OutputPath, err)
 	}
 
-	return Result{Path: opts.OutputPath, Stats: stats}, nil
+	return result.Counted{Path: opts.OutputPath, Stats: stats}, nil
 }
 
 // compress gzips the statistics, which are repetitive JSON and embedded in

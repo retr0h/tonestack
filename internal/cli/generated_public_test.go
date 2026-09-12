@@ -27,9 +27,8 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
-	"github.com/retr0h/tonestack/internal/catalogen"
 	"github.com/retr0h/tonestack/internal/cli"
-	"github.com/retr0h/tonestack/internal/corpusgen"
+	"github.com/retr0h/tonestack/pkg/sdk"
 	"github.com/retr0h/tonestack/pkg/sdk/catalog"
 	"github.com/retr0h/tonestack/pkg/sdk/corpus"
 )
@@ -40,7 +39,7 @@ type GeneratedPublicTestSuite struct {
 
 // TestCatalogued covers saying what a catalog generation run produced.
 func (s *GeneratedPublicTestSuite) TestCatalogued() {
-	built := catalogen.Result{
+	built := sdk.Catalogued{
 		Path:   "resources/schemas/hx-stomp.catalog.json",
 		Device: "HX Stomp", Source: "HX Edit 3.82",
 		Blocks: 681, Named: 547,
@@ -48,7 +47,7 @@ func (s *GeneratedPublicTestSuite) TestCatalogued() {
 
 	tests := []struct {
 		name string
-		in   catalogen.Result
+		in   sdk.Catalogued
 		to   io.Writer
 		want []string
 		err  bool
@@ -95,8 +94,8 @@ func (s *GeneratedPublicTestSuite) TestCatalogued() {
 }
 
 // counted is a measuring run over a corpus holding one amp and one grammar.
-func (s *GeneratedPublicTestSuite) counted() corpusgen.Result {
-	return corpusgen.Result{
+func (s *GeneratedPublicTestSuite) counted() sdk.Counted {
+	return sdk.Counted{
 		Path: "resources/schemas/corpus.json.gz",
 		Stats: &corpus.Stats{
 			Device: "HX Stomp", Presets: 721,
@@ -126,7 +125,7 @@ func (s *GeneratedPublicTestSuite) counted() corpusgen.Result {
 func (s *GeneratedPublicTestSuite) TestCounted() {
 	tests := []struct {
 		name string
-		in   corpusgen.Result
+		in   sdk.Counted
 		to   io.Writer
 		want []string
 		err  bool
@@ -148,7 +147,7 @@ func (s *GeneratedPublicTestSuite) TestCounted() {
 			// Position is the whole point of the grammar, and a corpus with
 			// no amp in it cannot say what comes before one.
 			name: "a corpus that held no amp",
-			in: corpusgen.Result{
+			in: sdk.Counted{
 				Path:  "out.gz",
 				Stats: &corpus.Stats{Device: "HX Stomp"},
 			},
