@@ -121,13 +121,15 @@ func (s *CorpusgenPublicTestSuite) TestRun() {
 			// instrument's habits.
 			noCategory: []catalog.Category{catalog.CategoryUtility},
 			// Counted per instrument, once per chain. The Minotaur sits in
-			// eight bass chains and in two presets that belong to no
-			// instrument, one with no amp and one built around a preamp;
-			// those two are not counted.
+			// nine bass chains, twice in one of them, and in two presets that
+			// belong to no instrument, one with no amp and one built around a
+			// preamp; those two are not counted, and the doubled one counts
+			// once. A model the catalog does not know is not counted at all.
 			models: map[catalog.ModelID]int{
 				"HD2_AmpSVBeastNrm": 14,
-				"HD2_DistMinotaur":  8,
+				"HD2_DistMinotaur":  9,
 				"HD2_EqTest":        2,
+				"HD2_NotInCatalog":  0,
 			},
 			grammars: 1,
 		},
