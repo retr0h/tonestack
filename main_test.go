@@ -24,8 +24,10 @@ import (
 	"go/parser"
 	"go/token"
 	"io/fs"
+	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -190,6 +192,47 @@ func (s *MainTestSuite) TestTheSDKStandsAlone() {
 				"%s reaches %s, which would not travel with the SDK", pkg, dep)
 		}
 	}
+}
+
+// TestEveryPathThisRepositoryNamesExists holds the paths that move.
+//
+// A default like `--out pkg/catalog/data/hx-stomp.json.gz` keeps compiling
+// after the directory it names has moved, and keeps running: it writes a file
+// where nothing reads one. Both generator defaults were wrong for a month
+// that way, so regenerating the catalog silently stopped updating the
+// embedded copy.
+//
+// Only non-test files. A test names paths that do not exist on purpose.
+func (s *MainTestSuite) TestEveryPathThisRepositoryNamesExists() {
+	named := regexp.MustCompile(
+		`"(pkg|internal|resources|docs|examples)/[A-Za-z0-9_./-]+"`)
+
+	err := filepath.Walk(".", func(path string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() || !strings.HasSuffix(path, ".go") {
+			return err
+		}
+
+		if strings.HasSuffix(path, "_test.go") {
+			return nil
+		}
+
+		body, err := os.ReadFile(path) //nolint:gosec // a path this walk found
+		if err != nil {
+			return err
+		}
+
+		for _, m := range named.FindAllString(string(body), -1) {
+			want := strings.Trim(m, `"`)
+
+			_, err := os.Stat(want)
+			s.Require().NoError(err,
+				"%s names %s, which is not there", path, want)
+		}
+
+		return nil
+	})
+
+	s.Require().NoError(err)
 }
 
 func TestMainTestSuite(t *testing.T) {

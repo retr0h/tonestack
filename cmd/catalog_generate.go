@@ -53,7 +53,7 @@ func init() {
 	f.StringVar(&catalogGenerateOptions.GearMapPath, "gear-map",
 		"resources/schemas/gear-map.json", "gear map to join against")
 	f.StringVar(&catalogGenerateOptions.OutputPath, "out",
-		"pkg/catalog/data/hx-stomp.json.gz", "where to write the catalog")
+		"pkg/sdk/catalog/data/hx-stomp.json.gz", "where to write the catalog")
 	f.IntVar(&catalogGenerateOptions.DeviceID, "device-id", 2162694,
 		"preset data.device value for the target device")
 	f.StringVar(&catalogGenerateOptions.DeviceName, "device", "HX Stomp", "device name")
