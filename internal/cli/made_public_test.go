@@ -23,6 +23,7 @@ package cli_test
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"testing"
 
@@ -124,6 +125,41 @@ func (s *MadePublicTestSuite) TestMade() {
 			absent: []string{"% of chains"},
 		},
 		{
+			// The whole point of the vocabulary: a word a rig used, and the
+			// knob it turned.
+			name: "the knobs its words turned",
+			in: s.made(func(m *sdk.Made) {
+				m.Moved = []sdk.Moved{
+					{Term: "mid-forward", Param: "Mid", From: 0.52, To: 0.60},
+				}
+			}),
+			want: []string{"heard", "mid-forward", "Mid 0.52 to 0.60"},
+		},
+		{
+			// Six of the ten axes are not amplifier controls. Saying so
+			// beats letting somebody believe the word did something.
+			name: "a word nothing acts on yet",
+			in: s.made(func(m *sdk.Made) {
+				m.Moved = []sdk.Moved{{Term: "glassy"}}
+			}),
+			want: []string{"glassy — nothing acts on this yet"},
+		},
+		{
+			// Two words from one axis are two answers to one question.
+			// Applying both lands back where it started.
+			name: "two words answering for one axis",
+			in: s.made(func(m *sdk.Made) {
+				m.Moved = []sdk.Moved{
+					{Term: "minimal-drive", Against: "drive"},
+					{Term: "grit-on-attack", Against: "drive"},
+				}
+			}),
+			want: []string{
+				"minimal-drive — another term already answered for drive",
+				"grit-on-attack — another term already answered for drive",
+			},
+		},
+		{
 			// A word nothing defines is said and not refused.
 			name: "a rig describing itself in its own words",
 			in: s.made(func(m *sdk.Made) {
@@ -164,41 +200,43 @@ func (s *MadePublicTestSuite) TestMade() {
 
 // TestMadeReportsAFailingWriter covers a report nobody can read.
 //
-// It is written in parts, and a writer that fails part way through must be
-// reported rather than leaving a half-written summary and a success.
+// It is written in parts — a title, the chain, what was added, what was
+// heard, what was not understood, and where the file went — and a writer that
+// fails at any seam must be reported rather than leaving a half-written
+// summary and a success. Every seam, rather than a list of indices that goes
+// stale the moment a part is added.
 func (s *MadePublicTestSuite) TestMadeReportsAFailingWriter() {
 	full := s.made(func(m *sdk.Made) {
 		m.Added = []sdk.Added{{Name: "Minotaur", Reason: "drive", Share: 0.95}}
+		m.Moved = []sdk.Moved{{Term: "mid-forward", Param: "Mid", From: 0.5, To: 0.6}}
 		m.Unfamiliar = []sdk.Unfamiliar{{Term: "wet paper bag"}}
 	})
 
-	tests := []struct {
-		name string
-		ok   int
-	}{
-		{name: "before anything is written"},
-		{name: "part way through the summary", ok: 1},
-		{name: "part way through the chain", ok: 2},
-		{name: "further through the chain", ok: 3},
-		{name: "at the end of the chain", ok: 4},
-		// The explanation is written after the chain and the budget, so a
-		// writer failing there must still surface.
-		{name: "at the explanation", ok: 5},
-		{name: "one line into the explanation", ok: 6},
-		// The note about words nothing defines is written after all of that.
-		{name: "at the note", ok: 7},
-		// The line saying where the file went is the last of them.
-		{name: "at the line saying where it went", ok: 8},
-	}
+	// How many writes a whole report takes, found by letting one through.
+	var counted bytes.Buffer
 
-	for _, tt := range tests {
-		s.Run(tt.name, func() {
-			err := cli.Made(&stops{ok: tt.ok}, full, s.cat())
+	s.Require().NoError(cli.Made(&counted, full, s.cat()))
+
+	writes := &counting{}
+	s.Require().NoError(cli.Made(writes, full, s.cat()))
+
+	for ok := range writes.n {
+		s.Run(fmt.Sprintf("after %d writes", ok), func() {
+			err := cli.Made(&stops{ok: ok}, full, s.cat())
 
 			s.Require().Error(err)
 			s.Require().Contains(err.Error(), "reporting")
 		})
 	}
+}
+
+// counting accepts every write and says how many there were.
+type counting struct{ n int }
+
+func (w *counting) Write(p []byte) (int, error) {
+	w.n++
+
+	return len(p), nil
 }
 
 var _ io.Writer = (*stops)(nil)
