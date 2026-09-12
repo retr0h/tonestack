@@ -25,6 +25,12 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk/internal/corpusgen"
 )
 
+// DefaultResourcesDir is where HX Edit installs its model definitions.
+//
+// Offered so a caller does not have to know the layout of somebody else's
+// application bundle to ask for a catalog.
+const DefaultResourcesDir = catalogen.DefaultResourcesDir
+
 // Catalog says what to build a device catalog from.
 //
 // The inputs are a licensed HX Edit installation and the gear map extracted

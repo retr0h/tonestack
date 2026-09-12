@@ -41,15 +41,40 @@ const defaultSchemaVersion = 6
 // version is read from its bundle and appended.
 const defaultSourceName = "HX Edit"
 
+// DefaultResourcesDir is where HX Edit installs.
+//
+// Here rather than beside the flag that offers it, because where an
+// application puts its model definitions is this package's business and not a
+// command's. The staleness check needs it too.
+const DefaultResourcesDir = "/Applications/Line6/HX Edit.app/Contents/Resources"
+
 // sourceName describes where a catalog's models came from, as a release
 // somebody could go and check.
 func sourceName(opts Options) string {
-	v := appVersion(opts.ResourcesDir)
+	if opts.SourceName != defaultSourceName {
+		v := appVersion(opts.ResourcesDir)
+		if v == "" {
+			return ""
+		}
+
+		return opts.SourceName + " " + v
+	}
+
+	return SourceFor(opts.ResourcesDir)
+}
+
+// SourceFor names the release an installation would produce a catalog from.
+//
+// Exported because the staleness check asks the same question of the machine
+// it runs on: what would a catalog built right now say it came from, and does
+// the committed one agree.
+func SourceFor(resourcesDir string) string {
+	v := appVersion(resourcesDir)
 	if v == "" {
 		return ""
 	}
 
-	return opts.SourceName + " " + v
+	return defaultSourceName + " " + v
 }
 
 // valueTypes as Line 6 records them. A bool's bounds are false and true, and a

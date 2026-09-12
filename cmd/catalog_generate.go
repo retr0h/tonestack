@@ -48,7 +48,7 @@ func init() {
 
 	f := catalogGenerateCmd.Flags()
 	f.StringVar(&catalogGenerateOptions.ResourcesDir, "resources",
-		"/Applications/Line6/HX Edit.app/Contents/Resources",
+		sdk.DefaultResourcesDir,
 		"HX Edit's Contents/Resources directory")
 	f.StringVar(&catalogGenerateOptions.GearMapPath, "gear-map",
 		"resources/schemas/gear-map.json", "gear map to join against")
