@@ -16,7 +16,7 @@ import (
 	chain "github.com/retr0h/tonestack/pkg/sdk/chain"
 	corpus "github.com/retr0h/tonestack/pkg/sdk/corpus"
 	compile "github.com/retr0h/tonestack/pkg/sdk/internal/compile"
-	gen "github.com/retr0h/tonestack/pkg/sdk/internal/gen"
+	rig "github.com/retr0h/tonestack/pkg/sdk/rig"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -84,10 +84,10 @@ func (m *MockRecipes) EXPECT() *MockRecipesMockRecorder {
 }
 
 // Find mocks base method.
-func (m *MockRecipes) Find(dir, id string) (gen.RigSpec, error) {
+func (m *MockRecipes) Find(dir, id string) (rig.Spec, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Find", dir, id)
-	ret0, _ := ret[0].(gen.RigSpec)
+	ret0, _ := ret[0].(rig.Spec)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -137,7 +137,7 @@ func (mr *MockCompilerMockRecorder) Fit(spec, cat, lim any) *gomock.Call {
 }
 
 // Resolve mocks base method.
-func (m *MockCompiler) Resolve(spec gen.RigSpec, cat *catalog.Catalog, stats *corpus.Stats) (chain.Chain, []compile.Added, []compile.Moved, error) {
+func (m *MockCompiler) Resolve(spec rig.Spec, cat *catalog.Catalog, stats *corpus.Stats) (chain.Chain, []compile.Added, []compile.Moved, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Resolve", spec, cat, stats)
 	ret0, _ := ret[0].(chain.Chain)

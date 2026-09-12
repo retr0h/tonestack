@@ -26,8 +26,8 @@ import (
 	"strconv"
 	"strings"
 
-	riggen "github.com/retr0h/tonestack/pkg/sdk/internal/gen"
 	"github.com/retr0h/tonestack/pkg/sdk/preset"
+	"github.com/retr0h/tonestack/pkg/sdk/rig"
 )
 
 // footswitchKey is the tone entry a preset stores footswitches under.
@@ -54,13 +54,13 @@ var fsModelled = map[string]bool{
 // A preset keys these by the block a switch acts on, inside the processor
 // that block sits on. Both are carried, because a label with nothing to
 // attach it to cannot be written back.
-func footswitchesOf(doc *preset.Document) *[]riggen.Footswitch {
+func footswitchesOf(doc *preset.Document) *[]rig.Footswitch {
 	entry, ok := doc.Data.Tone[footswitchKey]
 	if !ok {
 		return nil
 	}
 
-	out := []riggen.Footswitch(nil)
+	out := []rig.Footswitch(nil)
 
 	for _, processor := range sorted(entry) {
 		path, err := strconv.Atoi(strings.TrimPrefix(processor, processorPrefix))
@@ -91,18 +91,18 @@ func footswitchesOf(doc *preset.Document) *[]riggen.Footswitch {
 }
 
 // footswitchOf reads one assignment.
-func footswitchOf(raw json.RawMessage, key string, path int) (riggen.Footswitch, bool) {
+func footswitchOf(raw json.RawMessage, key string, path int) (rig.Footswitch, bool) {
 	number, err := strconv.Atoi(strings.TrimPrefix(key, blockPrefix))
 	if err != nil {
-		return riggen.Footswitch{}, false
+		return rig.Footswitch{}, false
 	}
 
 	var fields map[string]json.RawMessage
 	if err := json.Unmarshal(raw, &fields); err != nil {
-		return riggen.Footswitch{}, false
+		return rig.Footswitch{}, false
 	}
 
-	out := riggen.Footswitch{Block: &number}
+	out := rig.Footswitch{Block: &number}
 
 	if path != 0 {
 		out.Path = &path
@@ -132,7 +132,7 @@ func footswitchOf(raw json.RawMessage, key string, path int) (riggen.Footswitch,
 
 // restoreFootswitches writes a rig's footswitches back as a preset stores
 // them: keyed by the block each acts on, inside its processor.
-func restoreFootswitches(doc *preset.Document, switches []riggen.Footswitch) {
+func restoreFootswitches(doc *preset.Document, switches []rig.Footswitch) {
 	byProcessor := map[string]map[string]json.RawMessage{}
 
 	for _, fs := range switches {
@@ -164,7 +164,7 @@ func restoreFootswitches(doc *preset.Document, switches []riggen.Footswitch) {
 }
 
 // fieldsOf renders one assignment the way a preset stores it.
-func fieldsOf(fs riggen.Footswitch) json.RawMessage {
+func fieldsOf(fs rig.Footswitch) json.RawMessage {
 	fields := map[string]json.RawMessage{}
 
 	putRaw(fields, fsIndex, fs.Switch)

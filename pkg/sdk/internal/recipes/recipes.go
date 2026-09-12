@@ -35,7 +35,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/retr0h/tonestack/pkg/sdk/internal/gen"
 	"github.com/retr0h/tonestack/pkg/sdk/result"
 	"github.com/retr0h/tonestack/pkg/sdk/rig"
 	"github.com/retr0h/tonestack/pkg/sdk/rigs"
@@ -48,7 +47,7 @@ const DefaultDir = "pkg/sdk/rigs"
 //
 // A file that does not satisfy the contract stops the walk: a half-read
 // knowledge base is worse than a clear complaint about the file to fix.
-func Load(dir string) ([]gen.RigSpec, error) {
+func Load(dir string) ([]rig.Spec, error) {
 	// No directory means the recipes that ship in the binary, which is the
 	// case for anyone who has not written their own.
 	if dir == "" {
@@ -59,11 +58,11 @@ func Load(dir string) ([]gen.RigSpec, error) {
 }
 
 // loadFS reads every rig under root, wherever that filesystem comes from.
-func loadFS(fsys fs.FS, root string) ([]gen.RigSpec, error) {
+func loadFS(fsys fs.FS, root string) ([]rig.Spec, error) {
 	// The pattern is a constant, so it cannot be malformed.
 	paths, _ := fs.Glob(fsys, path.Join(root, "*", "*.yaml"))
 
-	out := make([]gen.RigSpec, 0, len(paths))
+	out := make([]rig.Spec, 0, len(paths))
 
 	for _, p := range paths {
 		raw, err := fs.ReadFile(fsys, p)
@@ -86,38 +85,38 @@ func loadFS(fsys fs.FS, root string) ([]gen.RigSpec, error) {
 
 // decode parses one rig, naming the file it came from when it will not parse.
 // A recipe is hand-written, so the name is the useful half of the message.
-func decode(raw []byte, name string) (gen.RigSpec, error) {
+func decode(raw []byte, name string) (rig.Spec, error) {
 	spec, err := rig.Load(bytes.NewReader(raw))
 	if err != nil {
-		return gen.RigSpec{}, fmt.Errorf("%s: %w", filepath.Base(name), err)
+		return rig.Spec{}, fmt.Errorf("%s: %w", filepath.Base(name), err)
 	}
 
 	return spec, nil
 }
 
 // Find returns the rig with the given identifier, or one of its aliases.
-func Find(dir, id string) (gen.RigSpec, error) {
+func Find(dir, id string) (rig.Spec, error) {
 	all, err := Load(dir)
 	if err != nil {
-		return gen.RigSpec{}, err
+		return rig.Spec{}, err
 	}
 
 	return find(all, id)
 }
 
 // find picks one rig out of a set already read.
-func find(all []gen.RigSpec, id string) (gen.RigSpec, error) {
+func find(all []rig.Spec, id string) (rig.Spec, error) {
 	for _, spec := range all {
 		if strings.EqualFold(spec.ID, id) || matchesAlias(spec, id) {
 			return spec, nil
 		}
 	}
 
-	return gen.RigSpec{}, &NotFoundError{ID: id, Known: len(all)}
+	return rig.Spec{}, &NotFoundError{ID: id, Known: len(all)}
 }
 
 // matchesAlias reports whether id is one of the rig's other names.
-func matchesAlias(spec gen.RigSpec, id string) bool {
+func matchesAlias(spec rig.Spec, id string) bool {
 	if spec.Aliases == nil {
 		return false
 	}
@@ -138,7 +137,7 @@ func matchesAlias(spec gen.RigSpec, id string) bool {
 // a spine they may not share. A rig that genuinely is a small change says so
 // with `extends`, and this is the other end of that link: reading the
 // characteristic rig should show what departs from it.
-func departures(all []gen.RigSpec, spec gen.RigSpec) []result.Variant {
+func departures(all []rig.Spec, spec rig.Spec) []result.Variant {
 	out := []result.Variant(nil)
 
 	for _, other := range all {

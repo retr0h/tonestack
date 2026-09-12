@@ -25,9 +25,9 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk/chain"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/compile"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/editor"
-	riggen "github.com/retr0h/tonestack/pkg/sdk/internal/gen"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/wire"
 	"github.com/retr0h/tonestack/pkg/sdk/preset"
+	"github.com/retr0h/tonestack/pkg/sdk/rig"
 )
 
 // Catalogs opens the catalog a command reads model names out of.
@@ -42,9 +42,9 @@ type Catalogs interface {
 // slot is all this package does with it.
 type Compiler interface {
 	// Lift reads a preset into a rig.
-	Lift(doc *preset.Document, cat *catalog.Catalog) (riggen.RigSpec, error)
+	Lift(doc *preset.Document, cat *catalog.Catalog) (rig.Spec, error)
 	// Lower writes a rig back into a preset.
-	Lower(doc *preset.Document, spec riggen.RigSpec, cat *catalog.Catalog) error
+	Lower(doc *preset.Document, spec rig.Spec, cat *catalog.Catalog) error
 }
 
 // Translator moves between what a device says and what a preset holds.
@@ -52,19 +52,19 @@ type Translator interface {
 	// Chain reads what a device laid out as a chain.
 	Chain(name string, got wire.DevicePreset, cat *catalog.Catalog) (chain.Chain, error)
 	// Controllers carries what an expression pedal or a footswitch moves.
-	Controllers(got wire.DevicePreset, cat *catalog.Catalog) *[]riggen.Controller
+	Controllers(got wire.DevicePreset, cat *catalog.Catalog) *[]rig.Controller
 	// DeviceState carries the routing a device wraps a chain in.
-	DeviceState(got wire.DevicePreset, cat *catalog.Catalog) *riggen.DeviceState
+	DeviceState(got wire.DevicePreset, cat *catalog.Catalog) *rig.DeviceState
 	// Document builds the preset a device's answer describes.
 	Document(
 		got wire.DevicePreset, cat *catalog.Catalog, name string,
 	) (*preset.Document, bool, error)
 	// Footswitches carries what the pedal prints under each switch.
-	Footswitches(got wire.DevicePreset, cat *catalog.Catalog) *[]riggen.Footswitch
+	Footswitches(got wire.DevicePreset, cat *catalog.Catalog) *[]rig.Footswitch
 	// Placements turns a preset into what a device lays out.
 	Placements(doc *preset.Document, cat *catalog.Catalog) ([]wire.Placement, error)
 	// Snapshots carries what the device recalls on a footswitch.
-	Snapshots(got wire.DevicePreset) *[]riggen.Snapshot
+	Snapshots(got wire.DevicePreset) *[]rig.Snapshot
 }
 
 // Deps are the collaborators a command works through.

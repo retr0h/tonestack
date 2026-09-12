@@ -26,7 +26,7 @@ import (
 	"strings"
 	"unicode"
 
-	riggen "github.com/retr0h/tonestack/pkg/sdk/internal/gen"
+	"github.com/retr0h/tonestack/pkg/sdk/rig"
 )
 
 // UnknownTerm is a word a rig used to describe its sound that the shipped
@@ -79,7 +79,7 @@ func CharacterTerms() []string {
 // CheckCharacter reports the character terms a rig uses that nothing defines.
 //
 // An empty result means every word in the rig is one the vocabulary carries.
-func CheckCharacter(spec riggen.RigSpec) []UnknownTerm {
+func CheckCharacter(spec rig.Spec) []UnknownTerm {
 	if spec.Character == nil {
 		return nil
 	}

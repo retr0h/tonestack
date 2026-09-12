@@ -14,9 +14,9 @@ import (
 
 	catalog "github.com/retr0h/tonestack/pkg/sdk/catalog"
 	chain "github.com/retr0h/tonestack/pkg/sdk/chain"
-	gen "github.com/retr0h/tonestack/pkg/sdk/internal/gen"
 	wire "github.com/retr0h/tonestack/pkg/sdk/internal/wire"
 	preset "github.com/retr0h/tonestack/pkg/sdk/preset"
+	rig "github.com/retr0h/tonestack/pkg/sdk/rig"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -84,10 +84,10 @@ func (m *MockCompiler) EXPECT() *MockCompilerMockRecorder {
 }
 
 // Lift mocks base method.
-func (m *MockCompiler) Lift(doc *preset.Document, cat *catalog.Catalog) (gen.RigSpec, error) {
+func (m *MockCompiler) Lift(doc *preset.Document, cat *catalog.Catalog) (rig.Spec, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Lift", doc, cat)
-	ret0, _ := ret[0].(gen.RigSpec)
+	ret0, _ := ret[0].(rig.Spec)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -99,7 +99,7 @@ func (mr *MockCompilerMockRecorder) Lift(doc, cat any) *gomock.Call {
 }
 
 // Lower mocks base method.
-func (m *MockCompiler) Lower(doc *preset.Document, spec gen.RigSpec, cat *catalog.Catalog) error {
+func (m *MockCompiler) Lower(doc *preset.Document, spec rig.Spec, cat *catalog.Catalog) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Lower", doc, spec, cat)
 	ret0, _ := ret[0].(error)
@@ -152,10 +152,10 @@ func (mr *MockTranslatorMockRecorder) Chain(name, got, cat any) *gomock.Call {
 }
 
 // Controllers mocks base method.
-func (m *MockTranslator) Controllers(got wire.DevicePreset, cat *catalog.Catalog) *[]gen.Controller {
+func (m *MockTranslator) Controllers(got wire.DevicePreset, cat *catalog.Catalog) *[]rig.Controller {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Controllers", got, cat)
-	ret0, _ := ret[0].(*[]gen.Controller)
+	ret0, _ := ret[0].(*[]rig.Controller)
 	return ret0
 }
 
@@ -166,10 +166,10 @@ func (mr *MockTranslatorMockRecorder) Controllers(got, cat any) *gomock.Call {
 }
 
 // DeviceState mocks base method.
-func (m *MockTranslator) DeviceState(got wire.DevicePreset, cat *catalog.Catalog) *gen.DeviceState {
+func (m *MockTranslator) DeviceState(got wire.DevicePreset, cat *catalog.Catalog) *rig.DeviceState {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeviceState", got, cat)
-	ret0, _ := ret[0].(*gen.DeviceState)
+	ret0, _ := ret[0].(*rig.DeviceState)
 	return ret0
 }
 
@@ -196,10 +196,10 @@ func (mr *MockTranslatorMockRecorder) Document(got, cat, name any) *gomock.Call 
 }
 
 // Footswitches mocks base method.
-func (m *MockTranslator) Footswitches(got wire.DevicePreset, cat *catalog.Catalog) *[]gen.Footswitch {
+func (m *MockTranslator) Footswitches(got wire.DevicePreset, cat *catalog.Catalog) *[]rig.Footswitch {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Footswitches", got, cat)
-	ret0, _ := ret[0].(*[]gen.Footswitch)
+	ret0, _ := ret[0].(*[]rig.Footswitch)
 	return ret0
 }
 
@@ -225,10 +225,10 @@ func (mr *MockTranslatorMockRecorder) Placements(doc, cat any) *gomock.Call {
 }
 
 // Snapshots mocks base method.
-func (m *MockTranslator) Snapshots(got wire.DevicePreset) *[]gen.Snapshot {
+func (m *MockTranslator) Snapshots(got wire.DevicePreset) *[]rig.Snapshot {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Snapshots", got)
-	ret0, _ := ret[0].(*[]gen.Snapshot)
+	ret0, _ := ret[0].(*[]rig.Snapshot)
 	return ret0
 }
 

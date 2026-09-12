@@ -28,7 +28,7 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk/catalog"
 	"github.com/retr0h/tonestack/pkg/sdk/chain"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/compile"
-	riggen "github.com/retr0h/tonestack/pkg/sdk/internal/gen"
+	"github.com/retr0h/tonestack/pkg/sdk/rig"
 )
 
 // CharacterMovesPublicTestSuite covers the words a rig uses reaching the
@@ -44,12 +44,12 @@ func (s *CharacterMovesPublicTestSuite) SetupTest() {
 }
 
 // described returns a rig that says how it should sound.
-func described(amp string, terms ...string) riggen.RigSpec {
+func described(amp string, terms ...string) rig.Spec {
 	spec := recipe(amp, "")
 
-	got := make([]riggen.CharacterTerm, 0, len(terms))
+	got := make([]rig.CharacterTerm, 0, len(terms))
 	for _, t := range terms {
-		got = append(got, riggen.CharacterTerm{Term: t})
+		got = append(got, rig.CharacterTerm{Term: t})
 	}
 
 	spec.Character = &got
@@ -136,15 +136,15 @@ func (s *CharacterMovesPublicTestSuite) TestARigThatSaysNothingMovesNothing() {
 // The words are still what the rig said, so they are reported as moving
 // nothing rather than dropped.
 func (s *CharacterMovesPublicTestSuite) TestWordsSurviveAChainWithNoAmplifier() {
-	spec := riggen.RigSpec{
-		Schema:     riggen.RigSpecSchemaRigSpec,
+	spec := rig.Spec{
+		Schema:     rig.SchemaName,
 		ID:         "test",
-		Subject:    riggen.Subject{Kind: riggen.KindArtist, Name: "Test Player"},
-		Instrument: riggen.InstrumentBass,
-		Chain: []riggen.ChainEntry{
-			{Role: riggen.RoleOther, Gear: "Klon Centaur"},
+		Subject:    rig.Subject{Kind: rig.KindArtist, Name: "Test Player"},
+		Instrument: rig.InstrumentBass,
+		Chain: []rig.ChainEntry{
+			{Role: rig.RoleOther, Gear: "Klon Centaur"},
 		},
-		Character: &[]riggen.CharacterTerm{{Term: "mid-forward"}},
+		Character: &[]rig.CharacterTerm{{Term: "mid-forward"}},
 	}
 
 	_, _, moved, err := compile.Resolve(spec, s.cat, nil)

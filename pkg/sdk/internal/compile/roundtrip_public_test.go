@@ -32,8 +32,8 @@ import (
 
 	"github.com/retr0h/tonestack/pkg/sdk/catalog"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/compile"
-	riggen "github.com/retr0h/tonestack/pkg/sdk/internal/gen"
 	"github.com/retr0h/tonestack/pkg/sdk/preset"
+	"github.com/retr0h/tonestack/pkg/sdk/rig"
 )
 
 // corpusDir holds thousands of presets other people made. It is not committed
@@ -215,7 +215,7 @@ func (s *RoundTripPublicTestSuite) backAgain(raw []byte) (string, string) {
 // Go sorts a map's keys when it encodes JSON; the YAML writer orders them
 // differently for the same content, which would make this test fail over how
 // a document was laid out rather than over what it says.
-func (s *RoundTripPublicTestSuite) marshal(spec riggen.RigSpec) string {
+func (s *RoundTripPublicTestSuite) marshal(spec rig.Spec) string {
 	body, err := json.Marshal(spec)
 	s.Require().NoError(err)
 

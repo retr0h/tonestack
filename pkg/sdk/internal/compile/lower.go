@@ -29,7 +29,6 @@ import (
 
 	"github.com/retr0h/tonestack/pkg/sdk/catalog"
 	"github.com/retr0h/tonestack/pkg/sdk/chain"
-	riggen "github.com/retr0h/tonestack/pkg/sdk/internal/gen"
 	"github.com/retr0h/tonestack/pkg/sdk/preset"
 	"github.com/retr0h/tonestack/pkg/sdk/rig"
 )
@@ -42,7 +41,7 @@ import (
 // nothing would produce a file unlike any the device has ever written.
 func Lower(
 	doc *preset.Document,
-	spec riggen.RigSpec,
+	spec rig.Spec,
 	cat *catalog.Catalog,
 ) error {
 	// Checked on the way in as well as on the way out. A rig can arrive from
@@ -122,7 +121,7 @@ func at(v *int, fallback int) int {
 // hand, and wrong for one lifted off a device: 665 models share 469 names, so
 // the name alone would resolve to a different model than the one recorded.
 func modelFor(
-	entry riggen.ChainEntry,
+	entry rig.ChainEntry,
 	cat *catalog.Catalog,
 	instrument string,
 ) (catalog.ModelID, error) {
@@ -172,7 +171,7 @@ func modelFor(
 // catalog's defaults are the answer, since Line 6 state one for every
 // parameter and it is never invalid.
 func paramsFor(
-	entry riggen.ChainEntry,
+	entry rig.ChainEntry,
 	cat *catalog.Catalog,
 	model catalog.ModelID,
 ) chain.Params {
@@ -210,7 +209,7 @@ func paramsFor(
 //
 // They travel together because a device mixes them in one block, and they are
 // told apart by the @ prefix the format itself uses.
-func attrsFor(entry riggen.ChainEntry) map[string]json.RawMessage {
+func attrsFor(entry rig.ChainEntry) map[string]json.RawMessage {
 	if entry.Params == nil {
 		return nil
 	}

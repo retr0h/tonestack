@@ -24,9 +24,9 @@ import (
 	"strings"
 
 	"github.com/retr0h/tonestack/pkg/sdk/catalog"
-	riggen "github.com/retr0h/tonestack/pkg/sdk/internal/gen"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/wire"
 	"github.com/retr0h/tonestack/pkg/sdk/preset"
+	"github.com/retr0h/tonestack/pkg/sdk/rig"
 )
 
 // Controllers carries what an expression pedal or a footswitch moves.
@@ -43,12 +43,12 @@ import (
 func Controllers(
 	got wire.DevicePreset,
 	cat *catalog.Catalog,
-) *[]riggen.Controller {
+) *[]rig.Controller {
 	if len(got.Controllers) == 0 {
 		return nil
 	}
 
-	out := make([]riggen.Controller, 0, len(got.Controllers))
+	out := make([]rig.Controller, 0, len(got.Controllers))
 
 	for _, c := range got.Controllers {
 		name, ok := paramNameOf(got, cat, c.Block, c.Param)
@@ -57,7 +57,7 @@ func Controllers(
 		}
 
 		lo, hi := float32(c.Min), float32(c.Max)
-		one := riggen.Controller{
+		one := rig.Controller{
 			Controller: c.Controller,
 			Block:      c.Block - wire.GridOffset,
 			Parameter:  name,
@@ -144,15 +144,15 @@ func Document(
 }
 
 // Snapshots carries what the device recalls on a footswitch.
-func Snapshots(got wire.DevicePreset) *[]riggen.Snapshot {
+func Snapshots(got wire.DevicePreset) *[]rig.Snapshot {
 	if len(got.Snapshots) == 0 {
 		return nil
 	}
 
-	out := make([]riggen.Snapshot, 0, len(got.Snapshots))
+	out := make([]rig.Snapshot, 0, len(got.Snapshots))
 
 	for _, s := range got.Snapshots {
-		snap := riggen.Snapshot{}
+		snap := rig.Snapshot{}
 
 		if s.Name != "" {
 			name := s.Name
@@ -174,18 +174,18 @@ func Snapshots(got wire.DevicePreset) *[]riggen.Snapshot {
 }
 
 // Footswitches carries what the pedal prints under each switch.
-func Footswitches(got wire.DevicePreset, cat *catalog.Catalog) *[]riggen.Footswitch {
+func Footswitches(got wire.DevicePreset, cat *catalog.Catalog) *[]rig.Footswitch {
 	if len(got.Footswitches) == 0 {
 		return nil
 	}
 
-	out := make([]riggen.Footswitch, 0, len(got.Footswitches))
+	out := make([]rig.Footswitch, 0, len(got.Footswitches))
 
 	for _, f := range got.Footswitches {
 		// The block as the chain numbers it, so a footswitch and the entry
 		// it works on agree.
 		label, gear, at, block := f.Label, f.Gear, f.Switch, f.Block-wire.GridOffset
-		fs := riggen.Footswitch{
+		fs := rig.Footswitch{
 			Switch: &at, Label: &label, Gear: &gear, Block: &block,
 		}
 

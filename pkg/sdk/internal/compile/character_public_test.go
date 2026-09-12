@@ -26,7 +26,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/retr0h/tonestack/pkg/sdk/internal/compile"
-	riggen "github.com/retr0h/tonestack/pkg/sdk/internal/gen"
+	"github.com/retr0h/tonestack/pkg/sdk/rig"
 )
 
 // CharacterPublicTestSuite covers the words a rig may use for how it sounds.
@@ -95,12 +95,12 @@ func (s *CharacterPublicTestSuite) TestCheckCharacter() {
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			var spec riggen.RigSpec
+			var spec rig.Spec
 
 			if tt.in != nil {
-				terms := make([]riggen.CharacterTerm, 0, len(tt.in))
+				terms := make([]rig.CharacterTerm, 0, len(tt.in))
 				for _, t := range tt.in {
-					terms = append(terms, riggen.CharacterTerm{Term: t})
+					terms = append(terms, rig.CharacterTerm{Term: t})
 				}
 
 				spec.Character = &terms

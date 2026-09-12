@@ -28,7 +28,7 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk/catalog"
 	"github.com/retr0h/tonestack/pkg/sdk/chain"
 	"github.com/retr0h/tonestack/pkg/sdk/corpus"
-	riggen "github.com/retr0h/tonestack/pkg/sdk/internal/gen"
+	"github.com/retr0h/tonestack/pkg/sdk/rig"
 )
 
 // Resolve turns a rig into a chain for the device the catalog describes.
@@ -41,7 +41,7 @@ import (
 // What a rig does not say, the corpus fills — but only where a kind of block
 // is near-universal, and never quietly. See fill.
 func Resolve(
-	spec riggen.RigSpec,
+	spec rig.Spec,
 	cat *catalog.Catalog,
 	stats *corpus.Stats,
 ) (chain.Chain, []Added, []Moved, error) {
@@ -89,7 +89,7 @@ func Resolve(
 		}
 
 		if err != nil {
-			if entry.Role != riggen.RoleCab || !errors.Is(err, ErrNoSuchGear) {
+			if entry.Role != rig.RoleCab || !errors.Is(err, ErrNoSuchGear) {
 				return chain.Chain{}, nil, nil, err
 			}
 
@@ -143,7 +143,7 @@ func Resolve(
 // mostly lives. A rig with no amplifier still has its terms reported, moving
 // nothing.
 func character(
-	spec riggen.RigSpec,
+	spec rig.Spec,
 	blocks []catalog.Block,
 	built chain.Chain,
 	stats *corpus.Stats,
@@ -181,8 +181,8 @@ func character(
 // catalog it is Line 6's residual bucket. Reading the first as the second
 // would search a handful of blocks for gear that is almost certainly filed
 // somewhere else, so an unnamed role searches everything.
-func categoryFor(role riggen.Role) catalog.Category {
-	if role == "" || role == riggen.RoleOther {
+func categoryFor(role rig.Role) catalog.Category {
+	if role == "" || role == rig.RoleOther {
 		return ""
 	}
 
@@ -225,7 +225,7 @@ func impliedCab(cat *catalog.Catalog, blocks []catalog.Block) *catalog.Block {
 func gear(
 	cat *catalog.Catalog,
 	gear string,
-	role riggen.Role,
+	role rig.Role,
 	instrument string,
 ) (catalog.Block, error) {
 	return findGear(cat, gear, categoryFor(role), instrument)
@@ -327,7 +327,7 @@ func kindOf(c catalog.Category) string {
 
 // specFor lays blocks out as a chain the device can represent.
 func specFor(
-	spec riggen.RigSpec,
+	spec rig.Spec,
 	blocks []catalog.Block,
 	stats *corpus.Stats,
 ) chain.Chain {

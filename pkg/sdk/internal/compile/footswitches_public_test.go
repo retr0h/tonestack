@@ -29,8 +29,8 @@ import (
 
 	"github.com/retr0h/tonestack/pkg/sdk/catalog"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/compile"
-	riggen "github.com/retr0h/tonestack/pkg/sdk/internal/gen"
 	"github.com/retr0h/tonestack/pkg/sdk/preset"
+	"github.com/retr0h/tonestack/pkg/sdk/rig"
 )
 
 // FootswitchesPublicTestSuite covers what a preset says about the pedal.
@@ -197,13 +197,13 @@ func (s *FootswitchesPublicTestSuite) TestASwitchWithNoBlockIsNotWritten() {
 	// has nowhere to go, and dropping it beats writing a preset that will not
 	// load.
 	label := "orphan"
-	spec := riggen.RigSpec{
-		Schema:     riggen.RigSpecSchemaRigSpec,
+	spec := rig.Spec{
+		Schema:     rig.SchemaName,
 		ID:         "test",
-		Subject:    riggen.Subject{Kind: riggen.KindSound, Name: "Test"},
-		Instrument: riggen.InstrumentBass,
-		Chain:      []riggen.ChainEntry{{Role: riggen.RoleAmp, Gear: "Ampeg SVT"}},
-		Footswitches: &[]riggen.Footswitch{
+		Subject:    rig.Subject{Kind: rig.KindSound, Name: "Test"},
+		Instrument: rig.InstrumentBass,
+		Chain:      []rig.ChainEntry{{Role: rig.RoleAmp, Gear: "Ampeg SVT"}},
+		Footswitches: &[]rig.Footswitch{
 			{Label: &label},
 		},
 	}

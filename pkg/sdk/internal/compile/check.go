@@ -28,7 +28,7 @@ import (
 
 	"github.com/retr0h/tonestack/pkg/sdk/catalog"
 	"github.com/retr0h/tonestack/pkg/sdk/chain"
-	riggen "github.com/retr0h/tonestack/pkg/sdk/internal/gen"
+	"github.com/retr0h/tonestack/pkg/sdk/rig"
 )
 
 // check reports what a rig claims that this device cannot supply.
@@ -41,7 +41,7 @@ import (
 // The blocks are the chain as resolved, because a controller names the block
 // it moves by position and the parameter by name, and only the model sitting
 // at that position says whether the name is one of its own.
-func check(spec riggen.RigSpec, blocks []chain.Block, cat *catalog.Catalog) error {
+func check(spec rig.Spec, blocks []chain.Block, cat *catalog.Catalog) error {
 	// Every complaint at once. A rig with four bad colours in it took four
 	// runs to fix when this reported the first one, and each run hid the
 	// next. errors.Is and errors.As reach through a join, so a caller
@@ -54,7 +54,7 @@ func check(spec riggen.RigSpec, blocks []chain.Block, cat *catalog.Catalog) erro
 }
 
 // checkTarget refuses a rig built for another device.
-func checkTarget(spec riggen.RigSpec, cat *catalog.Catalog) error {
+func checkTarget(spec rig.Spec, cat *catalog.Catalog) error {
 	if spec.Target == nil || spec.Target.Device == nil || *spec.Target.Device == "" {
 		return nil
 	}
@@ -75,7 +75,7 @@ func checkTarget(spec riggen.RigSpec, cat *catalog.Catalog) error {
 //
 // The device has twelve, and the catalog carries their names. A rig naming a
 // thirteenth describes a switch nobody will see.
-func checkFootswitches(spec riggen.RigSpec, cat *catalog.Catalog) error {
+func checkFootswitches(spec rig.Spec, cat *catalog.Catalog) error {
 	if spec.Footswitches == nil || len(cat.LEDColours) == 0 {
 		return nil
 	}
@@ -110,7 +110,7 @@ func checkFootswitches(spec riggen.RigSpec, cat *catalog.Catalog) error {
 // its name, so a name nothing matches is written as a position — and the
 // controller ends up moving whatever happens to sit there.
 func checkControllers(
-	spec riggen.RigSpec,
+	spec rig.Spec,
 	blocks []chain.Block,
 	cat *catalog.Catalog,
 ) error {

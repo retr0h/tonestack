@@ -24,7 +24,7 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk/catalog"
 	"github.com/retr0h/tonestack/pkg/sdk/chain"
 	"github.com/retr0h/tonestack/pkg/sdk/corpus"
-	riggen "github.com/retr0h/tonestack/pkg/sdk/internal/gen"
+	"github.com/retr0h/tonestack/pkg/sdk/rig"
 )
 
 // Moved is what a character term did to a parameter.
@@ -182,7 +182,7 @@ func clamp(v, lo, hi float64) float64 {
 }
 
 // termsOf reads the words a rig describes itself with, in the order written.
-func termsOf(spec riggen.RigSpec) []string {
+func termsOf(spec rig.Spec) []string {
 	if spec.Character == nil {
 		return nil
 	}

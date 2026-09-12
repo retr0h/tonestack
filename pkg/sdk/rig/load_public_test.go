@@ -30,7 +30,6 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
-	"github.com/retr0h/tonestack/pkg/sdk/internal/gen"
 	"github.com/retr0h/tonestack/pkg/sdk/rig"
 )
 
@@ -218,7 +217,7 @@ func (s *LoadPublicTestSuite) TestLoad() {
 			s.Require().NoError(err)
 			s.Require().Equal("mike-dirnt", got.ID)
 			s.Require().Equal("Mike Dirnt", got.Subject.Name)
-			s.Require().Equal(gen.InstrumentBass, got.Instrument)
+			s.Require().Equal(rig.InstrumentBass, got.Instrument)
 			s.Require().Len(got.Chain, 1)
 			s.Require().Equal("Ampeg SVT", got.Chain[0].Gear)
 		})
@@ -247,7 +246,7 @@ func (s *LoadPublicTestSuite) TestWrite() {
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			var spec gen.RigSpec
+			var spec rig.Spec
 
 			if tt.in != "" {
 				got, err := rig.Load(strings.NewReader(tt.in))

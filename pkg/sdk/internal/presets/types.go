@@ -25,8 +25,8 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk/chain"
 	"github.com/retr0h/tonestack/pkg/sdk/corpus"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/compile"
-	riggen "github.com/retr0h/tonestack/pkg/sdk/internal/gen"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/recipes"
+	"github.com/retr0h/tonestack/pkg/sdk/rig"
 )
 
 // Catalogs opens the catalog a rig is built against.
@@ -38,7 +38,7 @@ type Catalogs interface {
 // Recipes finds the curated rig a build starts from.
 type Recipes interface {
 	// Find returns the rig with the given identifier.
-	Find(dir, id string) (riggen.RigSpec, error)
+	Find(dir, id string) (rig.Spec, error)
 }
 
 // Compiler turns a rig into a chain a device has room for.
@@ -48,7 +48,7 @@ type Recipes interface {
 type Compiler interface {
 	// Resolve turns a rig and a catalog into a chain.
 	Resolve(
-		spec riggen.RigSpec, cat *catalog.Catalog, stats *corpus.Stats,
+		spec rig.Spec, cat *catalog.Catalog, stats *corpus.Stats,
 	) (chain.Chain, []compile.Added, []compile.Moved, error)
 	// Fit drops what a device has no room for.
 	Fit(spec chain.Chain, cat *catalog.Catalog, lim chain.Limits) chain.Chain

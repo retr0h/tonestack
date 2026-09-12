@@ -34,10 +34,10 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk/chain"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/device"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/device/mocks"
-	riggen "github.com/retr0h/tonestack/pkg/sdk/internal/gen"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/slots"
 	slotmocks "github.com/retr0h/tonestack/pkg/sdk/internal/slots/mocks"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/wire"
+	"github.com/retr0h/tonestack/pkg/sdk/rig"
 )
 
 // TypesPublicTestSuite covers standing something else in for a collaborator.
@@ -88,7 +88,7 @@ func (s *TypesPublicTestSuite) TestCompiler() {
 
 	comp := slotmocks.NewMockCompiler(s.ctrl)
 	comp.EXPECT().Lift(gomock.Any(), gomock.Any()).
-		Return(riggen.RigSpec{}, want)
+		Return(rig.Spec{}, want)
 
 	_, err = slots.Show(slots.ShowOptions{
 		Deps: slots.Deps{Catalogs: cat, Compiler: comp},
@@ -114,7 +114,7 @@ func (s *TypesPublicTestSuite) TestExportOnARigThatDoesNotValidate() {
 	// and the contract does not accept.
 	comp := slotmocks.NewMockCompiler(s.ctrl)
 	comp.EXPECT().Lift(gomock.Any(), gomock.Any()).
-		Return(riggen.RigSpec{}, nil)
+		Return(rig.Spec{}, nil)
 
 	out := filepath.Join(s.T().TempDir(), "rig.yaml")
 

@@ -24,8 +24,8 @@ import (
 	"encoding/json"
 
 	"github.com/retr0h/tonestack/pkg/sdk/catalog"
-	riggen "github.com/retr0h/tonestack/pkg/sdk/internal/gen"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/wire"
+	"github.com/retr0h/tonestack/pkg/sdk/rig"
 )
 
 // Keys a preset stores a routing entry under. A device owns these names.
@@ -165,7 +165,7 @@ func symbolFor(model catalog.ModelID, cat *catalog.Catalog) (catalog.Symbol, boo
 // Only what was read. A rig that carries a partial record would rebuild into a
 // preset that routes differently from the one it came from, which is worse
 // than carrying none and using an untouched preset.
-func DeviceState(got wire.DevicePreset, cat *catalog.Catalog) *riggen.DeviceState {
+func DeviceState(got wire.DevicePreset, cat *catalog.Catalog) *rig.DeviceState {
 	routing := routingOf(got, cat)
 	if routing == nil {
 		return nil
@@ -173,7 +173,7 @@ func DeviceState(got wire.DevicePreset, cat *catalog.Catalog) *riggen.DeviceStat
 
 	id := cat.DeviceID
 
-	return &riggen.DeviceState{Id: &id, Routing: routing}
+	return &rig.DeviceState{Id: &id, Routing: routing}
 }
 
 // Keys a preset stores a paired cabinet under.

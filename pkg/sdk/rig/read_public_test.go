@@ -25,7 +25,6 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
-	"github.com/retr0h/tonestack/pkg/sdk/internal/gen"
 	"github.com/retr0h/tonestack/pkg/sdk/rig"
 )
 
@@ -34,21 +33,21 @@ type ReadPublicTestSuite struct {
 }
 
 // spec returns a rig holding the given chain, with nothing else filled in.
-func spec(chain ...gen.ChainEntry) gen.RigSpec {
-	return gen.RigSpec{
-		Schema:     gen.RigSpecSchemaRigSpec,
+func spec(chain ...rig.ChainEntry) rig.Spec {
+	return rig.Spec{
+		Schema:     rig.SchemaName,
 		ID:         "test",
-		Subject:    gen.Subject{Kind: gen.KindArtist, Name: "Test"},
-		Instrument: gen.InstrumentBass,
+		Subject:    rig.Subject{Kind: rig.KindArtist, Name: "Test"},
+		Instrument: rig.InstrumentBass,
 		Chain:      chain,
 	}
 }
 
 // evidence returns the kinds as a rig carries them.
-func evidence(kinds ...gen.EvidenceKind) *[]gen.Evidence {
-	out := make([]gen.Evidence, 0, len(kinds))
+func evidence(kinds ...rig.EvidenceKind) *[]rig.Evidence {
+	out := make([]rig.Evidence, 0, len(kinds))
 	for _, k := range kinds {
-		out = append(out, gen.Evidence{Kind: k})
+		out = append(out, rig.Evidence{Kind: k})
 	}
 
 	return &out
@@ -58,29 +57,29 @@ func evidence(kinds ...gen.EvidenceKind) *[]gen.Evidence {
 func (s *ReadPublicTestSuite) TestGear() {
 	tests := []struct {
 		name  string
-		chain []gen.ChainEntry
-		role  gen.Role
+		chain []rig.ChainEntry
+		role  rig.Role
 		want  string
 		ok    bool
 	}{
 		{
 			name: "a role the chain has",
-			chain: []gen.ChainEntry{
-				{Role: gen.RoleDrive, Gear: "Klon Centaur"},
-				{Role: gen.RoleAmp, Gear: "Ampeg SVT"},
+			chain: []rig.ChainEntry{
+				{Role: rig.RoleDrive, Gear: "Klon Centaur"},
+				{Role: rig.RoleAmp, Gear: "Ampeg SVT"},
 			},
-			role: gen.RoleAmp,
+			role: rig.RoleAmp,
 			want: "Ampeg SVT",
 			ok:   true,
 		},
 		{
 			name:  "a role it does not",
-			chain: []gen.ChainEntry{{Role: gen.RoleAmp}},
-			role:  gen.RoleCab,
+			chain: []rig.ChainEntry{{Role: rig.RoleAmp}},
+			role:  rig.RoleCab,
 		},
 		{
 			name: "an empty chain",
-			role: gen.RoleAmp,
+			role: rig.RoleAmp,
 		},
 	}
 
@@ -102,34 +101,34 @@ func (s *ReadPublicTestSuite) TestGear() {
 func (s *ReadPublicTestSuite) TestTrusted() {
 	tests := []struct {
 		name  string
-		chain []gen.ChainEntry
-		rig   []gen.EvidenceKind
+		chain []rig.ChainEntry
+		rig   []rig.EvidenceKind
 		want  bool
 	}{
 		{
 			name:  "a claim nobody supported",
-			chain: []gen.ChainEntry{{Role: gen.RoleAmp}},
+			chain: []rig.ChainEntry{{Role: rig.RoleAmp}},
 		},
 		{
 			// `llm` means a model said so and nobody checked, which is the
 			// same standing as nobody having said anything.
 			name: "an assertion alone",
-			chain: []gen.ChainEntry{
-				{Role: gen.RoleAmp, Evidence: evidence(gen.EvidenceLLM)},
+			chain: []rig.ChainEntry{
+				{Role: rig.RoleAmp, Evidence: evidence(rig.EvidenceLLM)},
 			},
 		},
 		{
 			name: "one unsupported claim among supported ones",
-			chain: []gen.ChainEntry{
-				{Role: gen.RoleAmp, Evidence: evidence(gen.EvidenceCited)},
-				{Role: gen.RoleCab, Evidence: evidence(gen.EvidenceLLM)},
+			chain: []rig.ChainEntry{
+				{Role: rig.RoleAmp, Evidence: evidence(rig.EvidenceCited)},
+				{Role: rig.RoleCab, Evidence: evidence(rig.EvidenceLLM)},
 			},
 		},
 		{
 			name: "every claim supported",
-			chain: []gen.ChainEntry{
-				{Role: gen.RoleAmp, Evidence: evidence(gen.EvidenceCited)},
-				{Role: gen.RoleCab, Evidence: evidence(gen.EvidenceVideo)},
+			chain: []rig.ChainEntry{
+				{Role: rig.RoleAmp, Evidence: evidence(rig.EvidenceCited)},
+				{Role: rig.RoleCab, Evidence: evidence(rig.EvidenceVideo)},
 			},
 			want: true,
 		},
@@ -137,8 +136,8 @@ func (s *ReadPublicTestSuite) TestTrusted() {
 			// A rig rundown covers every piece of gear in it. Requiring the
 			// citation on each entry would only encourage repeating it.
 			name:  "evidence on the rig, covering the whole chain",
-			chain: []gen.ChainEntry{{Role: gen.RoleAmp}},
-			rig:   []gen.EvidenceKind{gen.EvidenceCited},
+			chain: []rig.ChainEntry{{Role: rig.RoleAmp}},
+			rig:   []rig.EvidenceKind{rig.EvidenceCited},
 			want:  true,
 		},
 		{name: "a rig with no chain at all"},
@@ -160,75 +159,75 @@ func (s *ReadPublicTestSuite) TestTrusted() {
 func (s *ReadPublicTestSuite) TestSourced() {
 	tests := []struct {
 		name  string
-		kinds []gen.EvidenceKind
-		rig   []gen.EvidenceKind
-		want  gen.EvidenceKind
+		kinds []rig.EvidenceKind
+		rig   []rig.EvidenceKind
+		want  rig.EvidenceKind
 	}{
 		{
 			// Nothing in this project can hear, so somebody who listened
 			// outranks any citation.
 			name: "a person, above everything",
-			kinds: []gen.EvidenceKind{
-				gen.EvidenceMeasured, gen.EvidenceUser, gen.EvidenceCited,
+			kinds: []rig.EvidenceKind{
+				rig.EvidenceMeasured, rig.EvidenceUser, rig.EvidenceCited,
 			},
-			want: gen.EvidenceUser,
+			want: rig.EvidenceUser,
 		},
 		{
 			name: "measured over cited",
-			kinds: []gen.EvidenceKind{
-				gen.EvidenceCited, gen.EvidenceMeasured,
+			kinds: []rig.EvidenceKind{
+				rig.EvidenceCited, rig.EvidenceMeasured,
 			},
-			want: gen.EvidenceMeasured,
+			want: rig.EvidenceMeasured,
 		},
 		{
 			name:  "cited over video",
-			kinds: []gen.EvidenceKind{gen.EvidenceVideo, gen.EvidenceCited},
-			want:  gen.EvidenceCited,
+			kinds: []rig.EvidenceKind{rig.EvidenceVideo, rig.EvidenceCited},
+			want:  rig.EvidenceCited,
 		},
 		{
 			name:  "video over audio",
-			kinds: []gen.EvidenceKind{gen.EvidenceAudio, gen.EvidenceVideo},
-			want:  gen.EvidenceVideo,
+			kinds: []rig.EvidenceKind{rig.EvidenceAudio, rig.EvidenceVideo},
+			want:  rig.EvidenceVideo,
 		},
 		{
 			name:  "audio over corpus",
-			kinds: []gen.EvidenceKind{gen.EvidenceCorpus, gen.EvidenceAudio},
-			want:  gen.EvidenceAudio,
+			kinds: []rig.EvidenceKind{rig.EvidenceCorpus, rig.EvidenceAudio},
+			want:  rig.EvidenceAudio,
 		},
 		{
 			name:  "corpus over an assertion",
-			kinds: []gen.EvidenceKind{gen.EvidenceLLM, gen.EvidenceCorpus},
-			want:  gen.EvidenceCorpus,
+			kinds: []rig.EvidenceKind{rig.EvidenceLLM, rig.EvidenceCorpus},
+			want:  rig.EvidenceCorpus,
 		},
 		{
 			name:  "a kind nobody has ranked",
-			kinds: []gen.EvidenceKind{gen.EvidenceKind("seance")},
-			want:  gen.EvidenceKind("seance"),
+			kinds: []rig.EvidenceKind{rig.EvidenceKind("seance")},
+			want:  rig.EvidenceKind("seance"),
 		},
 		{
 			name: "an unranked kind, which does not outrank a known one",
-			kinds: []gen.EvidenceKind{
-				gen.EvidenceCorpus, gen.EvidenceKind("seance"),
+			kinds: []rig.EvidenceKind{
+				rig.EvidenceCorpus, rig.EvidenceKind("seance"),
 			},
-			want: gen.EvidenceCorpus,
+			want: rig.EvidenceCorpus,
 		},
 		{
 			name:  "the chain, beating what the rig itself carries",
-			kinds: []gen.EvidenceKind{gen.EvidenceCited},
-			rig:   []gen.EvidenceKind{gen.EvidenceCorpus},
-			want:  gen.EvidenceCited,
+			kinds: []rig.EvidenceKind{rig.EvidenceCited},
+			rig:   []rig.EvidenceKind{rig.EvidenceCorpus},
+			want:  rig.EvidenceCited,
 		},
 		{
 			// Nothing said where it came from, which is the same standing as
 			// a model having asserted it.
 			name: "a rig nobody supported",
-			want: gen.EvidenceLLM,
+			want: rig.EvidenceLLM,
 		},
 	}
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			entry := gen.ChainEntry{Role: gen.RoleAmp}
+			entry := rig.ChainEntry{Role: rig.RoleAmp}
 			if tt.kinds != nil {
 				entry.Evidence = evidence(tt.kinds...)
 			}

@@ -20,17 +20,17 @@
 
 package rig
 
-import "github.com/retr0h/tonestack/pkg/sdk/internal/gen"
+import "github.com/retr0h/tonestack/pkg/sdk/rig/internal/gen"
 
 // What a rig is made of.
 //
 // Declared by oapi-codegen from the contract and named here, so that nobody
 // outside this package has to hold a generated type. A caller writing
-// rig.Spec is writing against a name this project chose; a caller writing
+// Spec is writing against a name this project chose; a caller writing
 // gen.RigSpec was writing against whatever the generator happened to call it,
 // and finding out at compile time when that changed.
 //
-// Aliases rather than wrappers. rig.Spec and the generated type are the same
+// Aliases rather than wrappers. Spec and the generated type are the same
 // type, so nothing converts at the seam and a rig built by the compiler is a
 // rig a caller can read.
 type (
@@ -62,6 +62,25 @@ type (
 	EvidenceKind = gen.EvidenceKind
 	// Confidence is how far a claim should be trusted.
 	Confidence = gen.Confidence
+	// Instrument is what the rig is played on.
+	Instrument = gen.Instrument
+	// Settings are the values a piece of gear is set to.
+	Settings = gen.Settings
+	// Substitute stands in for gear no device models.
+	Substitute = gen.Substitute
+	// Target is the hardware a rig was written for.
+	Target = gen.Target
+	// Mutation is a change somebody made and why.
+	Mutation = gen.Mutation
+	// Controller is a parameter an expression pedal or footswitch moves.
+	Controller = gen.Controller
+	// Footswitch is what a switch does and how it is lit.
+	Footswitch = gen.Footswitch
+	// Snapshot is one set of values a preset can recall.
+	Snapshot = gen.Snapshot
+	// DeviceState is everything a preset carries that this format does not
+	// model as musical intent, kept as the device wrote it.
+	DeviceState = gen.DeviceState
 )
 
 // The values those types may hold.
@@ -93,7 +112,41 @@ const (
 	ConfidenceMedium = gen.ConfidenceMedium
 	ConfidenceHigh   = gen.ConfidenceHigh
 
-	// Where a claim came from, and the one that is not checkable.
-	EvidenceCited = gen.EvidenceCited
-	EvidenceLLM   = gen.EvidenceLLM
+	// Where a claim came from. Ranked by how far somebody has to go to
+	// disagree with it; llm is the one that is not checkable at all.
+	EvidenceCited    = gen.EvidenceCited
+	EvidenceLLM      = gen.EvidenceLLM
+	EvidenceAudio    = gen.EvidenceAudio
+	EvidenceVideo    = gen.EvidenceVideo
+	EvidenceCorpus   = gen.EvidenceCorpus
+	EvidenceMeasured = gen.EvidenceMeasured
+	EvidenceUser     = gen.EvidenceUser
+
+	// What a rig is played on.
+	InstrumentBass   = gen.InstrumentBass
+	InstrumentGuitar = gen.InstrumentGuitar
+
+	// What a rig is attributed to.
+	KindArtist = gen.KindArtist
+	KindSound  = gen.KindSound
+
+	// SchemaName is the one value the contract accepts for its own schema
+	// field. Schema is the contract document itself.
+	SchemaName = gen.RigSpecSchemaRigSpec
+
+	// What a piece of gear does. Deliberately the same words the catalog
+	// groups by, so reading one against the other is a conversion rather
+	// than a translation.
+	RoleComp    = gen.RoleComp
+	RoleDrive   = gen.RoleDrive
+	RoleEQ      = gen.RoleEQ
+	RoleMod     = gen.RoleMod
+	RoleDelay   = gen.RoleDelay
+	RoleReverb  = gen.RoleReverb
+	RoleFilter  = gen.RoleFilter
+	RolePitch   = gen.RolePitch
+	RoleWah     = gen.RoleWah
+	RoleGate    = gen.RoleGate
+	RoleUtility = gen.RoleUtility
+	RoleOther   = gen.RoleOther
 )

@@ -28,8 +28,8 @@ import (
 
 	"github.com/retr0h/tonestack/pkg/sdk/catalog"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/editor"
-	riggen "github.com/retr0h/tonestack/pkg/sdk/internal/gen"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/wire"
+	"github.com/retr0h/tonestack/pkg/sdk/rig"
 )
 
 // DocumentPublicTestSuite covers the rig fragments a device's answer carries.
@@ -56,7 +56,7 @@ func (s *DocumentPublicTestSuite) TestControllers() {
 	tests := []struct {
 		name  string
 		got   wire.DevicePreset
-		want  *[]riggen.Controller
+		want  *[]rig.Controller
 		named string
 	}{
 		{

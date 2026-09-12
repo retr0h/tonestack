@@ -28,9 +28,9 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk/chain"
 	"github.com/retr0h/tonestack/pkg/sdk/corpus"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/compile"
-	riggen "github.com/retr0h/tonestack/pkg/sdk/internal/gen"
 	"github.com/retr0h/tonestack/pkg/sdk/preset"
 	"github.com/retr0h/tonestack/pkg/sdk/result"
+	"github.com/retr0h/tonestack/pkg/sdk/rig"
 )
 
 // MakeOptions says what to build and where to put it.
@@ -159,7 +159,7 @@ func write(path string, doc *preset.Document) error {
 // the preset nothing, and a build that stopped over a word would be refusing
 // somebody the right to describe a sound in their own words. The rigs this
 // project ships are held to the list by a test instead.
-func unfamiliar(rec riggen.RigSpec) []result.Unfamiliar {
+func unfamiliar(rec rig.Spec) []result.Unfamiliar {
 	unknown := compile.CheckCharacter(rec)
 
 	out := make([]result.Unfamiliar, 0, len(unknown))

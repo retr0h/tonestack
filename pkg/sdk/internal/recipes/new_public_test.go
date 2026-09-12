@@ -28,7 +28,6 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
-	"github.com/retr0h/tonestack/pkg/sdk/internal/gen"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/recipes"
 	"github.com/retr0h/tonestack/pkg/sdk/rig"
 )
@@ -94,7 +93,7 @@ func (s *NewPublicTestSuite) TestNew() {
 		wantAmp   string
 		wantCab   string
 		wantFirst string
-		wantRoles []gen.Role
+		wantRoles []rig.Role
 		says      []string
 
 		err     error
@@ -117,7 +116,7 @@ func (s *NewPublicTestSuite) TestNew() {
 			// The pedal is written ahead of the amp, because that is where a
 			// pedal goes and a chain is ordered by what the signal does.
 			wantFirst: "Klon Centaur",
-			wantRoles: []gen.Role{gen.RoleDrive, gen.RoleAmp},
+			wantRoles: []rig.Role{rig.RoleDrive, rig.RoleAmp},
 			wantAmp:   "Ampeg SVT",
 			wantCab:   "Ampeg SVT 410HLF",
 			says:      []string{"Klon Centaur"},
@@ -285,11 +284,11 @@ func (s *NewPublicTestSuite) TestNew() {
 			s.Require().Equal("test-player", all[0].ID)
 
 			if tt.wantAmp != "" {
-				s.Require().Equal(tt.wantAmp, rig.GearName(all[0], gen.RoleAmp))
+				s.Require().Equal(tt.wantAmp, rig.GearName(all[0], rig.RoleAmp))
 			}
 
 			if tt.wantCab != "" {
-				s.Require().Equal(tt.wantCab, rig.GearName(all[0], gen.RoleCab))
+				s.Require().Equal(tt.wantCab, rig.GearName(all[0], rig.RoleCab))
 			}
 
 			if tt.wantFirst != "" {

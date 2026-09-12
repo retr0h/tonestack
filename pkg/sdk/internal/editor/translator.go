@@ -23,9 +23,9 @@ package editor
 import (
 	"github.com/retr0h/tonestack/pkg/sdk/catalog"
 	"github.com/retr0h/tonestack/pkg/sdk/chain"
-	riggen "github.com/retr0h/tonestack/pkg/sdk/internal/gen"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/wire"
 	"github.com/retr0h/tonestack/pkg/sdk/preset"
+	"github.com/retr0h/tonestack/pkg/sdk/rig"
 )
 
 // Translator is this package's work as a value.
@@ -55,7 +55,7 @@ func (*Translator) Chain(
 func (*Translator) Controllers(
 	got wire.DevicePreset,
 	cat *catalog.Catalog,
-) *[]riggen.Controller {
+) *[]rig.Controller {
 	return Controllers(got, cat)
 }
 
@@ -63,7 +63,7 @@ func (*Translator) Controllers(
 func (*Translator) DeviceState(
 	got wire.DevicePreset,
 	cat *catalog.Catalog,
-) *riggen.DeviceState {
+) *rig.DeviceState {
 	return DeviceState(got, cat)
 }
 
@@ -80,7 +80,7 @@ func (*Translator) Document(
 func (*Translator) Footswitches(
 	got wire.DevicePreset,
 	cat *catalog.Catalog,
-) *[]riggen.Footswitch {
+) *[]rig.Footswitch {
 	return Footswitches(got, cat)
 }
 
@@ -93,6 +93,6 @@ func (*Translator) Placements(
 }
 
 // Snapshots carries what the device recalls on a footswitch.
-func (*Translator) Snapshots(got wire.DevicePreset) *[]riggen.Snapshot {
+func (*Translator) Snapshots(got wire.DevicePreset) *[]rig.Snapshot {
 	return Snapshots(got)
 }
