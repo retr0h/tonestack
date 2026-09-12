@@ -145,8 +145,19 @@ $ tonestack presets make --id mike-dirnt
   heard grit-on-attack — Drive 0.60 to 0.76
   heard tight-low-end — Sag 0.50 to 0.40
   heard short-decay — nothing acts on this yet
-  heard audible-pick-attack — the LA Studio Comp has no Attack
+  heard audible-pick-attack — Attack 0.04 to 0.05
 ```
+
+The `short-decay` line is this project's gap: nothing anywhere acts on that
+word. A word can also go unanswered because of the rig, and the build says that
+differently. A rig saying `roomy` in a chain that holds no reverb gets:
+
+```console
+  heard roomy — this chain holds no reverb
+```
+
+That one is worth knowing about the rig, because adding a reverb would answer
+it.
 
 Say two words from one axis and you have answered one question twice. Applying
 both lands the knob where it started, so neither is applied and the build names
@@ -156,11 +167,6 @@ the axis instead:
   heard minimal-drive — another term already answered for drive, so neither moved
   heard grit-on-attack — another term already answered for drive, so neither moved
 ```
-
-Those last two lines say different things. Nothing anywhere acts on
-`short-decay`, and that is this project's gap. `audible-pick-attack` has a
-control behind it and this chain has nowhere to put it, because the LA Studio
-Comp is an opto with no attack knob, and that is worth knowing about the rig.
 
 There is a third thing a word can do, which is nothing at all because the chain
 is already what it asked for:

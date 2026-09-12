@@ -88,19 +88,19 @@ emulates, what it costs, how much of the processor is used, anything added that
 the rig did not ask for, and what each word in the rig's `character` did:
 
 ```text
-  ●  0.0  LA Studio Comp    Teletronix® LA-2A®          5.8
+  ●  0.0  Deluxe Comp       Line 6 Original             1.8
   ●  0.1  Ampeg SVT Brt     Ampeg SVT (bright channel)  26.6
   ●  0.2  8x10 Ampeg SVT-E                              7.2
 
-  dsp0  █████████░░░░░░░░░░░░░░░  39.6%
+  dsp0  ████████░░░░░░░░░░░░░░░░  35.6%
 
-  added LA Studio Comp — almost every chain has one (88% of chains)
+  added Deluxe Comp — almost every chain has one (88% of chains)
 
   heard mid-forward — Mid 0.79 to 0.89
   heard grit-on-attack — Drive 0.60 to 0.76
   heard tight-low-end — Sag 0.50 to 0.40
   heard short-decay — nothing acts on this yet
-  heard audible-pick-attack — the LA Studio Comp has no Attack
+  heard audible-pick-attack — Attack 0.04 to 0.05
 ```
 
 [recipes.md](recipes.md#character-describes-the-result-not-the-control) explains

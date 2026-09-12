@@ -124,6 +124,7 @@ type measurer struct {
 	values  map[catalog.ModelID]map[string]sample
 	grammar map[string]map[catalog.Category]*counter
 	chains  map[string]int
+	models  map[string]map[catalog.ModelID]int
 }
 
 // newMeasurer returns a measurer ready to accumulate.
@@ -134,6 +135,7 @@ func newMeasurer(cat *catalog.Catalog) *measurer {
 		values:  map[catalog.ModelID]map[string]sample{},
 		grammar: map[string]map[catalog.Category]*counter{},
 		chains:  map[string]int{},
+		models:  map[string]map[catalog.ModelID]int{},
 	}
 }
 
@@ -196,13 +198,26 @@ func (m *measurer) grammarOf(spec chain.Chain) {
 
 	if m.grammar[instrument] == nil {
 		m.grammar[instrument] = map[catalog.Category]*counter{}
+		m.models[instrument] = map[catalog.ModelID]int{}
 	}
 
 	seen := map[catalog.Category]bool{}
+	held := map[catalog.ModelID]bool{}
 
 	for i, b := range spec.Blocks {
 		blk, known := m.cat.Block(b.Model)
-		if !known || !tonal(blk.Category) {
+		if !known {
+			continue
+		}
+
+		// Once per chain, the way a category is: two of the same compressor
+		// in one preset is one player's choice, not two.
+		if !held[b.Model] {
+			m.models[instrument][b.Model]++
+			held[b.Model] = true
+		}
+
+		if !tonal(blk.Category) {
 			continue
 		}
 
@@ -286,6 +301,7 @@ func (m *measurer) reduce(minSamples int) *corpus.Stats {
 		g := corpus.Grammar{
 			Chains:     m.chains[instrument],
 			Categories: map[catalog.Category]corpus.CategoryStats{},
+			Models:     m.models[instrument],
 		}
 
 		for category, c := range cats {

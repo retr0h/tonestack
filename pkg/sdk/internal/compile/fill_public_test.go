@@ -48,14 +48,18 @@ func (s *FillPublicTestSuite) SetupSuite() {
 	s.Require().NoError(err)
 }
 
-// grammar builds statistics saying how often each category appears for bass.
+// grammar builds statistics saying how often each category appears for bass,
+// and, where counts are given, how many bass chains held each model.
 func (s *FillPublicTestSuite) grammar(
 	cats map[catalog.Category]corpus.CategoryStats,
 	models map[catalog.ModelID]corpus.ModelStats,
+	counts map[catalog.ModelID]int,
 ) *corpus.Stats {
 	return &corpus.Stats{
-		Models:  models,
-		Grammar: map[string]corpus.Grammar{"bass": {Chains: 100, Categories: cats}},
+		Models: models,
+		Grammar: map[string]corpus.Grammar{
+			"bass": {Chains: 100, Categories: cats, Models: counts},
+		},
 	}
 }
 
@@ -73,6 +77,9 @@ func (s *FillPublicTestSuite) TestResolveFill() {
 
 		cats   map[catalog.Category]corpus.CategoryStats
 		models map[catalog.ModelID]corpus.ModelStats
+		// how many bass chains held each model; nil for statistics measured
+		// before that was counted.
+		counts map[catalog.ModelID]int
 		// no statistics at all.
 		none bool
 		// statistics measuring no chains for this instrument.
@@ -147,6 +154,45 @@ func (s *FillPublicTestSuite) TestResolveFill() {
 			},
 			want:    1,
 			wantIDs: []catalog.ModelID{"HD2_StereoDrive"},
+		},
+		{
+			// A total across instruments is a guitar figure. The pedal bass
+			// players reach for wins, however many guitar presets hold the
+			// other one.
+			name: "the model this instrument reaches for, not the most used overall",
+			cats: map[catalog.Category]corpus.CategoryStats{
+				catalog.CategoryDrive: {Chains: 95, Before: 95},
+			},
+			models: map[catalog.ModelID]corpus.ModelStats{
+				"HD2_DistMinotaur": {Uses: 40},
+				"HD2_StereoDrive":  {Uses: 900},
+			},
+			counts:  map[catalog.ModelID]int{"HD2_DistMinotaur": 30, "HD2_StereoDrive": 5},
+			want:    1,
+			wantIDs: []catalog.ModelID{"HD2_DistMinotaur"},
+		},
+		{
+			name: "a model no chain for this instrument held",
+			cats: map[catalog.Category]corpus.CategoryStats{
+				catalog.CategoryDrive: {Chains: 95, Before: 95},
+			},
+			models: map[catalog.ModelID]corpus.ModelStats{
+				"HD2_DistMinotaur": {Uses: 40},
+				"HD2_StereoDrive":  {Uses: 900},
+			},
+			counts:  map[catalog.ModelID]int{"HD2_DistMinotaur": 3},
+			want:    1,
+			wantIDs: []catalog.ModelID{"HD2_DistMinotaur"},
+		},
+		{
+			// Popular elsewhere is not a reason to add a block players of
+			// this instrument never chose.
+			name: "a convention whose models this instrument never held",
+			cats: map[catalog.Category]corpus.CategoryStats{
+				catalog.CategoryDrive: {Chains: 95, Before: 95},
+			},
+			models: map[catalog.ModelID]corpus.ModelStats{"HD2_StereoDrive": {Uses: 900}},
+			counts: map[catalog.ModelID]int{"HD2_ReverbTest": 9},
 		},
 		{
 			name: "two categories used equally often",
@@ -247,7 +293,7 @@ func (s *FillPublicTestSuite) TestResolveFill() {
 			case tt.silent:
 				stats = &corpus.Stats{Grammar: map[string]corpus.Grammar{}}
 			default:
-				stats = s.grammar(tt.cats, tt.models)
+				stats = s.grammar(tt.cats, tt.models, tt.counts)
 			}
 
 			var first []catalog.ModelID
