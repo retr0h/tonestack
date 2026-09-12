@@ -25,6 +25,8 @@ import (
 	"io"
 	"sort"
 
+	"github.com/retr0h/tonestack/pkg/cli/internal/paint"
+
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/retr0h/tonestack/pkg/sdk"
@@ -74,16 +76,16 @@ func model(
 		}
 
 		rows = append(rows, []string{
-			Accent(w, key),
+			paint.Accent(w, key),
 			fmt.Sprintf("%d", p.N),
-			Mute(w, def),
+			paint.Mute(w, def),
 			fmt.Sprintf("%.3f", p.Median),
 			fmt.Sprintf("%.3f", p.Spread()),
 			agreement(w, p.Spread(), span(blk, key, known)),
 		})
 	}
 
-	return (Section{
+	return (paint.Section{
 		Title:  name,
 		Detail: fmt.Sprintf("%d uses across %d presets", ms.Uses, stats.Presets),
 		Headers: []string{
@@ -114,18 +116,18 @@ func span(blk catalog.Block, key string, known bool) float64 {
 // parameter can occupy.
 func agreement(w io.Writer, spread, span float64) string {
 	if span <= 0 {
-		return Mute(w, "—")
+		return paint.Mute(w, "—")
 	}
 
 	switch r := spread / span; {
 	case r <= 0.05:
-		return OK(w, "unanimous")
+		return paint.OK(w, "unanimous")
 	case r <= 0.15:
-		return OK(w, "close")
+		return paint.OK(w, "close")
 	case r <= 0.35:
-		return Info(w, "loose")
+		return paint.Info(w, "loose")
 	default:
-		return Err(w, "none")
+		return paint.Err(w, "none")
 	}
 }
 
@@ -144,16 +146,16 @@ func grammar(w io.Writer, stats *corpus.Stats, only string) error {
 			s := g.Categories[c]
 
 			rows = append(rows, []string{
-				Accent(w, instrument),
-				Category(w, c),
+				paint.Accent(w, instrument),
+				paint.Category(w, c),
 				fmt.Sprintf("%.0f%%", s.Frequency(g.Chains)*100),
 				fmt.Sprintf("%.0f%%", s.BeforeAmp()*100),
-				Mute(w, fmt.Sprintf("%d chains", g.Chains)),
+				paint.Mute(w, fmt.Sprintf("%d chains", g.Chains)),
 			})
 		}
 	}
 
-	return (Section{
+	return (paint.Section{
 		Title:   "Chain grammar",
 		Detail:  fmt.Sprintf("%d presets measured", stats.Presets),
 		Headers: []string{"instrument", "category", "in chain", "before amp", ""},

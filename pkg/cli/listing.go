@@ -25,6 +25,8 @@ import (
 	"io"
 	"strings"
 
+	"github.com/retr0h/tonestack/pkg/cli/internal/paint"
+
 	"github.com/retr0h/tonestack/pkg/sdk"
 	"github.com/retr0h/tonestack/pkg/sdk/catalog"
 	"github.com/retr0h/tonestack/pkg/sdk/chain"
@@ -48,17 +50,17 @@ func Listing(w io.Writer, l sdk.Listing, cat *catalog.Catalog, all bool) error {
 			// somewhere to put a preset can see where the gaps are.
 			if all {
 				rows = append(rows, []string{
-					Mute(w, label), Mute(w, h.Name), Mute(w, "empty"),
+					paint.Mute(w, label), paint.Mute(w, h.Name), paint.Mute(w, "empty"),
 				})
 			}
 
 			continue
 		}
 
-		rows = append(rows, []string{Accent(w, label), h.Name, Flow(w, h.Blocks, cat)})
+		rows = append(rows, []string{paint.Accent(w, label), h.Name, Flow(w, h.Blocks, cat)})
 	}
 
-	return Section{
+	return paint.Section{
 		Title:  l.Name,
 		Detail: fmt.Sprintf("%s · %d in use", Plural(len(l.Slots), "slot"), l.Used()),
 		// One address, the one printed on the pedal. What the device counts
@@ -90,13 +92,13 @@ func Flow(w io.Writer, blocks []chain.Block, cat *catalog.Catalog) string {
 	for _, b := range blocks {
 		blk, ok := cat.Block(b.Model)
 		if !ok {
-			parts = append(parts, Info(w, "?"))
+			parts = append(parts, paint.Info(w, "?"))
 
 			continue
 		}
 
-		parts = append(parts, Category(w, blk.Category))
+		parts = append(parts, paint.Category(w, blk.Category))
 	}
 
-	return strings.Join(parts, Mute(w, " → "))
+	return strings.Join(parts, paint.Mute(w, " → "))
 }

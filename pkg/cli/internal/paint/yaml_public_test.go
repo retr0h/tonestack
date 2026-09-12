@@ -18,7 +18,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-package cli_test
+package paint_test
 
 import (
 	"bytes"
@@ -27,7 +27,7 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
-	"github.com/retr0h/tonestack/internal/cli"
+	"github.com/retr0h/tonestack/pkg/cli/internal/paint"
 )
 
 // YAMLPublicTestSuite covers painting a document without changing it.
@@ -74,7 +74,7 @@ func (s *YAMLPublicTestSuite) TestYAML() {
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			s.Require().Equal(tt.body, cli.YAML(&bytes.Buffer{}, tt.body))
+			s.Require().Equal(tt.body, paint.YAML(&bytes.Buffer{}, tt.body))
 		})
 	}
 }
@@ -93,7 +93,7 @@ func (s *YAMLPublicTestSuite) TestSwatch() {
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			s.Require().Equal("x", cli.Swatch(&bytes.Buffer{}, tt.rgb, "x"))
+			s.Require().Equal("x", paint.Swatch(&bytes.Buffer{}, tt.rgb, "x"))
 		})
 	}
 }

@@ -24,6 +24,8 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/retr0h/tonestack/pkg/cli/internal/paint"
+
 	"github.com/retr0h/tonestack/pkg/sdk"
 )
 
@@ -33,14 +35,14 @@ func Attached(w io.Writer, a sdk.Attached) error {
 
 	for _, d := range a.Devices {
 		rows = append(rows, []string{
-			Accent(w, d.Model),
-			Mute(w, fmt.Sprintf("%04x:%04x", d.Vendor, d.Product)),
-			Mute(w, fmt.Sprintf("%d.%d", d.Bus, d.Address)),
+			paint.Accent(w, d.Model),
+			paint.Mute(w, fmt.Sprintf("%04x:%04x", d.Vendor, d.Product)),
+			paint.Mute(w, fmt.Sprintf("%d.%d", d.Bus, d.Address)),
 			fmt.Sprintf("%d", d.DeviceID),
 		})
 	}
 
-	if err := (Section{
+	if err := (paint.Section{
 		Title:   "Attached",
 		Headers: []string{"device", "usb", "bus", "preset device id"},
 		Rows:    rows,

@@ -252,13 +252,7 @@ func (s *MainTestSuite) TestEveryPathThisRepositoryNamesExists() {
 // CLI could not have left without taking a build tool for a licensed HX Edit
 // installation with it. They belong to the library, whose data they write.
 func (s *MainTestSuite) TestTheCLIStandsAlone() {
-	half := map[string]bool{
-		mod:                  true,
-		mod + "cmd":          true,
-		mod + "internal/cli": true,
-	}
-
-	for _, pkg := range []string{".", "./cmd", "./internal/cli"} {
+	for _, pkg := range []string{".", "./cmd", "./pkg/cli/..."} {
 		out, err := exec.Command("go", "list", "-deps", pkg).Output()
 		s.Require().NoError(err)
 
@@ -267,12 +261,15 @@ func (s *MainTestSuite) TestTheCLIStandsAlone() {
 				continue
 			}
 
-			if half[dep] || strings.HasPrefix(dep, mod+"pkg/sdk") {
-				continue
+			switch {
+			case dep == mod, dep == mod+"cmd":
+			case strings.HasPrefix(dep, mod+"pkg/cli"):
+			case strings.HasPrefix(dep, mod+"pkg/sdk"):
+			default:
+				s.Require().Fail("reaches too far",
+					"%s reaches %s, which a tonestack-cli would not have",
+					pkg, dep)
 			}
-
-			s.Require().Fail("reaches too far",
-				"%s reaches %s, which a tonestack-cli would not have", pkg, dep)
 		}
 	}
 }

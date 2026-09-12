@@ -24,6 +24,8 @@ import (
 	"fmt"
 	"io"
 	"strings"
+
+	"github.com/retr0h/tonestack/pkg/cli/internal/paint"
 )
 
 // Item is one named thing in a help listing: a command, or a flag.
@@ -56,7 +58,7 @@ type Help struct {
 func (h Help) Render(w io.Writer) error {
 	// The root page shows the banner instead, which already names the tool.
 	if h.Name != "" {
-		if _, err := fmt.Fprintf(w, "\n%s%s\n", Indent, Title(w, h.Name)); err != nil {
+		if _, err := fmt.Fprintf(w, "\n%s%s\n", paint.Indent, paint.Title(w, h.Name)); err != nil {
 			return err
 		}
 	}
@@ -68,7 +70,7 @@ func (h Help) Render(w io.Writer) error {
 	}
 
 	if h.Usage != "" {
-		if err := block(w, "usage", [][]string{{Indent + h.Usage}}); err != nil {
+		if err := block(w, "usage", [][]string{{paint.Indent + h.Usage}}); err != nil {
 			return err
 		}
 	}
@@ -82,7 +84,7 @@ func (h Help) Render(w io.Writer) error {
 	}
 
 	if h.Footer != "" {
-		if _, err := fmt.Fprintf(w, "\n%s%s\n", Indent, Mute(w, h.Footer)); err != nil {
+		if _, err := fmt.Fprintf(w, "\n%s%s\n", paint.Indent, paint.Mute(w, h.Footer)); err != nil {
 			return err
 		}
 	}
@@ -98,11 +100,11 @@ func block(w io.Writer, title string, rows [][]string) error {
 		return nil
 	}
 
-	if _, err := fmt.Fprintf(w, "\n%s%s\n", Indent, Heading(w, title)); err != nil {
+	if _, err := fmt.Fprintf(w, "\n%s%s\n", paint.Indent, paint.Heading(w, title)); err != nil {
 		return err
 	}
 
-	return Table(w, rows, nil)
+	return paint.Table(w, rows, nil)
 }
 
 // itemRows renders names beside their descriptions, indented under the
@@ -112,8 +114,8 @@ func itemRows(w io.Writer, items []Item) [][]string {
 
 	for _, it := range items {
 		rows = append(rows, []string{
-			Indent + Accent(w, it.Name),
-			Mute(w, it.Description),
+			paint.Indent + paint.Accent(w, it.Name),
+			paint.Mute(w, it.Description),
 		})
 	}
 
@@ -128,7 +130,7 @@ func indented(s string) string {
 			continue
 		}
 
-		lines[i] = Indent + l
+		lines[i] = paint.Indent + l
 	}
 
 	return strings.Join(lines, "\n")

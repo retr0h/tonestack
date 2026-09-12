@@ -18,7 +18,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-package cli_test
+package paint_test
 
 import (
 	"bytes"
@@ -31,7 +31,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/retr0h/tonestack/internal/cli"
+	"github.com/retr0h/tonestack/pkg/cli/internal/paint"
 	"github.com/retr0h/tonestack/pkg/sdk/catalog"
 	"github.com/retr0h/tonestack/pkg/sdk/chain"
 )
@@ -41,7 +41,7 @@ type ThemePublicTestSuite struct {
 }
 
 func (s *ThemePublicTestSuite) TearDownTest() {
-	cli.SetTheme("tube")
+	paint.SetTheme("tube")
 }
 
 // TestRoles covers every colour a theme names.
@@ -52,17 +52,17 @@ func (s *ThemePublicTestSuite) TestRoles() {
 		name string
 		call func() string
 	}{
-		{"mute", func() string { return cli.Mute(&out, "x") }},
-		{"accent", func() string { return cli.Accent(&out, "x") }},
-		{"ok", func() string { return cli.OK(&out, "x") }},
-		{"err", func() string { return cli.Err(&out, "x") }},
-		{"info", func() string { return cli.Info(&out, "x") }},
-		{"title", func() string { return cli.Title(&out, "x") }},
+		{"mute", func() string { return paint.Mute(&out, "x") }},
+		{"accent", func() string { return paint.Accent(&out, "x") }},
+		{"ok", func() string { return paint.OK(&out, "x") }},
+		{"err", func() string { return paint.Err(&out, "x") }},
+		{"info", func() string { return paint.Info(&out, "x") }},
+		{"title", func() string { return paint.Title(&out, "x") }},
 		{
 			// A *os.File gets its own renderer so NO_COLOR and TTY detection
 			// apply to the sink actually written to, not to stdout.
 			"a sink with a renderer of its own",
-			func() string { return cli.Mute(os.Stderr, "x") },
+			func() string { return paint.Mute(os.Stderr, "x") },
 		},
 	}
 
@@ -75,12 +75,12 @@ func (s *ThemePublicTestSuite) TestRoles() {
 
 // TestHeading shouts a column name.
 func (s *ThemePublicTestSuite) TestHeading() {
-	s.Require().Equal("SLOT", cli.Heading(&bytes.Buffer{}, "slot"))
+	s.Require().Equal("SLOT", paint.Heading(&bytes.Buffer{}, "slot"))
 }
 
 // TestBanner names the tool.
 func (s *ThemePublicTestSuite) TestBanner() {
-	got := cli.Banner(&bytes.Buffer{})
+	got := paint.Banner(&bytes.Buffer{})
 
 	s.Require().Len(strings.Split(strings.TrimRight(got, "\n"), "\n"), 2)
 	// The E carries a middle bar, so it is not the same glyph as the C.
@@ -107,8 +107,8 @@ func (s *ThemePublicTestSuite) TestSuccessAndFailure() {
 		got  string
 		want string
 	}{
-		{name: "a command that worked", got: cli.Success(&out, "done"), want: "[ok] done"},
-		{name: "one that did not", got: cli.Failure(&out, "broke"), want: "[err] broke"},
+		{name: "a command that worked", got: paint.Success(&out, "done"), want: "[ok] done"},
+		{name: "one that did not", got: paint.Failure(&out, "broke"), want: "[err] broke"},
 	}
 
 	for _, tt := range tests {
@@ -121,7 +121,7 @@ func (s *ThemePublicTestSuite) TestSuccessAndFailure() {
 // TestFailurePrefix is the mark on its own, for cobra to print an error
 // behind.
 func (s *ThemePublicTestSuite) TestFailurePrefix() {
-	s.Require().Equal("[err]", cli.FailurePrefix(&bytes.Buffer{}))
+	s.Require().Equal("[err]", paint.FailurePrefix(&bytes.Buffer{}))
 }
 
 // TestSetTheme picks a theme by name.
@@ -140,97 +140,19 @@ func (s *ThemePublicTestSuite) TestSetTheme() {
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			s.Require().Equal(tt.want, cli.SetTheme(tt.theme))
+			s.Require().Equal(tt.want, paint.SetTheme(tt.theme))
 		})
 	}
 }
 
 // TestActiveTheme names what is in use, and what could be.
 func (s *ThemePublicTestSuite) TestActiveTheme() {
-	s.Require().Equal("tube", cli.ActiveTheme().Name)
-	s.Require().Equal([]string{"tube"}, cli.ThemeNames())
+	s.Require().Equal("tube", paint.ActiveTheme().Name)
+	s.Require().Equal([]string{"tube"}, paint.ThemeNames())
 }
 
 func TestThemePublicTestSuite(t *testing.T) {
 	suite.Run(t, new(ThemePublicTestSuite))
-}
-
-type HelpPublicTestSuite struct {
-	suite.Suite
-}
-
-// TestRender lays out a help page.
-func (s *HelpPublicTestSuite) TestRender() {
-	tests := []struct {
-		name     string
-		help     cli.Help
-		contains []string
-		absent   []string
-	}{
-		{
-			name: "every section there is",
-			help: cli.Help{
-				Name:        "tonestack presets make",
-				Description: "Build a preset.\n\nFrom a recipe.",
-				Usage:       "tonestack presets make [flags]",
-				Commands:    []cli.Item{{Name: "list", Description: "list them"}},
-				Flags:       []cli.Item{{Name: "--id string", Description: "which one"}},
-				Footer:      "Run --help for more.",
-			},
-			contains: []string{
-				"tonestack presets make", "Build a preset.", "USAGE",
-				"COMMANDS", "list", "FLAGS", "--id string", "Run --help for more.",
-			},
-		},
-		{
-			name:     "a command with neither subcommands nor flags",
-			help:     cli.Help{Usage: "tonestack"},
-			contains: []string{"USAGE"},
-			absent:   []string{"COMMANDS", "FLAGS"},
-		},
-	}
-
-	for _, tt := range tests {
-		s.Run(tt.name, func() {
-			var out bytes.Buffer
-
-			s.Require().NoError(tt.help.Render(&out))
-
-			for _, want := range tt.contains {
-				s.Require().Contains(out.String(), want)
-			}
-
-			for _, unwanted := range tt.absent {
-				s.Require().NotContains(out.String(), unwanted)
-			}
-		})
-	}
-}
-
-// TestRenderReportsAWriterThatFails covers a page nobody can read. Each
-// section is a separate write, so a writer failing at any point must surface
-// rather than leaving a half-rendered page and a success. Ten writes make a
-// complete page: title, description, three headings with a row each, the
-// footer, and the closing newline.
-func (s *HelpPublicTestSuite) TestRenderReportsAWriterThatFails() {
-	full := cli.Help{
-		Name:        "n",
-		Description: "d",
-		Usage:       "u",
-		Commands:    []cli.Item{{Name: "c"}},
-		Flags:       []cli.Item{{Name: "f"}},
-		Footer:      "foot",
-	}
-
-	for i := range 10 {
-		s.Run(fmt.Sprintf("after %d writes", i), func() {
-			s.Require().Error(full.Render(&failAfter{ok: i}))
-		})
-	}
-}
-
-func TestHelpPublicTestSuite(t *testing.T) {
-	suite.Run(t, new(HelpPublicTestSuite))
 }
 
 type UIPublicTestSuite struct {
@@ -241,13 +163,13 @@ type UIPublicTestSuite struct {
 func (s *UIPublicTestSuite) TestSectionRender() {
 	tests := []struct {
 		name     string
-		section  cli.Section
+		section  paint.Section
 		contains []string
 		silent   bool
 	}{
 		{
 			name: "a table under a title",
-			section: cli.Section{
+			section: paint.Section{
 				Title:   "Songs",
 				Detail:  "128 slots",
 				Headers: []string{"slot", "name"},
@@ -258,13 +180,13 @@ func (s *UIPublicTestSuite) TestSectionRender() {
 		},
 		{
 			name:     "nothing to show, and something to say about it",
-			section:  cli.Section{Title: "Songs", Empty: "no presets"},
+			section:  paint.Section{Title: "Songs", Empty: "no presets"},
 			contains: []string{"no presets"},
 		},
-		{name: "nothing to say at all", section: cli.Section{}, silent: true},
+		{name: "nothing to say at all", section: paint.Section{}, silent: true},
 		{
 			name:     "rows with neither headers nor a summary",
-			section:  cli.Section{Rows: [][]string{{"a", "b"}}},
+			section:  paint.Section{Rows: [][]string{{"a", "b"}}},
 			contains: []string{"a"},
 		},
 	}
@@ -291,14 +213,14 @@ func (s *UIPublicTestSuite) TestSectionRender() {
 // TestSectionRenderReportsAWriterThatFails covers a writer failing at each
 // point a section writes.
 func (s *UIPublicTestSuite) TestSectionRenderReportsAWriterThatFails() {
-	full := cli.Section{
+	full := paint.Section{
 		Title: "t", Detail: "d",
 		Headers: []string{"h"}, Rows: [][]string{{"r"}}, Summary: "s",
 	}
 
 	tests := []struct {
 		name    string
-		section cli.Section
+		section paint.Section
 		after   int
 	}{
 		{name: "on the title", section: full},
@@ -307,12 +229,12 @@ func (s *UIPublicTestSuite) TestSectionRenderReportsAWriterThatFails() {
 		{name: "on the summary", section: full, after: 3},
 		{
 			name:    "on what it says instead of rows",
-			section: cli.Section{Title: "t", Empty: "none"},
+			section: paint.Section{Title: "t", Empty: "none"},
 			after:   1,
 		},
 		{
 			name:    "on rows with no title above them",
-			section: cli.Section{Rows: [][]string{{"r"}}},
+			section: paint.Section{Rows: [][]string{{"r"}}},
 			after:   1,
 		},
 	}
@@ -328,10 +250,10 @@ func (s *UIPublicTestSuite) TestSectionRenderReportsAWriterThatFails() {
 func (s *UIPublicTestSuite) TestDetailRender() {
 	var out bytes.Buffer
 
-	s.Require().NoError(cli.Detail{
+	s.Require().NoError(paint.Detail{
 		Title:    "Mike Dirnt",
 		Subtitle: "mike-dirnt",
-		Fields: []cli.Field{
+		Fields: []paint.Field{
 			{Label: "amp", Value: "Ampeg SVT"},
 			{Label: "cab", Value: "unknown", Muted: true},
 		},
@@ -348,9 +270,9 @@ func (s *UIPublicTestSuite) TestDetailRender() {
 // TestDetailRenderReportsAWriterThatFails covers a writer failing at each
 // point a detail writes.
 func (s *UIPublicTestSuite) TestDetailRenderReportsAWriterThatFails() {
-	full := cli.Detail{
+	full := paint.Detail{
 		Title: "t", Subtitle: "s",
-		Fields: []cli.Field{{Label: "l", Value: "v"}}, Note: "n",
+		Fields: []paint.Field{{Label: "l", Value: "v"}}, Note: "n",
 	}
 
 	for i := range 4 {
@@ -403,7 +325,7 @@ func (s *UIPublicTestSuite) TestTable() {
 		s.Run(tt.name, func() {
 			var out bytes.Buffer
 
-			s.Require().NoError(cli.Table(&out, tt.rows, tt.align))
+			s.Require().NoError(paint.Table(&out, tt.rows, tt.align))
 
 			if tt.silent {
 				s.Require().Empty(out.String())
@@ -445,7 +367,7 @@ func (s *UIPublicTestSuite) TestTable() {
 
 // TestTableReportsAWriterThatFails covers a row nobody can read.
 func (s *UIPublicTestSuite) TestTableReportsAWriterThatFails() {
-	err := cli.Table(&failAfter{}, [][]string{{"a"}}, nil)
+	err := paint.Table(&failAfter{}, [][]string{{"a"}}, nil)
 
 	s.Require().Error(err)
 	s.Require().Contains(err.Error(), "writing row")
@@ -541,7 +463,7 @@ func (s *ChainPublicTestSuite) TestChain() {
 		s.Run(tt.name, func() {
 			var out bytes.Buffer
 
-			s.Require().NoError(cli.Chain(&out, s.spec(tt.blocks...), s.cat()))
+			s.Require().NoError(paint.Chain(&out, s.spec(tt.blocks...), s.cat()))
 
 			for _, want := range tt.contains {
 				s.Require().Contains(out.String(), want)
@@ -582,7 +504,7 @@ func (s *ChainPublicTestSuite) TestChainReportsAWriterThatFails() {
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			s.Require().Error(cli.Chain(
+			s.Require().Error(paint.Chain(
 				&failAfter{ok: tt.after}, s.spec(tt.blocks...), s.cat()))
 		})
 	}
@@ -608,7 +530,7 @@ func (s *ChainPublicTestSuite) TestMeter() {
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			s.Require().Equal(tt.want, cli.Meter(&out, tt.pct, 10))
+			s.Require().Equal(tt.want, paint.Meter(&out, tt.pct, 10))
 		})
 	}
 }
@@ -628,7 +550,7 @@ func (s *ChainPublicTestSuite) TestCategory() {
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			s.Require().Equal(tt.want, cli.Category(&out, tt.in))
+			s.Require().Equal(tt.want, paint.Category(&out, tt.in))
 		})
 	}
 }

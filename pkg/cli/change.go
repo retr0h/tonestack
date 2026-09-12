@@ -24,6 +24,8 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/retr0h/tonestack/pkg/cli/internal/paint"
+
 	"github.com/retr0h/tonestack/pkg/sdk"
 	slotpkg "github.com/retr0h/tonestack/pkg/sdk/slot"
 )
@@ -39,7 +41,7 @@ func Change(w io.Writer, c sdk.Change) error {
 	}
 
 	if c.Mismatch {
-		_, err := fmt.Fprintf(w, "\n%s%s\n", Indent, Info(w,
+		_, err := fmt.Fprintf(w, "\n%s%s\n", paint.Indent, paint.Info(w,
 			"this preset was made for a different device; it may not load"))
 		if err != nil {
 			return err
@@ -64,11 +66,11 @@ func moved(w io.Writer, c sdk.Change) error {
 	}
 
 	_, err := fmt.Fprintf(w, "\n%s%s %s %s %s %s\n\n%s%s\n\n",
-		Indent,
-		Accent(w, slotpkg.Label(c.From.Slot)), c.From.Name,
-		Mute(w, "→"),
-		Accent(w, slotpkg.Label(c.To.Slot)), c.To.Name,
-		Indent, Success(w, done))
+		paint.Indent,
+		paint.Accent(w, slotpkg.Label(c.From.Slot)), c.From.Name,
+		paint.Mute(w, "→"),
+		paint.Accent(w, slotpkg.Label(c.To.Slot)), c.To.Name,
+		paint.Indent, paint.Success(w, done))
 
 	return err
 }
@@ -79,25 +81,25 @@ func landed(w io.Writer, c sdk.Change) error {
 	// what the slot held: it still holds it.
 	if c.Action == sdk.Selected {
 		_, err := fmt.Fprintf(w, "\n%s%s %s\n\n%s%s\n\n",
-			Indent, Accent(w, slotpkg.Label(c.To.Slot)), c.To.Name,
-			Indent, Success(w, "loaded"))
+			paint.Indent, paint.Accent(w, slotpkg.Label(c.To.Slot)), c.To.Name,
+			paint.Indent, paint.Success(w, "loaded"))
 
 		return err
 	}
 
 	if c.OnDevice() {
 		_, err := fmt.Fprintf(w, "\n%s%s %s %s\n\n%s%s\n\n",
-			Indent, Accent(w, c.To.Name), Mute(w, "→"),
-			Accent(w, slotpkg.Label(c.To.Slot)),
-			Indent, Success(w, string(c.Action)))
+			paint.Indent, paint.Accent(w, c.To.Name), paint.Mute(w, "→"),
+			paint.Accent(w, slotpkg.Label(c.To.Slot)),
+			paint.Indent, paint.Success(w, string(c.Action)))
 
 		return err
 	}
 
 	_, err := fmt.Fprintf(w, "\n%s%s %s %s %s\n\n%s%s\n\n",
-		Indent, Accent(w, slotpkg.Label(c.To.Slot)), c.To.Name,
-		Mute(w, "replaced"), c.Replaced,
-		Indent, Success(w, "wrote "+c.Path))
+		paint.Indent, paint.Accent(w, slotpkg.Label(c.To.Slot)), c.To.Name,
+		paint.Mute(w, "replaced"), c.Replaced,
+		paint.Indent, paint.Success(w, "wrote "+c.Path))
 
 	return err
 }
@@ -110,7 +112,7 @@ func Kept(w io.Writer, paths ...string) error {
 		}
 
 		if _, err := fmt.Fprintf(w, "\n%s%s %s",
-			Indent, Mute(w, "kept"), path); err != nil {
+			paint.Indent, paint.Mute(w, "kept"), path); err != nil {
 			return err
 		}
 	}
@@ -121,9 +123,9 @@ func Kept(w io.Writer, paths ...string) error {
 // Built reports a preset compiled from a rig.
 func Built(w io.Writer, b sdk.Built) error {
 	_, err := fmt.Fprintf(w, "\n%s%s  %s\n\n%s%s\n\n",
-		Indent, Title(w, b.Name),
-		Mute(w, fmt.Sprintf("%s in the chain", Plural(b.Blocks, "block"))),
-		Indent, Success(w, "wrote "+b.Path))
+		paint.Indent, paint.Title(w, b.Name),
+		paint.Mute(w, fmt.Sprintf("%s in the chain", Plural(b.Blocks, "block"))),
+		paint.Indent, paint.Success(w, "wrote "+b.Path))
 
 	return err
 }

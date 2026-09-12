@@ -25,6 +25,8 @@ import (
 	"io"
 	"strings"
 
+	"github.com/retr0h/tonestack/pkg/cli/internal/paint"
+
 	"github.com/retr0h/tonestack/pkg/sdk"
 	"github.com/retr0h/tonestack/pkg/sdk/rig"
 )
@@ -35,15 +37,15 @@ func Recipes(w io.Writer, r sdk.Recipes) error {
 
 	for _, spec := range r.Rigs {
 		rows = append(rows, []string{
-			Accent(w, spec.ID),
+			paint.Accent(w, spec.ID),
 			spec.Subject.Name,
-			Mute(w, string(spec.Instrument)),
+			paint.Mute(w, string(spec.Instrument)),
 			rig.GearName(spec, rig.RoleAmp),
 			source(w, spec),
 		})
 	}
 
-	return wrapReport(Section{
+	return wrapReport(paint.Section{
 		Title:   "Recipes",
 		Detail:  r.Dir,
 		Headers: []string{"id", "name", "instrument", "amp", "source"},
@@ -55,28 +57,28 @@ func Recipes(w io.Writer, r sdk.Recipes) error {
 // Recipe prints one rig in full.
 func Recipe(w io.Writer, r sdk.Recipe) error {
 	spec := r.Rig
-	d := Detail{Title: spec.Subject.Name, Subtitle: spec.ID}
+	d := paint.Detail{Title: spec.Subject.Name, Subtitle: spec.ID}
 
 	if spec.Subject.Band != nil && *spec.Subject.Band != "" {
-		d.Fields = append(d.Fields, Field{Label: "band", Value: *spec.Subject.Band})
+		d.Fields = append(d.Fields, paint.Field{Label: "band", Value: *spec.Subject.Band})
 	}
 
 	if spec.Subject.Era != nil && *spec.Subject.Era != "" {
-		d.Fields = append(d.Fields, Field{Label: "era", Value: *spec.Subject.Era})
+		d.Fields = append(d.Fields, paint.Field{Label: "era", Value: *spec.Subject.Era})
 	}
 
 	d.Fields = append(d.Fields,
-		Field{Label: "instrument", Value: string(spec.Instrument)})
+		paint.Field{Label: "instrument", Value: string(spec.Instrument)})
 	d.Fields = append(d.Fields, signalPath(spec)...)
 
 	if spec.Technique != nil {
 		d.Fields = append(d.Fields,
-			Field{Label: "technique", Value: technique(*spec.Technique)})
+			paint.Field{Label: "technique", Value: technique(*spec.Technique)})
 	}
 
 	d.Fields = append(d.Fields, character(spec)...)
 	d.Fields = append(d.Fields, variants(r.Variants)...)
-	d.Fields = append(d.Fields, Field{
+	d.Fields = append(d.Fields, paint.Field{
 		Label: "source",
 		Value: fmt.Sprintf("%s, %s confidence",
 			rig.Sourced(spec), confidence(spec)),
@@ -93,8 +95,8 @@ func Recipe(w io.Writer, r sdk.Recipe) error {
 //
 // Only the first carries the label, so several read as one block rather than
 // as the same word repeated down the page.
-func variants(all []sdk.Variant) []Field {
-	out := make([]Field, 0, len(all))
+func variants(all []sdk.Variant) []paint.Field {
+	out := make([]paint.Field, 0, len(all))
 
 	for _, v := range all {
 		label := ""
@@ -102,7 +104,7 @@ func variants(all []sdk.Variant) []Field {
 			label = "variants"
 		}
 
-		out = append(out, Field{
+		out = append(out, paint.Field{
 			Label: label,
 			Value: fmt.Sprintf("%s (%s)", v.Name, v.ID),
 		})
@@ -120,21 +122,21 @@ func variants(all []sdk.Variant) []Field {
 // to know about.
 func source(w io.Writer, spec rig.Spec) string {
 	if rig.Trusted(spec) {
-		return OK(w, string(rig.Sourced(spec)))
+		return paint.OK(w, string(rig.Sourced(spec)))
 	}
 
-	return Info(w, string(rig.Sourced(spec)))
+	return paint.Info(w, string(rig.Sourced(spec)))
 }
 
 // chain renders the signal path, in order, one row per piece of gear.
 //
 // Labelled by role rather than by position, because "amp" is what a person
 // reading this wants to find and "3" is not.
-func signalPath(spec rig.Spec) []Field {
-	out := make([]Field, 0, len(spec.Chain))
+func signalPath(spec rig.Spec) []paint.Field {
+	out := make([]paint.Field, 0, len(spec.Chain))
 
 	for _, e := range spec.Chain {
-		out = append(out, Field{Label: string(e.Role), Value: e.Gear})
+		out = append(out, paint.Field{Label: string(e.Role), Value: e.Gear})
 	}
 
 	return out
@@ -153,12 +155,12 @@ func confidence(spec rig.Spec) rig.Confidence {
 //
 // The label repeats as blank so the values line up in the same column as
 // every other field rather than starting a block of their own.
-func character(spec rig.Spec) []Field {
+func character(spec rig.Spec) []paint.Field {
 	if spec.Character == nil || len(*spec.Character) == 0 {
 		return nil
 	}
 
-	out := make([]Field, 0, len(*spec.Character))
+	out := make([]paint.Field, 0, len(*spec.Character))
 
 	for i, c := range *spec.Character {
 		label := ""
@@ -166,7 +168,7 @@ func character(spec rig.Spec) []Field {
 			label = "character"
 		}
 
-		out = append(out, Field{Label: label, Value: c.Term})
+		out = append(out, paint.Field{Label: label, Value: c.Term})
 	}
 
 	return out
@@ -211,21 +213,21 @@ func wrapReport(err error) error {
 // Scaffolded says what recipe was written and what to do with it.
 func Scaffolded(w io.Writer, sc sdk.Scaffolded) error {
 	rows := [][]string{
-		{Mute(w, "id"), Accent(w, sc.ID)},
-		{Mute(w, "instrument"), sc.Instrument},
-		{Mute(w, "amp"), sc.Amp},
+		{paint.Mute(w, "id"), paint.Accent(w, sc.ID)},
+		{paint.Mute(w, "instrument"), sc.Instrument},
+		{paint.Mute(w, "amp"), sc.Amp},
 	}
 
 	if sc.Cab != "" {
-		rows = append(rows, []string{Mute(w, "cab"), sc.Cab})
+		rows = append(rows, []string{paint.Mute(w, "cab"), sc.Cab})
 	}
 
 	if len(sc.Pedals) > 0 {
 		rows = append(rows,
-			[]string{Mute(w, "pedals"), strings.Join(sc.Pedals, ", ")})
+			[]string{paint.Mute(w, "pedals"), strings.Join(sc.Pedals, ", ")})
 	}
 
-	if err := (Section{
+	if err := (paint.Section{
 		Title: sc.Name, Detail: sc.Path, Rows: rows,
 		Summary: fmt.Sprintf(
 			"every gear name resolves — next: tonestack presets make --id %s --out %s.hlx",
