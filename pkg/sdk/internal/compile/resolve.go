@@ -44,7 +44,7 @@ func Resolve(
 	spec riggen.RigSpec,
 	cat *catalog.Catalog,
 	stats *corpus.Stats,
-) (chain.Chain, []Added, error) {
+) (chain.Chain, []Added, []Moved, error) {
 	instrument := string(spec.Instrument)
 
 	blocks := make([]catalog.Block, 0, len(spec.Chain)+1)
@@ -73,7 +73,7 @@ func Resolve(
 			stand, err = findGear(
 				cat, entry.Substitute.Gear, categoryFor(entry.Role), instrument)
 			if err != nil {
-				return chain.Chain{}, nil, fmt.Errorf(
+				return chain.Chain{}, nil, nil, fmt.Errorf(
 					"%q stands in for %q, and nothing emulates it either: %w",
 					entry.Substitute.Gear, entry.Gear, err)
 			}
@@ -90,7 +90,7 @@ func Resolve(
 
 		if err != nil {
 			if entry.Role != riggen.RoleCab || !errors.Is(err, ErrNoSuchGear) {
-				return chain.Chain{}, nil, err
+				return chain.Chain{}, nil, nil, err
 			}
 
 			missed, missedErr = entry.Gear, err
@@ -116,20 +116,58 @@ func Resolve(
 	} else if missed != "" {
 		// Nothing to fall back to, so the rig named a cabinet that cannot be
 		// built and saying so is the only honest answer.
-		return chain.Chain{}, nil, missedErr
+		return chain.Chain{}, nil, nil, missedErr
 	}
 
 	blocks, added := fill(blocks, cat, stats, instrument)
 
 	built := specFor(spec, blocks, stats)
 
+	// After the corpus has had its say, because a term is an opinion about
+	// where players land rather than a replacement for knowing.
+	moved := character(spec, blocks, built, stats)
+
 	// What the rig claims beside its chain: a colour, a parameter, a device.
 	// Checked here because the answer is a fact about this catalog.
 	if err := check(spec, built.Blocks, cat); err != nil {
-		return chain.Chain{}, nil, err
+		return chain.Chain{}, nil, nil, err
 	}
 
-	return built, append(sub, added...), nil
+	return built, append(sub, added...), moved, nil
+}
+
+// character moves the amplifier's knobs to match the words a rig used.
+//
+// The amplifier only, first pass. Two blocks arguing over one axis needs a
+// rule nobody has written, and the amplifier is where the described character
+// mostly lives. A rig with no amplifier still has its terms reported, moving
+// nothing.
+func character(
+	spec riggen.RigSpec,
+	blocks []catalog.Block,
+	built chain.Chain,
+	stats *corpus.Stats,
+) []Moved {
+	terms := termsOf(spec)
+	if len(terms) == 0 {
+		return nil
+	}
+
+	for i, b := range blocks {
+		if b.Category != catalog.CategoryAmp {
+			continue
+		}
+
+		return move(b, built.Blocks[i].Params, terms, stats)
+	}
+
+	// Nothing to turn. The words are still what the rig said.
+	out := make([]Moved, 0, len(terms))
+	for _, term := range terms {
+		out = append(out, Moved{Term: term})
+	}
+
+	return out
 }
 
 // categoryFor maps a rig's role onto the catalog's own grouping.

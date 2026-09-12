@@ -166,3 +166,22 @@ func has(known []string, term string) bool {
 
 	return false
 }
+
+// axisOf says which axis a term belongs to.
+//
+// An axis is what makes a term mean something: saying "mid-forward" has
+// already said "not scooped", and a rig claiming both has claimed nothing.
+func axisOf(term string) (string, bool) {
+	var v vocabulary
+
+	// Embedded and written by this repository, so it parses.
+	_ = json.Unmarshal(terms, &v)
+
+	for axis, a := range v.Axes {
+		if _, ok := a.Terms[term]; ok {
+			return axis, true
+		}
+	}
+
+	return "", false
+}
