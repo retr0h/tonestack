@@ -22,9 +22,9 @@ package tools
 
 import (
 	"context"
+	"errors"
 	"testing"
 
-	gomcp "github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -79,63 +79,74 @@ func (s *DeviceTestSuite) TestClaim() {
 	}
 }
 
-// TestHandlersGiveUp covers the branch inside each handler that a cancelled
-// context takes when another call already holds the pedal: reachable only
-// from inside the package, since a real call through the server has no way to
-// hold the device and cancel the same context at once.
-func (s *DeviceTestSuite) TestHandlersGiveUp() {
+// TestOnDevice covers running a call under the claim, the one place the
+// branch each handler used to repeat now lives.
+func (s *DeviceTestSuite) TestOnDevice() {
+	errCall := errors.New("the call itself failed")
+
 	tests := []struct {
-		name string
-		call func(h *handlers, ctx context.Context) error
+		name     string
+		held     bool
+		cancel   bool
+		callErr  error
+		wantErr  error
+		wantsRun bool
 	}{
 		{
-			name: "devices_list",
-			call: func(h *handlers, ctx context.Context) error {
-				_, _, err := h.devicesList(ctx, &gomcp.CallToolRequest{}, None{})
-				return err
-			},
+			name:     "a free device",
+			wantsRun: true,
 		},
 		{
-			name: "presets_list",
-			call: func(h *handlers, ctx context.Context) error {
-				_, _, err := h.presetsList(ctx, &gomcp.CallToolRequest{}, None{})
-				return err
-			},
+			// An agent that gives up on a call should not stay queued
+			// behind another one that holds the pedal, and the call it
+			// gave up on must never run.
+			name:    "a held device and a cancelled context",
+			held:    true,
+			cancel:  true,
+			wantErr: context.Canceled,
 		},
 		{
-			name: "preset_show",
-			call: func(h *handlers, ctx context.Context) error {
-				_, _, err := h.presetShow(ctx, &gomcp.CallToolRequest{}, Slot{Slot: "01A"})
-				return err
-			},
-		},
-		{
-			name: "preset_export",
-			call: func(h *handlers, ctx context.Context) error {
-				_, _, err := h.presetExport(ctx, &gomcp.CallToolRequest{}, Export{Slot: "01A", Out: "a.yaml"})
-				return err
-			},
-		},
-		{
-			name: "preset_select",
-			call: func(h *handlers, ctx context.Context) error {
-				_, _, err := h.presetSelect(ctx, &gomcp.CallToolRequest{}, Slot{Slot: "01A"})
-				return err
-			},
+			name:     "a call that errors",
+			callErr:  errCall,
+			wantErr:  errCall,
+			wantsRun: true,
 		},
 	}
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
 			h := &handlers{device: make(chan struct{}, 1)}
-			h.device <- struct{}{}
+			if tt.held {
+				h.device <- struct{}{}
+			}
 
 			ctx, cancel := context.WithCancel(context.Background())
-			cancel()
+			if tt.cancel {
+				cancel()
+			} else {
+				defer cancel()
+			}
 
-			err := tt.call(h, ctx)
+			ran := false
+			got, err := onDevice(ctx, h, func() (int, error) {
+				ran = true
+				return 7, tt.callErr
+			})
 
-			s.Require().ErrorIs(err, context.Canceled)
+			s.Equal(tt.wantsRun, ran)
+
+			if tt.wantErr != nil {
+				s.Require().ErrorIs(err, tt.wantErr)
+			} else {
+				s.Require().NoError(err)
+				s.Equal(7, got)
+			}
+
+			if !tt.held {
+				// onDevice claimed the device itself, so it released it
+				// again whether the call succeeded or failed.
+				s.Empty(h.device)
+			}
 		})
 	}
 }

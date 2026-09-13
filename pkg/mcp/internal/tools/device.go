@@ -45,6 +45,22 @@ func (h *handlers) claim(
 	}
 }
 
+// onDevice runs call while holding the pedal, or gives up when ctx does.
+func onDevice[T any](
+	ctx context.Context,
+	h *handlers,
+	call func() (T, error),
+) (T, error) {
+	release, err := h.claim(ctx)
+	if err != nil {
+		var zero T
+		return zero, err
+	}
+	defer release()
+
+	return call()
+}
+
 // slotOf reads a slot the way the pedal labels it.
 func slotOf(
 	label string,
@@ -62,13 +78,7 @@ func (h *handlers) devicesList(
 	_ *gomcp.CallToolRequest,
 	_ None,
 ) (*gomcp.CallToolResult, sdk.Attached, error) {
-	release, err := h.claim(ctx)
-	if err != nil {
-		return nil, sdk.Attached{}, err
-	}
-	defer release()
-
-	found, err := h.client.Devices(ctx)
+	found, err := onDevice(ctx, h, func() (sdk.Attached, error) { return h.client.Devices(ctx) })
 	if err != nil {
 		return nil, sdk.Attached{}, err
 	}
@@ -81,13 +91,9 @@ func (h *handlers) presetsList(
 	_ *gomcp.CallToolRequest,
 	_ None,
 ) (*gomcp.CallToolResult, sdk.Listing, error) {
-	release, err := h.claim(ctx)
-	if err != nil {
-		return nil, sdk.Listing{}, err
-	}
-	defer release()
-
-	listing, err := h.client.Presets(ctx, sdk.Where{})
+	listing, err := onDevice(
+		ctx, h, func() (sdk.Listing, error) { return h.client.Presets(ctx, sdk.Where{}) },
+	)
 	if err != nil {
 		return nil, sdk.Listing{}, err
 	}
@@ -105,13 +111,9 @@ func (h *handlers) presetShow(
 		return nil, Shown{}, err
 	}
 
-	release, err := h.claim(ctx)
-	if err != nil {
-		return nil, Shown{}, err
-	}
-	defer release()
-
-	reading, err := h.client.Preset(ctx, sdk.Read{Slot: n})
+	reading, err := onDevice(
+		ctx, h, func() (sdk.Reading, error) { return h.client.Preset(ctx, sdk.Read{Slot: n}) },
+	)
 	if err != nil {
 		return nil, Shown{}, err
 	}
@@ -131,13 +133,9 @@ func (h *handlers) presetExport(
 		return nil, sdk.Written{}, err
 	}
 
-	release, err := h.claim(ctx)
-	if err != nil {
-		return nil, sdk.Written{}, err
-	}
-	defer release()
-
-	written, err := h.client.Export(ctx, sdk.Export{Slot: n, OutputPath: in.Out, As: in.As})
+	written, err := onDevice(ctx, h, func() (sdk.Written, error) {
+		return h.client.Export(ctx, sdk.Export{Slot: n, OutputPath: in.Out, As: in.As})
+	})
 	if err != nil {
 		return nil, sdk.Written{}, err
 	}
@@ -155,13 +153,9 @@ func (h *handlers) presetSelect(
 		return nil, sdk.Change{}, err
 	}
 
-	release, err := h.claim(ctx)
-	if err != nil {
-		return nil, sdk.Change{}, err
-	}
-	defer release()
-
-	change, err := h.client.Select(ctx, sdk.Read{Slot: n})
+	change, err := onDevice(
+		ctx, h, func() (sdk.Change, error) { return h.client.Select(ctx, sdk.Read{Slot: n}) },
+	)
 	if err != nil {
 		return nil, sdk.Change{}, err
 	}
