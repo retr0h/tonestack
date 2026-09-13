@@ -82,15 +82,16 @@ just deps
 ```text
 main.go              a single call into cmd
 cmd/                 cobra wiring: flags to a Client call to a renderer
-internal/            belongs to no package here
-internal/cli/        the shared visual language: theme, table, detail, help
-internal/catalogen/  internal/corpusgen/  internal/specdoc/   generators
+pkg/cli/             how results look: theme, tables, detail, help
+pkg/cli/internal/    the primitives every renderer shares. Invisible outside pkg/cli.
 pkg/sdk/             the library. One directory, and the one that leaves.
 pkg/sdk/client.go    the Client every wrapper rallies around
 pkg/sdk/alias.go     the answer types, named here and declared in result
 pkg/sdk/result/      what every operation answers with
 pkg/sdk/rig/         RigSpec, its contract in data/, and its validation
-pkg/sdk/rig/gen/     generated from the contract, an implementation detail
+pkg/sdk/rig/internal/
+  gen/               Go types generated from the contract
+  specdoc/           writes docs/rigspec.md from the contract
 pkg/sdk/rigs/        curated rigs: which gear a player uses
 pkg/sdk/chain/       a resolved chain: what compile produces and editor reads
 pkg/sdk/catalog/     what a device can do: blocks, parameters, DSP costs
@@ -102,6 +103,7 @@ pkg/sdk/internal/    how the operations are done. Invisible outside pkg/sdk.
   presets/  recipes/ building a preset, and the rigs to build from
   attached/          listing what is on the bus
   catalogview/  corpusview/    reading the catalog and the measurements
+  catalogen/  corpusgen/       generating the catalog and the measurements
   compile/           a rig becomes a preset, and a preset becomes a rig
   editor/            what a device says becomes a chain, and back again
   setlist/           read and write .hls setlists and .hlb device backups
@@ -115,8 +117,8 @@ docs/                how the format, catalog and generation work
 
 ## Where a package belongs
 
-`pkg/` holds what something outside this repository would call. `internal/`
-holds everything else.
+`pkg/` holds what something outside this repository would call. Everything else
+lives in an `internal/` directory under the package that owns it.
 
 Ask it of a package in this order, and if the answer is no three times the code
 is application code however clean it is:
@@ -128,64 +130,65 @@ is application code however clean it is:
 The same test applies to each identifier inside a package under `pkg/`. Exported
 means somebody outside the package calls it, and out there that means somebody
 outside this repository plausibly would. Everything else is unexported, or it
-belongs in `internal/`.
+belongs in its owner's `internal/`.
 
-Where a domain has both halves, they mirror each other by name: `pkg/foo` is
-what a consumer calls and `internal/foo` is the rest of that domain. No domain
-needs the second half today, because unexported identifiers already give a
-package its private side, and a twin package earns its place only when the
-implementation has to be several files with tests of its own that nobody outside
-may import. When one appears, its tests still live in `internal/foo_test` as
-`*_public_test.go`: the suffix says how Go sees the surface, not who may import
-it.
+A private half sits under its owner, never at the top of the repository.
+`pkg/sdk/internal/compile` can be imported from anything under `pkg/sdk` and
+from nothing else, and `pkg/cli/internal/paint` the same for `pkg/cli`. Go
+enforces that: an `internal/` directory is importable only from the tree rooted
+at its parent. So the fence is exactly as wide as the owner, and when `pkg/sdk`
+moves to a repository of its own, its private half goes with it and nothing is
+left behind.
 
-`internal/` is not something to maximise. Measured against the three questions,
-today's tree moves code up rather than down.
+There is no top-level `internal/`, and `main_test.go` fails if one appears. At
+the root it would be the widest fence there is, readable by everything in the
+module and owned by no package, so no extraction would take it along.
+
+Tests of a private package still live beside it as `*_public_test.go`: the
+suffix says how Go sees the surface, not who may import it.
 
 ### What to import if you are using this as a library
 
-Eleven packages under `pkg/`, in three groups. Take the group the job needs and
-nothing else, which is what small packages buy over one large one.
+Start from `pkg/sdk`. Its `Client` does the work: build a preset from a rig,
+read and write a device, read the catalog, measure a corpus. The other public
+packages are the nouns it takes and hands back.
 
-| to do this                                            | import                         |
-| ----------------------------------------------------- | ------------------------------ |
-| author, validate or read a rig                        | `rig`, `rig/gen`               |
-| turn a rig into a preset, or a preset back into a rig | `compile`, `catalog`, `corpus` |
-| read or write a `.hlx`                                | `preset`                       |
-| read or write a `.hls` setlist or `.hlb` backup       | `setlist`                      |
-| talk to a device                                      | `sdk`, `sdk/wire`, `slot`      |
-| make sense of what a device answered                  | `editor`, `catalog`            |
+| to do this                                | import                                    |
+| ----------------------------------------- | ----------------------------------------- |
+| anything that does work                   | `sdk`                                     |
+| write, read or validate a rig             | `rig`                                     |
+| use the rigs that ship                    | `rigs`                                    |
+| ask what a device can do                  | `catalog`                                 |
+| read what the corpus measured             | `corpus`                                  |
+| read a resolved chain                     | `chain`                                   |
+| read or write a `.hlx`                    | `preset`                                  |
+| name a slot                               | `slot`                                    |
+| read what an operation answered           | `result`, or the same types through `sdk` |
+| render those answers the way the CLI does | `cli`                                     |
 
-The format group and the device group share nothing: `compile` reaches no device
-package and `sdk` reaches no format package. `editor` is the one that crosses,
-because turning a device's answer into a rig is what crossing means.
-
-`compile` and `editor` are two packages rather than one for that reason. A
-service that only ever compiles rigs takes `compile` and never links anything
-that knows what USB is.
+How each operation is done lives in `pkg/sdk/internal/`, where nothing outside
+the library can reach it. That is what keeps this list short, and what lets the
+implementation change without breaking a caller.
 
 ### Where the SDK ends
 
-`pkg/sdk/internal/device`, `internal/wire`, and `pkg/sdk/slot` are one unit.
-Everything the device half needs from this module is those three, which
+`pkg/sdk/internal/device`, `pkg/sdk/internal/wire` and `pkg/sdk/slot` are one
+unit. Everything the device half needs from this module is those three, which
 `go list -deps ./pkg/sdk/internal/device` says and `main_test.go` asserts. If
 somebody ever asks for the device half on its own, those three move and nothing
 else does.
 
-`wire` is the device's public vocabulary, not its private guts. A caller reading
-a device gets a `wire.DevicePreset` and a `wire.Preset`, and writing one back
-means handing over bytes it framed. That is why it is a package beside `sdk`
-rather than a directory inside it, and why unexporting something there is a
-decision about what the SDK promises rather than tidying.
+`wire` is private. It is the framing a device speaks, which is how reading and
+writing one is done rather than something a caller of the SDK names.
 
 `slot` is in the unit because a device is addressed in slots. `01A` through
 `42C` is how the pedal labels them and how the protocol counts them, and a
 device library that could not say which slot it meant would be missing the noun.
 
-`main_test.go` asserts that no package under `pkg/` imports `internal/`, because
-the compiler will not. `internal/` sits at the repository root, so Go permits
-the import; only a test keeps it from happening by accident, and a package that
-imports `internal/` is a package that cannot be lifted out.
+The compiler keeps each `internal/` private to its owner. `main_test.go` keeps
+the owners from leaning on each other: nothing under `pkg/sdk` reaches anything
+in the module outside it, and the CLI reaches only `cmd`, `pkg/cli` and
+`pkg/sdk`.
 
 ## How the system works
 

@@ -29,8 +29,8 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
-	"github.com/retr0h/tonestack/internal/specdoc"
 	"github.com/retr0h/tonestack/pkg/sdk/rig"
+	"github.com/retr0h/tonestack/pkg/sdk/rig/internal/specdoc"
 )
 
 // SpecdocPublicTestSuite covers the page the contract generates.
@@ -225,7 +225,7 @@ func (s *SpecdocPublicTestSuite) TestTheShippedPageIsCurrent() {
 	want, err := specdoc.Render(rig.Schema)
 	s.Require().NoError(err)
 
-	path := filepath.Join("..", "..", "docs", "rigspec.md")
+	path := filepath.Join("..", "..", "..", "..", "..", "docs", "rigspec.md")
 
 	got, err := os.ReadFile(path) //nolint:gosec // a path this repository owns
 	s.Require().NoError(err)

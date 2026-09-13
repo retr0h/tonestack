@@ -31,8 +31,8 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/retr0h/tonestack/internal/specdoc"
 	"github.com/retr0h/tonestack/pkg/sdk/rig"
+	"github.com/retr0h/tonestack/pkg/sdk/rig/internal/specdoc"
 )
 
 // out is where the page goes, worked out from this file rather than from
@@ -44,8 +44,12 @@ func out() (string, error) {
 		return "", errors.New("cannot tell where this generator lives")
 	}
 
-	// internal/specdoc/docgen/main.go, so the repository is three above it.
-	root := filepath.Dir(filepath.Dir(filepath.Dir(filepath.Dir(self))))
+	// pkg/sdk/rig/internal/specdoc/docgen/main.go, so the repository is six
+	// directories above the one this file is in.
+	root := self
+	for range 7 {
+		root = filepath.Dir(root)
+	}
 
 	return filepath.Join(root, "docs", "rigspec.md"), nil
 }
