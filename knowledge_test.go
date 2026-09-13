@@ -103,6 +103,13 @@ func (s *KnowledgeTestSuite) TestTheFiguresMatchTheData() {
 				percent(drive.Frequency(bass.Chains)), percent(drive.BeforeAmp())),
 		},
 		{
+			// Not a convention: close to a coin flip, which is why a build does
+			// not reorder a rig's chain by it.
+			name: "a compressor's side of the amp",
+			want: fmt.Sprintf("A compressor on bass sits before the amp %d%% of the time",
+				percent(comp.BeforeAmp())),
+		},
+		{
 			name: "a default players move away from",
 			want: fmt.Sprintf("Across %d presets using the Ampeg SVT's bright channel, the median "+
 				"`Treble` is %.2f where Line 6's stated default is %.2f",

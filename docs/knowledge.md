@@ -13,13 +13,13 @@ The goal is a system that knows *how a chain is built*. That decomposes into
 four problems with four different sources, and conflating them is why generated
 tones come out generic.
 
-| Problem                 | Source                                                 | State                     |
-| ----------------------- | ------------------------------------------------------ | ------------------------- |
-| Who plays what          | `pkg/sdk/rigs/`, hand-written                          | thin, grows by correction |
-| Gear to model ID        | `resources/schemas/gear-map.json`                      | 547 models                |
-| What order blocks go in | statistics over `resources/schemas/corpus/`            | added blocks placed       |
-| Which way a knob moves  | parameter names, and the HX Edit manual's amp controls | cited below; not data yet |
-| What values to set      | catalog defaults, corpus medians, intent               | six axes of ten           |
+| Problem                 | Source                                                 | State                                       |
+| ----------------------- | ------------------------------------------------------ | ------------------------------------------- |
+| Who plays what          | `pkg/sdk/rigs/`, hand-written                          | thin, grows by correction                   |
+| Gear to model ID        | `resources/schemas/gear-map.json`                      | 547 models                                  |
+| What order blocks go in | statistics over `resources/schemas/corpus/`            | added blocks placed; a rig's own order kept |
+| Which way a knob moves  | parameter names, and the HX Edit manual's amp controls | cited below; not data yet                   |
+| What values to set      | catalog defaults, corpus medians, intent               | six axes of ten                             |
 
 One specification covers all of it.
 [The RigSpec design record](superpowers/specs/2026-09-06-rigspec-as-the-one-model-design.md)
@@ -89,22 +89,25 @@ inside HX Edit. See [catalog.md](catalog.md).
 
 ## 3. What order blocks go in
 
-A chain has a grammar. Compression before drive, drive before amp, amp before
-cab, time-based effects last. Bass chains differ from lead chains. Some blocks
-co-occur; some never do.
+A chain's order is its signal path. Drive ahead of an amp overdrives its input,
+and drive after it is a different sound, so the order a rig gives is a choice,
+and a build keeps it.
 
-This is learnable from the corpus **statistically, not imitatively**. Across the
-4,324 presets measured you can see which blocks appear together, which position
-each tends to occupy, and which categories a bass chain almost always contains.
-One person's bad preset barely moves an average; copying that same preset
-inherits all of it.
+What the corpus measures is narrower than a full grammar. Across the 4,324
+presets measured it records, for each kind of block, how often it sits before
+the amp and how often after, per instrument: across 159 bass chains, 88% hold a
+compressor and 62% hold drive, which sits before the amp 88% of the time.
 
-Partly built. The corpus is measured per instrument: across 159 bass chains, 88%
-hold a compressor and 62% hold drive, which sits before the amp 88% of the time.
-A build uses that to add the blocks a chain almost always holds, three chains in
-four or more, with the model that instrument's players use most, on the side of
-the amp where they put it. Blocks a rig names keep the order the rig gives them;
-nothing reorders a whole chain by the grammar yet.
+A build uses that for the blocks it adds. Those are the ones nearly every chain
+holds, three in four or more, and each goes in as the model that instrument's
+players use most, on the side of the amp where they put it. Blocks a rig names
+stay where the rig put them.
+
+It does not say which of two effects comes first. A compressor on bass sits
+before the amp 52% of the time, which is not a convention to impose on anybody.
+Ordering several effects against each other would need pairs measured, and that
+matters only once a build generates a chain of several effects, which nothing
+does yet.
 
 ## 4. What values to set
 
@@ -220,6 +223,5 @@ RigSpec      validated against the catalog
 a person     listens, and corrects the rig                    nothing above can hear
 ```
 
-Every step above the person exists. What is still missing is narrower than it
-was: a grammar that orders a whole chain rather than placing what it adds, and
-values that come from measuring a recording rather than from words.
+Every step above the person exists. What is still missing is values that come
+from measuring a recording rather than from words.
