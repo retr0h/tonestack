@@ -14,19 +14,14 @@ Describe a guitar or bass sound, get a Line 6 Helix preset.
 
 ## Features
 
-| Feature                               | Description                                                                                                                                       |
-| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 🎸 Describe it, get a preset          | A rig names real gear, "Ampeg SVT" rather than a model ID, and how it should sound. `presets make` or `presets compile` turns it into a `.hlx`    |
-| 📦 Nothing else to install            | The HX Stomp catalog (665 blocks), measurements from 4,324 real presets and nine bass player rigs are built into the binary                       |
-| 🎛️ Knobs set the way players set them | Controls start at the median across real presets, and blocks nearly every chain holds are added with the model that instrument's players use most |
-| 🗣️ Words that turn knobs              | A rig's character words, such as `mid-forward` or `tight-low-end`, move the controls they describe on six axes                                    |
-| 🔍 Every decision shown               | A build lists each block, the gear it models, its DSP cost, what it added and what each word did                                                  |
-| ✅ Checked before it is written       | Gear, parameters, DSP budget and signal path are validated against the catalog                                                                    |
-| 🔌 Read and write the pedal           | List, show, export, import, copy, swap and select presets over USB. Whatever a write replaces is saved to a file first                            |
-| 💾 Works from backups                 | List, show, export, import, copy and swap also work on an HX Edit `.hlb` or `.hls`, with no pedal attached                                        |
-| 🧩 Go SDK                             | `pkg/sdk` is the library the CLI is built on, and imports on its own                                                                              |
-| 💻 Platforms                          | Building presets: macOS and Linux. Device access: macOS only, for now                                                                             |
-| 🎚️ Devices                            | Presets are built for the HX Stomp. The HX Stomp XL, Helix Floor and Helix LT are recognised over USB; only the HX Stomp is tested on hardware    |
+| Feature                                                                     | Description                                                                                                                                                                                                                                                                              |
+| --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [RigSpec](docs/rigspec.md)                                                  | One file describes a tone. It names the gear in the chain the way a player would, says how it should sound and how the player plays it. Every field follows an [OpenAPI contract](pkg/sdk/rig/data/rigspec.openapi.yaml), and tonestack refuses a rig that breaks it                     |
+| Shareable rigs                                                              | A rig names "Ampeg SVT", not a Line 6 model ID. Export a slot as a rig, send the file to someone, and `presets compile` builds the preset on their end                                                                                                                                   |
+| [Every claim sourced](docs/recipes.md#say-where-each-claim-came-from)       | Each piece of gear and each description records where it came from: an interview, a video timestamp, a forum thread, measured presets. A claim an AI made says so                                                                                                                        |
+| [Your agent tunes it](docs/workflows.md#correct-a-rig-you-have-heard)       | Your agent builds a rig for the player you name. Play it, say what is wrong, and it rebuilds. The rig keeps each round: what you asked, what changed, why, and your verdict. The next session starts from what worked                                                                    |
+| Talks to your Helix                                                         | Read, write, copy, swap and select presets over USB. tonestack saves a slot to a file before it overwrites it. Device access is one backend per operating system, and only macOS has one so far. Building presets works everywhere, and the HX Stomp is the device it has been tested on |
+| [Go SDK](CONTRIBUTING.md#what-to-import-if-you-are-using-this-as-a-library) | The CLI is flags over `pkg/sdk`. Import it to build presets, read and write a device, or look up what a device can do from your own Go program                                                                                                                                           |
 
 ## Install
 
