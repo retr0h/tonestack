@@ -157,10 +157,10 @@ func (s *CorpusgenPublicTestSuite) TestRun() {
 			skipped: true,
 		},
 		{
-			name:    "a directory holding no presets",
+			// A fresh checkout: the directory is committed, the presets are not.
+			name:    "a corpus directory holding no presets",
 			corpus:  "empty",
-			err:     corpusgen.ErrNoPresets,
-			errText: "no presets",
+			skipped: true,
 		},
 		{
 			name:    "a catalog that is not there",

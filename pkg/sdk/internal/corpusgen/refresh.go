@@ -23,6 +23,7 @@ package corpusgen
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 
@@ -49,12 +50,18 @@ type Refreshed struct {
 // Run by go generate on every machine. The presets are other people's and are
 // not committed, so a machine without them skips, and a machine with them
 // leaves the committed file alone unless the corpus or the catalog changed.
+//
+// The directory itself is committed, holding the script that fetches the
+// presets and the list of where they come from. So an empty one is the usual
+// case on a fresh checkout, and skips the same as a missing one.
 func Refresh(opts Options) (Refreshed, error) {
+	skipped := Refreshed{
+		Path:    opts.OutputPath,
+		Skipped: "no corpus presets in " + opts.CorpusDir + ", run resources/schemas/corpus/fetch.sh",
+	}
+
 	if _, err := os.Stat(opts.CorpusDir); err != nil {
-		return Refreshed{
-			Path:    opts.OutputPath,
-			Skipped: "no corpus at " + opts.CorpusDir + ", run resources/schemas/corpus/fetch.sh",
-		}, nil
+		return skipped, nil
 	}
 
 	if opts.MinSamples == 0 {
@@ -67,6 +74,10 @@ func Refresh(opts Options) (Refreshed, error) {
 	}
 
 	stats, err := Measure(opts, cat)
+	if errors.Is(err, ErrNoPresets) {
+		return skipped, nil
+	}
+
 	if err != nil {
 		return Refreshed{}, err
 	}
