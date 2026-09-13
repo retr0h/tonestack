@@ -91,6 +91,13 @@ func (s *RefreshTestSuite) TestRefresh() {
 			skipped: "run just gear-map",
 		},
 		{
+			// Every input is there and one of them is wrong. That is a
+			// failure to report, not a machine to skip.
+			name:    "a gear map that will not parse",
+			gearMap: filepath.Join("testdata", "badmap.json"),
+			errText: "gear map",
+		},
+		{
 			name:    "nowhere to write it",
 			out:     filepath.Join("no", "such", "dir.json"),
 			errText: "writing",

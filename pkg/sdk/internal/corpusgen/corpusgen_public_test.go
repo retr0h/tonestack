@@ -62,6 +62,23 @@ func (s *CorpusgenPublicTestSuite) partLocked() string {
 	return dir
 }
 
+// unreadable returns a corpus directory holding a subdirectory nobody can list.
+func (s *CorpusgenPublicTestSuite) unreadable() string {
+	dir := s.T().TempDir()
+
+	locked := filepath.Join(dir, "locked")
+	s.Require().NoError(os.Mkdir(locked, 0o700))
+	s.Require().NoError(os.Chmod(locked, 0o000))
+
+	// Given back before the temporary directory is removed, which needs to
+	// list it.
+	s.T().
+		Cleanup(func() { _ = os.Chmod(locked, 0o700) })
+		//nolint:gosec // a directory this test made
+
+	return dir
+}
+
 // TestRun measures a body of presets other people made.
 func (s *CorpusgenPublicTestSuite) TestRun() {
 	tests := []struct {
@@ -157,6 +174,13 @@ func (s *CorpusgenPublicTestSuite) TestRun() {
 			skipped: true,
 		},
 		{
+			// A directory that is there and cannot be walked is a failure to
+			// report, not a machine without the corpus.
+			name:    "a corpus directory that cannot be read",
+			corpus:  "unreadable",
+			errText: "searching",
+		},
+		{
 			// A fresh checkout: the directory is committed, the presets are not.
 			name:    "a corpus directory holding no presets",
 			corpus:  "empty",
@@ -194,6 +218,8 @@ func (s *CorpusgenPublicTestSuite) TestRun() {
 				o.CorpusDir = s.T().TempDir()
 			case "part-locked":
 				o.CorpusDir = s.partLocked()
+			case "unreadable":
+				o.CorpusDir = s.unreadable()
 			}
 
 			if tt.catalog != "" {
