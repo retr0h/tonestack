@@ -485,8 +485,10 @@ added to it needs a better reason than being hard to test.
 ### With a device attached
 
 One test needs a real Helix, and it writes to it. It reads a preset, writes it
-into a slot you choose, reads that back and checks both describe the same rig,
-then puts the slot back from the copy the write kept.
+into a slot you choose, reads that back and checks it carries the same chain,
+then puts the slot back from the copy the write kept. It checks the chain rather
+than the whole rig because import places blocks into a blank slot, so
+footswitches, snapshot state and routing come from the blank.
 
 ```bash
 TONESTACK_SCRATCH_SLOT=42C just test-device                    # 01A into 42C
