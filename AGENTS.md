@@ -83,6 +83,10 @@ so it is one list across sessions rather than one per session. See
 - Anything left over at the end of a piece of work, a follow-up, a decision
   nobody has made, a bug found on the way, becomes a task rather than a sentence
   in a reply. A sentence in a reply is gone after the next session.
+- When a pull request finishes something [docs/knowledge.md](docs/knowledge.md)
+  marks not built or partly built, update that line in the same pull request,
+  and say so in its description. That page is how the next session learns what
+  exists, and it fell three features behind when nobody did.
 
 If `TaskCreate` is not available, the tools are off. Say so instead of carrying
 on without them.
