@@ -23,6 +23,7 @@ package tools_test
 import (
 	"context"
 	"encoding/json"
+	"slices"
 	"testing"
 
 	gomcp "github.com/modelcontextprotocol/go-sdk/mcp"
@@ -137,6 +138,12 @@ func (s *RegisterPublicTestSuite) TestRegister() {
 				"preset_export": true, "preset_select": false,
 			},
 		},
+		{
+			name:        "with writes",
+			allowWrites: true,
+			want:        append(slices.Clone(reads), "preset_import", "presets_copy", "presets_swap"),
+			readOnly:    map[string]bool{"preset_import": false, "presets_copy": false, "presets_swap": false},
+		},
 	}
 
 	for _, tt := range tests {
@@ -159,6 +166,12 @@ func (s *RegisterPublicTestSuite) TestRegister() {
 					s.Require().NotNil(tool.Annotations.DestructiveHint)
 					s.False(*tool.Annotations.DestructiveHint)
 					s.True(tool.Annotations.IdempotentHint)
+				}
+
+				switch tool.Name {
+				case "preset_import", "presets_copy", "presets_swap":
+					s.Require().NotNil(tool.Annotations.DestructiveHint, tool.Name)
+					s.True(*tool.Annotations.DestructiveHint, tool.Name)
 				}
 			}
 

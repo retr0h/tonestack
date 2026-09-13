@@ -41,7 +41,7 @@ type handlers struct {
 func Register(
 	s *gomcp.Server,
 	c Client,
-	_ bool,
+	allowWrites bool,
 ) {
 	h := &handlers{client: c, device: make(chan struct{}, 1)}
 
@@ -100,11 +100,36 @@ func Register(
 		Description: "Load a slot on the pedal, as pressing its footswitch does. Changes nothing stored.",
 		Annotations: &gomcp.ToolAnnotations{DestructiveHint: new(false), IdempotentHint: true},
 	}, h.presetSelect)
+
+	if !allowWrites {
+		return
+	}
+
+	gomcp.AddTool(s, &gomcp.Tool{
+		Name:        "preset_import",
+		Description: "Put a .hlx into a slot on the pedal. Whatever the slot held is saved to a file first and then gone from the pedal.",
+		Annotations: destructive(),
+	}, h.presetImport)
+	gomcp.AddTool(s, &gomcp.Tool{
+		Name:        "presets_copy",
+		Description: "Copy one slot onto another. The destination's old preset is saved to a file first.",
+		Annotations: destructive(),
+	}, h.presetsCopy)
+	gomcp.AddTool(s, &gomcp.Tool{
+		Name:        "presets_swap",
+		Description: "Exchange two slots. Both are saved to files first.",
+		Annotations: destructive(),
+	}, h.presetsSwap)
 }
 
 // readOnly marks a tool that changes nothing anywhere.
 func readOnly() *gomcp.ToolAnnotations {
 	return &gomcp.ToolAnnotations{ReadOnlyHint: true, OpenWorldHint: new(false)}
+}
+
+// destructive marks a tool that overwrites what a pedal holds.
+func destructive() *gomcp.ToolAnnotations {
+	return &gomcp.ToolAnnotations{DestructiveHint: new(true)}
 }
 
 // said is the one line of text beside a tool's structured answer, for an agent
