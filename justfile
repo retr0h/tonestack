@@ -47,6 +47,10 @@ test:
     just license-check
     just go-test
 
+# Round-trip a preset on an attached Helix. Overwrites TONESTACK_SCRATCH_SLOT and puts it back
+test-device:
+    go test -tags device -count=1 -v -run TestDevicePublicTestSuite ./pkg/sdk/
+
 # --- Data generation ---
 #
 # The gear map is bootstrap data: it changes only when Line 6 ships new models,
