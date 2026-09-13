@@ -13,13 +13,13 @@ The goal is a system that knows *how a chain is built*. That decomposes into
 four problems with four different sources, and conflating them is why generated
 tones come out generic.
 
-| Problem                 | Source                                      | State                     |
-| ----------------------- | ------------------------------------------- | ------------------------- |
-| Who plays what          | `pkg/sdk/rigs/`, hand-written               | thin, grows by correction |
-| Gear to model ID        | `resources/schemas/gear-map.json`           | 547 models                |
-| What order blocks go in | statistics over `resources/schemas/corpus/` | added blocks placed       |
-| Which way a knob moves  | the Pilot's Guide parameter tables          | not built                 |
-| What values to set      | catalog defaults, corpus medians, intent    | six axes of ten           |
+| Problem                 | Source                                                 | State                     |
+| ----------------------- | ------------------------------------------------------ | ------------------------- |
+| Who plays what          | `pkg/sdk/rigs/`, hand-written                          | thin, grows by correction |
+| Gear to model ID        | `resources/schemas/gear-map.json`                      | 547 models                |
+| What order blocks go in | statistics over `resources/schemas/corpus/`            | added blocks placed       |
+| Which way a knob moves  | parameter names, and the HX Edit manual's amp controls | cited below; not data yet |
+| What values to set      | catalog defaults, corpus medians, intent               | six axes of ten           |
 
 One specification covers all of it.
 [The RigSpec design record](superpowers/specs/2026-09-06-rigspec-as-the-one-model-design.md)
@@ -99,9 +99,12 @@ tends to occupy, and which categories a bass chain almost always contains. One
 person's bad preset barely moves an average; copying that same preset inherits
 all of it.
 
-Not built. The corpus is collected; the measurements are not taken. They are
-cheap once taken: across 169 bass-amp chains, 89% hold a compressor and 63% hold
-drive, which sits *before* the amp 89% of the time.
+Partly built. The corpus is measured per instrument: across 159 bass chains, 88%
+hold a compressor and 61% hold drive, which sits before the amp 88% of the time.
+A build uses that to add the blocks a chain almost always holds, three chains in
+four or more, with the model that instrument's players use most, on the side of
+the amp where they put it. Blocks a rig names keep the order the rig gives them;
+nothing reorders a whole chain by the grammar yet.
 
 ## 4. What values to set
 
@@ -116,16 +119,38 @@ of authority:
    default is 0.68. The factory default is measurably not what players use.
    `Bass` sits in 0.50–0.53 and `Drive` spans 0.28–0.60, so the spread also says
    how much of an opinion is worth having.
-3. **Intent.** A rig's `character` lines, "mid-forward, not scooped" or "grit
-   only on hard attack", become directional moves against the catalog's real
-   ranges. Which direction is not guesswork either: the Pilot's Guide documents
-   the controls that cannot be inferred, in the same language a recipe uses. Of
-   `Sag` it says *"lower values offer tighter responsiveness … higher values
-   provide more touch dynamics & sustain"*; of `Bias X`, *"set low for a tighter
-   feel"*. It says nothing about Drive, Bass, Mid or Treble, because those need
-   no explaining.
+3. **Intent.** A rig's `character` words become moves against the catalog's real
+   ranges. Each word is worth one step from where the corpus left that control,
+   and six axes act: `mids`, `highs`, `drive` and `low-end` on the amp, `space`
+   on the reverb and `attack` on the compressor.
+   [recipes.md](recipes.md#character-describes-the-result-not-the-control) lists
+   the words.
 
-Not built.
+Built, for those six axes. What is not built is a general answer to which way
+any control moves, which is what turning a measured difference into a change
+would need.
+
+### Which way a knob moves
+
+Mostly the name says. The catalog has 641 parameter names across 5,602 controls,
+and 46% of those controls carry a name whose direction needs no explaining:
+`Level`, `Treble`, `Drive`, `Mix`, `Feedback`, `Decay`.
+
+Line 6 publishes no table per model. The HX Edit manual documents the amp
+controls a name does not explain, in one list headed *Common Amp Settings*:
+
+| control         | lower                                                    | higher                                          |
+| --------------- | -------------------------------------------------------- | ----------------------------------------------- |
+| `Master`        | less power amp distortion, and less effect from the rest | more power amp distortion                       |
+| `Sag`           | *"tighter" responsiveness for metal and djent*           | *more touch dynamics & sustain*                 |
+| `Hum`, `Ripple` | less heater hum and AC ripple                            | more; *"at higher settings, things get freaky"* |
+| `Bias`          | *a "colder" Class AB biasing*                            | at maximum, Class A                             |
+| `Bias X`        | *a tighter feel*                                         | *more tube compression*                         |
+
+`Sag`, `Hum`, `Ripple`, `Bias` and `Bias X` are the largest unclear controls in
+the catalog, about 650 of them together. Most of what is left is not a tone knob
+but a switch or a placement, such as `TempoSync`, `Mic`, `Position`, `Angle` and
+`Pan`, and has no direction to find.
 
 ## Artist or song?
 
@@ -176,20 +201,24 @@ recipe       pkg/sdk/rigs/artists/mike-dirnt.yaml             who plays what
 gear map     resources/schemas/gear-map.json                  gear to model
    │         HD2_AmpSVBeastNrm
    ▼
-catalog      resources/schemas/hx-stomp.catalog.json          what the device accepts
+catalog      pkg/sdk/catalog/data/hx-stomp.json.gz            what the device accepts
    │         Drive 0.0–1.0, default 0.39, DSP 28.27
    ▼
-grammar      statistics over resources/schemas/corpus/        what order      [not built]
+grammar      pkg/sdk/corpus/data/hx-stomp.stats.json.gz       what a chain almost always holds
    │
    ▼
-values       defaults + distributions + character   what to set     [not built]
+values       corpus medians + character                       what to set
    │
    ▼
 RigSpec      validated against the catalog
    │
    ▼
-.hlx         written, pushed, heard, corrected                      [not built]
+.hlx         written, and put on a device over USB
+   │
+   ▼
+a person     listens, and corrects the rig                    nothing above can hear
 ```
 
-Steps three and four are the unbuilt middle. Everything above them exists;
-nothing below them does.
+Every step above the person exists. What is still missing is narrower than it
+was: a grammar that orders a whole chain rather than placing what it adds, and
+values that come from measuring a recording rather than from words.
