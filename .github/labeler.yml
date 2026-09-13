@@ -20,5 +20,5 @@ source:
   - changed-files:
       - any-glob-to-any-file:
           - "cmd/**"
-          - "internal/**"
+          - "pkg/**"
           - "main.go"

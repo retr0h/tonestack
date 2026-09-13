@@ -42,41 +42,17 @@ type MainTestSuite struct {
 	suite.Suite
 }
 
-// TestPkgDoesNotImportInternal asserts the boundary the compiler will not.
+// TestThereIsNoTopLevelInternal covers where a private half lives.
 //
-// `internal/` sits at the repository root, so Go permits everything here to
-// import it, `pkg/` included. That makes the rule a convention, and a
-// convention nothing checks is one somebody breaks by accident: a test
-// reaching for a catalog helper is all it takes.
-//
-// The rule is that `pkg/` holds what something outside this repository would
-// call. A package that imports `internal/` cannot be lifted out, so the import
-// is the thing that says the code is on the wrong side.
-func (s *MainTestSuite) TestPkgDoesNotImportInternal() {
-	const internal = mod + "internal/"
+// Under the package that owns it, as pkg/<name>/internal/, so the compiler
+// fences it to exactly that package and it moves when that package moves. At
+// the root an internal/ is readable by everything in the module and owned by
+// nothing, which is how code ends up somewhere no extraction takes with it.
+func (s *MainTestSuite) TestThereIsNoTopLevelInternal() {
+	_, err := os.Stat("internal")
 
-	fset := token.NewFileSet()
-
-	err := filepath.WalkDir("pkg", func(path string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".go") {
-			return err
-		}
-
-		f, err := parser.ParseFile(fset, path, nil, parser.ImportsOnly)
-		if err != nil {
-			return err
-		}
-
-		for _, i := range f.Imports {
-			s.Require().NotContains(
-				i.Path.Value, internal,
-				"%s imports an internal package, so it cannot be lifted out", path)
-		}
-
-		return nil
-	})
-
-	s.Require().NoError(err)
+	s.Require().ErrorIs(err, fs.ErrNotExist,
+		"put a private package under the package that owns it, as pkg/<name>/internal/")
 }
 
 // TestATestFileSaysWhichKindItIs asserts the suffix and the package agree.
