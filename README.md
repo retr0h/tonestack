@@ -85,14 +85,14 @@ tonestack presets import --preset mike.hlx --slot 07A
 
 ## Next
 
-| To                                                    | Read                                                            |
-| ----------------------------------------------------- | --------------------------------------------------------------- |
-| build a preset for a player who is not in the list    | [Create a rig](docs/workflows.md#create-a-rig-for-a-player)     |
-| use a plugged-in Helix                                | [Read the device](docs/workflows.md#read-what-a-device-holds)   |
-| change a preset after you have played it              | [Correct a rig](docs/workflows.md#correct-a-rig-you-have-heard) |
-| see every flag a command takes                        | `tonestack <command> --help`                                    |
-| understand how it works                               | [docs/](docs/README.md)                                         |
-| work on tonestack, including regenerating the catalog | [CONTRIBUTING.md](CONTRIBUTING.md)                              |
+| To                                                    | Read                                                                  |
+| ----------------------------------------------------- | --------------------------------------------------------------------- |
+| build a preset for a player who is not in the list    | [Create a rig](docs/workflows.md#create-a-rig-for-a-player)           |
+| use a plugged-in Helix                                | [Read the device](docs/workflows.md#read-what-a-device-holds)         |
+| change a preset after you have played it              | [Correct a rig](docs/workflows.md#correct-a-rig-you-have-heard)       |
+| see every command and flag                            | [docs/commands.md](docs/commands.md), or `tonestack <command> --help` |
+| understand how it works                               | [docs/](docs/README.md)                                               |
+| work on tonestack, including regenerating the catalog | [CONTRIBUTING.md](CONTRIBUTING.md)                                    |
 
 [docs/workflows.md](docs/workflows.md) is the usage guide, for everything past
 the quickstart.

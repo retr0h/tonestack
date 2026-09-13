@@ -197,6 +197,8 @@ a signal chain, the preset format, and the device:
 
 - [docs/workflows.md](docs/workflows.md) is the usage guide: what to do, in
   order, for the common tasks
+- [docs/commands.md](docs/commands.md) lists every command and flag, generated
+  from the CLI
 - [docs/knowledge.md](docs/knowledge.md) covers how a request becomes a signal
   chain
 - [docs/recipes.md](docs/recipes.md) covers writing a rig, and the worked

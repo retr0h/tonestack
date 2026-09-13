@@ -20,7 +20,7 @@
 // Package cmd holds the command definitions.
 //
 // This package and main.go are excluded from coverage by .coverignore.
-// Behaviour worth testing lives in internal/.
+// Behaviour worth testing lives in pkg/cli and pkg/sdk.
 package cmd
 
 import (
@@ -45,6 +45,12 @@ Everything needed ships in this binary: the curated gear knowledge, and the
 catalog of what the device can do. Nothing else has to be installed, and no
 device has to be attached, to describe a chain and write a preset.`,
 	Args: cobra.NoArgs,
+}
+
+// Root is the command tree, for anything that needs to read it rather than
+// run it. The command reference in docs/commands.md is generated from it.
+func Root() *cobra.Command {
+	return rootCmd
 }
 
 // Execute is called by main.main(). It only needs to happen once to the

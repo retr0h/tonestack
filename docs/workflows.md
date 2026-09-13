@@ -12,7 +12,8 @@ corpus statistics and the rigs are built into the binary. Only the commands that
 read or write a device need a Helix plugged in, HX Edit quit, and a build with
 USB support, which the released binaries do not have. The
 [README](../README.md#install) says how to build one. Every command explains its
-own flags with `tonestack <command> --help`.
+own flags with `tonestack <command> --help`, and [commands.md](commands.md)
+lists them all.
 
 | I want to…                              | Go to                                          |
 | --------------------------------------- | ---------------------------------------------- |

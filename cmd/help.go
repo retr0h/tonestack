@@ -34,7 +34,7 @@ import (
 //
 // Cobra renders help from a text template and offers no colour of its own.
 // Replacing the renderer rather than the template keeps the layout in
-// internal/tui, where it is tested, and leaves this as the adapter from
+// pkg/cli, where it is tested, and leaves this as the adapter from
 // cobra's types to it.
 func styleHelp(root *cobra.Command) {
 	root.SetHelpFunc(func(c *cobra.Command, _ []string) {

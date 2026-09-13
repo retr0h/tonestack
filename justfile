@@ -11,7 +11,7 @@ md_site_dir := ""
 # Except the one nobody writes. docs/rigspec.md is generated from the RigSpec
 # contract, and a test compares it against what the generator produces — so
 # reflowing it here would leave the page disagreeing with its own source.
-md_extra_excludes := "--exclude 'docs/rigspec.md'"
+md_extra_excludes := "--exclude 'docs/rigspec.md' --exclude 'docs/commands.md'"
 
 # Coverage target for this repository.
 #
