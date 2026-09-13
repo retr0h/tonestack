@@ -35,7 +35,7 @@ import (
 
 // builtIn is the measured corpus for the device this tool targets.
 //
-// It ships in the binary for the same reason the catalog does: measuring 4,426
+// It ships in the binary for the same reason the catalog does: measuring 4,324
 // presets takes a corpus nobody wants to download, and the result is small.
 //
 //go:embed data/hx-stomp.stats.json.gz

@@ -96,11 +96,12 @@ Leaving `settings` out is fine, and often better. What happens then:
 
 1. Line 6's stated default is the floor, and is never invalid.
 2. Where the corpus shows players agreeing closely, the median replaces it. For
-   an Ampeg SVT that moves `Treble` from Line 6's 0.68 to 0.845.
+   the Ampeg SVT's bright channel that moves `Treble` from Line 6's 0.77 to
+   0.85.
 3. Where players disagree, the default stands, rather than an average of
    disagreement being presented as a measurement.
 
-`tonestack corpus show --model HD2_AmpSVBeastNrm` shows the median and the
+`tonestack corpus show --model HD2_AmpSVBeastBrt` shows the median and the
 spread. The spread is the useful column: it says how much of an opinion is worth
 having.
 

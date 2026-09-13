@@ -114,9 +114,9 @@ tonestack catalog show --model HD2_AmpSVBeastNrm
 ```
 
 What the device can do is a different question from what people do with it. See
-[corpus statistics](knowledge.md). Line 6 state a default Treble of 0.68 for an
-Ampeg SVT; the median across every measured use is 0.845. Both are facts, and
-the catalog only knows the first.
+[corpus statistics](knowledge.md). Line 6 state a default Treble of 0.77 for the
+Ampeg SVT's bright channel; the median across the presets using it is 0.85. Both
+are facts, and the catalog only knows the first.
 
 ## Regenerating it
 
