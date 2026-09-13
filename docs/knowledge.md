@@ -93,14 +93,14 @@ A chain has a grammar. Compression before drive, drive before amp, amp before
 cab, time-based effects last. Bass chains differ from lead chains. Some blocks
 co-occur; some never do.
 
-This is learnable from the corpus **statistically, not imitatively**. Across
-4,426 presets you can measure which blocks appear together, which position each
-tends to occupy, and which categories a bass chain almost always contains. One
-person's bad preset barely moves an average; copying that same preset inherits
-all of it.
+This is learnable from the corpus **statistically, not imitatively**. Across the
+4,324 presets measured you can see which blocks appear together, which position
+each tends to occupy, and which categories a bass chain almost always contains.
+One person's bad preset barely moves an average; copying that same preset
+inherits all of it.
 
 Partly built. The corpus is measured per instrument: across 159 bass chains, 88%
-hold a compressor and 61% hold drive, which sits before the amp 88% of the time.
+hold a compressor and 62% hold drive, which sits before the amp 88% of the time.
 A build uses that to add the blocks a chain almost always holds, three chains in
 four or more, with the model that instrument's players use most, on the side of
 the amp where they put it. Blocks a rig names keep the order the rig gives them;
@@ -115,10 +115,11 @@ of authority:
    parameter. This is the anchor and is never wrong.
 2. **Corpus distributions.** The median `Drive` across every preset using this
    model beats a guess, and the spread says how much it varies in practice.
-   Across 54 SVT instances the median `Treble` is 0.845 where Line 6's stated
-   default is 0.68. The factory default is measurably not what players use.
-   `Bass` sits in 0.50–0.53 and `Drive` spans 0.28–0.60, so the spread also says
-   how much of an opinion is worth having.
+   Across 26 presets using the Ampeg SVT's bright channel, the median `Treble`
+   is 0.85 where Line 6's stated default is 0.77. The factory default is
+   measurably not what players use. On its normal channel `Bass` sits in
+   0.50–0.52 and `Drive` spans 0.27–0.60, so the spread also says how much of an
+   opinion is worth having.
 3. **Intent.** A rig's `character` words become moves against the catalog's real
    ranges. Each word is worth one step from where the corpus left that control,
    and six axes act: `mids`, `highs`, `drive` and `low-end` on the amp, `space`
@@ -133,7 +134,7 @@ would need.
 ### Which way a knob moves
 
 Mostly the name says. The catalog has 641 parameter names across 5,602 controls,
-and 46% of those controls carry a name whose direction needs no explaining:
+and the most common of them carry a name whose direction needs no explaining:
 `Level`, `Treble`, `Drive`, `Mix`, `Feedback`, `Decay`.
 
 Line 6 publishes no table per model. The HX Edit manual documents the amp
@@ -202,7 +203,7 @@ gear map     resources/schemas/gear-map.json                  gear to model
    │         HD2_AmpSVBeastNrm
    ▼
 catalog      pkg/sdk/catalog/data/hx-stomp.json.gz            what the device accepts
-   │         Drive 0.0–1.0, default 0.39, DSP 28.27
+   │         Drive 0.0–1.0, default 0.53, DSP 26.67
    ▼
 grammar      pkg/sdk/corpus/data/hx-stomp.stats.json.gz       what a chain almost always holds
    │

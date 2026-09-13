@@ -84,8 +84,9 @@ tonestack catalog show [flags]
 Inspect what a body of presets other people made says.
 
 The catalog says what a device can do. The corpus says what people actually do
-with it, which is a different question: Line 6 states a default Treble of 0.68
-for an Ampeg SVT, and across every SVT measured the median is 0.845.
+with it, which is a different question: Line 6 states a default Treble of 0.77
+for the Ampeg SVT's bright channel, and across the presets using it the median
+is 0.85.
 
 Nothing here is authority. It is a measurement over strangers' presets,
 including their mistakes, which is why every median comes with a spread.

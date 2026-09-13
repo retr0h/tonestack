@@ -23,8 +23,8 @@
 //
 // The catalog says what a device *can* do; this says what people *do* with it.
 // They answer different questions and neither substitutes for the other. Line
-// 6 states a default Treble of 0.68 for an Ampeg SVT; across every SVT in the
-// corpus the median is 0.845. Both are facts, and the second is the one worth
+// 6 states a default Treble of 0.77 for the Ampeg SVT's bright channel; across
+// the corpus presets using it the median is 0.85. Both are facts, and the second is the one worth
 // generating from.
 //
 // Nothing here is authority. It is a measurement over presets strangers made,

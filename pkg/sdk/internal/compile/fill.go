@@ -32,7 +32,7 @@ import (
 // chain that did not ask for it.
 //
 // Set high on purpose. A compressor in 88% of bass chains is a convention, and
-// leaving it out produces something nobody would recognise. Drive in 61% is a
+// leaving it out produces something nobody would recognise. Drive in 62% is a
 // choice, and making it silently would be this tool having opinions it cannot
 // justify. A recipe naming a pedal always gets it, whatever the figure.
 const nearUniversal = 0.75

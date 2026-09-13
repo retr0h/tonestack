@@ -32,8 +32,8 @@ import (
 // overrules the catalog, as a share of a parameter's own range.
 //
 // Below it, the middle of what people do is a better answer than the factory
-// default — Line 6 states 0.68 for an Ampeg SVT's Treble and the corpus
-// median is 0.845. Above it there is no consensus to adopt, only an average
+// default — Line 6 states 0.77 for the Ampeg SVT bright channel's Treble and
+// the corpus median is 0.85. Above it there is no consensus to adopt, only an average
 // of disagreement, and the catalog's default is the honest answer until a
 // recipe or a person says otherwise.
 const agreementThreshold = 0.15
