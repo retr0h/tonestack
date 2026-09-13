@@ -6,6 +6,7 @@ see [CONTRIBUTING.md](../CONTRIBUTING.md). These pages cover the domain.
 |                                      |                                                                                       |
 | ------------------------------------ | ------------------------------------------------------------------------------------- |
 | [workflows.md](workflows.md)         | **Start here.** How to use tonestack, in order, for the things people come here to do |
+| [commands.md](commands.md)           | Every command and flag, generated from the CLI                                        |
 | [knowledge.md](knowledge.md)         | How a request becomes a signal chain, and the four problems that entails.             |
 | [recipes.md](recipes.md)             | Writing a rig, the one format anybody authors by hand                                 |
 | [catalog.md](catalog.md)             | What a device can do, and where that knowledge comes from                             |
