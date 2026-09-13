@@ -107,7 +107,7 @@ pkg/sdk/internal/    how the operations are done. Invisible outside pkg/sdk.
   compile/           a rig becomes a preset, and a preset becomes a rig
   editor/            what a device says becomes a chain, and back again
   setlist/           read and write .hls setlists and .hlb device backups
-  device/            talk to a device over USB. The only cgo in the tree.
+  device/            talk to a device over USB. One backend per OS; macOS has one.
   wire/              the framing a device speaks. Pure Go, no hardware needed.
 resources/
   schemas/           the generated catalog, the gear map, the preset corpus
@@ -469,13 +469,13 @@ just go-unit-cov-check   # Report coverage and fail below the target
 The target is declared in `.github/codecov.yml` and in this repository's
 `justfile`. Change both together.
 
-It is 99 rather than 100 because of one file. `pkg/sdk/internal/device/usb.go`
-is every call this project makes into libusb, one expression per method, and
-there is no way to reach it without a device on the bus. Everything it forwards
-to is behind an interface and covered: finding a device, choosing between two,
-claiming an interface, waiting on a busy one, framing, sequence numbers,
-acknowledgements, opening a channel and making a call all run against a bus a
-test supplies.
+It is 99 rather than 100 because of one file.
+`pkg/sdk/internal/device/usb_darwin.go` is every call this project makes into
+IOKit, translation and nothing more, and there is no way to reach it without a
+device on the bus. Everything it forwards to is behind an interface and covered:
+finding a device, choosing between two, claiming an interface, waiting on a busy
+one, framing, sequence numbers, acknowledgements, opening a channel and making a
+call all run against a bus a test supplies.
 
 That file is counted rather than excluded on purpose. An exclusion hides how big
 a file is; a target says what cannot be reached and gets worse if that file

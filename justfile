@@ -15,8 +15,8 @@ md_extra_excludes := "--exclude 'docs/rigspec.md' --exclude 'docs/commands.md'"
 
 # Coverage target for this repository.
 #
-# Not 100%, and the missing part is one file. pkg/sdk/usb.go is every call this
-# project makes into libusb, one expression per method, and there is no way to
+# Not 100%, and the missing part is one file. pkg/sdk/internal/device/usb_darwin.go
+# is every call this project makes into IOKit, translation and nothing more, and there is no way to
 # reach it without a device on the bus. Everything it forwards to — finding a
 # device, choosing between two, claiming an interface, waiting on a busy one,
 # framing, sequence numbers, acknowledgements — is behind an interface and

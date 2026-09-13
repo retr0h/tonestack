@@ -21,8 +21,8 @@
 // Package sdk talks to Line 6 Helix-family hardware over USB.
 //
 // Discovery and identification are pure functions over a [Lister], so they are
-// testable without a device attached. The libusb-backed Lister lives in
-// usb.go and is the only part that needs hardware.
+// testable without a device attached. The USB backend's Lister lives in
+// usb_darwin.go and is the only part that needs hardware.
 package device
 
 import (

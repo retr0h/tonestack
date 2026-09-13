@@ -522,8 +522,9 @@ An HX Stomp answers with 126 entries; a Helix and an HX Stomp XL answer 128.
 Learned by other people the hard way. Ignoring any of them risks hardware that
 needs its power supply physically pulled.
 
-1. **Never call USB reset.** `libusb_reset_device` takes an HX Stomp off the bus
-   and it does not come back without a physical unplug.
+1. **Never call USB reset.** Resetting the device, `libusb_reset_device` or
+   IOKit's `ResetDevice`, takes an HX Stomp off the bus and it does not come
+   back without a physical unplug.
 2. **Always have a read posted.** The device sends notifications unasked. With
    nothing draining the IN endpoint its outgoing queue fills, at which point it
    stops draining the incoming endpoint too and the next write times out.

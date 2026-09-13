@@ -1,4 +1,4 @@
-//go:build !cgo
+//go:build !darwin
 
 // Copyright (c) 2026 John Dewey
 
@@ -27,24 +27,25 @@ import (
 	"errors"
 )
 
-// ErrNoUSBSupport reports a binary built without cgo, which cannot reach a
-// device.
+// ErrNoUSBSupport reports an operating system with no USB backend yet.
 //
-// Talking to hardware needs libusb through cgo. Everything else — describing a
-// chain, validating it, writing a preset — is pure Go, so a build without cgo
-// is useful and should say what it cannot do rather than fail to compile.
-var ErrNoUSBSupport = errors.New("built without usb support: rebuild with cgo enabled")
+// Only macOS has one, in usb_darwin.go. Everything else here, describing a
+// chain, validating it, writing a preset, works on any operating system, so a
+// build for one without a backend is useful and says what it cannot do rather
+// than failing to compile. A new backend is one file implementing the same
+// seams as usb_darwin.go, with this file's build tag narrowed to exclude it.
+var ErrNoUSBSupport = errors.New("device access is not supported on this operating system yet")
 
-// USBLister is the no-cgo stand-in. Its methods report ErrNoUSBSupport.
+// USBLister is the stand-in where there is no backend. Its methods report ErrNoUSBSupport.
 type USBLister struct{}
 
 // NewUSBLister returns a Lister that cannot reach a device.
 func NewUSBLister() Bus { return &USBLister{} }
 
-// openUSB reports that this build cannot reach a bus.
+// openUSB reports that this operating system has no bus backend.
 func openUSB() bus { return noBus{} }
 
-// noBus is what a build without cgo has instead of a bus.
+// noBus is what an operating system without a backend has instead of a bus.
 type noBus struct{}
 
 // Devices reports ErrNoUSBSupport.

@@ -1,4 +1,4 @@
-//go:build device && cgo
+//go:build device
 
 // Copyright (c) 2026 John Dewey
 
