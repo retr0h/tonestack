@@ -1,5 +1,11 @@
 # A grammar for every field
 
+> **Paths moved, 2026-09-10.** Written before the SDK became one directory.
+> `internal/resolve` is now `pkg/sdk/internal/compile`, the vocabulary is
+> `pkg/sdk/internal/compile/data/character-terms.json`, and the rigs are in
+> `pkg/sdk/rigs/`. The decisions stand. `CONTRIBUTING.md` has the layout as it
+> is.
+
 **Status:** implemented\
 **Depends on:** checking a rig as it was written, not as it decoded (#37)
 

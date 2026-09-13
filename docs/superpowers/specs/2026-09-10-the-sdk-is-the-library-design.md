@@ -1,5 +1,13 @@
 # The SDK is the library
 
+> **Superseded in part, 2026-09-13.** The layout moved again after this record.
+> The generators went under `pkg/sdk/internal/`, the CLI became `pkg/cli` with
+> its own `internal/`, the code generated from the contract nests at
+> `pkg/sdk/rig/internal/gen`, and `internal/specdoc` moved to
+> `pkg/sdk/rig/internal/specdoc`, leaving no top-level `internal/`. The rows
+> below that keep those at the top level no longer hold; the decision that the
+> SDK is the library does. `CONTRIBUTING.md` has the layout as it is.
+
 **Status:** implemented\
 **Supersedes:**
 [2026-09-09-where-a-package-belongs-design.md](2026-09-09-where-a-package-belongs-design.md)
