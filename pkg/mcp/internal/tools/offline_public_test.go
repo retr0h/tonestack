@@ -196,6 +196,11 @@ func (s *OfflinePublicTestSuite) TestRigsList() {
 				c.EXPECT().Recipes("").Return(sdk.Recipes{Rigs: []rig.Spec{{}, {}}}, nil)
 			},
 			want: "2 rigs ship",
+			check: func(s *OfflinePublicTestSuite, res *gomcp.CallToolResult) {
+				var got sdk.Recipes
+				structured(s.T(), res, &got)
+				s.Len(got.Rigs, 2)
+			},
 		},
 		{
 			name: "rigs that will not read",
@@ -220,6 +225,11 @@ func (s *OfflinePublicTestSuite) TestRigShow() {
 					Return(sdk.Recipe{Variants: []sdk.Variant{{}}}, nil)
 			},
 			want: "rig mike-dirnt, extended by 1 others",
+			check: func(s *OfflinePublicTestSuite, res *gomcp.CallToolResult) {
+				var got sdk.Recipe
+				structured(s.T(), res, &got)
+				s.Len(got.Variants, 1)
+			},
 		},
 		{
 			name: "a rig that does not",
