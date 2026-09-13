@@ -115,9 +115,10 @@ type RegisterPublicTestSuite struct {
 
 // TestRegister covers which tools an agent is offered.
 func (s *RegisterPublicTestSuite) TestRegister() {
-	offline := []string{
+	reads := []string{
 		"catalog_block", "catalog_search", "corpus_model",
 		"preset_build", "rig_show", "rigs_list",
+		"devices_list", "presets_list", "preset_show", "preset_export", "preset_select",
 	}
 
 	tests := []struct {
@@ -128,10 +129,12 @@ func (s *RegisterPublicTestSuite) TestRegister() {
 	}{
 		{
 			name: "without writes",
-			want: offline,
+			want: reads,
 			readOnly: map[string]bool{
 				"catalog_block": true, "catalog_search": true, "corpus_model": true,
 				"preset_build": false, "rig_show": true, "rigs_list": true,
+				"devices_list": true, "presets_list": true, "preset_show": true,
+				"preset_export": true, "preset_select": false,
 			},
 		},
 	}
@@ -150,6 +153,12 @@ func (s *RegisterPublicTestSuite) TestRegister() {
 
 				if want, ok := tt.readOnly[tool.Name]; ok {
 					s.Equal(want, tool.Annotations.ReadOnlyHint, tool.Name)
+				}
+
+				if tool.Name == "preset_select" {
+					s.Require().NotNil(tool.Annotations.DestructiveHint)
+					s.False(*tool.Annotations.DestructiveHint)
+					s.True(tool.Annotations.IdempotentHint)
 				}
 			}
 

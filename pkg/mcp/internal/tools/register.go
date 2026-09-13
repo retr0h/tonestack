@@ -75,6 +75,31 @@ func Register(
 		Description: "Build a .hlx from a shipped rig or a rig file. Read what it added and what each character word moved before putting it on a pedal.",
 		Annotations: &gomcp.ToolAnnotations{OpenWorldHint: new(false)},
 	}, h.presetBuild)
+	gomcp.AddTool(s, &gomcp.Tool{
+		Name:        "devices_list",
+		Description: "The Line 6 Helix hardware attached over USB. HX Edit must be quit for any tool that reaches the pedal.",
+		Annotations: &gomcp.ToolAnnotations{ReadOnlyHint: true},
+	}, h.devicesList)
+	gomcp.AddTool(s, &gomcp.Tool{
+		Name:        "presets_list",
+		Description: "Every slot on the attached pedal and what it holds.",
+		Annotations: &gomcp.ToolAnnotations{ReadOnlyHint: true},
+	}, h.presetsList)
+	gomcp.AddTool(s, &gomcp.Tool{
+		Name:        "preset_show",
+		Description: "One slot on the pedal, read back as a rig.",
+		Annotations: &gomcp.ToolAnnotations{ReadOnlyHint: true},
+	}, h.presetShow)
+	gomcp.AddTool(s, &gomcp.Tool{
+		Name:        "preset_export",
+		Description: "Write one slot to a file: a rig by default, or the device's own .hlx with as=hlx.",
+		Annotations: &gomcp.ToolAnnotations{ReadOnlyHint: true},
+	}, h.presetExport)
+	gomcp.AddTool(s, &gomcp.Tool{
+		Name:        "preset_select",
+		Description: "Load a slot on the pedal, as pressing its footswitch does. Changes nothing stored.",
+		Annotations: &gomcp.ToolAnnotations{DestructiveHint: new(false), IdempotentHint: true},
+	}, h.presetSelect)
 }
 
 // readOnly marks a tool that changes nothing anywhere.
