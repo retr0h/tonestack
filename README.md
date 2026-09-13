@@ -74,14 +74,24 @@ Read that before you plug anything in. Each block names the real gear it models
 and what it costs. `added` is what tonestack put in that the rig did not ask
 for, and `heard` is what each word in the rig's description did to a knob.
 
-Then `HX Edit → Import`. Or, with the Helix plugged in and HX Edit quit, put it
-straight into a slot. Whatever the slot held is saved to a file first. This one
-needs a build that can reach USB, which the released binaries are not; see
-*Other ways* above.
+Have a rig file of your own, one you wrote or one somebody shared? Build it the
+same way:
+
+```bash
+tonestack presets compile --rig mine.yaml --out mine.hlx
+```
+
+### Put it on the pedal
+
+With the Helix plugged in and HX Edit quit, tonestack writes the preset straight
+into a slot, and saves what that slot held to a file first:
 
 ```bash
 tonestack presets import --preset mike.hlx --slot 07A
 ```
+
+Released binaries cannot reach USB yet, so for now that needs a build from
+source (see *Other ways* above). Without one, open HX Edit and use `Import`.
 
 ## Next
 
