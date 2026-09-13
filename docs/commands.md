@@ -160,8 +160,9 @@ tonestack corpus show [flags]
 
 Work with Line 6 Helix-family devices attached over USB.
 
-Reaching a device needs libusb through cgo. A build without it can still
-describe, validate and write presets; only these commands are unavailable.
+Device access works on macOS. On other operating systems these commands say
+it is not supported yet; describing, validating and writing presets works
+everywhere.
 
 ```text
 tonestack devices <command> [flags]

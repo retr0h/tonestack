@@ -29,14 +29,8 @@ Override with `TONESTACK_INSTALL_DIR=/some/path`, or pin a version with
 go install github.com/retr0h/tonestack@latest
 ```
 
-Released binaries are built with `CGO_ENABLED=0`, so they describe, validate and
-write presets but cannot reach a device over USB. For that, build with cgo and
-libusb present:
-
-```bash
-brew install libusb          # or: apt-get install libusb-1.0-0-dev
-go build .
-```
+Released binaries reach a Helix over USB on macOS. On Linux they build, validate
+and write presets, and the device commands say they are not supported yet.
 
 </details>
 
@@ -90,8 +84,8 @@ into a slot, and saves what that slot held to a file first:
 tonestack presets import --preset mike.hlx --slot 07A
 ```
 
-Released binaries cannot reach USB yet, so for now that needs a build from
-source (see *Other ways* above). Without one, open HX Edit and use `Import`.
+Device access is macOS only for now. Anywhere else, import the file with HX
+Edit.
 
 ## Next
 

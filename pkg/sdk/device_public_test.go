@@ -1,4 +1,4 @@
-//go:build device && cgo
+//go:build device
 
 // Copyright (c) 2026 John Dewey
 
@@ -25,6 +25,7 @@ package sdk_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -34,6 +35,7 @@ import (
 
 	"github.com/retr0h/tonestack/pkg/sdk"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/device"
+	"github.com/retr0h/tonestack/pkg/sdk/rig"
 	"github.com/retr0h/tonestack/pkg/sdk/slot"
 )
 
@@ -50,11 +52,17 @@ type DevicePublicTestSuite struct {
 // TestRoundTrip is the acceptance test the SDK design record asks for.
 //
 // A preset read off the device, written into another slot and read again
-// must describe the same rig. Import is the path under test: it encodes a
-// preset rather than copying bytes, and a device seeks through a preset by a
-// table of byte offsets that a wrong encoding shifts. The scratch slot is put
-// back as it was afterwards, from the copy the write kept, and that is
-// checked too.
+// must carry the same chain: the same gear in the same places, switched the
+// same way, with every parameter the source set still set to that value.
+// Import is the path under test: it encodes a preset rather than copying
+// bytes, and a device seeks through a preset by a table of byte offsets that a
+// wrong encoding shifts. The scratch slot is put back as it was afterwards,
+// from the copy the write kept, and that is checked too.
+//
+// The chain, not the whole rig. Import builds into a blank slot and places the
+// blocks, so footswitches, snapshot state and routing come from the blank
+// rather than the source. That is known and tracked, and a test demanding
+// otherwise would fail on the import rather than on the transport.
 func (s *DevicePublicTestSuite) TestRoundTrip() {
 	ctx := context.Background()
 	client := sdk.New()
@@ -103,9 +111,56 @@ func (s *DevicePublicTestSuite) TestRoundTrip() {
 
 	got, err := client.Preset(ctx, sdk.Read{Slot: scratch})
 	s.Require().NoError(err)
-	s.Require().Equal(want.Rig, got.Rig,
-		"a preset written to %s must read back as the one in %s",
+	s.Require().Empty(chainDiff(want.Rig, got.Rig),
+		"a preset written to %s must read back with the chain in %s",
 		slot.Label(scratch), slot.Label(source))
+}
+
+// chainDiff lists how got's chain falls short of want's.
+//
+// Parameters are compared one way: every parameter want sets must be set to
+// the same value in got. A blank slot can carry parameters a source never set,
+// and those are not a loss.
+func chainDiff(want, got rig.Spec) []string {
+	var diffs []string
+
+	if len(want.Chain) != len(got.Chain) {
+		return []string{fmt.Sprintf("%d blocks, want %d", len(got.Chain), len(want.Chain))}
+	}
+
+	for i, w := range want.Chain {
+		g := got.Chain[i]
+
+		if w.Gear != g.Gear || w.Role != g.Role {
+			diffs = append(diffs, fmt.Sprintf("block %d is %s %q, want %s %q",
+				i, g.Role, g.Gear, w.Role, w.Gear))
+		}
+
+		if !reflect.DeepEqual(w.Models, g.Models) || !reflect.DeepEqual(w.Enabled, g.Enabled) ||
+			!reflect.DeepEqual(w.Path, g.Path) || !reflect.DeepEqual(w.Position, g.Position) {
+			diffs = append(diffs, fmt.Sprintf("block %d moved, changed model or switched", i))
+		}
+
+		if w.Params == nil {
+			continue
+		}
+
+		for key, value := range *w.Params {
+			var have any
+			if g.Params != nil {
+				have = (*g.Params)[key]
+			}
+
+			if !reflect.DeepEqual(value, have) {
+				diffs = append(
+					diffs,
+					fmt.Sprintf("block %d %s is %v, want %v", i, key, have, value),
+				)
+			}
+		}
+	}
+
+	return diffs
 }
 
 // slotFrom reads a slot label from the environment, or falls back to one.
@@ -147,8 +202,9 @@ func restore(
 		return
 	}
 
-	if !reflect.DeepEqual(before.Rig, after.Rig) {
-		t.Errorf("%s did not come back as it was; the original is at %s", slot.Label(at), kept)
+	if diffs := chainDiff(before.Rig, after.Rig); len(diffs) > 0 {
+		t.Errorf("%s did not come back as it was: %v; the original is at %s",
+			slot.Label(at), diffs, kept)
 	}
 }
 

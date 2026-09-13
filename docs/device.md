@@ -250,22 +250,19 @@ and `join` routing that a generated one has none of.
 `pkg/sdk` reaches the hardware over USB for what a file cannot answer: which
 devices are attached, what each slot holds, and what one slot actually contains.
 
-It is the only package needing cgo, which is why it is the only one that cannot
-be cross-compiled or built with `CGO_ENABLED=0`.
+None of it needs cgo. The macOS backend calls IOKit from Go through
+[purego](https://github.com/ebitengine/purego), so the whole tree builds with
+`CGO_ENABLED=0` and cross-compiles, which is what lets a released binary reach a
+device.
 
-The import graph decides cgo, not the module boundary, so nothing that avoids
-importing `pkg/sdk` pays for it. A future HTTP service never touches a device
-and stays pure Go.
+## Platforms
 
-## Prerequisites
+macOS only, for now, and nothing to install: IOKit ships with the operating
+system. No special privileges are needed, because listing devices reads the
+registry and never opens one.
 
-```bash
-brew install libusb        # macOS
-apt-get install libusb-1.0-0-dev   # Debian/Ubuntu
-```
-
-`github.com/google/gousb` binds to it. macOS needs no special privileges,
-because enumeration reads descriptors only and never opens a device.
+On any other operating system the device commands return `ErrNoUSBSupport`, and
+everything else works.
 
 ## Two identifier systems, deliberately separate
 
@@ -300,25 +297,28 @@ type Bus interface {
 }
 ```
 
-`pkg/sdk/usb.go` is every call this project makes into libusb, one expression
-per method. Keep it that way. Anything holding a decision belongs on the other
-side of an interface where a test can reach it, and if that file grows past
-forwarding then logic has leaked into the half nothing checks.
+`pkg/sdk/internal/device/usb_darwin.go` is every call this project makes into
+IOKit, translation and nothing more. Keep it that way. Anything holding a
+decision belongs on the other side of an interface where a test can reach it,
+and if that file grows past forwarding then logic has leaked into the half
+nothing checks.
 
 The file is counted in the coverage total rather than excluded from it. An
 exclusion hides how big a file is; the 99% target says what cannot be reached
 and gets worse if that file grows.
 
-## Builds without cgo still work
+## Adding a USB backend
 
-`usb.go` carries `//go:build cgo`; `usb_nocgo.go` provides the same surface for
-builds without it, returning `ErrNoUSBSupport` from every call.
+A backend is one file for one operating system, behind the same seams: `bus`,
+`handle` and `endpoints`, the `sender` and `receiver` a session talks over, and
+`Bus` for listing. `usb_darwin.go` is the one that exists, on
+[go-macos/iokit](https://pkg.go.dev/github.com/go-macos/iokit/usb).
 
-That keeps `go install` working for someone who has no libusb. Describing a
-chain, validating it and writing a preset are all pure Go, so they get
-everything except device access, and a clear message rather than a link error if
-they try to reach hardware.
+`usb_other.go` is what every other operating system gets: the same surface,
+returning `ErrNoUSBSupport` from every call. A Linux backend is a `usb_linux.go`
+and `usb_other.go`'s build tag narrowed to `!darwin && !linux`.
 
-CI installs libusb so `pkg/sdk` is compiled, vetted and linted like everything
-else. Running CI with `CGO_ENABLED=0` would avoid the system dependency but
-would leave that package unchecked anywhere except a developer's machine.
+Whatever the backend, it keeps the
+[rules that keep a device alive](protocol.md#rules-that-keep-a-device-alive):
+never reset the device, always have a read posted, and claim the editor
+interface without seizing it from HX Edit.

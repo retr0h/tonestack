@@ -1,8 +1,8 @@
 ---
 # Coverage target for this repository.
 #
-# Not 100%: pkg/sdk/usb.go is every call this project makes into libusb, one
-# expression per method, and unreachable without a device on the bus. It is
+# Not 100%: pkg/sdk/internal/device/usb_darwin.go is every call this project makes
+# into IOKit, translation and nothing more, and unreachable without a device on the bus. It is
 # counted rather than excluded, because an exclusion hides a file's size and a
 # target gets worse if that file grows.
 #

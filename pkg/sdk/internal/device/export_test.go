@@ -22,6 +22,7 @@ package device
 
 import (
 	"context"
+	"time"
 
 	"github.com/retr0h/tonestack/pkg/sdk/internal/wire"
 )
@@ -227,3 +228,86 @@ var (
 )
 
 const VendorID = vendorID
+
+// Matching keeps the entries match accepts and releases the rest.
+func Matching[T any](
+	all []T,
+	ids func(T) (vendor, product uint16),
+	match func(vendor, product uint16) bool,
+	release func(T),
+) []T {
+	return matching(all, ids, match, release)
+}
+
+// PickFirst takes the first entry and releases the rest.
+func PickFirst[T any](all []T, release func(T)) (T, bool) { return pickFirst(all, release) }
+
+// ReadUntil waits for a read that returns something, or for ctx to end.
+func ReadUntil(
+	ctx context.Context,
+	p []byte,
+	slice time.Duration,
+	read func([]byte, time.Duration) (int, error),
+	idle func(error) bool,
+) (int, error) {
+	return readUntil(ctx, p, slice, read, idle)
+}
+
+// Refused explains why the editor interface could not be claimed.
+func Refused(err error, busy bool) error { return refused(err, busy) }
+
+// Located names a device by a location ID.
+func Located(vendor, product uint16, location uint32) Descriptor {
+	return located(vendor, product, location)
+}
+
+// Listed describes every device a listing returned, and gives each back.
+func Listed[T any](
+	all []T,
+	err error,
+	describe func(T) Descriptor,
+	release func(T),
+) ([]Descriptor, error) {
+	return listed(all, err, describe, release)
+}
+
+// Found keeps the matching devices and reports how many handles came back.
+func Found[T any](
+	all []T,
+	err error,
+	ids func(T) (vendor, product uint16),
+	match func(vendor, product uint16) bool,
+	release func(T),
+) (int, error) {
+	hs, err := found(all, err, ids, match, release, func(T) handle { return nil })
+
+	return len(hs), err
+}
+
+// ClaimOne opens the interface a lookup found, and gives back the rest.
+func ClaimOne[T any](
+	ifaces []T,
+	err error,
+	number uint8,
+	release func(T),
+	open func(T) error,
+	busy func(error) bool,
+) (T, error) {
+	return claimOne(ifaces, err, number, release, open, busy)
+}
+
+// Piped turns a pipe lookup into an endpoint.
+func Piped[S any](ref uint8, err error, wrap func(uint8) S) (S, error) {
+	return piped(ref, err, wrap)
+}
+
+// Search looks on the real bus for devices matching nothing, which reads the
+// registry through a backend's bus without opening anything.
+func Search() (int, error) {
+	b := openUSB()
+	defer func() { _ = b.Close() }()
+
+	hs, err := b.Devices(func(uint16, uint16) bool { return false })
+
+	return len(hs), err
+}

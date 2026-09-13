@@ -1,3 +1,5 @@
+//go:build !darwin
+
 // Copyright (c) 2026 John Dewey
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -17,22 +19,43 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
-package cmd
 
-import "github.com/spf13/cobra"
+package device_test
 
-// devicesCmd represents the devices command.
-var devicesCmd = &cobra.Command{
-	Use:   "devices",
-	Short: "Work with attached Helix hardware",
-	Args:  cobra.NoArgs,
-	Long: `Work with Line 6 Helix-family devices attached over USB.
+import (
+	"context"
+	"testing"
 
-Device access works on macOS. On other operating systems these commands say
-it is not supported yet; describing, validating and writing presets works
-everywhere.`,
+	"github.com/stretchr/testify/suite"
+
+	"github.com/retr0h/tonestack/pkg/sdk/internal/device"
+)
+
+// USBOtherPublicTestSuite covers an operating system with no USB backend.
+//
+// Everything else in the tool works there, so reaching for a device has to
+// say plainly that it cannot, rather than fail to build or hang.
+type USBOtherPublicTestSuite struct {
+	suite.Suite
 }
 
-func init() {
-	rootCmd.AddCommand(devicesCmd)
+// TestOpen covers starting a session.
+func (s *USBOtherPublicTestSuite) TestOpen() {
+	_, err := device.Open(context.Background())
+
+	s.Require().ErrorIs(err, device.ErrNoUSBSupport)
+}
+
+// TestList covers listing what is attached.
+func (s *USBOtherPublicTestSuite) TestList() {
+	l := device.NewUSBLister()
+
+	_, err := l.List(context.Background())
+
+	s.Require().ErrorIs(err, device.ErrNoUSBSupport)
+	s.Require().NoError(l.Close())
+}
+
+func TestUSBOtherPublicTestSuite(t *testing.T) {
+	suite.Run(t, new(USBOtherPublicTestSuite))
 }
