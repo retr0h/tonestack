@@ -157,7 +157,7 @@ func (s *DecodeTestSuite) TestChainOf() {
 			name:    "a catalog with no model table",
 			blocks:  []wire.DeviceBlock{{Model: 5}},
 			bare:    true,
-			errText: "catalog generate",
+			errText: "go generate",
 		},
 	}
 

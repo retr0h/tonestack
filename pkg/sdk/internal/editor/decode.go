@@ -42,7 +42,7 @@ func Chain(name string, got wire.DevicePreset, cat *catalog.Catalog) (chain.Chai
 	if len(cat.Symbols) == 0 {
 		return chain.Chain{}, fmt.Errorf(
 			"this catalog has no model table, so a preset read off the device " +
-				"cannot be named: regenerate it with 'tonestack catalog generate'")
+				"cannot be named: regenerate it with go generate in the tonestack repository")
 	}
 
 	out := chain.Chain{Name: name, Blocks: make([]chain.Block, 0, len(got.Blocks))}

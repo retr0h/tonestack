@@ -17,7 +17,6 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
-
 package catalogen
 
 import (
@@ -31,11 +30,11 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk/catalog"
 )
 
-type RunTestSuite struct {
+type RefreshTestSuite struct {
 	suite.Suite
 }
 
-func (s *RunTestSuite) opts(out string) Options {
+func (s *RefreshTestSuite) opts(out string) Options {
 	return Options{
 		ResourcesDir: "testdata",
 		GearMapPath:  filepath.Join("testdata", "gear-map.json"),
@@ -46,10 +45,7 @@ func (s *RunTestSuite) opts(out string) Options {
 }
 
 // written reads back a catalog this suite generated.
-//
-// The file is gzipped, because it is embedded in the binary and a catalog
-// compresses to a twentieth of its size.
-func (s *RunTestSuite) written(path string) *catalog.Catalog {
+func (s *RefreshTestSuite) written(path string) *catalog.Catalog {
 	f, err := os.Open(path) //nolint:gosec // a path this test chose
 	s.Require().NoError(err)
 
@@ -64,30 +60,42 @@ func (s *RunTestSuite) written(path string) *catalog.Catalog {
 	return c
 }
 
-// TestRun builds a catalog out of somebody's HX Edit installation.
-func (s *RunTestSuite) TestRun() {
+// TestRefresh covers building a catalog out of somebody's HX Edit
+// installation, or not, when the machine has none.
+func (s *RefreshTestSuite) TestRefresh() {
 	tests := []struct {
 		name      string
 		resources string
+		gearMap   string
 		out       string
-		// what the answer must say about what it built.
-		device     string
-		named      bool
+		// what the answer must say.
+		skipped    string
 		wantSchema int
-		err        error
 		errText    string
 	}{
 		{
-			name:   "a catalog, and an answer about what went into it",
-			device: "HX Stomp",
-			named:  true,
+			name: "a catalog, and an answer about what went into it",
 			// Nobody said which version to write, so it takes the current one.
 			wantSchema: 6,
 		},
 		{
-			name:      "resources that are not there",
+			// CI and most contributors: nothing to build from, and nothing
+			// broken either.
+			name:      "a machine without HX Edit",
 			resources: filepath.Join("testdata", "does-not-exist"),
-			err:       ErrNoResources,
+			skipped:   "no HX Edit",
+		},
+		{
+			name:    "a machine without the gear map",
+			gearMap: filepath.Join("testdata", "no-gear-map.json"),
+			skipped: "run just gear-map",
+		},
+		{
+			// Every input is there and one of them is wrong. That is a
+			// failure to report, not a machine to skip.
+			name:    "a gear map that will not parse",
+			gearMap: filepath.Join("testdata", "badmap.json"),
+			errText: "gear map",
 		},
 		{
 			name:    "nowhere to write it",
@@ -110,36 +118,61 @@ func (s *RunTestSuite) TestRun() {
 				o.ResourcesDir = tt.resources
 			}
 
-			built, err := Run(o)
+			if tt.gearMap != "" {
+				o.GearMapPath = tt.gearMap
+			}
 
-			if tt.err != nil || tt.errText != "" {
-				s.Require().Error(err)
+			got, err := Refresh(o)
 
-				if tt.err != nil {
-					s.Require().ErrorIs(err, tt.err)
-				}
-
-				if tt.errText != "" {
-					s.Require().Contains(err.Error(), tt.errText)
-				}
+			if tt.errText != "" {
+				s.Require().ErrorContains(err, tt.errText)
 
 				return
 			}
 
 			s.Require().NoError(err)
-			s.Require().FileExists(out)
-			s.Require().Equal(tt.wantSchema, s.written(out).SchemaVersion)
-			s.Require().Equal(out, built.Path)
-			s.Require().Equal(tt.device, built.Device)
-			s.Require().NotZero(built.Blocks)
 
-			if tt.named {
-				s.Require().NotZero(built.Named)
+			if tt.skipped != "" {
+				s.Require().Contains(got.Skipped, tt.skipped)
+				s.Require().False(got.Changed)
+				s.Require().NoFileExists(out)
+
+				return
 			}
+
+			s.Require().True(got.Changed)
+			s.Require().Equal(tt.wantSchema, s.written(out).SchemaVersion)
+			s.Require().Equal(out, got.Path)
+			s.Require().NotZero(got.Blocks)
+			s.Require().NotZero(got.Named)
 		})
 	}
 }
 
-func TestRunTestSuite(t *testing.T) {
-	suite.Run(t, new(RunTestSuite))
+// TestRefreshLeavesAnUnchangedCatalogAlone covers running it again.
+//
+// go generate runs on every `just ready`. A catalog that has not changed is
+// not written, so nothing shows up as a change nobody made.
+func (s *RefreshTestSuite) TestRefreshLeavesAnUnchangedCatalogAlone() {
+	out := filepath.Join(s.T().TempDir(), "catalog.json")
+
+	first, err := Refresh(s.opts(out))
+	s.Require().NoError(err)
+	s.Require().True(first.Changed)
+
+	was, err := os.ReadFile(out) //nolint:gosec // a path this test chose
+	s.Require().NoError(err)
+
+	second, err := Refresh(s.opts(out))
+	s.Require().NoError(err)
+	s.Require().False(second.Changed)
+	s.Require().Equal(first.Blocks, second.Blocks)
+
+	now, err := os.ReadFile(out) //nolint:gosec // a path this test chose
+	s.Require().NoError(err)
+	s.Require().Equal(was, now)
+}
+
+func TestRefreshTestSuite(t *testing.T) {
+	suite.Run(t, new(RefreshTestSuite))
 }

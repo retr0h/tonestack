@@ -3,7 +3,7 @@
 What a device can do, and where that knowledge comes from.
 
 The catalog is generated. Never hand-edit it. Change the generator, or the data
-it reads, and run `just catalog`.
+it reads, and run `just generate`.
 
 ## It ships in the binary
 
@@ -122,8 +122,12 @@ the catalog only knows the first.
 
 ```bash
 just gear-map    # once per Line 6 release; needs HX Edit and Python
-just catalog     # reads the models and the gear map, writes the catalog
+just generate    # refreshes the catalog, and skips without HX Edit
 ```
+
+`go generate` runs the catalog's generator along with everything else. It skips
+on a machine without HX Edit or the gear map, and writes the catalog only when
+it changed. `just catalog` runs it on its own.
 
 Model names, parameter ranges and artwork are Line 6's. They are read from a
 local installation at generation time and the results are committed here as

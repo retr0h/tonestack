@@ -77,9 +77,13 @@ license-check:
     fi
     echo "licence header present on every .go file"
 
-# Rebuild the embedded catalog (pkg/sdk/catalog/data/hx-stomp.json.gz) from a local HX Edit installation
+# Refresh the embedded catalog from a local HX Edit installation; skips without one
 catalog:
-    go run . catalog generate
+    go generate ./pkg/sdk/internal/catalogen/
+
+# Refresh the embedded corpus statistics from resources/schemas/corpus; skips without it
+corpus:
+    go generate ./pkg/sdk/internal/corpusgen/
 
 # Rebuild resources/schemas/gear-map.json from a local HX Edit installation
 gear-map:

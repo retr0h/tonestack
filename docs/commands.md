@@ -34,8 +34,8 @@ tonestack <command> [flags]
 The catalog says what a device can do: which blocks exist, what
 parameters each accepts, their real ranges, and what each costs in DSP.
 
-It is generated from a licensed HX Edit installation and is not redistributed.
-A machine without HX Edit cannot build one.
+It ships in this binary. Maintainers regenerate it from a licensed HX Edit
+installation with go generate, and nobody using tonestack has to.
 
 ```text
 tonestack catalog <command> [flags]
@@ -43,29 +43,12 @@ tonestack catalog <command> [flags]
 
 | command | what it does |
 | --- | --- |
-| [generate](#tonestack-catalog-generate) | Rebuild the catalog from HX Edit's model definitions |
 | [list](#tonestack-catalog-list) | List the blocks this device has |
 | [show](#tonestack-catalog-show) | Show one block's parameters |
 
 | flag | takes | default | what it does |
 | --- | --- | --- | --- |
 | `--catalog` | string |  | a generated catalog to read instead of the built-in one |
-
-## tonestack catalog generate
-
-Rebuild the catalog from HX Edit's model definitions
-
-```text
-tonestack catalog generate [flags]
-```
-
-| flag | takes | default | what it does |
-| --- | --- | --- | --- |
-| `--device` | string | `HX Stomp` | device name |
-| `--device-id` | int | `2162694` | preset data.device value for the target device |
-| `--gear-map` | string | `resources/schemas/gear-map.json` | gear map to join against |
-| `--out` | string | `pkg/sdk/catalog/data/hx-stomp.json.gz` | where to write the catalog |
-| `--resources` | string | `/Applications/Line6/HX Edit.app/Contents/Resources` | HX Edit's Contents/Resources directory |
 
 ## tonestack catalog list
 
@@ -98,7 +81,7 @@ tonestack catalog show [flags]
 
 ## tonestack corpus
 
-Measure and inspect a body of presets other people made.
+Inspect what a body of presets other people made says.
 
 The catalog says what a device can do. The corpus says what people actually do
 with it, which is a different question: Line 6 states a default Treble of 0.68
@@ -113,26 +96,7 @@ tonestack corpus <command> [flags]
 
 | command | what it does |
 | --- | --- |
-| [generate](#tonestack-corpus-generate) | Measure a corpus of presets into statistics |
 | [show](#tonestack-corpus-show) | Show what the corpus says |
-
-## tonestack corpus generate
-
-Reduce a directory of presets to what can be learned from them.
-
-Runs when the corpus changes, not on every build. The result is committed and
-ships in the binary, so nobody needs the presets to use what was measured.
-
-```text
-tonestack corpus generate [flags]
-```
-
-| flag | takes | default | what it does |
-| --- | --- | --- | --- |
-| `--catalog` | string |  | a generated catalog to use instead of the built-in one |
-| `--corpus` | string | `resources/schemas/corpus` | directory holding presets to measure |
-| `--min-samples` | int |  | how many values a parameter needs before its distribution is kept |
-| `--out` | string | `pkg/sdk/corpus/data/hx-stomp.stats.json.gz` | where to write the statistics |
 
 ## tonestack corpus show
 

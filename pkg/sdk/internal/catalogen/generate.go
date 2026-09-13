@@ -17,32 +17,6 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
+package catalogen
 
-package result
-
-import "github.com/retr0h/tonestack/pkg/sdk/corpus"
-
-// Catalogued is what a catalog generation run produced.
-type Catalogued struct {
-	// Path is the catalog that was written.
-	Path string
-	// Device is the hardware it describes.
-	Device string
-	// Source says which release it was extracted from. A catalog is only
-	// true of the one it came from, so it says which.
-	Source string
-	// Blocks is how many the device has.
-	Blocks int
-	// Named is how many of those map to real-world gear. The rest are
-	// modelled but unattributed, and the gap is the work left.
-	Named int
-}
-
-// Counted is what a corpus measuring run produced.
-type Counted struct {
-	// Path is the statistics file that was written.
-	Path string
-	// Stats are the measurements themselves, so nothing has to read the
-	// file back to find out what went into it.
-	Stats *corpus.Stats
-}
+//go:generate go run ./datagen
