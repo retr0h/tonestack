@@ -1,11 +1,19 @@
 # Helix preset generator, phase 1 implementation plan
 
+**Status:** superseded
+
 > **Superseded, 2026-09-06.** This plan targets a three-module layout that no
 > longer exists, a `helixerr` package that has been removed, and golden-file
 > byte comparison that cannot work. Tasks 1–8 were completed and their code
-> lives on in `pkg/catalog` and `pkg/rig`; tasks 9 and 10 were never started and
-> should be re-planned against the current layout. Kept as a record of what was
-> built and why, not as instructions. See `CONTRIBUTING.md`.
+> lives on in `pkg/sdk/catalog`, `pkg/sdk/rig` and `pkg/sdk/chain`. Kept as a
+> record of what was built and why, not as instructions. See `CONTRIBUTING.md`.
+>
+> Tasks 9 and 10 were never built, and nothing now needs them. Task 9's source
+> registry was a seam for turning free text into a rig inside the tool; free
+> text reaches it through an agent writing the rig instead, as
+> `docs/workflows.md` describes. Task 10's `validate` command is covered by
+> `presets make` and `presets compile`, which validate a rig before they write
+> anything. The checkboxes below are left as they were written.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use
 > superpowers:subagent-driven-development (recommended) or

@@ -1,5 +1,10 @@
 # An interface where it is used
 
+> **Paths moved, 2026-09-10.** Written before the SDK became one directory.
+> `internal/presets`, `internal/slots`, `pkg/compile` and `pkg/editor` are now
+> under `pkg/sdk/internal/`. The rule stands. `CONTRIBUTING.md` has the layout
+> as it is.
+
 **Status:** implemented\
 **Relates to:**
 [2026-09-09-where-a-package-belongs-design.md](2026-09-09-where-a-package-belongs-design.md)

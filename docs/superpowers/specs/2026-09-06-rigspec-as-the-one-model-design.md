@@ -240,6 +240,11 @@ measure.
 | Which way does a knob move?          | the Pilot's Guide parameter tables | not built      |
 | Does it sound right?                 | a person                           | irreducible    |
 
+> **Since, 2026-09-13.** The corpus row is built: it places the blocks a chain
+> almost always holds and supplies the values knobs start from. The knob
+> direction row is not. [knowledge.md](../../knowledge.md) keeps the current
+> state; this table is the state when the record was written.
+
 Measurements taken from the corpus while writing this, as evidence that rows
 three and four are real rather than aspirational:
 
