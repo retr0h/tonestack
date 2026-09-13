@@ -49,7 +49,7 @@ func Placements(
 	if len(cat.Symbols) == 0 {
 		return nil, fmt.Errorf(
 			"this catalog has no model table, so a chain cannot be written to " +
-				"a device: regenerate it with 'tonestack catalog generate'")
+				"a device: regenerate it with go generate in the tonestack repository")
 	}
 
 	c, err := doc.Spec()

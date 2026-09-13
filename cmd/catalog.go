@@ -29,8 +29,8 @@ var catalogCmd = &cobra.Command{
 	Long: `The catalog says what a device can do: which blocks exist, what
 parameters each accepts, their real ranges, and what each costs in DSP.
 
-It is generated from a licensed HX Edit installation and is not redistributed.
-A machine without HX Edit cannot build one.`,
+It ships in this binary. Maintainers regenerate it from a licensed HX Edit
+installation with go generate, and nobody using tonestack has to.`,
 }
 
 // catalogPath is where list and show read the catalog from.

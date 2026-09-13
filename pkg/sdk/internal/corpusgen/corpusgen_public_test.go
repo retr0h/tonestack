@@ -90,6 +90,8 @@ func (s *CorpusgenPublicTestSuite) TestRun() {
 
 		err     error
 		errText string
+		// nothing to measure on this machine, and nothing written.
+		skipped bool
 	}{
 		{
 			name: "a corpus of presets",
@@ -149,9 +151,10 @@ func (s *CorpusgenPublicTestSuite) TestRun() {
 			presets:    1,
 		},
 		{
-			name:    "a corpus directory that is not there",
+			// CI and most contributors: the presets are not committed.
+			name:    "a machine without the corpus",
 			corpus:  "missing",
-			errText: "searching",
+			skipped: true,
 		},
 		{
 			name:    "a directory holding no presets",
@@ -197,7 +200,15 @@ func (s *CorpusgenPublicTestSuite) TestRun() {
 				o.CatalogPath = tt.catalog
 			}
 
-			counted, err := corpusgen.Run(o)
+			refreshed, err := corpusgen.Refresh(o)
+
+			if tt.skipped {
+				s.Require().NoError(err)
+				s.Require().Contains(refreshed.Skipped, "fetch.sh")
+				s.Require().NoFileExists(out)
+
+				return
+			}
 
 			if tt.err != nil || tt.errText != "" {
 				s.Require().Error(err)
@@ -213,11 +224,12 @@ func (s *CorpusgenPublicTestSuite) TestRun() {
 
 			s.Require().NoError(err)
 			s.Require().FileExists(out)
-			s.Require().Equal(out, counted.Path)
+			s.Require().Equal(out, refreshed.Path)
+			s.Require().True(refreshed.Changed)
 
 			// The answer carries the measurements, so nothing has to read
 			// the file back to find out what was written.
-			s.Require().Equal(s.read(out).Presets, counted.Stats.Presets)
+			s.Require().Equal(s.read(out).Presets, refreshed.Stats.Presets)
 
 			stats := s.read(out)
 
@@ -281,6 +293,42 @@ func (s *CorpusgenPublicTestSuite) read(path string) *corpus.Stats {
 	s.Require().NoError(err)
 
 	return stats
+}
+
+// TestRefreshLeavesUnchangedStatisticsAlone covers running it again.
+//
+// go generate runs on every `just ready`. Statistics that did not change are
+// not written, so nothing shows up as a change nobody made.
+func (s *CorpusgenPublicTestSuite) TestRefreshLeavesUnchangedStatisticsAlone() {
+	out := filepath.Join(s.T().TempDir(), "s.gz")
+
+	first, err := corpusgen.Refresh(s.opts(out))
+	s.Require().NoError(err)
+	s.Require().True(first.Changed)
+
+	was, err := os.ReadFile(out) //nolint:gosec // a path this test chose
+	s.Require().NoError(err)
+
+	second, err := corpusgen.Refresh(s.opts(out))
+	s.Require().NoError(err)
+	s.Require().False(second.Changed)
+
+	now, err := os.ReadFile(out) //nolint:gosec // a path this test chose
+	s.Require().NoError(err)
+	s.Require().Equal(was, now)
+}
+
+// TestMeasureADirectoryThatIsNotThere covers measuring without the skip in
+// front of it, which is what a caller of Measure gets.
+func (s *CorpusgenPublicTestSuite) TestMeasureADirectoryThatIsNotThere() {
+	cat, err := catalog.Open(filepath.Join("testdata", "catalog.json"))
+	s.Require().NoError(err)
+
+	_, err = corpusgen.Measure(corpusgen.Options{
+		CorpusDir: filepath.Join("testdata", "nope"),
+	}, cat)
+
+	s.Require().ErrorContains(err, "searching")
 }
 
 func TestCorpusgenPublicTestSuite(t *testing.T) {

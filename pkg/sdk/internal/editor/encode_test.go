@@ -123,7 +123,7 @@ func (s *EncodeTestSuite) TestPlacementsOfReportsWhatItCannotWrite() {
 		{
 			name: "a catalog with no model table",
 			cat:  &catalog.Catalog{},
-			want: "catalog generate",
+			want: "go generate",
 		},
 		{
 			name: "a model the table does not carry",

@@ -339,23 +339,26 @@ so which directory you run it from does not matter.
 ### Regenerating the catalog and corpus
 
 Nobody using tonestack does this. The catalog and the corpus statistics are
-committed and embedded in the binary. Regenerate them when Line 6 ships a new HX
-Edit release, or when the corpus grows. The catalog and gear map need a licensed
-HX Edit installation; the corpus needs network access.
+committed and embedded in the binary.
 
-```bash
-just gear-map                          # which real gear each model emulates
-just catalog                           # writes pkg/sdk/catalog/data/hx-stomp.json.gz
-resources/schemas/corpus/fetch.sh      # pulls the presets listed in repos.txt
-go run . corpus generate               # writes pkg/sdk/corpus/data/hx-stomp.stats.json.gz
-```
+`just generate`, which `just ready` runs, refreshes both through `go generate`.
+Each needs inputs that are not in the repository, so each skips with a line
+saying what is missing, and writes only when what it built differs from the
+committed file:
 
-In that order: the corpus is measured against the catalog, so a new catalog
-means measuring again. Commit both `.json.gz` files.
+| refreshes                                    | needs                                        | get it with                         |
+| -------------------------------------------- | -------------------------------------------- | ----------------------------------- |
+| `pkg/sdk/catalog/data/hx-stomp.json.gz`      | a licensed HX Edit install, and the gear map | `just gear-map`, once per release   |
+| `pkg/sdk/corpus/data/hx-stomp.stats.json.gz` | the presets in `resources/schemas/corpus/`   | `resources/schemas/corpus/fetch.sh` |
 
-You do not have to remember when. With HX Edit installed, `just test` fails once
-the installed release is not the one the catalog was generated from
-(`TestTheCatalogMatchesTheInstalledRelease`). Without HX Edit it skips.
+The catalog runs first, so the corpus is measured against the catalog as it now
+is. `just catalog` and `just corpus` run one of them on its own. Commit whatever
+changed.
+
+On a machine with HX Edit installed, `just test` also fails once the installed
+release is not the one the catalog came from
+(`TestTheCatalogMatchesTheInstalledRelease`), which means `just generate` has
+something to do. Without HX Edit it skips.
 
 ### Go patterns
 

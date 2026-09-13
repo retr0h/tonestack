@@ -17,30 +17,7 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
-package catalogen
 
-import (
-	"bytes"
-	"compress/gzip"
-)
+package corpusgen
 
-// Run builds a catalog and writes it, reporting what it did to w.
-//
-// This is the whole of the generate command's behaviour, so cmd/ holds only
-// flags.
-
-// compress gzips the catalog.
-//
-// It is embedded in the binary, and a catalog is repetitive JSON: gzip takes
-// 1.5MB to about 65KB, which is the difference between the device knowledge
-// being worth shipping and not.
-func compress(raw []byte) []byte {
-	var buf bytes.Buffer
-
-	// Compressing into a buffer cannot fail.
-	zw := gzip.NewWriter(&buf)
-	_, _ = zw.Write(raw)
-	_ = zw.Close()
-
-	return buf.Bytes()
-}
+//go:generate go run ./datagen
