@@ -12,6 +12,22 @@
 
 Describe a guitar or bass sound, get a Line 6 Helix preset.
 
+## Features
+
+| Feature                               | Description                                                                                                                                       |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 🎸 Describe it, get a preset          | A rig names real gear, "Ampeg SVT" rather than a model ID, and how it should sound. `presets make` or `presets compile` turns it into a `.hlx`    |
+| 📦 Nothing else to install            | The HX Stomp catalog (665 blocks), measurements from 4,324 real presets and nine bass player rigs are built into the binary                       |
+| 🎛️ Knobs set the way players set them | Controls start at the median across real presets, and blocks nearly every chain holds are added with the model that instrument's players use most |
+| 🗣️ Words that turn knobs              | A rig's character words, such as `mid-forward` or `tight-low-end`, move the controls they describe on six axes                                    |
+| 🔍 Every decision shown               | A build lists each block, the gear it models, its DSP cost, what it added and what each word did                                                  |
+| ✅ Checked before it is written       | Gear, parameters, DSP budget and signal path are validated against the catalog                                                                    |
+| 🔌 Read and write the pedal           | List, show, export, import, copy, swap and select presets over USB. Whatever a write replaces is saved to a file first                            |
+| 💾 Works from backups                 | List, show, export, import, copy and swap also work on an HX Edit `.hlb` or `.hls`, with no pedal attached                                        |
+| 🧩 Go SDK                             | `pkg/sdk` is the library the CLI is built on, and imports on its own                                                                              |
+| 💻 Platforms                          | Building presets: macOS and Linux. Device access: macOS only, for now                                                                             |
+| 🎚️ Devices                            | Presets are built for the HX Stomp. The HX Stomp XL, Helix Floor and Helix LT are recognised over USB; only the HX Stomp is tested on hardware    |
+
 ## Install
 
 ```bash
