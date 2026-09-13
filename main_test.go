@@ -240,12 +240,33 @@ func (s *MainTestSuite) TestTheCLIStandsAlone() {
 			switch {
 			case dep == mod, dep == mod+"cmd":
 			case strings.HasPrefix(dep, mod+"pkg/cli"):
+			case strings.HasPrefix(dep, mod+"pkg/mcp"):
 			case strings.HasPrefix(dep, mod+"pkg/sdk"):
 			default:
 				s.Require().Fail("reaches too far",
 					"%s reaches %s, which a tonestack-cli would not have",
 					pkg, dep)
 			}
+		}
+	}
+}
+
+// TestTheMCPStandsAlone holds the MCP server to the SDK, so it can leave for a
+// tonestack-mcp repository without taking the CLI with it.
+func (s *MainTestSuite) TestTheMCPStandsAlone() {
+	out, err := exec.Command("go", "list", "-deps", "./pkg/mcp/...").Output()
+	s.Require().NoError(err)
+
+	for _, dep := range strings.Fields(string(out)) {
+		if !strings.HasPrefix(dep, mod) {
+			continue
+		}
+
+		switch {
+		case strings.HasPrefix(dep, mod+"pkg/mcp"):
+		case strings.HasPrefix(dep, mod+"pkg/sdk"):
+		default:
+			s.Require().Fail("reaches too far", "pkg/mcp reaches %s, which a tonestack-mcp would not have", dep)
 		}
 	}
 }

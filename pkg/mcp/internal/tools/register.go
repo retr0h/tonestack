@@ -22,8 +22,13 @@ package tools
 
 import (
 	"fmt"
+	"reflect"
 
+	"github.com/google/jsonschema-go/jsonschema"
 	gomcp "github.com/modelcontextprotocol/go-sdk/mcp"
+
+	"github.com/retr0h/tonestack/pkg/sdk"
+	"github.com/retr0h/tonestack/pkg/sdk/catalog"
 )
 
 // handlers holds what every tool shares.
@@ -46,19 +51,22 @@ func Register(
 	h := &handlers{client: c, device: make(chan struct{}, 1)}
 
 	gomcp.AddTool(s, &gomcp.Tool{
-		Name:        "catalog_search",
-		Description: "Find blocks the device models, by name, real-world gear, category or instrument. Use this before naming any model: a model it does not find does not exist.",
-		Annotations: readOnly(),
+		Name:         "catalog_search",
+		Description:  "Find blocks the device models, by name, real-world gear, category or instrument. Use this before naming any model: a model it does not find does not exist.",
+		Annotations:  readOnly(),
+		OutputSchema: outputSchema[sdk.Blocks](),
 	}, h.catalogSearch)
 	gomcp.AddTool(s, &gomcp.Tool{
-		Name:        "catalog_block",
-		Description: "One block's parameters, their ranges and defaults, and its DSP cost.",
-		Annotations: readOnly(),
+		Name:         "catalog_block",
+		Description:  "One block's parameters, their ranges and defaults, and its DSP cost.",
+		Annotations:  readOnly(),
+		OutputSchema: outputSchema[catalog.Block](),
 	}, h.catalogBlock)
 	gomcp.AddTool(s, &gomcp.Tool{
-		Name:        "corpus_model",
-		Description: "How players set one model across measured presets: median and quartiles per parameter. A narrow spread is consensus; a wide one is taste.",
-		Annotations: readOnly(),
+		Name:         "corpus_model",
+		Description:  "How players set one model across measured presets: median and quartiles per parameter. A narrow spread is consensus; a wide one is taste.",
+		Annotations:  readOnly(),
+		OutputSchema: outputSchema[Model](),
 	}, h.corpusModel)
 	gomcp.AddTool(s, &gomcp.Tool{
 		Name:        "rigs_list",
@@ -120,6 +128,29 @@ func Register(
 		Description: "Exchange two slots. Both are saved to files first.",
 		Annotations: destructive(),
 	}, h.presetsSwap)
+}
+
+// outputSchema infers T's output schema, treating catalog.ParamValue as an
+// unconstrained value.
+//
+// A ParamValue marshals to a bare JSON literal — a number, a string or a
+// bool, depending on the parameter's kind — but it holds that kind in
+// unexported fields, so reflection alone describes it as an empty object.
+// Left to the default inference, a real Default value then fails the SDK's
+// own output validation on the very first call that carries one. The
+// override says what marshalling already knows: this field's shape depends
+// on data the schema cannot see.
+func outputSchema[T any]() *jsonschema.Schema {
+	s, err := jsonschema.For[T](&jsonschema.ForOptions{
+		TypeSchemas: map[reflect.Type]*jsonschema.Schema{
+			reflect.TypeFor[catalog.ParamValue](): {},
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("outputSchema[%T]: %v", *new(T), err))
+	}
+
+	return s
 }
 
 // readOnly marks a tool that changes nothing anywhere.
