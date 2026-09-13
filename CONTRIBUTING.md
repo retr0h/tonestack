@@ -469,17 +469,34 @@ just go-unit-cov-check   # Report coverage and fail below the target
 The target is declared in `.github/codecov.yml` and in this repository's
 `justfile`. Change both together.
 
-It is 99 rather than 100 because of one file. `pkg/sdk/usb.go` is every call
-this project makes into libusb, one expression per method, and there is no way
-to reach it without a device on the bus. Everything it forwards to is behind an
-interface and covered: finding a device, choosing between two, claiming an
-interface, waiting on a busy one, framing, sequence numbers, acknowledgements,
-opening a channel and making a call all run against a bus a test supplies.
+It is 99 rather than 100 because of one file. `pkg/sdk/internal/device/usb.go`
+is every call this project makes into libusb, one expression per method, and
+there is no way to reach it without a device on the bus. Everything it forwards
+to is behind an interface and covered: finding a device, choosing between two,
+claiming an interface, waiting on a busy one, framing, sequence numbers,
+acknowledgements, opening a channel and making a call all run against a bus a
+test supplies.
 
 That file is counted rather than excluded on purpose. An exclusion hides how big
 a file is; a target says what cannot be reached and gets worse if that file
 grows. `.coverignore` holds only generated code and command wiring, and anything
 added to it needs a better reason than being hard to test.
+
+### With a device attached
+
+One test needs a real Helix, and it writes to it. It reads a preset, writes it
+into a slot you choose, reads that back and checks both describe the same rig,
+then puts the slot back from the copy the write kept.
+
+```bash
+TONESTACK_SCRATCH_SLOT=42C just test-device                    # 01A into 42C
+TONESTACK_SOURCE_SLOT=12B TONESTACK_SCRATCH_SLOT=42C just test-device
+```
+
+Quit HX Edit first. It sits behind the `device` build tag, so `just test` and
+continuous integration never compile it. With no Helix attached it skips; with
+no scratch slot named it fails and says so, because a slot on somebody's pedal
+is theirs to choose. If the slot was empty it stays holding the copy.
 
 ### Validation layers are tested independently
 
