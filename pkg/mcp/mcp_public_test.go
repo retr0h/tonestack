@@ -22,6 +22,8 @@ package mcp_test
 
 import (
 	"context"
+	"encoding/json"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -67,22 +69,100 @@ func (s *MCPPublicTestSuite) TestServe() {
 			s.Require().NoError(err)
 			s.Len(listed.Tools, tt.tools)
 
-			// "Marshall", not "SVT" from the brief: SVT matches exactly 10
-			// blocks in the built-in catalog, and "10 of 665 blocks matched"
-			// itself contains the substring "0 of", failing the check below
-			// for a reason that has nothing to do with the server.
-			res, err := session.CallTool(context.Background(), &gomcp.CallToolParams{
-				Name:      "catalog_search",
-				Arguments: map[string]string{"search": "Marshall"},
-			})
-			s.Require().NoError(err)
-			s.False(res.IsError)
-			s.NotContains(res.Content[0].(*gomcp.TextContent).Text, "0 of")
+			dir := s.T().TempDir()
+			fromRecipe := filepath.Join(dir, "recipe.hlx")
+			fromRig := filepath.Join(dir, "rig.hlx")
+
+			// Offline tools only, against the real catalog, corpus and rigs: the
+			// SDK validates each answer against its declared schema, and only
+			// real data shows whether the two agree.
+			calls := []struct {
+				tool  string
+				args  map[string]string
+				check func(res *gomcp.CallToolResult)
+			}{
+				{
+					tool: "catalog_search",
+					args: map[string]string{"search": "SVT"},
+					check: func(res *gomcp.CallToolResult) {
+						var got sdk.Blocks
+						s.decode(res, &got)
+						s.NotEmpty(got.Matched)
+					},
+				},
+				{
+					tool: "rigs_list",
+					args: map[string]string{},
+					check: func(res *gomcp.CallToolResult) {
+						var got sdk.Recipes
+						s.decode(res, &got)
+						s.NotEmpty(got.Rigs)
+					},
+				},
+				{
+					tool: "rig_show",
+					args: map[string]string{"id": "mike-dirnt"},
+					check: func(res *gomcp.CallToolResult) {
+						var got sdk.Recipe
+						s.decode(res, &got)
+						s.Equal("mike-dirnt", got.Rig.ID)
+					},
+				},
+				{
+					tool: "preset_build",
+					args: map[string]string{"recipe_id": "mike-dirnt", "out": fromRecipe},
+					check: func(res *gomcp.CallToolResult) {
+						var got built
+						s.decode(res, &got)
+						s.Require().NotNil(got.FromRecipe)
+						s.Equal(fromRecipe, got.FromRecipe.Path)
+					},
+				},
+				{
+					tool: "preset_build",
+					args: map[string]string{
+						"rig_path": filepath.Join("..", "..", "examples", "rigspec", "mike-dirnt.yaml"),
+						"out":      fromRig,
+					},
+					check: func(res *gomcp.CallToolResult) {
+						var got built
+						s.decode(res, &got)
+						s.Require().NotNil(got.FromRig)
+						s.Equal(fromRig, got.FromRig.Path)
+					},
+				},
+			}
+
+			for _, c := range calls {
+				res, err := session.CallTool(context.Background(), &gomcp.CallToolParams{
+					Name:      c.tool,
+					Arguments: c.args,
+				})
+				s.Require().NoError(err, c.tool)
+				s.Require().False(res.IsError, "%s: %v", c.tool, res.Content)
+				c.check(res)
+			}
 
 			cancel()
 			s.ErrorIs(<-served, context.Canceled)
 		})
 	}
+}
+
+// built is preset_build's answer as an agent reads it.
+type built struct {
+	FromRecipe *sdk.Made  `json:"from_recipe"`
+	FromRig    *sdk.Built `json:"from_rig"`
+}
+
+// decode reads a tool's structured answer into a Go value.
+func (s *MCPPublicTestSuite) decode(
+	res *gomcp.CallToolResult,
+	into any,
+) {
+	raw, err := json.Marshal(res.StructuredContent)
+	s.Require().NoError(err)
+	s.Require().NoError(json.Unmarshal(raw, into))
 }
 
 // TestRun covers stdio, which ends when the command's context does.

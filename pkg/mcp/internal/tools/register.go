@@ -21,6 +21,7 @@
 package tools
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
 
@@ -54,59 +55,67 @@ func Register(
 		Name:         "catalog_search",
 		Description:  "Find blocks the device models, by name, real-world gear, category or instrument. Use this before naming any model: a model it does not find does not exist.",
 		Annotations:  readOnly(),
-		OutputSchema: outputSchema[sdk.Blocks](),
+		OutputSchema: mustOutputSchema[sdk.Blocks](),
 	}, h.catalogSearch)
 	gomcp.AddTool(s, &gomcp.Tool{
 		Name:         "catalog_block",
 		Description:  "One block's parameters, their ranges and defaults, and its DSP cost.",
 		Annotations:  readOnly(),
-		OutputSchema: outputSchema[catalog.Block](),
+		OutputSchema: mustOutputSchema[catalog.Block](),
 	}, h.catalogBlock)
 	gomcp.AddTool(s, &gomcp.Tool{
 		Name:         "corpus_model",
 		Description:  "How players set one model across measured presets: median and quartiles per parameter. A narrow spread is consensus; a wide one is taste.",
 		Annotations:  readOnly(),
-		OutputSchema: outputSchema[Model](),
+		OutputSchema: mustOutputSchema[Model](),
 	}, h.corpusModel)
 	gomcp.AddTool(s, &gomcp.Tool{
-		Name:        "rigs_list",
-		Description: "The rigs that ship with tonestack.",
-		Annotations: readOnly(),
+		Name:         "rigs_list",
+		Description:  "The rigs that ship with tonestack.",
+		Annotations:  readOnly(),
+		OutputSchema: mustOutputSchema[sdk.Recipes](),
 	}, h.rigsList)
 	gomcp.AddTool(s, &gomcp.Tool{
-		Name:        "rig_show",
-		Description: "One shipped rig, and the rigs that extend it.",
-		Annotations: readOnly(),
+		Name:         "rig_show",
+		Description:  "One shipped rig, and the rigs that extend it.",
+		Annotations:  readOnly(),
+		OutputSchema: mustOutputSchema[sdk.Recipe](),
 	}, h.rigShow)
 	gomcp.AddTool(s, &gomcp.Tool{
-		Name:        "preset_build",
-		Description: "Build a .hlx from a shipped rig or a rig file. Read what it added and what each character word moved before putting it on a pedal.",
-		Annotations: &gomcp.ToolAnnotations{OpenWorldHint: new(false)},
+		Name:         "preset_build",
+		Description:  "Build a .hlx from a shipped rig or a rig file. Read what it added and what each character word moved before putting it on a pedal.",
+		Annotations:  &gomcp.ToolAnnotations{OpenWorldHint: new(false)},
+		OutputSchema: mustOutputSchema[Built](),
 	}, h.presetBuild)
 	gomcp.AddTool(s, &gomcp.Tool{
-		Name:        "devices_list",
-		Description: "The Line 6 Helix hardware attached over USB. HX Edit must be quit for any tool that reaches the pedal.",
-		Annotations: &gomcp.ToolAnnotations{ReadOnlyHint: true},
+		Name:         "devices_list",
+		Description:  "The Line 6 Helix hardware attached over USB. HX Edit must be quit for any tool that reaches the pedal.",
+		Annotations:  &gomcp.ToolAnnotations{ReadOnlyHint: true},
+		OutputSchema: mustOutputSchema[sdk.Attached](),
 	}, h.devicesList)
 	gomcp.AddTool(s, &gomcp.Tool{
-		Name:        "presets_list",
-		Description: "Every slot on the attached pedal and what it holds.",
-		Annotations: &gomcp.ToolAnnotations{ReadOnlyHint: true},
+		Name:         "presets_list",
+		Description:  "Every slot on the attached pedal and what it holds.",
+		Annotations:  &gomcp.ToolAnnotations{ReadOnlyHint: true},
+		OutputSchema: mustOutputSchema[sdk.Listing](),
 	}, h.presetsList)
 	gomcp.AddTool(s, &gomcp.Tool{
-		Name:        "preset_show",
-		Description: "One slot on the pedal, read back as a rig.",
-		Annotations: &gomcp.ToolAnnotations{ReadOnlyHint: true},
+		Name:         "preset_show",
+		Description:  "One slot on the pedal, read back as a rig.",
+		Annotations:  &gomcp.ToolAnnotations{ReadOnlyHint: true},
+		OutputSchema: mustOutputSchema[Shown](),
 	}, h.presetShow)
 	gomcp.AddTool(s, &gomcp.Tool{
-		Name:        "preset_export",
-		Description: "Write one slot to a file: a rig by default, or the device's own .hlx with as=hlx.",
-		Annotations: &gomcp.ToolAnnotations{ReadOnlyHint: true},
+		Name:         "preset_export",
+		Description:  "Write one slot to a file: a rig by default, or the device's own .hlx with as=hlx.",
+		Annotations:  &gomcp.ToolAnnotations{ReadOnlyHint: true},
+		OutputSchema: mustOutputSchema[sdk.Written](),
 	}, h.presetExport)
 	gomcp.AddTool(s, &gomcp.Tool{
-		Name:        "preset_select",
-		Description: "Load a slot on the pedal, as pressing its footswitch does. Changes nothing stored.",
-		Annotations: &gomcp.ToolAnnotations{DestructiveHint: new(false), IdempotentHint: true},
+		Name:         "preset_select",
+		Description:  "Load a slot on the pedal, as pressing its footswitch does. Changes nothing stored.",
+		Annotations:  &gomcp.ToolAnnotations{DestructiveHint: new(false), IdempotentHint: true},
+		OutputSchema: mustOutputSchema[sdk.Change](),
 	}, h.presetSelect)
 
 	if !allowWrites {
@@ -114,43 +123,66 @@ func Register(
 	}
 
 	gomcp.AddTool(s, &gomcp.Tool{
-		Name:        "preset_import",
-		Description: "Put a .hlx into a slot on the pedal. Whatever the slot held is saved to a file first and then gone from the pedal.",
-		Annotations: destructive(),
+		Name:         "preset_import",
+		Description:  "Put a .hlx into a slot on the pedal. Whatever the slot held is saved to a file first and then gone from the pedal.",
+		Annotations:  destructive(),
+		OutputSchema: mustOutputSchema[sdk.Change](),
 	}, h.presetImport)
 	gomcp.AddTool(s, &gomcp.Tool{
-		Name:        "presets_copy",
-		Description: "Copy one slot onto another. The destination's old preset is saved to a file first.",
-		Annotations: destructive(),
+		Name:         "presets_copy",
+		Description:  "Copy one slot onto another. The destination's old preset is saved to a file first.",
+		Annotations:  destructive(),
+		OutputSchema: mustOutputSchema[sdk.Change](),
 	}, h.presetsCopy)
 	gomcp.AddTool(s, &gomcp.Tool{
-		Name:        "presets_swap",
-		Description: "Exchange two slots. Both are saved to files first.",
-		Annotations: destructive(),
+		Name:         "presets_swap",
+		Description:  "Exchange two slots. Both are saved to files first.",
+		Annotations:  destructive(),
+		OutputSchema: mustOutputSchema[sdk.Change](),
 	}, h.presetsSwap)
 }
 
-// outputSchema infers T's output schema, treating catalog.ParamValue as an
-// unconstrained value.
+// mustOutputSchema infers T's output schema, correcting the types whose JSON
+// reflection cannot see. It panics when T has no schema at all, which is a
+// programming error found the moment the server starts.
 //
-// A ParamValue marshals to a bare JSON literal — a number, a string or a
-// bool, depending on the parameter's kind — but it holds that kind in
-// unexported fields, so reflection alone describes it as an empty object.
-// Left to the default inference, a real Default value then fails the SDK's
-// own output validation on the very first call that carries one. The
-// override says what marshalling already knows: this field's shape depends
-// on data the schema cannot see.
-func outputSchema[T any]() *jsonschema.Schema {
-	s, err := jsonschema.For[T](&jsonschema.ForOptions{
-		TypeSchemas: map[reflect.Type]*jsonschema.Schema{
-			reflect.TypeFor[catalog.ParamValue](): {},
-		},
-	})
+// The SDK validates every structured result against this schema, so a schema
+// narrower than what marshalling produces fails a real call rather than a test.
+func mustOutputSchema[T any]() *jsonschema.Schema {
+	s, err := jsonschema.For[T](&jsonschema.ForOptions{TypeSchemas: outputTypeSchemas()})
 	if err != nil {
-		panic(fmt.Sprintf("outputSchema[%T]: %v", *new(T), err))
+		panic(fmt.Sprintf("mustOutputSchema[%s]: %v", reflect.TypeFor[T](), err))
 	}
 
 	return s
+}
+
+// outputTypeSchemas are the schemas reflection gets wrong on a tool's output.
+func outputTypeSchemas() map[reflect.Type]*jsonschema.Schema {
+	// anyJSON is every JSON value, spelled out rather than left as {}: the
+	// inference adds "null" to a pointer's types, and added to an empty list
+	// that would leave null as the only value allowed.
+	anyJSON := &jsonschema.Schema{
+		Types: []string{"null", "boolean", "number", "string", "array", "object"},
+	}
+
+	return map[reflect.Type]*jsonschema.Schema{
+		// A ParamValue marshals to a bare number, string or bool depending on
+		// a kind it keeps in unexported fields, so reflection sees an empty
+		// struct and would demand an object.
+		reflect.TypeFor[catalog.ParamValue](): {},
+		// A RawMessage is a []byte to reflection, an array of small integers,
+		// but it marshals as the JSON it holds. rig.Spec carries these for
+		// device state it keeps without modelling.
+		reflect.TypeFor[json.RawMessage](): anyJSON,
+		// chain.Block.Attrs and rig.Spec's kept device fields. Nil on a
+		// built chain, so it marshals to null, which a map's inferred
+		// object-only schema refuses.
+		reflect.TypeFor[map[string]json.RawMessage](): {
+			Types:                []string{"null", "object"},
+			AdditionalProperties: anyJSON,
+		},
+	}
 }
 
 // readOnly marks a tool that changes nothing anywhere.
