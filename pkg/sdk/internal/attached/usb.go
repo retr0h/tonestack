@@ -39,6 +39,7 @@ var NewLister = device.NewUSBLister
 // List reports every recognised device on the bus.
 func List(ctx context.Context) (result.Attached, error) {
 	l := NewLister()
+	// The listing is already made; a lister that will not close takes nothing from it.
 	defer func() { _ = l.Close() }()
 
 	return ListWith(ctx, l)

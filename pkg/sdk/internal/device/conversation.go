@@ -196,6 +196,7 @@ func (s *session) Close() {
 		// can compare against a capture.
 		for _, spec := range channelSpecs {
 			if c, ok := s.chans[spec.name]; ok {
+				// Unchecked: Close has nobody to tell, and one failed send must not stop the rest of the shutdown.
 				_ = s.send(c, wire.MsgAck, nil)
 			}
 		}
@@ -207,6 +208,7 @@ func (s *session) Close() {
 		// presets on the pedal itself.
 		for _, spec := range channelSpecs {
 			if c, ok := s.chans[spec.name]; ok {
+				// Unchecked for the same reason: every other channel still needs closing.
 				_ = s.closeChannel(c)
 			}
 		}
@@ -224,6 +226,7 @@ func (s *session) Close() {
 	// In the order they were taken: the interface first, then the device,
 	// then the library's own context.
 	for _, held := range s.holds {
+		// Unchecked: every hold must be released even when an earlier one refuses.
 		_ = held.Close()
 	}
 }
