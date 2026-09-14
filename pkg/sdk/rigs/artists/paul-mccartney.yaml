@@ -47,6 +47,24 @@ chain:
     confidence: medium
 
 character:
+  - term: mid-forward
+    evidence:
+      - kind: cited
+        url: https://www.rickresource.com/forum/viewtopic.php?t=411797
+        note: >-
+          "that middley mid, cut through the mix flatwound tone" of the live
+          Wings Over America album, recorded on the 1976 US tour
+        caveat: >-
+          a forum thread that blocks automated readers, so the line was read
+          in search results and the page was not. Somebody should open it.
+      - kind: cited
+        url: https://www.talkbass.com/threads/paul-mccartney-wings-over-america-rickenbacker-4003s-4001s-tone.1408772/
+        note: >-
+          "sounds like he boosts low mids and rolls off the treble a little",
+          about the same album
+        caveat: >-
+          the same kind of thread, found by search and not read. It also
+          suggests a darker top, which one unread post is too thin to claim.
   - term: neck-forward
     evidence:
       - kind: llm
