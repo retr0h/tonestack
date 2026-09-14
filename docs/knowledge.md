@@ -125,8 +125,9 @@ of authority:
    opinion is worth having.
 3. **Intent.** A rig's `character` words become moves against the catalog's real
    ranges. Each word is worth one step from where the corpus left that control,
-   and six axes act: `mids`, `highs`, `drive` and `low-end` on the amp, `space`
-   on the reverb and `attack` on the compressor.
+   never more than a quarter of its range, and six axes act: `mids`, `highs`,
+   `drive` and `low-end` on the amp, `space` on the reverb and `attack` on the
+   compressor.
    [recipes.md](recipes.md#character-describes-the-result-not-the-control) lists
    the words.
 

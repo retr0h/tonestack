@@ -68,7 +68,7 @@ tonestack presets make --id mike-dirnt --out mike.hlx
   added Deluxe Comp — almost every chain has one (88% of chains)
 
   heard mid-forward — Mid 0.79 to 0.89
-  heard grit-on-attack — Drive 0.60 to 0.76
+  heard grit-on-attack — Drive 0.60 to 0.72
   heard tight-low-end — Sag 0.50 to 0.40
   heard short-decay — nothing acts on this yet
   heard audible-pick-attack — Attack 0.04 to 0.05

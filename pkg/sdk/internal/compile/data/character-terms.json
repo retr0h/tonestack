@@ -1,5 +1,5 @@
 {
-  "$comment": "The words a rig may use to say how it should sound. Grouped by axis, because an axis is what makes a term mean something: saying 'mid-forward' has already said 'not scooped', and a rig claiming both has claimed nothing. Nothing compiles these into a chain yet. They are here so that a person reading a preset can say whether it came out right, and so that two rigs can be compared without parsing English.",
+  "$comment": "The words a rig may use to say how it should sound. Grouped by axis, because an axis is what makes a term mean something: saying 'mid-forward' has already said 'not scooped', and a rig claiming both has claimed nothing. Six axes move a control when a rig is built: mids, highs, drive and low-end on the amplifier, space on the reverb and attack on the compressor. Decay, string-noise, pickup and movement describe the player and the instrument, and move nothing. All of them are here so that a person reading a preset can say whether it came out right, and so that two rigs can be compared without parsing English.",
   "axes": {
     "mids": {
       "about": "where the middle of the range sits",

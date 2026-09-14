@@ -110,6 +110,72 @@ func (s *MoveTestSuite) stats() *corpus.Stats {
 	}
 }
 
+// TestStep covers how far one word moves a knob.
+func (s *MoveTestSuite) TestStep() {
+	wide := catalog.Param{Type: catalog.ParamFloat, Min: 0, Max: 10}
+
+	tests := []struct {
+		name  string
+		p     catalog.Param
+		stats *corpus.Stats
+		want  float64
+	}{
+		{
+			// Players mostly agree, so the spread is the step.
+			name:  "a spread narrower than the cap",
+			p:     knob,
+			stats: s.spread(0.46, 0.54),
+			want:  0.08,
+		},
+		{
+			// Sag on the Cali 400 spreads across half its range. One word
+			// would put it on the rail, so the step stops at a quarter.
+			name:  "a spread wider than the cap",
+			p:     knob,
+			stats: s.spread(0.25, 0.75),
+			want:  0.25,
+		},
+		{
+			name:  "a cap measured against the control's own range",
+			p:     wide,
+			stats: s.spread(1, 9),
+			want:  2.5,
+		},
+		{
+			name:  "players who all set it the same way",
+			p:     knob,
+			stats: s.spread(0.5, 0.5),
+			want:  0.1,
+		},
+		{name: "no statistics at all", p: knob, want: 0.1},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			got := step(s.amp(), "Sag", tt.p, tt.stats)
+
+			s.Require().InDelta(tt.want, got, 1e-9)
+		})
+	}
+}
+
+// spread says players set the test amplifier's Sag between p25 and p75.
+func (s *MoveTestSuite) spread(
+	p25 float64,
+	p75 float64,
+) *corpus.Stats {
+	return &corpus.Stats{
+		Models: map[catalog.ModelID]corpus.ModelStats{
+			"HD2_AmpTestBass": {
+				Uses: 40,
+				Params: map[string]corpus.ParamStats{
+					"Sag": {N: 40, Median: (p25 + p75) / 2, P25: p25, P75: p75},
+				},
+			},
+		},
+	}
+}
+
 // TestMove covers what a word does to a knob.
 func (s *MoveTestSuite) TestMove() {
 	tests := []struct {
