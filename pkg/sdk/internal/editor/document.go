@@ -21,6 +21,7 @@
 package editor
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/retr0h/tonestack/pkg/sdk/catalog"
@@ -131,7 +132,11 @@ func Document(
 	doc.Data.Device = cat.DeviceID
 	doc.Data.Meta.Name = name
 
-	_ = doc.SetSpec(c)
+	// A catalog whose model table names a parameter like a block attribute
+	// is refused here, rather than writing a block with the attribute lost.
+	if err := doc.SetSpec(c); err != nil {
+		return nil, false, fmt.Errorf("writing the chain read off the device: %w", err)
+	}
 
 	if state := routingOf(got, cat); state != nil {
 		for key, body := range *state {

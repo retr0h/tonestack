@@ -153,6 +153,7 @@ func (s *DocumentPublicTestSuite) TestDocument() {
 	tests := []struct {
 		name    string
 		got     func() wire.DevicePreset
+		cat     func() *catalog.Catalog
 		empty   bool
 		wantErr string
 	}{
@@ -174,11 +175,34 @@ func (s *DocumentPublicTestSuite) TestDocument() {
 			},
 			wantErr: "does not reach",
 		},
+		{
+			// A model table from a release that named a parameter like a
+			// block attribute. Writing the block would lose one of the two.
+			name: "a parameter named like a block attribute",
+			got: func() wire.DevicePreset {
+				return wire.DevicePreset{
+					Blocks: []wire.DeviceBlock{{Index: 2, Model: 0, Values: []any{0.5}}},
+				}
+			},
+			cat: func() *catalog.Catalog {
+				c := *s.cat
+				c.Symbols = append([]catalog.Symbol(nil), s.cat.Symbols...)
+				c.Symbols[0].Params = []string{"@model"}
+
+				return &c
+			},
+			wantErr: "collides with an attribute",
+		},
 	}
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			doc, empty, err := editor.Document(tt.got(), s.cat, "slot 01A")
+			cat := s.cat
+			if tt.cat != nil {
+				cat = tt.cat()
+			}
+
+			doc, empty, err := editor.Document(tt.got(), cat, "slot 01A")
 
 			if tt.wantErr != "" {
 				s.Require().ErrorContains(err, tt.wantErr)
