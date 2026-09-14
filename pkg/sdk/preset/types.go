@@ -50,8 +50,10 @@ const (
 
 // Document is a preset file as it appears on disk.
 //
-// Fields this package does not model are preserved verbatim in Rest, so a
-// preset read and written again keeps whatever the device put there.
+// Of the fields at this level, only the top-level meta is kept raw, verbatim
+// in Meta. Any other top-level field this package does not model is dropped
+// when the document is written again. The metadata under data keeps its own
+// undocumented fields separately, in DataMeta.Rest.
 type Document struct {
 	Schema  string          `json:"schema"`
 	Version int             `json:"version"`

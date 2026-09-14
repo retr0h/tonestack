@@ -88,30 +88,28 @@ func encodeFloat(
 }
 
 // encodeString writes a string, keeping the original's length prefix where it
-// still holds.
+// still holds and otherwise taking the narrowest one that does.
+//
+// The original's width is asked about before the string's length. Asked the
+// other way round, a str16 holding 32 to 255 bytes comes back a str8, and the
+// section changes length for no reason.
 func encodeString(
 	v string,
 	like byte,
 ) []byte {
 	switch {
-	case fits(like, codeStr8, len(v) <= math.MaxUint8),
-		len(v) > int(fixstrMask) && len(v) <= math.MaxUint8:
+	case fits(like, codeStr8, len(v) <= math.MaxUint8):
 		return prefixed(v, []byte{codeStr8, byte(len(v))})
-	case fits(like, codeStr16, len(v) <= math.MaxUint16),
-		len(v) > math.MaxUint8 && len(v) <= math.MaxUint16:
-		head := make([]byte, 3)
-		head[0] = codeStr16
-		binary.BigEndian.PutUint16(head[1:], uint16(len(v)))
-
-		return prefixed(v, head)
+	case fits(like, codeStr16, len(v) <= math.MaxUint16):
+		return prefixed(v, wide(codeStr16, uint64(len(v)), 2))
 	case len(v) <= int(fixstrMask):
 		return prefixed(v, []byte{minFixstr | byte(len(v))})
+	case len(v) <= math.MaxUint8:
+		return prefixed(v, []byte{codeStr8, byte(len(v))})
+	case len(v) <= math.MaxUint16:
+		return prefixed(v, wide(codeStr16, uint64(len(v)), 2))
 	default:
-		head := make([]byte, 5)
-		head[0] = codeStr32
-		binary.BigEndian.PutUint32(head[1:], uint32(len(v)))
-
-		return prefixed(v, head)
+		return prefixed(v, wide(codeStr32, uint64(len(v)), 4))
 	}
 }
 

@@ -44,7 +44,8 @@ const (
 	keyModelNum  = 25
 	keyParams    = 11
 	keyValues    = 4
-	keyBypassed  = 10
+	// keyEnabled holds whether a block is switched on: true is on.
+	keyEnabled = 10
 	// keyPairedCab is the cabinet an amp carries with it. A device stores the
 	// two as one block; a preset stores them as a block and a sibling.
 	keyPairedCab = 12
@@ -650,7 +651,7 @@ func blockOf(body map[any]any) (DeviceBlock, bool) {
 
 	out := DeviceBlock{Model: int(model), Enabled: true}
 
-	if on, ok := body[int8(keyBypassed)].(bool); ok {
+	if on, ok := body[int8(keyEnabled)].(bool); ok {
 		out.Enabled = on
 	}
 

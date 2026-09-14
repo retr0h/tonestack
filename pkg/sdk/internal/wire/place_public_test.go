@@ -289,17 +289,32 @@ func (s *PlacePublicTestSuite) TestPlace() {
 	}
 }
 
+// replace swaps the value at path for raw, so a row can build a section no
+// device writes.
+func (s *PlacePublicTestSuite) replace(
+	body []byte,
+	path wire.Path,
+	raw []byte,
+) []byte {
+	start, end, err := wire.Locate(body, path)
+	s.Require().NoError(err)
+
+	out := append([]byte{}, body[:start]...)
+	out = append(out, raw...)
+
+	return append(out, body[end:]...)
+}
+
 // keepsRouting checks that every position a chain cannot take still holds the
 // byte the device wrote, in every snapshot.
 func (s *PlacePublicTestSuite) keepsRouting(doc *wire.Document) {
 	fresh := s.blank()
 
-	open, err := wire.Open(fresh)
-	s.Require().NoError(err)
-
-	takeable := make(map[int]bool, len(open))
-	for _, p := range open {
-		takeable[p] = true
+	// An unused slot keeps its input, split, join and output at 0, 9, 10 and
+	// 19; a chain may take the other 16.
+	takeable := make(map[int]bool, wire.GridSize)
+	for i := range wire.GridSize {
+		takeable[i] = i != 0 && i != 9 && i != 10 && i != 19
 	}
 
 	was, ok := fresh.Section(10)
@@ -343,47 +358,6 @@ func (s *PlacePublicTestSuite) TestBlank() {
 
 	s.Require().NoError(wire.Place(s.blank(), []wire.Placement{s.drive()}))
 	s.Require().Empty(s.read(doc).Blocks, "each call gets its own document")
-}
-
-// TestOpen covers which grid positions a chain may use.
-func (s *PlacePublicTestSuite) TestOpen() {
-	tests := []struct {
-		name      string
-		chainless bool
-		want      []int
-		err       error
-	}{
-		{
-			name: "an unused slot",
-			// The input, split, join and output take the other four.
-			want: []int{1, 2, 3, 4, 5, 6, 7, 8, 11, 12, 13, 14, 15, 16, 17, 18},
-		},
-		{
-			name:      "a document with no chain, which no device would send",
-			chainless: true,
-			err:       wire.ErrNotADocument,
-		},
-	}
-
-	for _, tt := range tests {
-		s.Run(tt.name, func() {
-			doc := s.blank()
-			if tt.chainless {
-				doc = s.capture(1)
-			}
-
-			got, err := wire.Open(doc)
-
-			if tt.err != nil {
-				s.Require().ErrorIs(err, tt.err)
-
-				return
-			}
-
-			s.Require().NoError(err)
-			s.Require().Equal(tt.want, got)
-		})
-	}
 }
 
 // TestPlaceAsWritten covers putting a chain where the preset says it goes.
@@ -518,9 +492,7 @@ func (s *PlacePublicTestSuite) TestPlaceOnAChainTheDeviceDidNotWrite() {
 			body, ok := doc.Section(0)
 			s.Require().True(ok)
 
-			body, err := wire.SpliceRaw(body, wire.Path{22}, tt.chain)
-			s.Require().NoError(err)
-			doc.SetSection(0, body)
+			doc.SetSection(0, s.replace(body, wire.Path{22}, tt.chain))
 
 			s.Require().NoError(wire.Place(doc, nil))
 			s.Require().Len(s.read(doc).Blocks, tt.want)
@@ -566,9 +538,7 @@ func (s *PlacePublicTestSuite) TestPlaceOnSnapshotsTheDeviceDidNotWrite() {
 				body, ok := doc.Section(10)
 				s.Require().True(ok)
 
-				body, err := wire.SpliceRaw(body, wire.Path{10}, tt.snaps)
-				s.Require().NoError(err)
-				doc.SetSection(10, body)
+				doc.SetSection(10, s.replace(body, wire.Path{10}, tt.snaps))
 			}
 
 			err := wire.Place(doc, []wire.Placement{s.drive()})

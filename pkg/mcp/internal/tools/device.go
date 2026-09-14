@@ -133,6 +133,11 @@ func (h *handlers) presetExport(
 		return nil, sdk.Written{}, err
 	}
 
+	// Before the device is claimed: a refusal should not cost a USB session.
+	if err := h.mayWrite(in.Out); err != nil {
+		return nil, sdk.Written{}, err
+	}
+
 	written, err := onDevice(ctx, h, func() (sdk.Written, error) {
 		return h.client.Export(ctx, sdk.Export{Slot: n, OutputPath: in.Out, As: in.As})
 	})

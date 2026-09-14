@@ -23,6 +23,8 @@ package tools_test
 import (
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
 
 	gomcp "github.com/modelcontextprotocol/go-sdk/mcp"
@@ -55,6 +57,8 @@ type row struct {
 	want  string
 	err   bool
 	check func(s *OfflinePublicTestSuite, res *gomcp.CallToolResult)
+	// allowWrites starts the server the way --allow-writes does.
+	allowWrites bool
 }
 
 func (s *OfflinePublicTestSuite) run(
@@ -67,7 +71,7 @@ func (s *OfflinePublicTestSuite) run(
 				tt.setup(s.client)
 			}
 
-			res := call(s.T(), connect(s.T(), s.client, false), tool, tt.args)
+			res := call(s.T(), connect(s.T(), s.client, tt.allowWrites), tool, tt.args)
 
 			s.Equal(tt.err, res.IsError)
 			s.Contains(text(s.T(), res), tt.want)
@@ -282,7 +286,38 @@ func (s *OfflinePublicTestSuite) TestRigShow() {
 
 // TestPresetBuild covers building from either source.
 func (s *OfflinePublicTestSuite) TestPresetBuild() {
+	dir := s.T().TempDir()
+	fresh := filepath.Join(dir, "fresh.hlx")
+	held := filepath.Join(dir, "held.hlx")
+	s.Require().NoError(os.WriteFile(held, []byte("somebody's preset"), 0o600))
+
 	s.run("preset_build", []row{
+		{
+			name: "a path nothing is at",
+			args: tools.Build{RecipeID: "mike-dirnt", Out: fresh},
+			setup: func(c *mocks.MockClient) {
+				c.EXPECT().Build(sdk.Make{RecipeID: "mike-dirnt", OutputPath: fresh}).
+					Return(sdk.Made{}, nil)
+			},
+			want: "wrote " + fresh,
+		},
+		{
+			// No client call is expected, so reaching one fails the row.
+			name: "a path a file is at, with writes off",
+			args: tools.Build{RigPath: "mine.yaml", Out: held},
+			want: tools.ErrWouldOverwrite.Error() + ": " + held,
+			err:  true,
+		},
+		{
+			name: "a path a file is at, with writes on",
+			args: tools.Build{RecipeID: "mike-dirnt", Out: held},
+			setup: func(c *mocks.MockClient) {
+				c.EXPECT().Build(sdk.Make{RecipeID: "mike-dirnt", OutputPath: held}).
+					Return(sdk.Made{}, nil)
+			},
+			want:        "wrote " + held,
+			allowWrites: true,
+		},
 		{
 			name: "from a shipped rig",
 			args: tools.Build{RecipeID: "mike-dirnt", Out: "mike.hlx"},

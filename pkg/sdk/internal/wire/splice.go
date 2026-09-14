@@ -32,9 +32,9 @@ import (
 // Re-encoding section 0 of a captured preset grows it from 588 bytes to 835.
 //
 // Nothing derives the original choice from the value, so the only edit that
-// keeps the rest of a section intact is one that never touches it. splice
-// finds the bytes a value occupies and swaps those, and every byte outside
-// that range survives because nothing reads it.
+// keeps the rest of a section intact is one that never touches it. locate
+// finds the bytes a value occupies and replaceSpan swaps those, and every byte
+// outside that range survives because nothing reads it.
 
 // ErrNoSuchPath is returned when a path names nothing in the section.
 var ErrNoSuchPath = errors.New("no such path")
@@ -88,24 +88,10 @@ func locate(
 	return walk(body, 0, path, path)
 }
 
-// spliceRaw replaces one value with MessagePack bytes the caller supplies.
-//
-// This is the primitive. Everything outside the replaced range is copied
-// through unread, so a section keeps the encoding Line 6 gave it.
-func spliceRaw(
-	body []byte,
-	path path,
-	raw []byte,
-) ([]byte, error) {
-	start, end, err := locate(body, path)
-	if err != nil {
-		return nil, err
-	}
-
-	return replaceSpan(body, start, end, raw), nil
-}
-
 // replaceSpan swaps one byte range for another, copying the rest through.
+//
+// Everything outside the replaced range is copied through unread, so a
+// section keeps the encoding Line 6 gave it.
 func replaceSpan(
 	body []byte,
 	start, end int,
@@ -116,30 +102,6 @@ func replaceSpan(
 	out = append(out, raw...)
 
 	return append(out, body[end:]...)
-}
-
-// splice replaces one value, encoding it the way the device would.
-//
-// The replacement keeps the width the original was written with wherever the
-// new value fits it, so swapping one parameter for another leaves the section
-// the same length. A value needing more room widens to the narrowest form
-// that holds it.
-func splice(
-	body []byte,
-	path path,
-	value any,
-) ([]byte, error) {
-	start, end, err := locate(body, path)
-	if err != nil {
-		return nil, err
-	}
-
-	raw, err := encodeLike(value, body[start])
-	if err != nil {
-		return nil, err
-	}
-
-	return replaceSpan(body, start, end, raw), nil
 }
 
 // walk takes one step at a time, carrying the whole path for the error.

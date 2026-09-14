@@ -165,28 +165,6 @@ func place(
 	return snapshots(doc, body, at)
 }
 
-// open lists the grid positions a block may take, in order.
-//
-// Read off the document rather than assumed. A device decides where it keeps
-// the input, the split, the join and the output, and everything left over is
-// what a chain can use.
-func open(doc *Document) ([]int, error) {
-	body, ok := doc.Section(int8(keyTone))
-	if !ok {
-		return nil, fmt.Errorf("%w: it has no chain", ErrNotADocument)
-	}
-
-	out := []int(nil)
-
-	for i := range gridSize {
-		if _, _, ok := openAt(body, i); ok {
-			out = append(out, i)
-		}
-	}
-
-	return out, nil
-}
-
 // GridOffset turns a preset's position into a device's.
 //
 // A preset counts its blocks from zero along a signal path; a device counts
@@ -340,7 +318,7 @@ func entryFor(b Placement, named bool) ([]byte, error) {
 
 	out = append(out, byte(keyClass))
 	out = append(out, encodeNumber(b.Class)...)
-	out = append(out, byte(keyBypassed))
+	out = append(out, byte(keyEnabled))
 	out = append(out, boolean(b.Enabled))
 	out = append(out, byte(keyParams))
 	out = append(out, params...)

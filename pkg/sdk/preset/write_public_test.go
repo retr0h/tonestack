@@ -24,7 +24,9 @@ import (
 	"bytes"
 	"errors"
 	"io"
+	"maps"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 
@@ -129,6 +131,8 @@ func (s *WritePublicTestSuite) TestSetSpec() {
 		spec     chain.Chain
 		contains []string
 		absent   []string
+		// the keys each tone entry is left holding, sorted.
+		keys map[string][]string
 	}{
 		{
 			name: "the blocks that were on that processor are gone",
@@ -166,6 +170,25 @@ func (s *WritePublicTestSuite) TestSetSpec() {
 			contains: []string{"HD2_Split"},
 			absent:   []string{`"Old"`},
 		},
+		{
+			// A template's blocks on a processor the rig does not use would
+			// otherwise be compiled in beside the rig's own chain.
+			name: "a processor the chain does not use loses its blocks, not its routing",
+			raw: `{"schema":"L6Preset","data":{"tone":{` +
+				`"dsp0":{"block0":{"@model":"OldA"},"inputA":{"@model":"InA"}},` +
+				`"dsp1":{"block0":{"@model":"OldB"},"block3":{"@model":"OldC"},` +
+				`"inputA":{"@model":"InB"},"outputA":{"@model":"OutB"}},` +
+				`"snapshot0":{"block0":true}}}}`,
+			spec: chain.Chain{
+				Blocks: []chain.Block{{Model: "New", Enabled: true}},
+			},
+			absent: []string{`"OldA"`, `"OldB"`, `"OldC"`},
+			keys: map[string][]string{
+				"dsp0":      {"block0", "inputA"},
+				"dsp1":      {"inputA", "outputA"},
+				"snapshot0": {"block0"},
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -190,6 +213,10 @@ func (s *WritePublicTestSuite) TestSetSpec() {
 
 			for _, gone := range tt.absent {
 				s.Require().NotContains(buf.String(), gone)
+			}
+
+			for entry, want := range tt.keys {
+				s.Require().Equal(want, slices.Sorted(maps.Keys(doc.Data.Tone[entry])), entry)
 			}
 		})
 	}

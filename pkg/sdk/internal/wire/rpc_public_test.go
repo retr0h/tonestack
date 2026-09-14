@@ -23,6 +23,7 @@ package wire_test
 import (
 	"bytes"
 	"encoding/hex"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
@@ -201,6 +202,46 @@ func (s *RPCPublicTestSuite) TestDecodeResponse() {
 			wantStatus: wire.StatusAccepted,
 		},
 		{
+			// A decoder hands a key back in whatever width it was written,
+			// and a key written as a uint16 is still the same key.
+			name: "keys written wide",
+			body: "83" + "cd0066cd03e8" + "cd0067cc01" + "cd0068" + "81" + "cd006f" + "d0fd",
+			// Status 1 is not a failure, so nothing about the code is read.
+			opcode:     20,
+			wantTxn:    1000,
+			wantStatus: wire.StatusAccepted,
+		},
+		{
+			name:       "a refusal with its code written wide",
+			body:       "83" + "cd0066cd03e8" + "cd0067ccff" + "cd0068" + "81" + "cd006f" + "d0fd",
+			opcode:     6,
+			wantTxn:    1000,
+			wantStatus: wire.StatusRefused,
+			err:        wire.ErrRefused,
+			errText:    []string{"opcode 6", "-3"},
+		},
+		{
+			name:       "a refusal that gives no code",
+			body:       "83" + "66cd03e8" + "67ccff" + "6880",
+			opcode:     6,
+			wantTxn:    1000,
+			wantStatus: wire.StatusRefused,
+			err:        wire.ErrRefused,
+			errText:    []string{"opcode 6", "error 0"},
+		},
+		{
+			// A status no capture has shown is not taken for success: a
+			// client that reads it as done reports a write that may not
+			// have happened.
+			name:       "a status that is not done, accepted or refused",
+			body:       "83" + "66cd03e8" + "6707" + "68c0",
+			opcode:     9,
+			wantTxn:    1000,
+			wantStatus: wire.Status(7),
+			err:        wire.ErrUnexpectedStatus,
+			errText:    []string{"status 7", "opcode 9"},
+		},
+		{
 			name:    "nothing at all",
 			bad:     true,
 			errText: []string{"decoding response"},
@@ -243,6 +284,13 @@ func (s *RPCPublicTestSuite) TestDecodeResponse() {
 
 			for _, want := range tt.errText {
 				s.Require().Contains(err.Error(), want)
+			}
+
+			if errors.Is(tt.err, wire.ErrUnexpectedStatus) {
+				var unexpected *wire.UnexpectedStatusError
+				s.Require().ErrorAs(err, &unexpected)
+				s.Require().Equal(tt.wantStatus, unexpected.Status)
+				s.Require().Equal(tt.opcode, unexpected.Opcode)
 			}
 		})
 	}

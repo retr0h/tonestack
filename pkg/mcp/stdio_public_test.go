@@ -22,6 +22,7 @@ package mcp_test
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"strings"
 	"sync"
@@ -43,18 +44,42 @@ const initialize = `{"jsonrpc":"2.0","id":1,"method":"initialize",` +
 	`"params":{"protocolVersion":"2025-06-18","capabilities":{},` +
 	`"clientInfo":{"name":"test","version":"0"}}}` + "\n"
 
-// slow stands in for stdout and takes its time with each reply, so a client
-// that hangs up at once does so while the reply is still being written.
-type slow struct {
-	mu  sync.Mutex
-	out bytes.Buffer
+// hangsUp stands in for stdin: it sends the initialize line, then says it has
+// run out, then ends.
+type hangsUp struct {
+	in    *strings.Reader
+	ended chan struct{}
+	once  sync.Once
 }
 
-// Write waits, then keeps what was written.
-func (w *slow) Write(
+// Read hands over what is left of the line, and signals before the end.
+func (r *hangsUp) Read(
 	p []byte,
 ) (int, error) {
-	time.Sleep(50 * time.Millisecond)
+	n, err := r.in.Read(p)
+	if errors.Is(err, io.EOF) {
+		r.once.Do(func() { close(r.ended) })
+	}
+
+	return n, err
+}
+
+// Close does nothing: the input ends by running out.
+func (*hangsUp) Close() error { return nil }
+
+// afterHangUp stands in for stdout and writes nothing until the client has
+// hung up, so the reply is always being written as the input ends.
+type afterHangUp struct {
+	ended <-chan struct{}
+	mu    sync.Mutex
+	out   bytes.Buffer
+}
+
+// Write waits for the hang-up, then keeps what was written.
+func (w *afterHangUp) Write(
+	p []byte,
+) (int, error) {
+	<-w.ended
 
 	w.mu.Lock()
 	defer w.mu.Unlock()
@@ -65,30 +90,32 @@ func (w *slow) Write(
 // TestRunOver covers how a session over a client's streams ends.
 func (s *StdioPublicTestSuite) TestRunOver() {
 	tests := []struct {
-		name   string
-		in     func() io.ReadCloser
-		out    io.Writer
-		cancel bool
-		err    error
+		name    string
+		streams func() (io.ReadCloser, io.Writer)
+		cancel  bool
+		err     error
 	}{
 		{
 			// A client that asks one thing and closes its end straight away,
 			// the way piping a request into `tonestack mcp start` does. The
 			// client is gone, so the session is over rather than broken.
 			name: "a client that hangs up while its reply is written",
-			in:   func() io.ReadCloser { return io.NopCloser(strings.NewReader(initialize)) },
-			out:  &slow{},
+			streams: func() (io.ReadCloser, io.Writer) {
+				ended := make(chan struct{})
+
+				return &hangsUp{in: strings.NewReader(initialize), ended: ended},
+					&afterHangUp{ended: ended}
+			},
 		},
 		{
 			// Ctrl-C with a client still connected is a stop, reported as the
 			// context ending so the command can tell it from a failure.
 			name: "a session stopped by its context",
-			in: func() io.ReadCloser {
+			streams: func() (io.ReadCloser, io.Writer) {
 				r, _ := io.Pipe()
 
-				return r
+				return r, io.Discard
 			},
-			out:    io.Discard,
 			cancel: true,
 			err:    context.Canceled,
 		},
@@ -103,9 +130,11 @@ func (s *StdioPublicTestSuite) TestRunOver() {
 				cancel()
 			}
 
+			in, out := tt.streams()
+
 			done := make(chan error, 1)
 			go func() {
-				done <- mcp.New(sdk.New(), mcp.Options{}).RunOver(ctx, tt.in(), tt.out)
+				done <- mcp.New(sdk.New(), mcp.Options{}).RunOver(ctx, in, out)
 			}()
 
 			select {

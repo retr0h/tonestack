@@ -58,13 +58,11 @@ type Path = path
 
 var (
 	DecodeDocument = decodeDocument
+	EncodeLike     = encodeLike
 	Flag           = flag
 	Locate         = locate
-	Open           = open
 	Place          = place
 	ReadEnvelope   = readEnvelope
-	Splice         = splice
-	SpliceRaw      = spliceRaw
 )
 
 const (

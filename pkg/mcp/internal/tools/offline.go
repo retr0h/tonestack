@@ -114,6 +114,15 @@ func (h *handlers) presetBuild(
 	switch {
 	case in.RecipeID != "" && in.RigPath != "":
 		return nil, Built{}, ErrTwoSources
+	case in.RecipeID == "" && in.RigPath == "":
+		return nil, Built{}, ErrNoSource
+	}
+
+	if err := h.mayWrite(in.Out); err != nil {
+		return nil, Built{}, err
+	}
+
+	switch {
 	case in.RecipeID != "":
 		made, err := h.client.Build(sdk.Make{RecipeID: in.RecipeID, OutputPath: in.Out})
 		if err != nil {
@@ -121,14 +130,12 @@ func (h *handlers) presetBuild(
 		}
 
 		return said("wrote %s from rig %s", in.Out, in.RecipeID), Built{FromRecipe: &made}, nil
-	case in.RigPath != "":
+	default:
 		built, err := h.client.Compile(sdk.Compile{RigPath: in.RigPath, OutputPath: in.Out})
 		if err != nil {
 			return nil, Built{}, err
 		}
 
 		return said("wrote %s from %s", in.Out, in.RigPath), Built{FromRig: &built}, nil
-	default:
-		return nil, Built{}, ErrNoSource
 	}
 }

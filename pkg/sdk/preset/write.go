@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+	"strings"
 
 	"github.com/retr0h/tonestack/pkg/sdk/chain"
 )
@@ -46,11 +47,29 @@ func Write(w io.Writer, d *Document) error {
 // assignments are left as they were, because a chain says nothing about them
 // and discarding what the device wrote would produce a preset that loads
 // differently for reasons nobody asked for.
-func (d *Document) SetSpec(spec chain.Chain) error {
+//
+// Every processor loses its blocks, including one spec puts nothing on. A
+// template's blocks on a processor the rig does not use would otherwise be
+// compiled in beside the rig's own chain.
+func (d *Document) SetSpec(
+	spec chain.Chain,
+) error {
 	d.Data.Meta.Name = spec.Name
 
 	if d.Data.Tone == nil {
 		d.Data.Tone = map[string]Tone{}
+	}
+
+	for key, tone := range d.Data.Tone {
+		if !strings.HasPrefix(key, processorPrefix) {
+			continue
+		}
+
+		for k := range tone {
+			if isBlockKey(k) {
+				delete(tone, k)
+			}
+		}
 	}
 
 	byProcessor := map[int][]chain.Block{}
@@ -59,18 +78,11 @@ func (d *Document) SetSpec(spec chain.Chain) error {
 	}
 
 	for dsp, blocks := range byProcessor {
-		key := "dsp" + strconv.Itoa(dsp)
+		key := processorPrefix + strconv.Itoa(dsp)
 
 		tone := d.Data.Tone[key]
 		if tone == nil {
 			tone = Tone{}
-		}
-
-		// Drop the blocks that were there; keep everything else.
-		for k := range tone {
-			if isBlockKey(k) {
-				delete(tone, k)
-			}
 		}
 
 		for i, b := range blocks {
@@ -87,6 +99,10 @@ func (d *Document) SetSpec(spec chain.Chain) error {
 
 	return nil
 }
+
+// processorPrefix is what the tone entry of every processor is named with,
+// dsp0 and dsp1 on a device that has two.
+const processorPrefix = "dsp"
 
 // isBlockKey reports whether a tone entry is a chain block rather than
 // routing.
