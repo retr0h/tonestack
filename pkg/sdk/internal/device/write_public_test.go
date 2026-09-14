@@ -128,9 +128,26 @@ func (s *WritePublicTestSuite) TestWritePreset() {
 		// nothing reached the device, or all of the message did.
 		nothingSent bool
 		whole       bool
-		is          error
-		says        string
+		// a commit budget of its own, when that is the point.
+		commitBudget time.Duration
+		is           error
+		says         string
 	}{
+		{
+			// The commit budget bounds waiting for the answer, never sending
+			// the message. A budget that ran out between chunks left the
+			// device holding half a preset, which is the stall a started
+			// write exists to prevent.
+			name: "a commit budget that runs out while the message is going out",
+			device: func() *scripted {
+				return &scripted{pause: 10 * time.Millisecond}
+			},
+			document:     large,
+			commitBudget: 20 * time.Millisecond,
+			whole:        true,
+			is:           context.DeadlineExceeded,
+			says:         "commit budget",
+		},
 		{
 			// Nothing has gone out, so nothing is owed: the write is not
 			// started.
@@ -218,6 +235,13 @@ func (s *WritePublicTestSuite) TestWritePreset() {
 
 			if tt.cancelsOnWrite {
 				d.onWrite = cancel
+			}
+
+			if tt.commitBudget > 0 {
+				was := *device.CommitBudget
+				*device.CommitBudget = tt.commitBudget
+
+				defer func() { *device.CommitBudget = was }()
 			}
 
 			document := tt.document

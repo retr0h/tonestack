@@ -22,6 +22,7 @@ package device
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -133,16 +134,25 @@ func (s *session) write(
 	})
 
 	// A write that has started finishes, and its answer is read, whoever
-	// stops waiting. Bounded by the commit budget rather than the caller, and
-	// the next operation is the one that sees the cancellation.
-	wctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), commitBudget)
-	defer cancel()
-
-	if err := s.stream(wctx, c, body); err != nil {
+	// stops waiting; the next operation is the one that sees the
+	// cancellation. The message itself carries no deadline at all: a budget
+	// that ran out between chunks would leave the device holding half of it.
+	// It is finite regardless, one bounded read per chunk.
+	if err := s.stream(context.WithoutCancel(ctx), c, body); err != nil {
 		return err
 	}
 
-	if _, err := s.awaitReply(wctx, c, txn, opcode); err != nil {
+	// The commit budget bounds the wait for the answer, and only that.
+	actx, cancel := context.WithTimeout(context.WithoutCancel(ctx), commitBudget)
+	defer cancel()
+
+	if _, err := s.awaitReply(actx, c, txn, opcode); err != nil {
+		// Detached from the caller, so an ended context here is the budget's.
+		if actx.Err() != nil && errors.Is(err, context.DeadlineExceeded) {
+			return fmt.Errorf("no reply to opcode %d within the %s commit budget: %w",
+				opcode, commitBudget, err)
+		}
+
 		return err
 	}
 

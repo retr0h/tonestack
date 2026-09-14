@@ -25,6 +25,7 @@ import (
 	"errors"
 	"io"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/suite"
 
@@ -134,10 +135,20 @@ func (s *TransportPublicTestSuite) TestReceive() {
 		opened  bool
 		// somebody who stopped waiting before the read came back.
 		cancelled bool
-		want      bool
-		err       error
-		says      string
+		// somebody whose own deadline passed before the read came back.
+		expired bool
+		want    bool
+		err     error
+		says    string
 	}{
+		{
+			// A timeout, but the caller's rather than the read's. Read as
+			// quiet, a caller out of time would be asked to wait on.
+			name:    "a caller whose own deadline has passed",
+			readErr: context.DeadlineExceeded,
+			expired: true,
+			err:     context.DeadlineExceeded,
+		},
 		{
 			// A device is asked far more often than it answers.
 			name:    "a read that timed out",
@@ -196,6 +207,13 @@ func (s *TransportPublicTestSuite) TestReceive() {
 
 			if tt.cancelled {
 				cancel()
+			}
+
+			if tt.expired {
+				var stop context.CancelFunc
+
+				ctx, stop = context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
+				defer stop()
 			}
 
 			got, err := session.Receive(ctx)

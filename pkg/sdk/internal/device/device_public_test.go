@@ -20,7 +20,10 @@
 
 package device_test
 
-import "context"
+import (
+	"context"
+	"time"
+)
 
 // The scripted device every suite in this package talks to. It answers what
 // it was told to answer and records what it was sent, so the protocol can be
@@ -45,6 +48,9 @@ type scripted struct {
 	// noisy is handed back on every read once replies run out: a device that
 	// never goes quiet.
 	noisy []byte
+	// pause is how long a quiet read takes, cut short when its context ends:
+	// a device with nothing to say, read the way a real endpoint is read.
+	pause time.Duration
 }
 
 func (d *scripted) Write(p []byte) (int, error) {
@@ -61,7 +67,7 @@ func (d *scripted) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-func (d *scripted) ReadContext(_ context.Context, p []byte) (int, error) {
+func (d *scripted) ReadContext(ctx context.Context, p []byte) (int, error) {
 	d.reads++
 
 	if d.readErr != nil && d.reads > d.readsOK {
@@ -73,6 +79,14 @@ func (d *scripted) ReadContext(_ context.Context, p []byte) (int, error) {
 	}
 
 	if len(d.replies) == 0 {
+		if d.pause > 0 {
+			select {
+			case <-ctx.Done():
+				return 0, ctx.Err()
+			case <-time.After(d.pause):
+			}
+		}
+
 		// A device with nothing to say answers with nothing, which is how a
 		// drain knows it has finished.
 		return 0, nil

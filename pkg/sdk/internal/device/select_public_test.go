@@ -23,6 +23,7 @@ package device_test
 import (
 	"bytes"
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -136,8 +137,22 @@ func (s *SelectPublicTestSuite) TestSelectPreset() {
 		// a caller who stops waiting after the device has answered, rather
 		// than before it was asked.
 		timeout time.Duration
-		says    string
+		// a poll interval of its own, when that is the point.
+		poll time.Duration
+		says string
 	}{
+		{
+			// Between questions rather than during one: the device answered
+			// with the old preset, and the caller stopped waiting before it
+			// was time to ask again.
+			name: "a caller that gave up between questions",
+			device: func() *scripted {
+				return answers(s.took(device.FirstTxn), s.playing(device.FirstTxn+1, 0, 5))
+			},
+			timeout: 20 * time.Millisecond,
+			poll:    time.Second,
+			says:    "context deadline exceeded",
+		},
 		{
 			// The device reports the preset it was playing before answering
 			// with the one that was asked for, which is the window a caller
@@ -157,6 +172,19 @@ func (s *SelectPublicTestSuite) TestSelectPreset() {
 				return answers(s.took(device.FirstTxn), s.playing(device.FirstTxn+1, 0, 5))
 			},
 			says: "did not finish switching",
+		},
+		{
+			// A bus that goes away while the switch is in flight is not a
+			// switch still in flight. Polled on, it surfaced at the end of
+			// the budget as a device that did not finish switching.
+			name: "a bus that goes away while it switches",
+			device: func() *scripted {
+				d := answers(s.took(device.FirstTxn))
+				d.readErr, d.readsOK = errors.New("the bus went away"), 1
+
+				return d
+			},
+			says: "reading from the device",
 		},
 		{
 			name:   "one that never takes it at all",
@@ -205,6 +233,13 @@ func (s *SelectPublicTestSuite) TestSelectPreset() {
 
 				ctx, stop = context.WithTimeout(context.Background(), tt.timeout)
 				defer stop()
+			}
+
+			if tt.poll > 0 {
+				poll, budget := *device.SelectPoll, *device.SelectBudget
+				*device.SelectPoll, *device.SelectBudget = tt.poll, 10*tt.poll
+
+				defer func() { *device.SelectPoll, *device.SelectBudget = poll, budget }()
 			}
 
 			d := tt.device()

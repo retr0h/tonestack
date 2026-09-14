@@ -22,6 +22,7 @@ package device
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -209,8 +210,14 @@ func (s *session) awaitReply(
 	}
 
 	return wire.Response{}, fmt.Errorf(
-		"no reply to opcode %d within %s", opcode, replyBudget)
+		"%w to opcode %d within %s", errNoReply, opcode, replyBudget)
 }
+
+// errNoReply is a device that stayed silent for the whole reply budget.
+//
+// Told apart from a bus that failed, because a device busy switching presets
+// goes quiet too, and that is worth asking again.
+var errNoReply = errors.New("no reply")
 
 // Presets lists what the device holds.
 func (s *session) Presets(ctx context.Context, setlist int) ([]wire.Preset, error) {

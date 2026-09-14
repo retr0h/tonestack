@@ -22,6 +22,7 @@ package device
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -91,8 +92,11 @@ func (s *session) SelectPreset(
 
 // awaitLoaded asks until the device says the preset is the one playing.
 //
-// A busy device refuses the question rather than answering it, which is
-// patience rather than failure until the budget runs out.
+// A busy device refuses the question, answers it with something that is not a
+// preset, or says nothing in time. Each of those is patience rather than
+// failure until the budget runs out. Anything else, a bus that has gone or a
+// caller who stopped waiting, ends the wait at once: polled on, it surfaced
+// only at the end of the budget as a switch that never finished.
 func (s *session) awaitLoaded(
 	ctx context.Context,
 	setlist, slot int,
@@ -100,10 +104,18 @@ func (s *session) awaitLoaded(
 	deadline := time.Now().Add(selectBudget)
 
 	for {
-		if got, err := s.Loaded(ctx); err == nil {
+		got, err := s.Loaded(ctx)
+
+		switch {
+		case err == nil:
 			if got.Setlist == setlist && got.Slot == slot {
 				return nil
 			}
+		case errors.Is(err, errNoReply),
+			errors.Is(err, wire.ErrRefused),
+			errors.Is(err, wire.ErrNotAPreset):
+		default:
+			return err
 		}
 
 		if time.Now().After(deadline) {
