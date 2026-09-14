@@ -1,9 +1,9 @@
 {
   "planPath": "docs/superpowers/plans/2026-09-14-golang-pro-review-fixes.md",
   "tasks": [
-    {"id": 1, "subject": "Review Task 1: the device layer", "status": "pending", "blockedBy": []},
-    {"id": 2, "subject": "Review Task 2: slots, presets and recipes data safety", "status": "pending", "blockedBy": [1]},
-    {"id": 3, "subject": "Review Task 3: preset, wire and MCP", "status": "pending", "blockedBy": [2]},
+    {"id": 1, "subject": "Review Task 1: the device layer", "status": "completed", "blockedBy": []},
+    {"id": 2, "subject": "Review Task 2: slots, presets and recipes data safety", "status": "completed", "blockedBy": [1]},
+    {"id": 3, "subject": "Review Task 3: preset, wire and MCP", "status": "completed", "blockedBy": [2]},
     {"id": 4, "subject": "Review Task 4: test doubles and documents", "status": "pending", "blockedBy": [3]}
   ],
   "lastUpdated": "2026-09-14"
