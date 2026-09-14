@@ -35,7 +35,9 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk/internal/device"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/device/mocks"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/slots"
+	slotmocks "github.com/retr0h/tonestack/pkg/sdk/internal/slots/mocks"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/wire"
+	"github.com/retr0h/tonestack/pkg/sdk/preset"
 )
 
 // DevicePublicTestSuite covers reading a device, with no device attached.
@@ -402,8 +404,11 @@ func (s *DevicePublicTestSuite) TestExportWith() {
 		answer   []byte
 		out      string
 		contains []string
-		is       error
-		err      bool
+		// a translator that hands back a document that will not encode.
+		unencodable bool
+		is          error
+		err         bool
+		errText     string
 	}{
 		{
 			name:     "a rig, which is the default",
@@ -430,6 +435,17 @@ func (s *DevicePublicTestSuite) TestExportWith() {
 			answer: s.answer("empty.bin"),
 			out:    "blocks.hlx",
 			is:     slots.ErrEmptySlot,
+		},
+		{
+			// Reported, rather than a file holding nothing where a preset
+			// was meant to be.
+			name:        "a preset that will not encode",
+			opts:        slots.ExportOptions{Slot: 0, As: "hlx"},
+			answer:      s.answer("preset.bin"),
+			out:         "unencodable.hlx",
+			unencodable: true,
+			err:         true,
+			errText:     "encoding preset",
 		},
 		{
 			name:   "somewhere it cannot write",
@@ -463,6 +479,15 @@ func (s *DevicePublicTestSuite) TestExportWith() {
 					Return(tt.answer, nil)
 			}
 
+			if tt.unencodable {
+				translator := slotmocks.NewMockTranslator(s.ctrl)
+				translator.EXPECT().
+					Document(gomock.Any(), gomock.Any(), gomock.Any()).
+					Return(&preset.Document{Meta: json.RawMessage("{")}, false, nil)
+
+				opts.Translator = translator
+			}
+
 			written, err := slots.ExportWith(context.Background(), s.dev, opts)
 
 			if tt.is != nil {
@@ -474,6 +499,11 @@ func (s *DevicePublicTestSuite) TestExportWith() {
 
 			if tt.err {
 				s.Require().Error(err)
+				s.Require().NoFileExists(path)
+
+				if tt.errText != "" {
+					s.Require().ErrorContains(err, tt.errText)
+				}
 
 				return
 			}

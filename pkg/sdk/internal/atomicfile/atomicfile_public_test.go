@@ -49,10 +49,15 @@ type writer func(string, []byte, os.FileMode) error
 type setup struct {
 	// a file already at the path.
 	existing bool
+	// the mode that file has. Zero means 0600.
+	mode os.FileMode
 	// a directory already at the path, which nothing can be renamed over.
 	directory bool
 	// a parent that cannot be written into.
 	readOnly bool
+	// a parent that can be written into but not opened, so it cannot be
+	// synced.
+	writeOnly bool
 	// a parent that is not there.
 	missing bool
 	// a file size limit, so the write stops partway.
@@ -60,17 +65,30 @@ type setup struct {
 }
 
 // arrange builds a case's directory and returns the path to write.
-func (s *AtomicfilePublicTestSuite) arrange(tt setup) string {
+func (s *AtomicfilePublicTestSuite) arrange(
+	tt setup,
+) string {
 	dir := s.T().TempDir()
 	path := filepath.Join(dir, "preset.hlx")
 
-	switch {
-	case tt.existing:
+	mode := tt.mode
+	if mode == 0 {
+		mode = 0o600
+	}
+
+	if tt.existing {
 		s.Require().NoError(os.WriteFile(path, []byte("old"), 0o600))
+		s.Require().NoError(os.Chmod(path, mode))
+	}
+
+	switch {
 	case tt.directory:
 		s.Require().NoError(os.MkdirAll(filepath.Join(path, "full"), 0o750))
 	case tt.readOnly:
 		s.Require().NoError(os.Chmod(dir, 0o500))
+		s.T().Cleanup(func() { s.Require().NoError(os.Chmod(dir, 0o700)) })
+	case tt.writeOnly:
+		s.Require().NoError(os.Chmod(dir, 0o300))
 		s.T().Cleanup(func() { s.Require().NoError(os.Chmod(dir, 0o700)) })
 	case tt.missing:
 		path = filepath.Join(dir, "no", "such", "preset.hlx")
@@ -82,13 +100,19 @@ func (s *AtomicfilePublicTestSuite) arrange(tt setup) string {
 // run calls one writer, under a file size limit when a case asks for one.
 //
 // The limit is lifted before anything else happens, because it applies to
-// the whole process, the test binary's own output included.
+// the whole process, the test binary's own output included. A directory that
+// could not be opened is opened up again afterwards, so what is in it can be
+// checked.
 func (s *AtomicfilePublicTestSuite) run(
 	write writer,
 	path string,
-	limited bool,
+	tt setup,
 ) error {
-	if !limited {
+	if tt.writeOnly {
+		defer func() { s.Require().NoError(os.Chmod(filepath.Dir(path), 0o700)) }()
+	}
+
+	if !tt.limited {
 		return write(path, []byte("new"), 0o600)
 	}
 
@@ -106,7 +130,9 @@ func (s *AtomicfilePublicTestSuite) run(
 }
 
 // leftovers names anything in the directory other than the file itself.
-func (s *AtomicfilePublicTestSuite) leftovers(path string) []string {
+func (s *AtomicfilePublicTestSuite) leftovers(
+	path string,
+) []string {
 	entries, err := os.ReadDir(filepath.Dir(path))
 	if err != nil {
 		return nil
@@ -128,7 +154,9 @@ func (s *AtomicfilePublicTestSuite) TestWrite() {
 	tests := []struct {
 		name string
 		setup
-		errText string
+		// the mode the written file must have. Zero means 0600.
+		wantMode os.FileMode
+		errText  string
 	}{
 		{name: "a new file"},
 		{
@@ -136,6 +164,13 @@ func (s *AtomicfilePublicTestSuite) TestWrite() {
 			// setlist over the one they opened expects exactly that.
 			name:  "a file already there",
 			setup: setup{existing: true},
+		},
+		{
+			// Somebody who opened their setlist up to a group expects it to
+			// stay that way after an edit.
+			name:     "a file already there with its own mode",
+			setup:    setup{existing: true, mode: 0o640},
+			wantMode: 0o640,
 		},
 		{
 			name:    "a directory where the file would go",
@@ -146,6 +181,13 @@ func (s *AtomicfilePublicTestSuite) TestWrite() {
 			name:    "a directory it cannot write into",
 			setup:   setup{readOnly: true},
 			errText: "writing",
+		},
+		{
+			// The file is in place, but nothing says its name survives a
+			// crash, and that is said rather than assumed.
+			name:    "a directory it cannot sync",
+			setup:   setup{writeOnly: true},
+			errText: "syncing its directory",
 		},
 		{
 			name:    "a directory that is not there",
@@ -165,7 +207,7 @@ func (s *AtomicfilePublicTestSuite) TestWrite() {
 		s.Run(tt.name, func() {
 			path := s.arrange(tt.setup)
 
-			err := s.run(atomicfile.Write, path, tt.limited)
+			err := s.run(atomicfile.Write, path, tt.setup)
 
 			s.Require().Empty(s.leftovers(path), "no temporary file is left behind")
 
@@ -187,9 +229,14 @@ func (s *AtomicfilePublicTestSuite) TestWrite() {
 			s.Require().NoError(err)
 			s.Require().Equal("new", string(got))
 
+			want := tt.wantMode
+			if want == 0 {
+				want = 0o600
+			}
+
 			info, err := os.Stat(path)
 			s.Require().NoError(err)
-			s.Require().Equal(os.FileMode(0o600), info.Mode().Perm())
+			s.Require().Equal(want, info.Mode().Perm())
 		})
 	}
 }
@@ -215,6 +262,11 @@ func (s *AtomicfilePublicTestSuite) TestWriteNew() {
 			errText: "writing",
 		},
 		{
+			name:    "a directory it cannot sync",
+			setup:   setup{writeOnly: true},
+			errText: "syncing its directory",
+		},
+		{
 			name:    "a write that stops partway",
 			setup:   setup{limited: true},
 			errText: "file too large",
@@ -225,7 +277,7 @@ func (s *AtomicfilePublicTestSuite) TestWriteNew() {
 		s.Run(tt.name, func() {
 			path := s.arrange(tt.setup)
 
-			err := s.run(atomicfile.WriteNew, path, tt.limited)
+			err := s.run(atomicfile.WriteNew, path, tt.setup)
 
 			s.Require().Empty(s.leftovers(path), "no temporary file is left behind")
 
@@ -246,7 +298,7 @@ func (s *AtomicfilePublicTestSuite) TestWriteNew() {
 					s.Require().Equal("old", string(got))
 				}
 
-				if !tt.existing {
+				if !tt.existing && !tt.writeOnly {
 					s.Require().NoFileExists(path)
 				}
 

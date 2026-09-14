@@ -66,7 +66,9 @@ func backupDir(named string) (string, error) {
 // A slot the device answered nothing for is not backed up and does not stop
 // anything: there is nothing in it to lose. A slot with no blocks in it is
 // different. Nothing here reads a chain out of it, which is not the same as
-// there being nothing there, so it is kept as the bytes the device sent.
+// there being nothing there, so it is kept as the bytes the device sent. The
+// exception is one still called what the device names a slot nobody has
+// touched: nothing in that is anybody's.
 func backup(
 	body []byte,
 	opts DeviceOptions,
@@ -80,6 +82,11 @@ func backup(
 	data, ext, err := keeping(body, opts)
 	if err != nil {
 		return "", err
+	}
+
+	// Nothing of anybody's in it.
+	if data == nil {
+		return "", nil
 	}
 
 	dir, err = backupDir(dir)
@@ -120,6 +127,13 @@ func keeping(
 	if err != nil {
 		return nil, "", fmt.Errorf("reading slot %s before replacing it: %w",
 			slotpkg.Label(opts.Slot), err)
+	}
+
+	// No blocks and the name it shipped with: a blank slot nobody has used.
+	// A slot with no blocks that somebody renamed, or that no listing
+	// named, might still hold something of theirs.
+	if read.Empty() && opts.Name == untouched {
+		return nil, "", nil
 	}
 
 	if read.Empty() {

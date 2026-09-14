@@ -356,6 +356,8 @@ func (s *EditDevicePublicTestSuite) TestSwapWith() {
 		// the second slot is 01A of the second setlist rather than 02A of the
 		// first.
 		cross bool
+		// part of each backup's filename, in the order they were kept.
+		keptIn []string
 
 		contains string
 		errText  string
@@ -371,11 +373,14 @@ func (s *EditDevicePublicTestSuite) TestSwapWith() {
 			// Each slot keeps the name it had in its own setlist when it
 			// moves. Named from the source's setlist, both would come back
 			// called Chunky Monkey.
-			name:     "two slots in two setlists",
-			listed:   true,
-			reads:    []string{"answered", "answered"},
-			writes:   []string{"landed", "landed"},
-			cross:    true,
+			name:   "two slots in two setlists",
+			listed: true,
+			reads:  []string{"answered", "answered"},
+			writes: []string{"landed", "landed"},
+			cross:  true,
+			// The destination first, from the second setlist, then the
+			// source from the first.
+			keptIn:   []string{"01A-s1-", "01A-s0-"},
 			contains: "swapped",
 		},
 		{name: "a listing it cannot get", errText: "listing presets"},
@@ -486,6 +491,14 @@ func (s *EditDevicePublicTestSuite) TestSwapWith() {
 			s.Require().Contains(did(change), tt.contains)
 			s.Require().Equal(toName, change.Replaced,
 				"what the second slot was called, in its own setlist")
+
+			if tt.keptIn != nil {
+				s.Require().Len(change.Kept, len(tt.keptIn))
+
+				for i, want := range tt.keptIn {
+					s.Require().Contains(filepath.Base(change.Kept[i]), want)
+				}
+			}
 		})
 	}
 }

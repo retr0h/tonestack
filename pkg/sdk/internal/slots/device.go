@@ -186,6 +186,7 @@ func ExportWith(
 	opts ExportOptions,
 ) (result.Written, error) {
 	read, err := ShowWith(ctx, s, DeviceOptions{
+		Deps:        opts.Deps,
 		Setlist:     opts.Setlist,
 		Slot:        opts.Slot,
 		As:          opts.As,
