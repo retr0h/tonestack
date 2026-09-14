@@ -61,5 +61,6 @@ func init() {
 		"slot",
 		"which slot — a label the pedal shows such as 31A, or a number from zero",
 	)
+	// Fails only for a flag that does not exist, and these are defined above.
 	_ = presetsSelectCmd.MarkFlagRequired("slot")
 }

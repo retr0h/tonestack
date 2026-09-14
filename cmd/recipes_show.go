@@ -48,5 +48,6 @@ func init() {
 
 	recipesShowCmd.Flags().StringVar(&recipesShowID, "id", "",
 		"recipe to show, by identifier or alias")
+	// Fails only for a flag that does not exist, and these are defined above.
 	_ = recipesShowCmd.MarkFlagRequired("id")
 }

@@ -66,6 +66,7 @@ func init() {
 		"a preset to write the chain into, instead of an untouched one")
 	f.StringVar(&presetsCompileOptions.CatalogPath, "catalog", "",
 		"a generated catalog to use instead of the built-in one")
+	// Fails only for a flag that does not exist, and these are defined above.
 	_ = presetsCompileCmd.MarkFlagRequired("rig")
 	_ = presetsCompileCmd.MarkFlagRequired("out")
 }

@@ -82,6 +82,7 @@ func init() {
 		"where to keep what a device slot held; the state directory by default")
 	f.StringVar(&presetsImportOptions.CatalogPath, "catalog", "",
 		"a catalog to resolve models against, when writing to a device")
+	// Fails only for a flag that does not exist, and these are defined above.
 	_ = presetsImportCmd.MarkFlagRequired("preset")
 	_ = presetsImportCmd.MarkFlagRequired("slot")
 

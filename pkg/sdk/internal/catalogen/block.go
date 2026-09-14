@@ -125,11 +125,13 @@ func defaultValue(p wireParam) catalog.ParamValue {
 	switch p.ValueType {
 	case wireBool:
 		var b bool
+		// A default in another kind reads as the zero value, as number does for the numeric kinds.
 		_ = json.Unmarshal(p.Default, &b)
 
 		return catalog.Bool(b)
 	case wireString:
 		var s string
+		// The same leniency as the bool above.
 		_ = json.Unmarshal(p.Default, &s)
 
 		return catalog.Enum(s)

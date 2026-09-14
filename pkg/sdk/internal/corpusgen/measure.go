@@ -111,6 +111,7 @@ func read(path string) (*preset.Document, error) {
 		return nil, err
 	}
 
+	// Opened read-only, so Close has nothing to report the read did not.
 	defer func() { _ = f.Close() }()
 
 	return preset.Read(f)

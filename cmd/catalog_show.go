@@ -48,5 +48,6 @@ func init() {
 
 	catalogShowCmd.Flags().StringVar(&catalogShowModel, "model", "",
 		"model identifier, e.g. HD2_AmpSVBeastNrm")
+	// Fails only for a flag that does not exist, and these are defined above.
 	_ = catalogShowCmd.MarkFlagRequired("model")
 }
