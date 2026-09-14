@@ -67,6 +67,7 @@ func Write(
 		return err
 	}
 
+	// Gone once renamed. Left only when the rename failed, and that error is returned.
 	defer func() { _ = os.Remove(tmp) }()
 
 	if err := os.Rename(tmp, path); err != nil {
@@ -95,6 +96,7 @@ func WriteNew(
 		return err
 	}
 
+	// A spare name once linked, and the error that matters is returned either way.
 	defer func() { _ = os.Remove(tmp) }()
 
 	err = link(tmp, path)
@@ -139,6 +141,7 @@ func create(
 	_, err = f.Write(data)
 
 	if err := errors.Join(err, f.Sync(), f.Close()); err != nil {
+		// Best effort: the write error is the one returned.
 		_ = os.Remove(path)
 
 		return fmt.Errorf("writing %s: %w", path, err)
@@ -174,6 +177,7 @@ func temp(
 	// One check for all of them: each leaves a file that is not what was
 	// asked for, and each is answered the same way.
 	if err := errors.Join(err, f.Sync(), f.Close()); err != nil {
+		// Best effort: the write error is the one returned.
 		_ = os.Remove(f.Name())
 
 		return "", fmt.Errorf("writing %s: %w", path, err)

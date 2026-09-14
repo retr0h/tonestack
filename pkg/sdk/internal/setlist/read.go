@@ -77,6 +77,7 @@ func decodePayload(env envelope) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("opening compressed payload: %w", err)
 	}
+	// Close returns only an error a read already hit, and the read is checked.
 	defer func() { _ = zr.Close() }()
 
 	// Bounded by what the file says it holds, plus one byte so an overrun is

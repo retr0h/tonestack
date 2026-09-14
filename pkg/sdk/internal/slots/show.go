@@ -112,6 +112,7 @@ func readFile(path string) (*preset.Document, error) {
 		return nil, fmt.Errorf("opening %s: %w", path, err)
 	}
 
+	// Opened read-only, so Close has nothing to report the read did not.
 	defer func() { _ = f.Close() }()
 
 	doc, err := preset.Read(f)

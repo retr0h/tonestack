@@ -44,6 +44,7 @@ func Open(path string) (*Catalog, error) {
 		return nil, fmt.Errorf("opening catalog: %w", err)
 	}
 
+	// Opened read-only, so Close has nothing to report the read did not.
 	defer func() { _ = f.Close() }()
 
 	c, err := Load(f)

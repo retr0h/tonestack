@@ -54,6 +54,7 @@ func decode(packed []byte) (*Catalog, error) {
 		return nil, fmt.Errorf("opening the built-in catalog: %w", err)
 	}
 
+	// Close returns only an error a read already hit, and the read is checked.
 	defer func() { _ = zr.Close() }()
 
 	raw, err := io.ReadAll(zr)

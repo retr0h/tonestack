@@ -104,6 +104,7 @@ func (s Setlist) Name() string {
 		Name string `json:"name"`
 	}
 
+	// A meta that is not an object has no name, and a listing shows it blank rather than refusing.
 	_ = json.Unmarshal(s.Meta, &meta)
 
 	return meta.Name
