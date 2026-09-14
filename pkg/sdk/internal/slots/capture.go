@@ -23,15 +23,17 @@ package slots
 import (
 	"encoding/json"
 	"fmt"
-	"os"
-
-	"github.com/retr0h/tonestack/pkg/sdk/result"
+	"io"
 )
 
 // dump writes a device's answer where somebody can read it, when asked.
-func dump(got any) error {
-	path := os.Getenv(result.DumpEnv)
-	if path == "" {
+//
+// Nil w means nobody asked.
+func dump(
+	w io.Writer,
+	got any,
+) error {
+	if w == nil {
 		return nil
 	}
 
@@ -40,8 +42,8 @@ func dump(got any) error {
 		return fmt.Errorf("encoding the device's answer: %w", err)
 	}
 
-	if err := os.WriteFile(path, body, 0o600); err != nil {
-		return fmt.Errorf("writing %s: %w", path, err)
+	if _, err := w.Write(body); err != nil {
+		return fmt.Errorf("capturing the device's answer: %w", err)
 	}
 
 	return nil

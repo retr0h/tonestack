@@ -30,8 +30,12 @@ import (
 )
 
 // SelectDevice makes one preset the active one on an attached device.
-func SelectDevice(ctx context.Context, opts DeviceOptions) (result.Change, error) {
-	s, err := OpenDevice(ctx)
+func SelectDevice(
+	ctx context.Context,
+	devices Opener,
+	opts DeviceOptions,
+) (result.Change, error) {
+	s, err := devices.Open(ctx)
 	if err != nil {
 		return result.Change{}, err
 	}

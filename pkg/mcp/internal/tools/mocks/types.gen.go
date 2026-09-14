@@ -43,63 +43,63 @@ func (m *MockClient) EXPECT() *MockClientMockRecorder {
 }
 
 // Block mocks base method.
-func (m *MockClient) Block(catalogPath, id string) (catalog.Block, error) {
+func (m *MockClient) Block(ctx context.Context, id string) (catalog.Block, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Block", catalogPath, id)
+	ret := m.ctrl.Call(m, "Block", ctx, id)
 	ret0, _ := ret[0].(catalog.Block)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Block indicates an expected call of Block.
-func (mr *MockClientMockRecorder) Block(catalogPath, id any) *gomock.Call {
+func (mr *MockClientMockRecorder) Block(ctx, id any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Block", reflect.TypeOf((*MockClient)(nil).Block), catalogPath, id)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Block", reflect.TypeOf((*MockClient)(nil).Block), ctx, id)
 }
 
 // Blocks mocks base method.
-func (m *MockClient) Blocks(catalogPath string, f sdk.Filter) (sdk.Blocks, error) {
+func (m *MockClient) Blocks(ctx context.Context, f sdk.Filter) (sdk.Blocks, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Blocks", catalogPath, f)
+	ret := m.ctrl.Call(m, "Blocks", ctx, f)
 	ret0, _ := ret[0].(sdk.Blocks)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Blocks indicates an expected call of Blocks.
-func (mr *MockClientMockRecorder) Blocks(catalogPath, f any) *gomock.Call {
+func (mr *MockClientMockRecorder) Blocks(ctx, f any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Blocks", reflect.TypeOf((*MockClient)(nil).Blocks), catalogPath, f)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Blocks", reflect.TypeOf((*MockClient)(nil).Blocks), ctx, f)
 }
 
 // Build mocks base method.
-func (m *MockClient) Build(in sdk.Make) (sdk.Made, error) {
+func (m *MockClient) Build(ctx context.Context, in sdk.Make) (sdk.Made, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Build", in)
+	ret := m.ctrl.Call(m, "Build", ctx, in)
 	ret0, _ := ret[0].(sdk.Made)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Build indicates an expected call of Build.
-func (mr *MockClientMockRecorder) Build(in any) *gomock.Call {
+func (mr *MockClientMockRecorder) Build(ctx, in any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Build", reflect.TypeOf((*MockClient)(nil).Build), in)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Build", reflect.TypeOf((*MockClient)(nil).Build), ctx, in)
 }
 
 // Compile mocks base method.
-func (m *MockClient) Compile(in sdk.Compile) (sdk.Built, error) {
+func (m *MockClient) Compile(ctx context.Context, in sdk.Compile) (sdk.Built, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Compile", in)
+	ret := m.ctrl.Call(m, "Compile", ctx, in)
 	ret0, _ := ret[0].(sdk.Built)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Compile indicates an expected call of Compile.
-func (mr *MockClientMockRecorder) Compile(in any) *gomock.Call {
+func (mr *MockClientMockRecorder) Compile(ctx, in any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Compile", reflect.TypeOf((*MockClient)(nil).Compile), in)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Compile", reflect.TypeOf((*MockClient)(nil).Compile), ctx, in)
 }
 
 // Copy mocks base method.
@@ -163,18 +163,18 @@ func (mr *MockClientMockRecorder) Import(ctx, in any) *gomock.Call {
 }
 
 // Measurements mocks base method.
-func (m *MockClient) Measurements(in sdk.Corpus) (sdk.Measured, error) {
+func (m *MockClient) Measurements(ctx context.Context, in sdk.Corpus) (sdk.Measured, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Measurements", in)
+	ret := m.ctrl.Call(m, "Measurements", ctx, in)
 	ret0, _ := ret[0].(sdk.Measured)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Measurements indicates an expected call of Measurements.
-func (mr *MockClientMockRecorder) Measurements(in any) *gomock.Call {
+func (mr *MockClientMockRecorder) Measurements(ctx, in any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Measurements", reflect.TypeOf((*MockClient)(nil).Measurements), in)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Measurements", reflect.TypeOf((*MockClient)(nil).Measurements), ctx, in)
 }
 
 // Preset mocks base method.
@@ -208,33 +208,33 @@ func (mr *MockClientMockRecorder) Presets(ctx, in any) *gomock.Call {
 }
 
 // Recipe mocks base method.
-func (m *MockClient) Recipe(dir, id string) (sdk.Recipe, error) {
+func (m *MockClient) Recipe(ctx context.Context, id string) (sdk.Recipe, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Recipe", dir, id)
+	ret := m.ctrl.Call(m, "Recipe", ctx, id)
 	ret0, _ := ret[0].(sdk.Recipe)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Recipe indicates an expected call of Recipe.
-func (mr *MockClientMockRecorder) Recipe(dir, id any) *gomock.Call {
+func (mr *MockClientMockRecorder) Recipe(ctx, id any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Recipe", reflect.TypeOf((*MockClient)(nil).Recipe), dir, id)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Recipe", reflect.TypeOf((*MockClient)(nil).Recipe), ctx, id)
 }
 
 // Recipes mocks base method.
-func (m *MockClient) Recipes(dir string) (sdk.Recipes, error) {
+func (m *MockClient) Recipes(ctx context.Context) (sdk.Recipes, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Recipes", dir)
+	ret := m.ctrl.Call(m, "Recipes", ctx)
 	ret0, _ := ret[0].(sdk.Recipes)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Recipes indicates an expected call of Recipes.
-func (mr *MockClientMockRecorder) Recipes(dir any) *gomock.Call {
+func (mr *MockClientMockRecorder) Recipes(ctx any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Recipes", reflect.TypeOf((*MockClient)(nil).Recipes), dir)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Recipes", reflect.TypeOf((*MockClient)(nil).Recipes), ctx)
 }
 
 // Select mocks base method.

@@ -27,7 +27,10 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk/slot"
 )
 
-var presetsExportOptions sdk.Export
+var (
+	presetsExportOptions sdk.Export
+	presetsExportClient  clientFlags
+)
 
 // presetsExportCmd represents the presets export command.
 var presetsExportCmd = &cobra.Command{
@@ -78,7 +81,7 @@ func init() {
 	f.StringVar(&presetsExportOptions.OutputPath, "out", "", "where to write it")
 	f.StringVar((*string)(&presetsExportOptions.As), "as", "rigspec",
 		"rigspec for a rig, hlx for the device's own file")
-	f.StringVar(&presetsExportOptions.CatalogPath, "catalog", "",
+	f.StringVar(&presetsExportClient.catalog, "catalog", "",
 		"a generated catalog to use instead of the built-in one")
 	// Fails only for a flag that does not exist, and these are defined above.
 	_ = presetsExportCmd.MarkFlagRequired("slot")
@@ -90,5 +93,5 @@ func init() {
 // No file means the device itself, which is what somebody with one plugged in
 // almost always wants.
 func exported(cmd *cobra.Command) (sdk.Written, error) {
-	return sdk.New().Export(cmd.Context(), presetsExportOptions)
+	return presetsExportClient.client().Export(cmd.Context(), presetsExportOptions)
 }

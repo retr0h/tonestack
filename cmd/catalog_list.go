@@ -38,7 +38,8 @@ var catalogListCmd = &cobra.Command{
     tonestack catalog list --search ampeg`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		blocks, err := sdk.New().Blocks(catalogPath, catalogListFilter)
+		blocks, err := newClient(sdk.WithCatalog(catalogPath)).
+			Blocks(cmd.Context(), catalogListFilter)
 		if err != nil {
 			return err
 		}

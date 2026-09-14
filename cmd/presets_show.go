@@ -27,7 +27,10 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk/slot"
 )
 
-var presetsShowOptions sdk.Read
+var (
+	presetsShowOptions sdk.Read
+	presetsShowClient  clientFlags
+)
 
 // presetsShowCmd represents the presets show command.
 var presetsShowCmd = &cobra.Command{
@@ -76,7 +79,7 @@ func init() {
 		"slot",
 		"which slot — a label the pedal shows such as 31A, or a number from zero",
 	)
-	f.StringVar(&presetsShowOptions.CatalogPath, "catalog", "",
+	f.StringVar(&presetsShowClient.catalog, "catalog", "",
 		"a generated catalog to use instead of the built-in one")
 	presetsShowCmd.MarkFlagsMutuallyExclusive("file", "preset")
 	presetsShowCmd.MarkFlagsMutuallyExclusive("preset", "slot")
@@ -92,5 +95,5 @@ func init() {
 // No file and no preset means the device itself, which is what somebody with
 // one plugged in almost always wants.
 func reading(cmd *cobra.Command) (sdk.Reading, error) {
-	return sdk.New().Preset(cmd.Context(), presetsShowOptions)
+	return presetsShowClient.client().Preset(cmd.Context(), presetsShowOptions)
 }

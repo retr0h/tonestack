@@ -38,8 +38,12 @@ import (
 // there. See wire.Blank.
 //
 // The destination is overwritten. There is no undo on a device.
-func ImportDevice(ctx context.Context, opts ImportOptions) (result.Change, error) {
-	s, err := OpenDevice(ctx)
+func ImportDevice(
+	ctx context.Context,
+	devices Opener,
+	opts ImportOptions,
+) (result.Change, error) {
+	s, err := devices.Open(ctx)
 	if err != nil {
 		return result.Change{}, err
 	}

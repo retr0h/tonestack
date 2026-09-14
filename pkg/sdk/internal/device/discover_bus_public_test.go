@@ -23,6 +23,7 @@ package device_test
 import (
 	"context"
 	"errors"
+	"io"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
@@ -418,7 +419,7 @@ func (s *DiscoverBusPublicTestSuite) TestOpenFindsItsOwnBus() {
 		return s.bus(nil, s.helix(answers(s.ctrl))).mock
 	}
 
-	got, err := device.Open(context.Background())
+	got, err := device.NewUSB(io.Discard).Open(context.Background())
 
 	s.Require().NoError(err)
 	s.Require().NotNil(got)

@@ -31,6 +31,7 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk/internal/device"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/device/mocks"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/slots"
+	slotmocks "github.com/retr0h/tonestack/pkg/sdk/internal/slots/mocks"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/wire"
 )
 
@@ -166,13 +167,15 @@ func (s *SelectDevicePublicTestSuite) TestSelectDevice() {
 				s.dev.MockSelector.EXPECT().
 					SelectPreset(gomock.Any(), 0, 4).Return(nil)
 
-				defer s.stand(s.dev, nil)()
-			} else {
-				defer s.stand(nil, errors.New("nothing on the bus"))()
+			}
+
+			devices := s.stand(nil, errors.New("nothing on the bus"))
+			if tt.attached {
+				devices = s.stand(s.dev, nil)
 			}
 
 			change, err := slots.SelectDevice(
-				context.Background(), slots.DeviceOptions{Slot: 4})
+				context.Background(), devices, slots.DeviceOptions{Slot: 4})
 
 			if tt.errText != "" {
 				s.Require().ErrorContains(err, tt.errText)
@@ -186,18 +189,16 @@ func (s *SelectDevicePublicTestSuite) TestSelectDevice() {
 	}
 }
 
-// stand puts a session in place of the one that needs hardware, and takes it
-// away again.
+// stand is a bus that hands back dev, or fails with err, in place of the one
+// that needs hardware.
 func (s *SelectDevicePublicTestSuite) stand(
 	dev device.Editor,
 	err error,
-) func() {
-	restore := slots.OpenDevice
-	slots.OpenDevice = func(context.Context) (device.Editor, error) {
-		return dev, err
-	}
+) slots.Opener {
+	o := slotmocks.NewMockOpener(s.ctrl)
+	o.EXPECT().Open(gomock.Any()).Return(dev, err).AnyTimes()
 
-	return func() { slots.OpenDevice = restore }
+	return o
 }
 
 func TestSelectDevicePublicTestSuite(t *testing.T) {

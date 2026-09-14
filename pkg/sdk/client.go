@@ -22,11 +22,14 @@ package sdk
 
 import (
 	"context"
+	"io"
+	"sync"
 
 	"github.com/retr0h/tonestack/pkg/sdk/catalog"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/attached"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/catalogview"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/corpusview"
+	"github.com/retr0h/tonestack/pkg/sdk/internal/device"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/presets"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/recipes"
 )
@@ -41,41 +44,167 @@ import (
 // Where a device is needed the Client finds one; where it is not, the same
 // Client works with no hardware attached. That is what lets a service compile
 // rigs on a machine that has never seen a Helix.
+//
+// A Client is safe for concurrent use.
 type Client struct {
-	opts Options
+	opts options
+
+	// mu guards cat, the catalog opened on first use.
+	mu  sync.Mutex
+	cat *catalog.Catalog
 }
 
-// Options are what New was given.
+// options are what New was given.
 //
-// Empty for now. It is here so that adding the first real one — a catalog
-// somewhere else, a device chosen rather than found — does not change the
-// shape of every call already written against this.
-type Options struct{}
+// Unexported, with a function per setting, so adding one changes no call
+// already written.
+type options struct {
+	// catalog is a generated catalog. Empty means the built-in one.
+	catalog string
+	// stats is measured corpus statistics. Empty means the built-in ones.
+	stats string
+	// recipes is a directory of rigs. Empty means the ones that ship.
+	recipes string
+	// backupDir is where a slot's old contents go. Empty means the state
+	// directory.
+	backupDir string
+	// capture receives each device answer a read gets. Nil keeps nothing.
+	capture io.Writer
+	// trace receives every USB frame in and out. Nil traces nothing.
+	trace io.Writer
+	// devices is the bus. Nil until New fills in USB.
+	devices device.Opener
+}
 
 // Option changes how a Client works.
-type Option func(*Options)
+type Option func(*options)
+
+// WithCatalog reads a generated catalog instead of the built-in one.
+func WithCatalog(
+	path string,
+) Option {
+	return func(o *options) { o.catalog = path }
+}
+
+// WithStats reads corpus statistics instead of the built-in ones.
+func WithStats(
+	path string,
+) Option {
+	return func(o *options) { o.stats = path }
+}
+
+// WithRecipes reads rigs from a directory instead of the ones that ship.
+//
+// Scaffold writes there too, and needs it: a new rig is not written into
+// wherever the program happened to run.
+func WithRecipes(
+	dir string,
+) Option {
+	return func(o *options) { o.recipes = dir }
+}
+
+// WithBackupDir is where a slot's old contents go before a device write.
+//
+// Without it they go to $XDG_STATE_HOME/tonestack/presets, or to
+// ~/.local/state/tonestack/presets when that variable is unset.
+func WithBackupDir(
+	dir string,
+) Option {
+	return func(o *options) { o.backupDir = dir }
+}
+
+// WithCapture receives each device answer a read gets, verbatim.
+//
+// It is how the wire format was read in the first place: a preset arrives as
+// the bytes the device sent, and an answer nothing here decodes arrives as
+// JSON.
+func WithCapture(
+	w io.Writer,
+) Option {
+	return func(o *options) { o.capture = w }
+}
+
+// WithTrace receives every USB frame in and out.
+func WithTrace(
+	w io.Writer,
+) Option {
+	return func(o *options) { o.trace = w }
+}
 
 // New builds a Client.
 //
 // Usable with no options at all, because the common case is a caller who
-// wants the built-in catalog, the built-in statistics and whatever device
-// happens to be plugged in.
-func New(opts ...Option) *Client {
-	var o Options
+// wants the built-in catalog, the built-in statistics, the rigs that ship and
+// whatever device happens to be plugged in. New opens nothing and cannot fail.
+func New(
+	opts ...Option,
+) *Client {
+	var o options
 
 	for _, fn := range opts {
 		fn(&o)
 	}
 
+	if o.devices == nil {
+		o.devices = device.NewUSB(o.trace)
+	}
+
 	return &Client{opts: o}
+}
+
+// Catalog is the catalog this Client names gear against.
+//
+// Opened on first use and kept, so a renderer reads the same catalog the
+// operation did. A catalog that would not open is not kept, and the next call
+// tries again.
+func (c *Client) Catalog(
+	ctx context.Context,
+) (*catalog.Catalog, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.cat != nil {
+		return c.cat, nil
+	}
+
+	cat, err := catalog.Open(c.opts.catalog)
+	if err != nil {
+		return nil, err
+	}
+
+	c.cat = cat
+
+	return cat, nil
+}
+
+// catalogs hands a flow the Client's own catalog.
+//
+// The flows ask for a catalog by path. The Client already knows which one it
+// was given, so the path is ignored and every call reads the one opened once.
+type catalogs struct {
+	client *Client
+	ctx    context.Context
+}
+
+// Open returns the Client's catalog.
+func (k catalogs) Open(
+	_ string,
+) (*catalog.Catalog, error) {
+	return k.client.Catalog(k.ctx)
 }
 
 // Devices reports the hardware attached to this machine.
 //
 // Recognised hardware only: a bus holds keyboards and webcams, and a list of
 // those is not an answer to "what can I write a preset to".
-func (c *Client) Devices(ctx context.Context) (Attached, error) {
-	return attached.List(ctx)
+func (c *Client) Devices(
+	ctx context.Context,
+) (Attached, error) {
+	return attached.ListWith(ctx, c.opts.devices)
 }
 
 // Filter narrows what Blocks reports.
@@ -89,24 +218,31 @@ type Filter struct {
 }
 
 // Blocks reports what a device can do, narrowed to what was asked for.
-//
-// An empty CatalogPath means the catalog built into this binary, which is
-// what anyone who has not generated their own wants.
-func (c *Client) Blocks(catalogPath string, f Filter) (Blocks, error) {
-	return catalogview.List(catalogPath, catalogview.Filter(f))
+func (c *Client) Blocks(
+	ctx context.Context,
+	f Filter,
+) (Blocks, error) {
+	if err := ctx.Err(); err != nil {
+		return Blocks{}, err
+	}
+
+	return catalogview.List(c.opts.catalog, catalogview.Filter(f))
 }
 
 // Block reports one block and everything it accepts.
-func (c *Client) Block(catalogPath, id string) (catalog.Block, error) {
-	return catalogview.Show(catalogPath, id)
+func (c *Client) Block(
+	ctx context.Context,
+	id string,
+) (catalog.Block, error) {
+	if err := ctx.Err(); err != nil {
+		return catalog.Block{}, err
+	}
+
+	return catalogview.Show(c.opts.catalog, id)
 }
 
 // Corpus says what to read out of the measurements.
 type Corpus struct {
-	// StatsPath is measured statistics to read instead of the built-in ones.
-	StatsPath string
-	// CatalogPath is a catalog to read instead of the built-in one.
-	CatalogPath string
 	// Model asks for one model's parameter distributions.
 	Model string
 	// Instrument asks what chains for one instrument tend to hold.
@@ -118,28 +254,47 @@ type Corpus struct {
 // Two questions come out of the same measurements: what players did with one
 // model, and what chains of a kind are shaped like. Naming a Model asks the
 // first; leaving it empty asks the second.
-func (c *Client) Measurements(in Corpus) (Measured, error) {
-	return corpusview.Show(corpusview.Options(in))
+func (c *Client) Measurements(
+	ctx context.Context,
+	in Corpus,
+) (Measured, error) {
+	if err := ctx.Err(); err != nil {
+		return Measured{}, err
+	}
+
+	return corpusview.Show(corpusview.Options{
+		StatsPath:   c.opts.stats,
+		CatalogPath: c.opts.catalog,
+		Model:       in.Model,
+		Instrument:  in.Instrument,
+	})
 }
 
-// Recipes reads every rig under a directory.
-//
-// An empty dir means the rigs that ship with this library, which is the case
-// for anyone who has not written their own.
-func (c *Client) Recipes(dir string) (Recipes, error) {
-	return recipes.List(dir)
+// Recipes reads every rig this Client was given.
+func (c *Client) Recipes(
+	ctx context.Context,
+) (Recipes, error) {
+	if err := ctx.Err(); err != nil {
+		return Recipes{}, err
+	}
+
+	return recipes.List(c.opts.recipes)
 }
 
 // Recipe reads one rig, and what the rest of the set says about it.
-func (c *Client) Recipe(dir, id string) (Recipe, error) {
-	return recipes.Show(dir, id)
+func (c *Client) Recipe(
+	ctx context.Context,
+	id string,
+) (Recipe, error) {
+	if err := ctx.Err(); err != nil {
+		return Recipe{}, err
+	}
+
+	return recipes.Show(c.opts.recipes, id)
 }
 
 // NewRecipe describes the rig to scaffold.
 type NewRecipe struct {
-	// Dir is where recipes live. Required: empty is refused rather than read
-	// as wherever the program happened to run.
-	Dir string
 	// ID is the identifier, and the filename stem.
 	ID string
 	// Name is the player or style, as a person would write it.
@@ -155,8 +310,6 @@ type NewRecipe struct {
 	Cab string
 	// Pedals are real-world pedals, in signal order.
 	Pedals []string
-	// CatalogPath is a catalog to check against instead of the built-in one.
-	CatalogPath string
 	// From is a rig to copy, by identifier. The copy is a whole rig and
 	// records where it came from in `extends`; nothing merges the two.
 	From string
@@ -171,22 +324,36 @@ type NewRecipe struct {
 // Checking first is the point. A rig naming gear no device models is only
 // found out when somebody tries to build from it, and by then the name has
 // usually been copied somewhere else too.
-func (c *Client) Scaffold(in NewRecipe) (Scaffolded, error) {
-	return recipes.New(recipes.NewOptions(in))
+//
+// The rig is written into the directory WithRecipes named. A Client given
+// none is refused rather than writing wherever the program happened to run.
+func (c *Client) Scaffold(
+	ctx context.Context,
+	in NewRecipe,
+) (Scaffolded, error) {
+	if err := ctx.Err(); err != nil {
+		return Scaffolded{}, err
+	}
+
+	return recipes.New(recipes.NewOptions{
+		Dir:         c.opts.recipes,
+		ID:          in.ID,
+		Name:        in.Name,
+		Band:        in.Band,
+		Instrument:  in.Instrument,
+		Amp:         in.Amp,
+		Cab:         in.Cab,
+		Pedals:      in.Pedals,
+		CatalogPath: c.opts.catalog,
+		From:        in.From,
+		Kind:        in.Kind,
+	})
 }
 
 // Make says which rig to build and where to put it.
 type Make struct {
 	// RecipeID names the curated knowledge to build from.
 	RecipeID string
-	// RecipesDir is where recipes live. Empty means the ones that ship.
-	RecipesDir string
-	// CatalogPath is the generated catalog for the target device. Empty
-	// means the one built into this binary.
-	CatalogPath string
-	// StatsPath is measured corpus statistics. Empty means the ones built
-	// into this binary.
-	StatsPath string
 	// OutputPath is where the preset is written.
 	OutputPath string
 }
@@ -196,12 +363,20 @@ type Make struct {
 // Reporting what it chose matters as much as writing the file. A generated
 // preset is a set of decisions, and a wrong amp should be visible before
 // anybody plugs in rather than after.
-func (c *Client) Build(in Make) (Made, error) {
+func (c *Client) Build(
+	ctx context.Context,
+	in Make,
+) (Made, error) {
+	if err := ctx.Err(); err != nil {
+		return Made{}, err
+	}
+
 	return presets.Make(presets.MakeOptions{
+		Deps:        presets.Deps{Catalogs: catalogs{client: c, ctx: ctx}},
 		RecipeID:    in.RecipeID,
-		RecipesDir:  in.RecipesDir,
-		CatalogPath: in.CatalogPath,
-		StatsPath:   in.StatsPath,
+		RecipesDir:  c.opts.recipes,
+		CatalogPath: c.opts.catalog,
+		StatsPath:   c.opts.stats,
 		OutputPath:  in.OutputPath,
 	})
 }

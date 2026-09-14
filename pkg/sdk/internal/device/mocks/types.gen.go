@@ -110,6 +110,60 @@ func (mr *MockBusMockRecorder) List(ctx any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockBus)(nil).List), ctx)
 }
 
+// MockOpener is a mock of Opener interface.
+type MockOpener struct {
+	ctrl     *gomock.Controller
+	recorder *MockOpenerMockRecorder
+	isgomock struct{}
+}
+
+// MockOpenerMockRecorder is the mock recorder for MockOpener.
+type MockOpenerMockRecorder struct {
+	mock *MockOpener
+}
+
+// NewMockOpener creates a new mock instance.
+func NewMockOpener(ctrl *gomock.Controller) *MockOpener {
+	mock := &MockOpener{ctrl: ctrl}
+	mock.recorder = &MockOpenerMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockOpener) EXPECT() *MockOpenerMockRecorder {
+	return m.recorder
+}
+
+// List mocks base method.
+func (m *MockOpener) List(ctx context.Context) ([]device.Descriptor, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "List", ctx)
+	ret0, _ := ret[0].([]device.Descriptor)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// List indicates an expected call of List.
+func (mr *MockOpenerMockRecorder) List(ctx any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockOpener)(nil).List), ctx)
+}
+
+// Open mocks base method.
+func (m *MockOpener) Open(ctx context.Context) (device.Editor, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Open", ctx)
+	ret0, _ := ret[0].(device.Editor)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Open indicates an expected call of Open.
+func (mr *MockOpenerMockRecorder) Open(ctx any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Open", reflect.TypeOf((*MockOpener)(nil).Open), ctx)
+}
+
 // MockWriter is a mock of Writer interface.
 type MockWriter struct {
 	ctrl     *gomock.Controller

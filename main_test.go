@@ -21,6 +21,8 @@
 package main
 
 import (
+	"fmt"
+	"go/ast"
 	"go/parser"
 	"go/token"
 	"io/fs"
@@ -270,6 +272,81 @@ func (s *MainTestSuite) TestTheMCPStandsAlone() {
 				Fail("reaches too far", "pkg/mcp reaches %s, which a tonestack-mcp would not have", dep)
 		}
 	}
+}
+
+// TestTheSDKReadsOneVariable holds the library to reading the environment in
+// one place.
+//
+// A library that reads the environment is configured by whoever started the
+// process rather than by whoever called it, and two Clients in one process
+// cannot differ. So the CLI reads TONESTACK_USB_DUMP and TONESTACK_USB_DEBUG
+// and passes options in. XDG_STATE_HOME is the exception: where state lives by
+// default is the platform's convention, the way os.UserConfigDir is.
+//
+// Only non-test files. A test sets and reads what it likes.
+func (s *MainTestSuite) TestTheSDKReadsOneVariable() {
+	reads := map[string]bool{
+		"Getenv": true, "LookupEnv": true, "Environ": true, "ExpandEnv": true,
+	}
+
+	fset := token.NewFileSet()
+
+	var found []string
+
+	err := filepath.WalkDir(filepath.Join("pkg", "sdk"),
+		func(path string, d fs.DirEntry, err error) error {
+			switch {
+			case err != nil:
+				return err
+			case d.IsDir(),
+				!strings.HasSuffix(path, ".go"),
+				strings.HasSuffix(path, "_test.go"):
+				return nil
+			}
+
+			f, err := parser.ParseFile(fset, path, nil, 0)
+			if err != nil {
+				return err
+			}
+
+			ast.Inspect(f, func(n ast.Node) bool {
+				call, ok := n.(*ast.CallExpr)
+				if !ok {
+					return true
+				}
+
+				sel, ok := call.Fun.(*ast.SelectorExpr)
+				if !ok {
+					return true
+				}
+
+				if pkg, ok := sel.X.(*ast.Ident); !ok || pkg.Name != "os" ||
+					!reads[sel.Sel.Name] {
+					return true
+				}
+
+				var arg string
+				if len(call.Args) == 1 {
+					if lit, ok := call.Args[0].(*ast.BasicLit); ok {
+						arg = lit.Value
+					}
+				}
+
+				found = append(found, fmt.Sprintf("%s: os.%s(%s)",
+					fset.Position(call.Pos()), sel.Sel.Name, arg))
+
+				return true
+			})
+
+			return nil
+		})
+	s.Require().NoError(err)
+
+	s.Require().Len(found, 1,
+		"pkg/sdk reads the environment in more places than one: %v; "+
+			"read it in cmd and pass an option in", found)
+	s.Require().Contains(found[0], `os.Getenv("XDG_STATE_HOME")`,
+		"the one variable pkg/sdk reads is XDG_STATE_HOME")
 }
 
 func TestMainTestSuite(t *testing.T) {

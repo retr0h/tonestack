@@ -41,12 +41,13 @@ type USBOtherPublicTestSuite struct {
 
 // TestOpen covers starting a session.
 func (s *USBOtherPublicTestSuite) TestOpen() {
-	_, err := device.Open(context.Background())
+	_, err := device.NewUSB(nil).Open(context.Background())
 
 	s.Require().ErrorIs(err, device.ErrNoUSBSupport)
 }
 
-// TestList covers listing what is attached.
+// TestList covers listing what is attached, through the lister and through
+// the Opener built on it.
 func (s *USBOtherPublicTestSuite) TestList() {
 	l := device.NewUSBLister()
 
@@ -54,6 +55,10 @@ func (s *USBOtherPublicTestSuite) TestList() {
 
 	s.Require().ErrorIs(err, device.ErrNoUSBSupport)
 	s.Require().NoError(l.Close())
+
+	_, err = device.NewUSB(nil).List(context.Background())
+
+	s.Require().ErrorIs(err, device.ErrNoUSBSupport)
 }
 
 func TestUSBOtherPublicTestSuite(t *testing.T) {

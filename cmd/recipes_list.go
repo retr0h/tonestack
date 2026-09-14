@@ -32,7 +32,7 @@ var recipesListCmd = &cobra.Command{
 	Short: "List available recipes",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		all, err := sdk.New().Recipes(recipesDir)
+		all, err := newClient(sdk.WithRecipes(recipesDir)).Recipes(cmd.Context())
 		if err != nil {
 			return err
 		}

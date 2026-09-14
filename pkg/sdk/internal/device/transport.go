@@ -24,14 +24,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/retr0h/tonestack/pkg/sdk/internal/wire"
 )
-
-// debug traces every frame when TONESTACK_USB_DEBUG is set.
-var debug = os.Getenv("TONESTACK_USB_DEBUG") != ""
 
 // send writes one frame on a channel and advances its counter.
 //
@@ -51,8 +47,8 @@ func (s *session) send(c *channel, msgType uint16, payload []byte) error {
 		Seq: c.seq, Type: msgType, Ack: ack, Payload: payload,
 	})
 
-	if debug {
-		fmt.Fprintf(os.Stderr, "OUT %-8s seq=%d type=%#04x ack=%#x: %x\n",
+	if s.trace != nil {
+		fmt.Fprintf(s.trace, "OUT %-8s seq=%d type=%#04x ack=%#x: %x\n",
 			c.name, c.seq, msgType, ack, raw[:min(len(raw), 40)])
 	}
 
@@ -98,8 +94,8 @@ func (s *session) receive(
 		return false, fmt.Errorf("reading from the device: %w", err)
 	}
 
-	if debug {
-		fmt.Fprintf(os.Stderr, "IN  %d bytes: %x\n", n, buf[:min(n, 48)])
+	if s.trace != nil {
+		fmt.Fprintf(s.trace, "IN  %d bytes: %x\n", n, buf[:min(n, 48)])
 	}
 
 	var got bool

@@ -24,10 +24,12 @@ import (
 
 	"github.com/retr0h/tonestack/pkg/cli"
 	"github.com/retr0h/tonestack/pkg/sdk"
-	"github.com/retr0h/tonestack/pkg/sdk/catalog"
 )
 
-var presetsListOptions sdk.Where
+var (
+	presetsListOptions sdk.Where
+	presetsListClient  clientFlags
+)
 
 // presetsListAll shows the slots holding nothing.
 //
@@ -54,12 +56,16 @@ there.`,
 		// The operation answers with what is there; what to show of it and
 		// what it looks like are decided here, which is all this command
 		// does.
-		listing, err := listing(cmd)
+		client := presetsListClient.client()
+
+		// No file means the device itself, which is what somebody with one
+		// plugged in almost always wants.
+		listing, err := client.Presets(cmd.Context(), presetsListOptions)
 		if err != nil {
 			return err
 		}
 
-		cat, err := catalog.Open(presetsListOptions.CatalogPath)
+		cat, err := client.Catalog(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -84,15 +90,7 @@ func init() {
 		0,
 		"which setlist, when the file is a backup holding several",
 	)
-	f.StringVar(&presetsListOptions.CatalogPath, "catalog", "",
+	f.StringVar(&presetsListClient.catalog, "catalog", "",
 		"a generated catalog to use instead of the built-in one")
 	f.BoolVar(&presetsListAll, "all", false, "include empty slots")
-}
-
-// listing reads a setlist, from the device or from a file.
-//
-// No file means the device itself, which is what somebody with one plugged in
-// almost always wants.
-func listing(cmd *cobra.Command) (sdk.Listing, error) {
-	return sdk.New().Presets(cmd.Context(), presetsListOptions)
 }

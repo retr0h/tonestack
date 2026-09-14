@@ -97,6 +97,18 @@ type Bus interface {
 	Close() error
 }
 
+// Opener is the bus as everything above this package reaches it.
+//
+// One interface for the two things that need hardware, so a Client is handed
+// a bus rather than finding one, and a test builds its own Client over a
+// double instead of swapping a package variable. NewUSB is the real one.
+type Opener interface {
+	// List reports every device on the bus, recognised or not.
+	List(ctx context.Context) ([]Descriptor, error)
+	// Open starts a session with the first attached device.
+	Open(ctx context.Context) (Editor, error)
+}
+
 // Writer is a session that can put a preset on a device.
 //
 // Separate from Editor because writing is the half that can destroy

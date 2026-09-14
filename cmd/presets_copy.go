@@ -27,7 +27,10 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk/slot"
 )
 
-var presetsCopyOptions sdk.Edit
+var (
+	presetsCopyOptions sdk.Edit
+	presetsCopyClient  clientFlags
+)
 
 // presetsCopyCmd represents the presets copy command.
 var presetsCopyCmd = &cobra.Command{
@@ -53,11 +56,15 @@ of what the hardware holds.`,
 
 func init() {
 	presetsCmd.AddCommand(presetsCopyCmd)
-	editFlags(presetsCopyCmd, &presetsCopyOptions)
+	editFlags(presetsCopyCmd, &presetsCopyOptions, &presetsCopyClient)
 }
 
 // editFlags declares the flags every two-slot edit shares.
-func editFlags(c *cobra.Command, o *sdk.Edit) {
+func editFlags(
+	c *cobra.Command,
+	o *sdk.Edit,
+	k *clientFlags,
+) {
 	f := c.Flags()
 	f.StringVar(&o.Path, "file", "", "a .hls setlist or .hlb backup written by HX Edit")
 	f.IntVar(&o.FromSetlist, "from-setlist", 0, "which setlist the source is in")
@@ -67,9 +74,9 @@ func editFlags(c *cobra.Command, o *sdk.Edit) {
 	f.Var(slot.NewValue(&o.ToSlot), "to",
 		"slot to write — a label such as 31A, or a number from zero")
 	f.StringVar(&o.OutputPath, "out", "", "where to write the edited setlist")
-	f.StringVar(&o.CatalogPath, "catalog", "",
+	f.StringVar(&k.catalog, "catalog", "",
 		"a generated catalog to use instead of the built-in one")
-	f.StringVar(&o.BackupDir, "backup-dir", "",
+	f.StringVar(&k.backupDir, "backup-dir", "",
 		"where to keep what a device slot held; the state directory by default")
 	// Fails only for a flag that does not exist, and these are defined above.
 	_ = c.MarkFlagRequired("from")
@@ -85,5 +92,5 @@ func editFlags(c *cobra.Command, o *sdk.Edit) {
 // No file means the device itself, which is what somebody with one plugged in
 // almost always wants.
 func copied(cmd *cobra.Command) (sdk.Change, error) {
-	return sdk.New().Copy(cmd.Context(), presetsCopyOptions)
+	return presetsCopyClient.client().Copy(cmd.Context(), presetsCopyOptions)
 }

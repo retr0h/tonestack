@@ -33,16 +33,6 @@ import (
 	slotpkg "github.com/retr0h/tonestack/pkg/sdk/slot"
 )
 
-// OpenDevice is how a session is obtained, so a test can stand in for it.
-//
-// Exported because the Client's own tests have to stand in for it too, and
-// this package is private to pkg/sdk either way — the compiler says so, not
-// the case of a letter.
-//
-// The one line in this package that needs hardware; everything reached
-// through it takes the session as an argument instead.
-var OpenDevice = device.Open
-
 // DeviceOptions says which setlist to read off an attached device.
 type DeviceOptions struct {
 	// Deps are the collaborators this command works through.
@@ -66,8 +56,12 @@ type DeviceOptions struct {
 //
 // Read-only: the device hands back the preset and goes on playing whatever it
 // was. Nothing is selected, loaded or written.
-func ShowDevice(ctx context.Context, opts DeviceOptions) (result.Reading, error) {
-	s, err := OpenDevice(ctx)
+func ShowDevice(
+	ctx context.Context,
+	devices Opener,
+	opts DeviceOptions,
+) (result.Reading, error) {
+	s, err := devices.Open(ctx)
 	if err != nil {
 		return result.Reading{}, err
 	}
@@ -109,7 +103,7 @@ func ShowWith(
 	// a protocol change becomes visible.
 	var answer *device.NotAPresetError
 	if errors.As(err, &answer) {
-		if err := dump(answer.Result); err != nil {
+		if err := dump(opts.Capture, answer.Result); err != nil {
 			return result.Reading{}, err
 		}
 
@@ -128,7 +122,7 @@ func ShowWith(
 			"reading slot %s: %w", slotpkg.Label(opts.Slot), err)
 	}
 
-	if err := dump(body); err != nil {
+	if err := dump(opts.Capture, body); err != nil {
 		return result.Reading{}, err
 	}
 
@@ -168,8 +162,12 @@ func nameOf(found []wire.Preset, slot int) string {
 //
 // The same rig `presets show` prints, which is the point: a slot read off the
 // hardware and one read out of a backup are the same document.
-func ExportDevice(ctx context.Context, opts ExportOptions) (result.Written, error) {
-	s, err := OpenDevice(ctx)
+func ExportDevice(
+	ctx context.Context,
+	devices Opener,
+	opts ExportOptions,
+) (result.Written, error) {
+	s, err := devices.Open(ctx)
 	if err != nil {
 		return result.Written{}, err
 	}
@@ -203,8 +201,12 @@ func ExportWith(
 //
 // Read-only: it asks the device to describe a setlist and nothing more.
 // Nothing is selected, loaded or written.
-func ListDevice(ctx context.Context, opts DeviceOptions) (result.Listing, error) {
-	s, err := OpenDevice(ctx)
+func ListDevice(
+	ctx context.Context,
+	devices Opener,
+	opts DeviceOptions,
+) (result.Listing, error) {
+	s, err := devices.Open(ctx)
 	if err != nil {
 		return result.Listing{}, err
 	}
