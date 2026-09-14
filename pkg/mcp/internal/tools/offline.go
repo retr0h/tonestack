@@ -53,7 +53,7 @@ func (h *handlers) catalogBlock(
 ) (*gomcp.CallToolResult, catalog.Block, error) {
 	block, err := h.client.Block("", in.ID)
 	if err != nil {
-		return nil, catalog.Block{}, err
+		return nil, catalog.Block{}, remedy(err)
 	}
 
 	return said("%s is %s", block.ID, block.Name), block, nil
@@ -100,7 +100,7 @@ func (h *handlers) rigShow(
 ) (*gomcp.CallToolResult, sdk.Recipe, error) {
 	found, err := h.client.Recipe("", in.ID)
 	if err != nil {
-		return nil, sdk.Recipe{}, err
+		return nil, sdk.Recipe{}, remedy(err)
 	}
 
 	return said("rig %s, extended by %d others", in.ID, len(found.Variants)), found, nil
@@ -117,7 +117,7 @@ func (h *handlers) presetBuild(
 	case in.RecipeID != "":
 		made, err := h.client.Build(sdk.Make{RecipeID: in.RecipeID, OutputPath: in.Out})
 		if err != nil {
-			return nil, Built{}, err
+			return nil, Built{}, remedy(err)
 		}
 
 		return said("wrote %s from rig %s", in.Out, in.RecipeID), Built{FromRecipe: &made}, nil

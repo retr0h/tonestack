@@ -144,7 +144,7 @@ func (s *RecipesPublicTestSuite) TestFind() {
 			name: "one nobody wrote",
 			dir:  s.good(),
 			id:   "nobody",
-			errs: []string{"recipes list"},
+			errs: []string{"no such recipe", "nobody"},
 		},
 		{
 			name: "a directory that will not load",

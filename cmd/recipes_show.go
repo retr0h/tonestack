@@ -36,7 +36,7 @@ var recipesShowCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		one, err := sdk.New().Recipe(recipesDir, recipesShowID)
 		if err != nil {
-			return err
+			return cli.Hint(err)
 		}
 
 		return cli.Recipe(cmd.OutOrStdout(), one)

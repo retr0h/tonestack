@@ -53,7 +53,7 @@ departs from another, such as one song played differently from the rest.`,
 
 		made, err := sdk.New().Scaffold(recipesNewOptions)
 		if err != nil {
-			return err
+			return cli.Hint(err)
 		}
 
 		return cli.Scaffolded(cmd.OutOrStdout(), made)
