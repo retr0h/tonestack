@@ -22,6 +22,7 @@
 package corpusview
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -50,8 +51,8 @@ func (*NotMeasuredError) Unwrap() error { return ErrNotMeasured }
 type Options struct {
 	// StatsPath is measured statistics to read instead of the built-in ones.
 	StatsPath string
-	// CatalogPath is a catalog to read instead of the built-in one.
-	CatalogPath string
+	// Catalogs hands over the catalog. Asked only when a Model is.
+	Catalogs Catalogs
 	// Model shows one model's parameter distributions.
 	Model string
 	// Instrument shows what chains for one instrument tend to hold.
@@ -62,7 +63,10 @@ type Options struct {
 //
 // The measurements and, when one model was asked about, the catalog beside
 // them: what players chose means little without what Line 6 chose.
-func Show(opts Options) (result.Measured, error) {
+func Show(
+	ctx context.Context,
+	opts Options,
+) (result.Measured, error) {
 	stats, err := open(opts.StatsPath)
 	if err != nil {
 		return result.Measured{}, err
@@ -80,7 +84,7 @@ func Show(opts Options) (result.Measured, error) {
 		return result.Measured{}, &NotMeasuredError{Model: id}
 	}
 
-	cat, err := catalog.Open(opts.CatalogPath)
+	cat, err := opts.Catalogs.Catalog(ctx)
 	if err != nil {
 		return result.Measured{}, err
 	}

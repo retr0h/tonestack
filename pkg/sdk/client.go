@@ -185,6 +185,9 @@ func (c *Client) Catalog(
 //
 // The flows ask for a catalog by path. The Client already knows which one it
 // was given, so the path is ignored and every call reads the one opened once.
+//
+// It holds ctx because slots.Catalogs and presets.Catalogs take none; chunk
+// 49.6 replaces both with a catalog field on the flows, and this goes with them.
 type catalogs struct {
 	client *Client
 	ctx    context.Context
@@ -222,11 +225,12 @@ func (c *Client) Blocks(
 	ctx context.Context,
 	f Filter,
 ) (Blocks, error) {
-	if err := ctx.Err(); err != nil {
+	cat, err := c.Catalog(ctx)
+	if err != nil {
 		return Blocks{}, err
 	}
 
-	return catalogview.List(c.opts.catalog, catalogview.Filter(f))
+	return catalogview.List(cat, catalogview.Filter(f)), nil
 }
 
 // Block reports one block and everything it accepts.
@@ -234,11 +238,12 @@ func (c *Client) Block(
 	ctx context.Context,
 	id string,
 ) (catalog.Block, error) {
-	if err := ctx.Err(); err != nil {
+	cat, err := c.Catalog(ctx)
+	if err != nil {
 		return catalog.Block{}, err
 	}
 
-	return catalogview.Show(c.opts.catalog, id)
+	return catalogview.Show(cat, id)
 }
 
 // Corpus says what to read out of the measurements.
@@ -262,11 +267,11 @@ func (c *Client) Measurements(
 		return Measured{}, err
 	}
 
-	return corpusview.Show(corpusview.Options{
-		StatsPath:   c.opts.stats,
-		CatalogPath: c.opts.catalog,
-		Model:       in.Model,
-		Instrument:  in.Instrument,
+	return corpusview.Show(ctx, corpusview.Options{
+		StatsPath:  c.opts.stats,
+		Catalogs:   c,
+		Model:      in.Model,
+		Instrument: in.Instrument,
 	})
 }
 
@@ -335,18 +340,18 @@ func (c *Client) Scaffold(
 		return Scaffolded{}, err
 	}
 
-	return recipes.New(recipes.NewOptions{
-		Dir:         c.opts.recipes,
-		ID:          in.ID,
-		Name:        in.Name,
-		Band:        in.Band,
-		Instrument:  in.Instrument,
-		Amp:         in.Amp,
-		Cab:         in.Cab,
-		Pedals:      in.Pedals,
-		CatalogPath: c.opts.catalog,
-		From:        in.From,
-		Kind:        in.Kind,
+	return recipes.New(ctx, recipes.NewOptions{
+		Dir:        c.opts.recipes,
+		ID:         in.ID,
+		Name:       in.Name,
+		Band:       in.Band,
+		Instrument: in.Instrument,
+		Amp:        in.Amp,
+		Cab:        in.Cab,
+		Pedals:     in.Pedals,
+		Catalogs:   c,
+		From:       in.From,
+		Kind:       in.Kind,
 	})
 }
 

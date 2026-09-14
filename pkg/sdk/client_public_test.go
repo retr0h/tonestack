@@ -264,17 +264,27 @@ func (s *ClientPublicTestSuite) TestWithCapture() {
 	}
 }
 
-// TestWithTrace covers where the frames go. Only a real bus sends any, so all
-// that can be said without one is that asking for them changes no answer.
+// TestWithTrace covers where the frames go.
+//
+// A double sends no frames, so this asks which bus New built: the USB one,
+// handed the trace. device's own tests show a session writes its frames there.
 func (s *ClientPublicTestSuite) TestWithTrace() {
 	var trace bytes.Buffer
 
-	got, err := sdk.New(sdk.WithTrace(&trace), sdk.WithDevices(s.bus(nil, nil))).
-		Devices(context.Background())
+	tests := []struct {
+		name  string
+		opts  []sdk.Option
+		trace io.Writer
+	}{
+		{name: "asked for", opts: []sdk.Option{sdk.WithTrace(&trace)}, trace: &trace},
+		{name: "not asked for"},
+	}
 
-	s.Require().NoError(err)
-	s.Require().Empty(got.Devices)
-	s.Require().Zero(trace.Len(), "a double sends no frames to trace")
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			s.Require().Equal(device.NewUSB(tt.trace), sdk.New(tt.opts...).Opener())
+		})
+	}
 }
 
 // TestCatalog covers the catalog a Client names gear against.
@@ -422,10 +432,12 @@ func (s *ClientPublicTestSuite) TestBlocks() {
 // TestBlock covers reporting one block and what it accepts.
 func (s *ClientPublicTestSuite) TestBlock() {
 	tests := []struct {
-		name string
-		ctx  context.Context
-		id   string
-		is   error
+		name    string
+		ctx     context.Context
+		catalog string
+		id      string
+		is      error
+		err     bool
 	}{
 		{name: "a block the catalog carries", id: "HD2_DistMinotaur"},
 		{name: "one it does not", id: "HD2_NoSuchBlock", is: sdk.ErrNoSuchBlock},
@@ -434,6 +446,12 @@ func (s *ClientPublicTestSuite) TestBlock() {
 			ctx:  cancelled(),
 			id:   "HD2_DistMinotaur",
 			is:   context.Canceled,
+		},
+		{
+			name:    "a catalog that is not there",
+			catalog: "no.json",
+			id:      "HD2_DistMinotaur",
+			err:     true,
 		},
 	}
 
@@ -444,7 +462,13 @@ func (s *ClientPublicTestSuite) TestBlock() {
 				ctx = context.Background()
 			}
 
-			got, err := sdk.New().Block(ctx, tt.id)
+			got, err := sdk.New(sdk.WithCatalog(tt.catalog)).Block(ctx, tt.id)
+
+			if tt.err {
+				s.Require().Error(err)
+
+				return
+			}
 
 			if tt.is != nil {
 				s.Require().ErrorIs(err, tt.is)

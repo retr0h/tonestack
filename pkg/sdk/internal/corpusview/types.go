@@ -18,24 +18,17 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-package sdk
+package corpusview
 
-import "github.com/retr0h/tonestack/pkg/sdk/internal/device"
+import (
+	"context"
 
-// Opener is the bus a Client was built over, so a test can see which one New
-// chose and what it handed that bus.
-func (c *Client) Opener() device.Opener {
-	return c.opts.devices
-}
+	"github.com/retr0h/tonestack/pkg/sdk/catalog"
+)
 
-// WithDevices is the bus a Client reaches hardware through, in place of USB.
-//
-// Here rather than beside the other options because a caller outside the
-// library cannot build a device.Editor: it answers in wire types. A test
-// builds its own Client over a generated double, so no two tests share a bus
-// and every suite can run in parallel.
-func WithDevices(
-	d device.Opener,
-) Option {
-	return func(o *options) { o.devices = d }
+// Catalogs hands over the catalog a measurement is named against. The sdk
+// Client satisfies it, and keeps the catalog it opened.
+type Catalogs interface {
+	// Catalog returns the catalog, opening it on first use.
+	Catalog(ctx context.Context) (*catalog.Catalog, error)
 }

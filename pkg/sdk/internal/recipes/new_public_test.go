@@ -21,12 +21,17 @@
 package recipes_test
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
+	"go.uber.org/mock/gomock"
+
+	"github.com/retr0h/tonestack/pkg/sdk/catalog"
+	"github.com/retr0h/tonestack/pkg/sdk/internal/recipes/mocks"
 
 	"github.com/retr0h/tonestack/pkg/sdk/internal/recipes"
 	"github.com/retr0h/tonestack/pkg/sdk/rig"
@@ -34,16 +39,34 @@ import (
 
 type NewPublicTestSuite struct {
 	suite.Suite
+
+	ctrl *gomock.Controller
+}
+
+func (s *NewPublicTestSuite) SetupTest() {
+	s.ctrl = gomock.NewController(s.T())
+}
+
+// catalogs hands over the catalog at path, however often it is asked.
+func (s *NewPublicTestSuite) catalogs(
+	path string,
+) *mocks.MockCatalogs {
+	c := mocks.NewMockCatalogs(s.ctrl)
+	c.EXPECT().Catalog(gomock.Any()).DoAndReturn(
+		func(context.Context) (*catalog.Catalog, error) { return catalog.Open(path) },
+	).AnyTimes()
+
+	return c
 }
 
 func (s *NewPublicTestSuite) opts(dir string) recipes.NewOptions {
 	return recipes.NewOptions{
-		Dir:         dir,
-		ID:          "test-player",
-		Name:        "Test Player",
-		Instrument:  "bass",
-		Amp:         "Ampeg SVT",
-		CatalogPath: filepath.Join("testdata", "catalog.json"),
+		Dir:        dir,
+		ID:         "test-player",
+		Name:       "Test Player",
+		Instrument: "bass",
+		Amp:        "Ampeg SVT",
+		Catalogs:   s.catalogs(filepath.Join("testdata", "catalog.json")),
 	}
 }
 
@@ -249,19 +272,19 @@ func (s *NewPublicTestSuite) TestNew() {
 			}
 
 			if tt.catalog != "" {
-				o.CatalogPath = tt.catalog
+				o.Catalogs = s.catalogs(tt.catalog)
 			}
 
 			if tt.builtIn {
-				o.CatalogPath = ""
+				o.Catalogs = s.catalogs("")
 			}
 
 			if tt.twice {
-				_, err := recipes.New(s.opts(dir))
+				_, err := recipes.New(context.Background(), s.opts(dir))
 				s.Require().NoError(err)
 			}
 
-			made, err := recipes.New(o)
+			made, err := recipes.New(context.Background(), o)
 
 			if tt.err != nil || tt.errText != "" {
 				s.Require().Error(err)

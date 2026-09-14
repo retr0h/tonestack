@@ -30,6 +30,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -285,8 +286,12 @@ func (s *MainTestSuite) TestTheMCPStandsAlone() {
 //
 // Only non-test files. A test sets and reads what it likes.
 func (s *MainTestSuite) TestTheSDKReadsOneVariable() {
-	reads := map[string]bool{
-		"Getenv": true, "LookupEnv": true, "Environ": true, "ExpandEnv": true,
+	// What reads the environment, by import path.
+	reads := map[string]map[string]bool{
+		"os": {
+			"Getenv": true, "LookupEnv": true, "Environ": true, "ExpandEnv": true,
+		},
+		"syscall": {"Getenv": true, "Environ": true},
 	}
 
 	fset := token.NewFileSet()
@@ -309,31 +314,68 @@ func (s *MainTestSuite) TestTheSDKReadsOneVariable() {
 				return err
 			}
 
+			// The name each watched package goes by in this file, which an
+			// alias changes. A dot import leaves no name to find, so it is
+			// reported on its own.
+			named := map[string]string{}
+
+			for _, imp := range f.Imports {
+				path, err := strconv.Unquote(imp.Path.Value)
+				if err != nil || reads[path] == nil {
+					continue
+				}
+
+				name := path
+				if imp.Name != nil {
+					name = imp.Name.Name
+				}
+
+				switch name {
+				case "_":
+				case ".":
+					found = append(found, fmt.Sprintf("%s: dot import of %s",
+						fset.Position(imp.Pos()), path))
+				default:
+					named[name] = path
+				}
+			}
+
+			// A literal argument, where the reference is called with one.
+			args := map[*ast.SelectorExpr]string{}
+
 			ast.Inspect(f, func(n ast.Node) bool {
-				call, ok := n.(*ast.CallExpr)
-				if !ok {
-					return true
-				}
-
-				sel, ok := call.Fun.(*ast.SelectorExpr)
-				if !ok {
-					return true
-				}
-
-				if pkg, ok := sel.X.(*ast.Ident); !ok || pkg.Name != "os" ||
-					!reads[sel.Sel.Name] {
-					return true
-				}
-
-				var arg string
-				if len(call.Args) == 1 {
-					if lit, ok := call.Args[0].(*ast.BasicLit); ok {
-						arg = lit.Value
+				if call, ok := n.(*ast.CallExpr); ok {
+					sel, isSel := call.Fun.(*ast.SelectorExpr)
+					if isSel && len(call.Args) == 1 {
+						if lit, isLit := call.Args[0].(*ast.BasicLit); isLit {
+							args[sel] = lit.Value
+						}
 					}
 				}
 
-				found = append(found, fmt.Sprintf("%s: os.%s(%s)",
-					fset.Position(call.Pos()), sel.Sel.Name, arg))
+				return true
+			})
+
+			// Every reference, called or not: a function value read into a
+			// variable reads the environment when it is called later.
+			ast.Inspect(f, func(n ast.Node) bool {
+				sel, ok := n.(*ast.SelectorExpr)
+				if !ok {
+					return true
+				}
+
+				pkg, ok := sel.X.(*ast.Ident)
+				if !ok {
+					return true
+				}
+
+				path, ok := named[pkg.Name]
+				if !ok || !reads[path][sel.Sel.Name] {
+					return true
+				}
+
+				found = append(found, fmt.Sprintf("%s: %s.%s(%s)",
+					fset.Position(sel.Pos()), path, sel.Sel.Name, args[sel]))
 
 				return true
 			})

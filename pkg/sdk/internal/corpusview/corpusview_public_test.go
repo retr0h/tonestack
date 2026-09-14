@@ -21,22 +21,44 @@
 package corpusview_test
 
 import (
+	"context"
 	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
+	"go.uber.org/mock/gomock"
 
+	"github.com/retr0h/tonestack/pkg/sdk/catalog"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/corpusview"
+	"github.com/retr0h/tonestack/pkg/sdk/internal/corpusview/mocks"
 )
 
 type CorpusViewPublicTestSuite struct {
 	suite.Suite
+
+	ctrl *gomock.Controller
+}
+
+func (s *CorpusViewPublicTestSuite) SetupTest() {
+	s.ctrl = gomock.NewController(s.T())
+}
+
+// catalogs hands over the catalog at path, however often it is asked.
+func (s *CorpusViewPublicTestSuite) catalogs(
+	path string,
+) *mocks.MockCatalogs {
+	c := mocks.NewMockCatalogs(s.ctrl)
+	c.EXPECT().Catalog(gomock.Any()).DoAndReturn(
+		func(context.Context) (*catalog.Catalog, error) { return catalog.Open(path) },
+	).AnyTimes()
+
+	return c
 }
 
 func (s *CorpusViewPublicTestSuite) opts() corpusview.Options {
 	return corpusview.Options{
-		StatsPath:   filepath.Join("testdata", "stats.json.gz"),
-		CatalogPath: filepath.Join("testdata", "catalog.json"),
+		StatsPath: filepath.Join("testdata", "stats.json.gz"),
+		Catalogs:  s.catalogs(filepath.Join("testdata", "catalog.json")),
 	}
 }
 
@@ -128,10 +150,10 @@ func (s *CorpusViewPublicTestSuite) TestShow() {
 			}
 
 			if tt.catalog != "" {
-				o.CatalogPath = tt.catalog
+				o.Catalogs = s.catalogs(tt.catalog)
 			}
 
-			measured, err := corpusview.Show(o)
+			measured, err := corpusview.Show(context.Background(), o)
 
 			if tt.err != nil || tt.errText != "" {
 				s.Require().Error(err)

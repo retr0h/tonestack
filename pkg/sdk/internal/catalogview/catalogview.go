@@ -38,19 +38,20 @@ type Filter struct {
 	Search string
 }
 
-// List reads the blocks matching f.
-func List(path string, f Filter) (result.Blocks, error) {
-	c, err := catalog.Open(path)
-	if err != nil {
-		return result.Blocks{}, err
-	}
-
+// List reports the blocks in c matching f.
+//
+// The caller opens the catalog, so a Client that already holds one does not
+// read it again.
+func List(
+	c *catalog.Catalog,
+	f Filter,
+) result.Blocks {
 	return result.Blocks{
 		Device:  c.Device,
 		Source:  c.Source,
 		Total:   len(c.Blocks),
 		Matched: match(c, f),
-	}, nil
+	}
 }
 
 func match(c *catalog.Catalog, f Filter) []catalog.Block {
@@ -93,13 +94,11 @@ func mentions(b catalog.Block, term string) bool {
 		strings.ToLower(string(b.ID)), strings.ToLower(term))
 }
 
-// Show reads one block and everything it accepts.
-func Show(path, id string) (catalog.Block, error) {
-	c, err := catalog.Open(path)
-	if err != nil {
-		return catalog.Block{}, err
-	}
-
+// Show reports one block in c and everything it accepts.
+func Show(
+	c *catalog.Catalog,
+	id string,
+) (catalog.Block, error) {
 	b, ok := c.Block(catalog.ModelID(id))
 	if !ok {
 		return catalog.Block{}, &NotFoundError{ID: id, Known: len(c.Blocks)}
