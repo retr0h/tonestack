@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/suite"
+	"go.uber.org/mock/gomock"
 
 	"github.com/retr0h/tonestack/pkg/sdk/internal/device"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/wire"
@@ -34,6 +35,12 @@ import (
 // ConversationPublicTestSuite covers a session's beginning and end.
 type ConversationPublicTestSuite struct {
 	suite.Suite
+
+	ctrl *gomock.Controller
+}
+
+func (s *ConversationPublicTestSuite) SetupTest() {
+	s.ctrl = gomock.NewController(s.T())
 }
 
 // TestClose gives back what the session took, and tells the device it is
@@ -85,11 +92,11 @@ func (s *ConversationPublicTestSuite) TestClose() {
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			d := answers(device.FrameFor("control", wire.MsgData, []byte("noise")))
+			d := answers(s.ctrl, device.FrameFor("control", wire.MsgData, []byte("noise")))
 
 			var given []string
 
-			session := device.NewTestSession(d, d)
+			session := device.NewTestSession(d.out, d.in)
 
 			if !tt.opened {
 				session = device.NewTestSession(nil, nil)

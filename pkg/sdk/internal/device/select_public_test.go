@@ -29,6 +29,7 @@ import (
 
 	"github.com/stretchr/testify/suite"
 	"github.com/vmihailenco/msgpack/v5"
+	"go.uber.org/mock/gomock"
 
 	"github.com/retr0h/tonestack/pkg/sdk/internal/device"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/wire"
@@ -43,9 +44,13 @@ import (
 // is loaded, until it says the right thing, is the only honest signal.
 type SelectPublicTestSuite struct {
 	suite.Suite
+
+	ctrl *gomock.Controller
 }
 
 func (s *SelectPublicTestSuite) SetupTest() {
+	s.ctrl = gomock.NewController(s.T())
+
 	poll, budget := *device.SelectPoll, *device.SelectBudget
 	*device.SelectPoll = time.Millisecond
 	*device.SelectBudget = 50 * time.Millisecond
@@ -121,8 +126,8 @@ func (s *SelectPublicTestSuite) playing(txn uint64, setlist, slot int) []byte {
 	return device.Reply(device.DataChannel, buf.Bytes())
 }
 
-func (s *SelectPublicTestSuite) session(d *scripted) *device.Session {
-	out := device.NewTestSession(d, d)
+func (s *SelectPublicTestSuite) session(d *deviceDouble) *device.Session {
+	out := device.NewTestSession(d.out, d.in)
 	out.OpenChannels()
 
 	return out
@@ -132,7 +137,7 @@ func (s *SelectPublicTestSuite) session(d *scripted) *device.Session {
 func (s *SelectPublicTestSuite) TestSelectPreset() {
 	tests := []struct {
 		name      string
-		device    func() *scripted
+		device    func() *deviceDouble
 		cancelled bool
 		// a caller who stops waiting after the device has answered, rather
 		// than before it was asked.
@@ -140,14 +145,15 @@ func (s *SelectPublicTestSuite) TestSelectPreset() {
 		// a poll interval of its own, when that is the point.
 		poll time.Duration
 		says string
+		is   error
 	}{
 		{
 			// Between questions rather than during one: the device answered
 			// with the old preset, and the caller stopped waiting before it
 			// was time to ask again.
 			name: "a caller that gave up between questions",
-			device: func() *scripted {
-				return answers(s.took(device.FirstTxn), s.playing(device.FirstTxn+1, 0, 5))
+			device: func() *deviceDouble {
+				return answers(s.ctrl, s.took(device.FirstTxn), s.playing(device.FirstTxn+1, 0, 5))
 			},
 			timeout: 20 * time.Millisecond,
 			poll:    time.Second,
@@ -158,8 +164,8 @@ func (s *SelectPublicTestSuite) TestSelectPreset() {
 			// with the one that was asked for, which is the window a caller
 			// must not return inside.
 			name: "one that answers with the old preset first",
-			device: func() *scripted {
-				return answers(
+			device: func() *deviceDouble {
+				return answers(s.ctrl,
 					s.took(device.FirstTxn),
 					s.playing(device.FirstTxn+1, 0, 5),
 					s.playing(device.FirstTxn+2, 0, 99),
@@ -168,8 +174,8 @@ func (s *SelectPublicTestSuite) TestSelectPreset() {
 		},
 		{
 			name: "one that takes it and never gets there",
-			device: func() *scripted {
-				return answers(s.took(device.FirstTxn), s.playing(device.FirstTxn+1, 0, 5))
+			device: func() *deviceDouble {
+				return answers(s.ctrl, s.took(device.FirstTxn), s.playing(device.FirstTxn+1, 0, 5))
 			},
 			says: "did not finish switching",
 		},
@@ -178,8 +184,8 @@ func (s *SelectPublicTestSuite) TestSelectPreset() {
 			// switch still in flight. Polled on, it surfaced at the end of
 			// the budget as a device that did not finish switching.
 			name: "a bus that goes away while it switches",
-			device: func() *scripted {
-				d := answers(s.took(device.FirstTxn))
+			device: func() *deviceDouble {
+				d := answers(s.ctrl, s.took(device.FirstTxn))
 				d.readErr, d.readsOK = errors.New("the bus went away"), 1
 
 				return d
@@ -188,20 +194,25 @@ func (s *SelectPublicTestSuite) TestSelectPreset() {
 		},
 		{
 			name:   "one that never takes it at all",
-			device: func() *scripted { return answers() },
+			device: func() *deviceDouble { return answers(s.ctrl) },
 			says:   "no reply",
 		},
 		{
+			// The dead check select.go once had for this ("unexpected status
+			// %d") never ran: Call already turns a status Response.Err does
+			// not read as done, accepted or refused into an error, so this
+			// is wire's own message.
 			name: "an answer the protocol does not describe",
-			device: func() *scripted {
-				return answers(s.status(device.FirstTxn, 7))
+			device: func() *deviceDouble {
+				return answers(s.ctrl, s.status(device.FirstTxn, 7))
 			},
-			says: "unexpected status 7",
+			says: "unexpected status 7, which is not done, accepted or refused: opcode 20",
+			is:   wire.ErrUnexpectedStatus,
 		},
 		{
 			name: "a caller that gave up waiting",
-			device: func() *scripted {
-				return answers(s.took(device.FirstTxn), s.playing(device.FirstTxn+1, 0, 5))
+			device: func() *deviceDouble {
+				return answers(s.ctrl, s.took(device.FirstTxn), s.playing(device.FirstTxn+1, 0, 5))
 			},
 			cancelled: true,
 			says:      "context canceled",
@@ -211,8 +222,8 @@ func (s *SelectPublicTestSuite) TestSelectPreset() {
 			// took the request and is playing something else, so the wait
 			// ends where somebody stopped waiting rather than at the budget.
 			name: "a caller that gave up part way through",
-			device: func() *scripted {
-				return answers(s.took(device.FirstTxn), s.playing(device.FirstTxn+1, 0, 5))
+			device: func() *deviceDouble {
+				return answers(s.ctrl, s.took(device.FirstTxn), s.playing(device.FirstTxn+1, 0, 5))
 			},
 			timeout: 5 * time.Millisecond,
 			says:    "context deadline exceeded",
@@ -253,6 +264,10 @@ func (s *SelectPublicTestSuite) TestSelectPreset() {
 			}
 
 			s.Require().ErrorContains(err, tt.says)
+
+			if tt.is != nil {
+				s.Require().ErrorIs(err, tt.is)
+			}
 		})
 	}
 }
@@ -262,20 +277,20 @@ func (s *SelectPublicTestSuite) TestSelectPreset() {
 func (s *SelectPublicTestSuite) TestLoaded() {
 	tests := []struct {
 		name   string
-		device func() *scripted
+		device func() *deviceDouble
 		want   wire.Loaded
 		err    bool
 	}{
 		{
 			name: "a device that says",
-			device: func() *scripted {
-				return answers(s.playing(device.FirstTxn, 0, 99))
+			device: func() *deviceDouble {
+				return answers(s.ctrl, s.playing(device.FirstTxn, 0, 99))
 			},
 			want: wire.Loaded{Setlist: 0, Slot: 99, Name: "Chunky Monkey"},
 		},
 		{
 			name:   "one that will not",
-			device: func() *scripted { return answers() },
+			device: func() *deviceDouble { return answers(s.ctrl) },
 			err:    true,
 		},
 	}
@@ -301,20 +316,20 @@ func (s *SelectPublicTestSuite) TestLoaded() {
 func (s *SelectPublicTestSuite) TestReadCurrent() {
 	tests := []struct {
 		name   string
-		device func() *scripted
+		device func() *deviceDouble
 		want   []byte
 		err    bool
 	}{
 		{
 			name: "a device holding a preset",
-			device: func() *scripted {
-				return answers(s.document(device.FirstTxn, "a preset"))
+			device: func() *deviceDouble {
+				return answers(s.ctrl, s.document(device.FirstTxn, "a preset"))
 			},
 			want: []byte("a preset"),
 		},
 		{
 			name:   "one that will not answer",
-			device: func() *scripted { return answers() },
+			device: func() *deviceDouble { return answers(s.ctrl) },
 			err:    true,
 		},
 	}

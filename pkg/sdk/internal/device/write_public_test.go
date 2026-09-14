@@ -29,6 +29,7 @@ import (
 
 	"github.com/stretchr/testify/suite"
 	"github.com/vmihailenco/msgpack/v5"
+	"go.uber.org/mock/gomock"
 
 	"github.com/retr0h/tonestack/pkg/sdk/internal/device"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/wire"
@@ -41,6 +42,8 @@ import (
 // write is not finished when it says it was accepted.
 type WritePublicTestSuite struct {
 	suite.Suite
+
+	ctrl *gomock.Controller
 }
 
 // answer encodes a reply carrying one status.
@@ -58,8 +61,8 @@ func (s *WritePublicTestSuite) answer(txn uint64, status int) []byte {
 }
 
 // accepted then done is what a device says about a write it completed.
-func (s *WritePublicTestSuite) completes() *scripted {
-	return answers(
+func (s *WritePublicTestSuite) completes() *deviceDouble {
+	return answers(s.ctrl,
 		s.answer(device.FirstTxn, 1),
 		s.answer(device.FirstTxn, 0),
 	)
@@ -72,6 +75,8 @@ func (s *WritePublicTestSuite) completes() *scripted {
 // reply budget, as it does on hardware, or a device that never answers is
 // reported as a commit that ran out of time rather than as no reply.
 func (s *WritePublicTestSuite) SetupTest() {
+	s.ctrl = gomock.NewController(s.T())
+
 	flash := *device.FlashBudget
 	*device.FlashBudget = 0
 
@@ -83,7 +88,7 @@ func (s *WritePublicTestSuite) SetupTest() {
 // stream puts back together the message a session sent, from the data frames
 // it went out in, and returns the body of its envelope.
 func (s *WritePublicTestSuite) stream(
-	d *scripted,
+	d *deviceDouble,
 ) []byte {
 	var joined []byte
 
@@ -103,8 +108,8 @@ func (s *WritePublicTestSuite) stream(
 }
 
 // session returns one with its channels open over a scripted device.
-func (s *WritePublicTestSuite) session(d *scripted) *device.Session {
-	out := device.NewTestSession(d, d)
+func (s *WritePublicTestSuite) session(d *deviceDouble) *device.Session {
+	out := device.NewTestSession(d.out, d.in)
 	out.OpenChannels()
 
 	return out
@@ -119,7 +124,7 @@ func (s *WritePublicTestSuite) TestWritePreset() {
 
 	tests := []struct {
 		name     string
-		device   func() *scripted
+		device   func() *deviceDouble
 		document []byte
 		// a caller who stopped waiting before the write, and one who stops
 		// once the first chunk has gone.
@@ -139,8 +144,8 @@ func (s *WritePublicTestSuite) TestWritePreset() {
 			// device holding half a preset, which is the stall a started
 			// write exists to prevent.
 			name: "a commit budget that runs out while the message is going out",
-			device: func() *scripted {
-				return &scripted{pause: 10 * time.Millisecond}
+			device: func() *deviceDouble {
+				return paused(s.ctrl, 10*time.Millisecond)
 			},
 			document:     large,
 			commitBudget: 20 * time.Millisecond,
@@ -152,7 +157,7 @@ func (s *WritePublicTestSuite) TestWritePreset() {
 			// Nothing has gone out, so nothing is owed: the write is not
 			// started.
 			name:        "a caller who stopped waiting before it began",
-			device:      func() *scripted { return answers(s.answer(device.FirstTxn, 0)) },
+			device:      func() *deviceDouble { return answers(s.ctrl, s.answer(device.FirstTxn, 0)) },
 			cancelled:   true,
 			nothingSent: true,
 			is:          context.Canceled,
@@ -162,7 +167,7 @@ func (s *WritePublicTestSuite) TestWritePreset() {
 			// needs a power cycle. Once the first chunk is out, the message
 			// is finished and its answer read, whoever stopped waiting.
 			name:           "a caller who stops waiting after the first chunk",
-			device:         func() *scripted { return answers(s.answer(device.FirstTxn, 0)) },
+			device:         func() *deviceDouble { return answers(s.ctrl, s.answer(device.FirstTxn, 0)) },
 			document:       large,
 			cancelsOnWrite: true,
 			whole:          true,
@@ -171,29 +176,29 @@ func (s *WritePublicTestSuite) TestWritePreset() {
 			// A bus that goes away between chunks is reported, not paced
 			// against.
 			name: "a bus that cannot be read from partway through",
-			device: func() *scripted {
-				return &scripted{readErr: errors.New("the bus went away")}
+			device: func() *deviceDouble {
+				return readFails(s.ctrl, errors.New("the bus went away"))
 			},
 			document: large,
 			says:     "reading from the device",
 		},
 		{
 			name:   "a device that takes it and gets on with the erase",
-			device: func() *scripted { return answers(s.answer(device.FirstTxn, 1)) },
+			device: func() *deviceDouble { return answers(s.ctrl, s.answer(device.FirstTxn, 1)) },
 		},
 		{
 			// Nothing says a device must defer. One that answers done is
 			// done.
 			name:   "one that says it finished",
-			device: func() *scripted { return answers(s.answer(device.FirstTxn, 0)) },
+			device: func() *deviceDouble { return answers(s.ctrl, s.answer(device.FirstTxn, 0)) },
 		},
 		{
 			// A device sends notifications unasked while a write commits.
 			// One that will not decode, and one carrying another
 			// transaction, are both somebody else's business.
 			name: "one talking about something else at the same time",
-			device: func() *scripted {
-				return answers(
+			device: func() *deviceDouble {
+				return answers(s.ctrl,
 					s.answer(device.FirstTxn, 1),
 					device.Reply(device.ControlChannel, []byte{0xc1}),
 					s.answer(device.FirstTxn+7, 0),
@@ -205,19 +210,19 @@ func (s *WritePublicTestSuite) TestWritePreset() {
 			// What a wrongly tagged document drew: the device answers, and
 			// what it answers is no.
 			name:   "one that refuses it",
-			device: func() *scripted { return answers(s.answer(device.FirstTxn, 255)) },
+			device: func() *deviceDouble { return answers(s.ctrl, s.answer(device.FirstTxn, 255)) },
 			is:     wire.ErrRefused,
 		},
 		{
 			// Saying nothing at all is a different thing from answering and
 			// getting on with the erase.
 			name:   "one that never answers",
-			device: func() *scripted { return answers() },
+			device: func() *deviceDouble { return answers(s.ctrl) },
 			says:   "no reply",
 		},
 		{
 			name:   "a bus that cannot be written to",
-			device: func() *scripted { return &scripted{writeErr: errors.New("boom")} },
+			device: func() *deviceDouble { return writeFails(s.ctrl, errors.New("boom")) },
 			says:   "boom",
 		},
 	}
@@ -319,7 +324,7 @@ func (s *WritePublicTestSuite) TestAWriteIsPacedForTheFlash() {
 
 	started := time.Now()
 
-	s.Require().NoError(s.session(answers(s.answer(device.FirstTxn, 0))).
+	s.Require().NoError(s.session(answers(s.ctrl, s.answer(device.FirstTxn, 0))).
 		WritePreset(context.Background(), 0, 3, []byte{0x01}))
 
 	s.Require().GreaterOrEqual(time.Since(started), 40*time.Millisecond)
@@ -343,7 +348,7 @@ func (s *WritePublicTestSuite) TestWriteNamedPreset() {
 func (s *WritePublicTestSuite) TestAWriteOnAChannelNobodyOpened() {
 	d := s.completes()
 
-	err := device.NewTestSession(d, d).Write(context.Background(), 5, nil)
+	err := device.NewTestSession(d.out, d.in).Write(context.Background(), 5, nil)
 
 	s.Require().ErrorContains(err, "no data channel")
 }

@@ -200,7 +200,7 @@ tonestack presets import --preset mike.hlx --slot 07A
 ```
 
 ```console
-  kept ~/.local/state/tonestack/presets/07A-20260910-041500.hlx
+  kept ~/.local/state/tonestack/presets/07A-s0-20260910-041500.129384756.hlx
 
   Mike Dirnt → 07A
 

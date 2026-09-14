@@ -29,6 +29,7 @@ import (
 
 	"github.com/stretchr/testify/suite"
 	"github.com/vmihailenco/msgpack/v5"
+	"go.uber.org/mock/gomock"
 
 	"github.com/retr0h/tonestack/pkg/sdk/internal/device"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/wire"
@@ -37,6 +38,12 @@ import (
 // HandshakePublicTestSuite covers making a request and matching the answer to it.
 type HandshakePublicTestSuite struct {
 	suite.Suite
+
+	ctrl *gomock.Controller
+}
+
+func (s *HandshakePublicTestSuite) SetupTest() {
+	s.ctrl = gomock.NewController(s.T())
 }
 
 // answer encodes what a device replies to one transaction.
@@ -67,8 +74,8 @@ func (s *HandshakePublicTestSuite) replyOnData(txn uint64, status int, result an
 }
 
 // session returns one with its channels already open, over a scripted device.
-func (s *HandshakePublicTestSuite) session(d *scripted) *device.Session {
-	out := device.NewTestSession(d, d)
+func (s *HandshakePublicTestSuite) session(d *deviceDouble) *device.Session {
+	out := device.NewTestSession(d.out, d.in)
 	out.OpenChannels()
 
 	return out
@@ -80,7 +87,7 @@ func (s *HandshakePublicTestSuite) TestCall() {
 	tests := []struct {
 		name      string
 		channel   string
-		device    func() (*scripted, device.TestSender)
+		device    func() (*deviceDouble, device.TestSender)
 		cancelled bool
 		// wait out the whole budget rather than cancelling, shortened so the
 		// test does not spend six seconds on it.
@@ -97,10 +104,10 @@ func (s *HandshakePublicTestSuite) TestCall() {
 			// no reply, which sends somebody looking at the wrong thing.
 			name:    "a device whose read fails outright",
 			channel: device.ControlChannel,
-			device: func() (*scripted, device.TestSender) {
-				d := &scripted{readErr: broken}
+			device: func() (*deviceDouble, device.TestSender) {
+				d := readFails(s.ctrl, broken)
 
-				return d, d
+				return d, d.out
 			},
 			err:     broken,
 			message: "reading from the device",
@@ -110,9 +117,13 @@ func (s *HandshakePublicTestSuite) TestCall() {
 			// Cancellation is not silence. Reporting it as "no reply" told
 			// somebody who pressed Ctrl-C that their device had stopped
 			// answering, six seconds after they stopped waiting.
-			name:      "a call nobody is left waiting for",
-			channel:   device.ControlChannel,
-			device:    func() (*scripted, device.TestSender) { d := answers(); return d, d },
+			name:    "a call nobody is left waiting for",
+			channel: device.ControlChannel,
+			device: func() (*deviceDouble, device.TestSender) {
+				d := answers(s.ctrl)
+
+				return d, d.out
+			},
 			cancelled: true,
 			err:       context.Canceled,
 			message:   "context canceled",
@@ -125,31 +136,35 @@ func (s *HandshakePublicTestSuite) TestCall() {
 			// dropped.
 			name:    "a frame claiming a length nothing could hold",
 			channel: device.ControlChannel,
-			device: func() (*scripted, device.TestSender) {
-				d := answers(
+			device: func() (*deviceDouble, device.TestSender) {
+				d := answers(s.ctrl,
 					device.FrameFor(device.ControlChannel, wire.MsgData,
 						[]byte{1, 0, 5, 0, 0xff, 0xff, 0xff, 0xff}),
 					s.reply(device.FirstTxn, 0, "an answer"),
 				)
 
-				return d, d
+				return d, d.out
 			},
 			want: "an answer",
 		},
 		{
 			name:    "a device that says nothing at all",
 			channel: device.ControlChannel,
-			device:  func() (*scripted, device.TestSender) { d := answers(); return d, d },
+			device: func() (*deviceDouble, device.TestSender) {
+				d := answers(s.ctrl)
+
+				return d, d.out
+			},
 			silent:  true,
 			message: "no reply to opcode 1",
 		},
 		{
 			name:    "an answer to this call",
 			channel: device.ControlChannel,
-			device: func() (*scripted, device.TestSender) {
-				d := answers(s.reply(device.FirstTxn, 0, "done"))
+			device: func() (*deviceDouble, device.TestSender) {
+				d := answers(s.ctrl, s.reply(device.FirstTxn, 0, "done"))
 
-				return d, d
+				return d, d.out
 			},
 			want: "done",
 		},
@@ -159,13 +174,13 @@ func (s *HandshakePublicTestSuite) TestCall() {
 			// wrong question.
 			name:    "somebody else's answer, skipped",
 			channel: device.ControlChannel,
-			device: func() (*scripted, device.TestSender) {
-				d := answers(
+			device: func() (*deviceDouble, device.TestSender) {
+				d := answers(s.ctrl,
 					s.reply(device.FirstTxn+99, 0, "not yours"),
 					s.reply(device.FirstTxn, 0, "yours"),
 				)
 
-				return d, d
+				return d, d.out
 			},
 			want: "yours",
 		},
@@ -173,29 +188,33 @@ func (s *HandshakePublicTestSuite) TestCall() {
 			// Whatever arrives is not guaranteed to be a reply.
 			name:    "an answer that will not decode, skipped",
 			channel: device.ControlChannel,
-			device: func() (*scripted, device.TestSender) {
-				d := answers(
+			device: func() (*deviceDouble, device.TestSender) {
+				d := answers(s.ctrl,
 					device.Reply(device.ControlChannel, []byte{0xc1}),
 					s.reply(device.FirstTxn, 0, "yours"),
 				)
 
-				return d, d
+				return d, d.out
 			},
 			want: "yours",
 		},
 		{
 			name:    "a channel nobody opened",
 			channel: "nowhere",
-			device:  func() (*scripted, device.TestSender) { d := answers(); return d, d },
+			device: func() (*deviceDouble, device.TestSender) {
+				d := answers(s.ctrl)
+
+				return d, d.out
+			},
 			message: "no nowhere channel",
 		},
 		{
 			name:    "a bus that will not take the request",
 			channel: device.ControlChannel,
-			device: func() (*scripted, device.TestSender) {
-				d := answers()
+			device: func() (*deviceDouble, device.TestSender) {
+				d := answers(s.ctrl)
 
-				return d, &scripted{writeErr: errors.New("boom")}
+				return d, writeFails(s.ctrl, errors.New("boom")).out
 			},
 			message: "boom",
 		},
@@ -205,10 +224,10 @@ func (s *HandshakePublicTestSuite) TestCall() {
 			// stream stalls.
 			name:    "a bus that will not take the acknowledgement",
 			channel: device.ControlChannel,
-			device: func() (*scripted, device.TestSender) {
-				d := answers(device.Reply(device.ControlChannel, []byte{0xc1}))
+			device: func() (*deviceDouble, device.TestSender) {
+				d := answers(s.ctrl, device.Reply(device.ControlChannel, []byte{0xc1}))
 
-				return d, &device.FailAfter{Sender: d, OK: 1, Err: errors.New("boom")}
+				return d, &device.FailAfter{Sender: d.out, OK: 1, Err: errors.New("boom")}
 			},
 			message: "boom",
 		},
@@ -217,10 +236,10 @@ func (s *HandshakePublicTestSuite) TestCall() {
 			// half.
 			name:    "a device that refuses",
 			channel: device.ControlChannel,
-			device: func() (*scripted, device.TestSender) {
-				d := answers(s.reply(device.FirstTxn, 255, map[int]int{111: 7}))
+			device: func() (*deviceDouble, device.TestSender) {
+				d := answers(s.ctrl, s.reply(device.FirstTxn, 255, map[int]int{111: 7}))
 
-				return d, d
+				return d, d.out
 			},
 			err:     wire.ErrRefused,
 			message: "opcode 1",
@@ -231,7 +250,7 @@ func (s *HandshakePublicTestSuite) TestCall() {
 		s.Run(tc.name, func() {
 			in, out := tc.device()
 
-			session := device.NewTestSession(out, in)
+			session := device.NewTestSession(out, in.in)
 			session.OpenChannels()
 
 			ctx, cancel := context.WithCancel(context.Background())
@@ -276,7 +295,7 @@ func (s *HandshakePublicTestSuite) TestCall() {
 func (s *HandshakePublicTestSuite) TestPresets() {
 	tests := []struct {
 		name   string
-		device func() *scripted
+		device func() *deviceDouble
 		want   []wire.Preset
 		fails  bool
 	}{
@@ -285,8 +304,8 @@ func (s *HandshakePublicTestSuite) TestPresets() {
 			// is the index a preset had before it was last reordered on the
 			// pedal.
 			name: "what a setlist holds",
-			device: func() *scripted {
-				return answers(s.reply(device.FirstTxn, 0, []any{
+			device: func() *deviceDouble {
+				return answers(s.ctrl, s.reply(device.FirstTxn, 0, []any{
 					map[int]any{0: map[int]any{109: "Chunky Monkey\x00"}},
 					map[int]any{1: map[int]any{109: "Fat Mike\x00"}},
 				}))
@@ -298,7 +317,7 @@ func (s *HandshakePublicTestSuite) TestPresets() {
 		},
 		{
 			name:   "a bus that will not answer",
-			device: func() *scripted { return &scripted{writeErr: errors.New("boom")} },
+			device: func() *deviceDouble { return writeFails(s.ctrl, errors.New("boom")) },
 			fails:  true,
 		},
 	}
@@ -327,7 +346,7 @@ func (s *HandshakePublicTestSuite) TestPresets() {
 func (s *HandshakePublicTestSuite) TestReadPreset() {
 	tests := []struct {
 		name   string
-		device func() *scripted
+		device func() *deviceDouble
 		want   []byte
 		// the shape the failure must name.
 		shape string
@@ -335,8 +354,8 @@ func (s *HandshakePublicTestSuite) TestReadPreset() {
 	}{
 		{
 			name: "a slot holding a preset",
-			device: func() *scripted {
-				return answers(s.replyOnData(device.FirstTxn, 0, "a preset"))
+			device: func() *deviceDouble {
+				return answers(s.ctrl, s.replyOnData(device.FirstTxn, 0, "a preset"))
 			},
 			want: []byte("a preset"),
 		},
@@ -344,20 +363,20 @@ func (s *HandshakePublicTestSuite) TestReadPreset() {
 			// A slot holding nothing is not a failure, and a backup has to
 			// know the difference.
 			name: "a slot holding nothing",
-			device: func() *scripted {
-				return answers(s.replyOnData(device.FirstTxn, 0, nil))
+			device: func() *deviceDouble {
+				return answers(s.ctrl, s.replyOnData(device.FirstTxn, 0, nil))
 			},
 		},
 		{
 			name: "an answer that is not a preset",
-			device: func() *scripted {
-				return answers(s.replyOnData(device.FirstTxn, 0, map[int]int{1: 2}))
+			device: func() *deviceDouble {
+				return answers(s.ctrl, s.replyOnData(device.FirstTxn, 0, map[int]int{1: 2}))
 			},
 			shape: "map with 1 keys",
 		},
 		{
 			name:   "a bus that will not answer",
-			device: func() *scripted { return &scripted{writeErr: errors.New("boom")} },
+			device: func() *deviceDouble { return writeFails(s.ctrl, errors.New("boom")) },
 			fails:  true,
 		},
 	}

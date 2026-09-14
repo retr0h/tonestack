@@ -27,25 +27,45 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/suite"
+	"go.uber.org/mock/gomock"
 
 	"github.com/retr0h/tonestack/pkg/sdk/internal/attached"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/device"
+	"github.com/retr0h/tonestack/pkg/sdk/internal/device/mocks"
 )
 
 type ListPublicTestSuite struct {
 	suite.Suite
+
+	ctrl *gomock.Controller
+}
+
+func (s *ListPublicTestSuite) SetupTest() {
+	s.ctrl = gomock.NewController(s.T())
 }
 
 // lister reports a fixed set of descriptors, or fails.
-type lister struct {
-	descs []device.Descriptor
-	err   error
+func (s *ListPublicTestSuite) lister(
+	descs []device.Descriptor,
+	err error,
+) *mocks.MockLister {
+	l := mocks.NewMockLister(s.ctrl)
+	l.EXPECT().List(gomock.Any()).Return(descs, err).AnyTimes()
+
+	return l
 }
 
-func (l *lister) List(context.Context) ([]device.Descriptor, error) { return l.descs, l.err }
+// bus is a lister that also holds something needing release, the way
+// NewLister's real return value does.
+func (s *ListPublicTestSuite) bus(
+	descs []device.Descriptor,
+) *mocks.MockBus {
+	b := mocks.NewMockBus(s.ctrl)
+	b.EXPECT().List(gomock.Any()).Return(descs, nil).AnyTimes()
+	b.EXPECT().Close().Return(nil).AnyTimes()
 
-// Close is what List releases when it found its own lister.
-func (l *lister) Close() error { return nil }
+	return b
+}
 
 func stomp() device.Descriptor {
 	return device.Descriptor{Vendor: 0x0e41, Product: 0x4246, Bus: 2, Address: 1}
@@ -93,7 +113,7 @@ func (s *ListPublicTestSuite) TestListWith() {
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
 			found, err := attached.ListWith(context.Background(),
-				&lister{descs: tt.descs, err: tt.listErr})
+				s.lister(tt.descs, tt.listErr))
 
 			if tt.errText != "" {
 				s.Require().Error(err)
@@ -130,7 +150,7 @@ func (s *ListPublicTestSuite) TestList() {
 	defer func() { attached.NewLister = restore }()
 
 	attached.NewLister = func() attached.Closer {
-		return &lister{descs: []device.Descriptor{stomp()}}
+		return s.bus([]device.Descriptor{stomp()})
 	}
 
 	found, err := attached.List(context.Background())

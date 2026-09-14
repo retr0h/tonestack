@@ -75,16 +75,12 @@ func (s *session) SelectPreset(
 	ctx context.Context,
 	setlist, slot int,
 ) error {
-	resp, err := s.Call(ctx, channelData, opSelectPreset, []wire.Arg{
+	_, err := s.Call(ctx, channelData, opSelectPreset, []wire.Arg{
 		wire.Number(argSetlist, uint64(setlist)),
 		wire.Number(argSlot, uint64(slot)),
 	})
 	if err != nil {
 		return err
-	}
-
-	if resp.Status != wire.StatusAccepted && resp.Status != wire.StatusDone {
-		return fmt.Errorf("selecting slot %d: unexpected status %d", slot, resp.Status)
 	}
 
 	return s.awaitLoaded(ctx, setlist, slot)
