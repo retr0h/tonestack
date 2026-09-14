@@ -82,6 +82,7 @@ func init() {
 		"copy an existing recipe by identifier, rather than naming gear")
 	f.StringVar(&recipesNewOptions.Kind, "kind", "",
 		"what the copy is attributed to: artist, band, song, genre or sound")
+	// Fails only for a flag that does not exist, and these are defined above.
 	_ = recipesNewCmd.MarkFlagRequired("id")
 	// A copy takes its gear from the rig it copies, so naming any is either a
 	// mistake or a misunderstanding of what a copy is.

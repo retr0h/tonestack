@@ -77,6 +77,7 @@ func Open(ctx context.Context) (Editor, error) { return open(ctx, newBus()) }
 func open(ctx context.Context, b bus) (Editor, error) {
 	dev, model, err := findDevice(b)
 	if err != nil {
+		// Best effort: err below is what the caller needs, not a bus that would not close.
 		_ = b.Close()
 
 		return nil, err
@@ -126,6 +127,7 @@ func findDevice(
 	})
 	if err != nil {
 		for _, d := range devs {
+			// Best effort: the search failed, and that error is the one returned.
 			_ = d.Close()
 		}
 
@@ -136,6 +138,7 @@ func findDevice(
 
 	for i, d := range devs {
 		if i > 0 {
+			// Only the first is used. One that will not close is a spare, not a failure to open.
 			_ = d.Close()
 
 			continue

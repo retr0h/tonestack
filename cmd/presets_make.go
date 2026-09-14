@@ -70,6 +70,7 @@ func init() {
 	f.StringVar(&presetsMakeOptions.StatsPath, "stats", "",
 		"measured corpus statistics to use instead of the built-in ones")
 	f.StringVar(&presetsMakeOptions.OutputPath, "out", "", "where to write the preset")
+	// Fails only for a flag that does not exist, and these are defined above.
 	_ = presetsMakeCmd.MarkFlagRequired("id")
 	_ = presetsMakeCmd.MarkFlagRequired("out")
 }

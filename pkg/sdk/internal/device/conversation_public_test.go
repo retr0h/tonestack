@@ -22,6 +22,8 @@ package device_test
 
 import (
 	"errors"
+	"io"
+	"os"
 	"testing"
 	"time"
 
@@ -55,7 +57,24 @@ func (s *ConversationPublicTestSuite) TestClose() {
 		// a device that never goes quiet, which Close must not wait on past
 		// its budget.
 		noisy bool
+		// a bus that refuses every write and a hold that will not let go,
+		// with the wire trace on.
+		refuse bool
+		trace  []string
 	}{
+		{
+			// Close has nobody to report to, so what it swallows shows only
+			// in the trace. Everything is still given back.
+			name:   "a close the bus and a hold both refuse, with the trace on",
+			opened: true,
+			refuse: true,
+			order:  []string{"interface", "device", "library"},
+			trace: []string{
+				"ack on close: writing to control: refused",
+				"hello on close: writing to data: refused",
+				"release 1 on close: refused",
+			},
+		},
 		{
 			// Two drains, each bounded on its own, would hold Close for twice
 			// the drain budget. The close budget bounds the whole, and the
@@ -104,11 +123,30 @@ func (s *ConversationPublicTestSuite) TestClose() {
 				session.OpenChannels()
 			}
 
+			refused := errors.New("refused")
+
+			var released error
+			if tt.refuse {
+				released = refused
+				session = device.NewTestSession(
+					&device.FailAfter{Sender: d.out, Err: refused},
+					d.in,
+				)
+				session.OpenChannels()
+			}
+
 			session.OnDone(func() { given = append(given, "interface") })
 			session.Holding(
 				func() error { given = append(given, "device"); return nil },
-				func() error { given = append(given, "library"); return nil },
+				func() error { given = append(given, "library"); return released },
 			)
+
+			var stop func() string
+			if tt.refuse {
+				defer device.SetDebug(true)()
+
+				stop = s.captureStderr()
+			}
 
 			if tt.noisy {
 				d.noisy = device.FrameFor("control", wire.MsgData, []byte("noise"))
@@ -133,6 +171,13 @@ func (s *ConversationPublicTestSuite) TestClose() {
 			// In the order they were taken.
 			s.Require().Equal(tt.order, given)
 
+			if stop != nil {
+				out := stop()
+				for _, want := range tt.trace {
+					s.Require().Contains(out, want)
+				}
+			}
+
 			if !tt.sent {
 				return
 			}
@@ -153,6 +198,36 @@ func (s *ConversationPublicTestSuite) TestClose() {
 			s.Require().Equal(tt.closes, closes,
 				"every channel is told the session is over")
 		})
+	}
+}
+
+// captureStderr redirects stderr until the function it returns is called,
+// which answers with what was written. The pipe is read on its own
+// goroutine, so a full one cannot hold a writer.
+func (s *ConversationPublicTestSuite) captureStderr() func() string {
+	r, w, err := os.Pipe()
+	s.Require().NoError(err)
+
+	was := os.Stderr
+	os.Stderr = w
+
+	s.T().Cleanup(func() { os.Stderr = was })
+
+	read := make(chan string, 1)
+
+	go func() {
+		out, _ := io.ReadAll(r)
+		read <- string(out)
+	}()
+
+	return func() string {
+		os.Stderr = was
+		s.Require().NoError(w.Close())
+
+		out := <-read
+		s.Require().NoError(r.Close())
+
+		return out
 	}
 }
 

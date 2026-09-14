@@ -75,6 +75,7 @@ func Load(r io.Reader) (*Stats, error) {
 			return nil, fmt.Errorf("opening corpus statistics: %w", err)
 		}
 
+		// Close returns only an error a read already hit, and the read is checked.
 		defer func() { _ = zr.Close() }()
 
 		src = zr

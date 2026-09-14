@@ -52,6 +52,7 @@ func appVersion(resourcesDir string) string {
 		return ""
 	}
 
+	// Opened read-only, so Close has nothing to report the read did not.
 	defer func() { _ = f.Close() }()
 
 	v, err := plistString(f, versionKey)

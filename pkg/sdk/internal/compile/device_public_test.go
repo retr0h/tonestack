@@ -74,6 +74,7 @@ func (s *DevicePublicTestSuite) TestLowerDeviceState() {
 		// one entry of the tone section, or one of the routing.
 		tone    map[string]json.RawMessage
 		routing map[string]json.RawMessage
+		version json.RawMessage
 
 		contains string
 		absent   string
@@ -111,6 +112,13 @@ func (s *DevicePublicTestSuite) TestLowerDeviceState() {
 			},
 			contains: "dsp7",
 		},
+		{
+			// A device writes its version as a number or a string. Anything
+			// else leaves the blank's own rather than refusing the rig.
+			name:    "a device version that is neither a number nor a string",
+			version: json.RawMessage(`{"nonsense":1}`),
+			absent:  "nonsense",
+		},
 	}
 
 	for _, tt := range tests {
@@ -126,6 +134,10 @@ func (s *DevicePublicTestSuite) TestLowerDeviceState() {
 
 			if tt.routing != nil {
 				state.Routing = &tt.routing
+			}
+
+			if tt.version != nil {
+				state.Version = &tt.version
 			}
 
 			s.Require().NoError(compile.Lower(doc, s.rig(state), s.cat))

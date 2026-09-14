@@ -104,6 +104,7 @@ func readRig(path string) (rig.Spec, error) {
 		return rig.Spec{}, fmt.Errorf("opening %s: %w", path, err)
 	}
 
+	// Opened read-only, so Close has nothing to report the read did not.
 	defer func() { _ = f.Close() }()
 
 	return rig.Load(f)
@@ -120,6 +121,7 @@ func template(path string) (*preset.Document, error) {
 		return nil, fmt.Errorf("opening %s: %w", path, err)
 	}
 
+	// Opened read-only, so Close has nothing to report the read did not.
 	defer func() { _ = f.Close() }()
 
 	doc, err := preset.Read(f)

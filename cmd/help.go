@@ -44,9 +44,11 @@ func styleHelp(root *cobra.Command) {
 		// reached by running the tool with nothing else to say — bare
 		// invocation and --help alike, which both land here.
 		if c == root {
+			// A help func returns no error, so a failed write to the terminal has nowhere to go.
 			_, _ = fmt.Fprint(out, "\n"+cli.Banner(out))
 		}
 
+		// Unchecked for the same reason as the banner.
 		_ = help(c).Render(out)
 	})
 

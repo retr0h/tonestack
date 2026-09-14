@@ -178,6 +178,7 @@ func encodeArg(enc *msgpack.Encoder, a Arg) {
 	case ArgText:
 		// A device terminates its strings, and reads a name that is not
 		// terminated as running on into whatever follows it.
+		// Into encode's buffer, which cannot fail, as are the three below.
 		_ = enc.EncodeString(a.Text + "\x00")
 	case ArgBlob:
 		// str16 rather than bin16. A device sends a preset document under

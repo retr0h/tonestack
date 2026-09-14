@@ -118,6 +118,7 @@ func restore(doc *preset.Document, state *rig.DeviceState) {
 	}
 
 	if state.Version != nil {
+		// A version neither number nor string leaves the blank's own: nonsense under device is dropped, not fatal.
 		_ = json.Unmarshal(*state.Version, &doc.Data.DeviceVersion)
 	}
 

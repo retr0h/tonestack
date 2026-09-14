@@ -44,6 +44,7 @@ func open(path string) (*setlist.Document, error) {
 		return nil, fmt.Errorf("opening %s: %w", path, err)
 	}
 
+	// Opened read-only, so Close has nothing to report the read did not.
 	defer func() { _ = f.Close() }()
 
 	doc, err := setlist.Read(f)

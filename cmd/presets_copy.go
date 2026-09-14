@@ -71,6 +71,7 @@ func editFlags(c *cobra.Command, o *sdk.Edit) {
 		"a generated catalog to use instead of the built-in one")
 	f.StringVar(&o.BackupDir, "backup-dir", "",
 		"where to keep what a device slot held; the state directory by default")
+	// Fails only for a flag that does not exist, and these are defined above.
 	_ = c.MarkFlagRequired("from")
 	_ = c.MarkFlagRequired("to")
 	// Editing a backup writes a new file, and editing a device writes the
