@@ -444,8 +444,8 @@ package thispackage
 Either way the directives live in a `generate.go` that holds no code, and the
 generated file carries `.gen` so a reader knows not to edit it.
 
-A test stands in for hardware through the Client it builds, never by swapping
-a package variable. `pkg/sdk/export_test.go` holds a `WithDevices` setter that
+A test stands in for hardware through the Client it builds, never by swapping a
+package variable. `pkg/sdk/export_test.go` holds a `WithDevices` setter that
 takes a generated `device.Opener` mock, so each suite gets its own bus and can
 call `t.Parallel()`.
 
