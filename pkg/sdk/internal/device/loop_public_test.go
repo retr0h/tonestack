@@ -296,6 +296,9 @@ func (s *LoopPublicTestSuite) TestLoop() {
 			// tells the device the editor has gone.
 			name:   "a bus that fails while a message goes out",
 			device: func() *deviceDouble { return readFailsAfter(s.ctrl, broken, 1) },
+			// Long enough between chunks that a read retried without waiting
+			// a window would be retried thousands of times.
+			budgets: func(b *device.Budgets) { b.Pace = 20 * time.Millisecond },
 			run: func(session *device.Session, d *deviceDouble, _ *clock) {
 				err := session.WritePreset(
 					context.Background(),
@@ -316,6 +319,8 @@ func (s *LoopPublicTestSuite) TestLoop() {
 
 				s.Require().GreaterOrEqual(chunks, 2000/device.StreamChunk, "every chunk went out")
 				s.Require().Greater(d.readCount(), 2, "reads were posted again while it went out")
+				s.Require().Less(d.readCount(), 500,
+					"a read retried after a failure waits a window rather than spinning")
 
 				before := len(d.frames())
 
@@ -369,7 +374,7 @@ func (s *LoopPublicTestSuite) TestLoop() {
 			},
 			budgets: func(b *device.Budgets) { b.Idle = time.Millisecond },
 			run: func(session *device.Session, _ *deviceDouble, _ *clock) {
-				<-session.Dead()
+				ended(s.T(), session)
 
 				s.Require().ErrorIs(session.Ended(), device.ErrBus)
 				s.Require().ErrorContains(session.Ended(), "the acknowledger panicked")
@@ -391,9 +396,7 @@ func (s *LoopPublicTestSuite) TestLoop() {
 				b.After = clk.after
 			}
 
-			session := device.NewTestSessionWith(s.T(), d.out, d.in, b)
-			session.OpenChannels()
-
+			session := device.NewOpenTestSession(s.T(), d.out, d.in, b)
 			tt.run(session, d, clk)
 		})
 	}
@@ -502,9 +505,7 @@ func (s *LoopPublicTestSuite) TestIdleAck() {
 			b := device.ShortBudgets()
 			b.Idle = time.Millisecond
 
-			session := device.NewTestSessionWith(s.T(), out, d.in, b)
-			session.OpenChannels()
-
+			session := device.NewOpenTestSession(s.T(), out, d.in, b)
 			var trace bytes.Buffer
 			session.Trace(&trace)
 
@@ -539,6 +540,49 @@ func (s *LoopPublicTestSuite) TestIdleAck() {
 		})
 	}
 
+	s.Run("channels being opened", func() {
+		// Opening control takes seven frames, so the eighth is the events
+		// channel's opening. That one draws a notification on control, which
+		// is open, owed and quiet while events and data are still opening.
+		replies := make([][]byte, 0, 8)
+		for range 7 {
+			replies = append(replies, device.FrameFor(device.ControlChannel, wire.MsgAck, nil))
+		}
+
+		replies = append(replies, unaskedFrame())
+
+		d := answers(s.ctrl, replies...)
+
+		b := device.ShortBudgets()
+		b.Idle, b.Open = time.Millisecond, 100*time.Millisecond
+
+		session := device.NewTestSessionWith(s.T(), d.out, d.in, b)
+		s.Require().NoError(session.Handshake(context.Background()))
+
+		// The opening's own acknowledgements are control's two. Anything more
+		// before data's opening is done went out inside the handshake.
+		control := 0
+
+		for _, raw := range d.frames() {
+			f, _, err := wire.DecodeFrame(raw)
+			s.Require().NoError(err)
+
+			if f.Type != wire.MsgAck {
+				continue
+			}
+
+			if device.ChannelOf(f) == device.DataChannel {
+				break
+			}
+
+			if device.ChannelOf(f) == device.ControlChannel {
+				control++
+			}
+		}
+
+		s.Require().Equal(2, control, "nothing is acknowledged while channels open")
+	})
+
 	s.Run("a write going out, on any channel", func() {
 		// A notification arrives on the events channel as a write starts.
 		// Before the gate was session-wide, an acknowledgement for it went
@@ -557,9 +601,7 @@ func (s *LoopPublicTestSuite) TestIdleAck() {
 		b := device.ShortBudgets()
 		b.Idle, b.After = time.Millisecond, clk.after
 
-		session := device.NewTestSessionWith(s.T(), d.out, d.in, b)
-		session.OpenChannels()
-
+		session := device.NewOpenTestSession(s.T(), d.out, d.in, b)
 		done := make(chan error, 1)
 
 		go func() {
@@ -589,9 +631,7 @@ func (s *LoopPublicTestSuite) TestIdleAck() {
 		b := device.ShortBudgets()
 		b.Idle, b.After = time.Millisecond, clk.after
 
-		session := device.NewTestSessionWith(s.T(), d.out, d.in, b)
-		session.OpenChannels()
-
+		session := device.NewOpenTestSession(s.T(), d.out, d.in, b)
 		done := make(chan error, 1)
 
 		go func() { done <- session.WritePreset(context.Background(), 0, 3, []byte{0x01}) }()

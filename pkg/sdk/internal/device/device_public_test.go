@@ -23,6 +23,7 @@ package device_test
 import (
 	"context"
 	"sync"
+	"testing"
 	"time"
 
 	"go.uber.org/mock/gomock"
@@ -254,6 +255,21 @@ func (d *deviceDouble) readCount() int {
 	defer d.mu.Unlock()
 
 	return d.reads
+}
+
+// ended waits for a session's loop to end on its own, and fails the test
+// rather than hanging when it never does.
+func ended(
+	t *testing.T,
+	session *device.Session,
+) {
+	t.Helper()
+
+	select {
+	case <-session.Dead():
+	case <-time.After(10 * time.Second):
+		t.Fatal("the read loop never ended")
+	}
 }
 
 // answers scripts a device to reply with each of the given frames in turn,

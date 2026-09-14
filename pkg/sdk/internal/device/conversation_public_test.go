@@ -163,7 +163,7 @@ func (s *ConversationPublicTestSuite) TestClose() {
 			device: func() *deviceDouble { return readFails(s.ctrl, broken) },
 			opened: true,
 			before: func(session *device.Session, _ *deviceDouble) {
-				<-session.Dead()
+				ended(s.T(), session)
 			},
 			closes: len(device.ChannelNames()),
 			err:    broken,
@@ -178,7 +178,7 @@ func (s *ConversationPublicTestSuite) TestClose() {
 			before: func(session *device.Session, d *deviceDouble) {
 				session.Trace(panicking{})
 				d.tell(noise)
-				<-session.Dead()
+				ended(s.T(), session)
 			},
 			closes: len(device.ChannelNames()),
 			says:   "the read loop panicked: routing went wrong",

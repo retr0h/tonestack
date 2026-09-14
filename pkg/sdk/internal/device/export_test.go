@@ -114,7 +114,35 @@ func NewTestSessionWith(
 	in receiver,
 	b Budgets,
 ) *session {
+	return testSession(t, out, in, b, false)
+}
+
+// NewOpenTestSession is NewTestSessionWith with every channel already open
+// when the loop starts, as a handshake leaves them. Opened afterwards, a frame
+// the loop read first would be dropped as belonging to nobody.
+func NewOpenTestSession(
+	t testing.TB,
+	out sender,
+	in receiver,
+	b Budgets,
+) *session {
+	return testSession(t, out, in, b, true)
+}
+
+// testSession builds a session for a test, opening its channels first when
+// asked to.
+func testSession(
+	t testing.TB,
+	out sender,
+	in receiver,
+	b Budgets,
+	opened bool,
+) *session {
 	s := newSession(out, in, nil, Model{Name: "HX Stomp"}, b.budgets())
+
+	if opened {
+		s.OpenChannels()
+	}
 
 	if in != nil {
 		s.start()
