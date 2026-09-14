@@ -1,6 +1,6 @@
 # An MCP server
 
-**Status:** proposed\
+**Status:** accepted, built\
 **Scope:** `pkg/mcp`, `pkg/mcp/internal`, and a `tonestack mcp` command\
 **Builds on:**
 [The SDK is the library](2026-09-10-the-sdk-is-the-library-design.md)
