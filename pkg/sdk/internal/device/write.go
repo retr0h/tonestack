@@ -111,6 +111,13 @@ func (s *session) write(
 	opcode uint64,
 	args []wire.Arg,
 ) error {
+	// Before anything is sent. Afterwards the message is finished whatever
+	// happens: a device fed half a message and then a burst is the stall
+	// docs/protocol.md describes.
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	c, ok := s.chans[channelData]
 	if !ok {
 		return fmt.Errorf("no %s channel", channelData)
@@ -125,11 +132,17 @@ func (s *session) write(
 		Body:       wire.EncodeRequest(wire.Request{Txn: txn, Opcode: opcode, Args: args}),
 	})
 
-	if err := s.stream(ctx, c, body); err != nil {
+	// A write that has started finishes, and its answer is read, whoever
+	// stops waiting. Bounded by the commit budget rather than the caller, and
+	// the next operation is the one that sees the cancellation.
+	wctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), commitBudget)
+	defer cancel()
+
+	if err := s.stream(wctx, c, body); err != nil {
 		return err
 	}
 
-	if _, err := s.awaitReply(ctx, c, txn, opcode); err != nil {
+	if _, err := s.awaitReply(wctx, c, txn, opcode); err != nil {
 		return err
 	}
 
@@ -160,7 +173,11 @@ var flashBudget = 750 * time.Millisecond
 
 // stream sends a message in the size a device takes, reading between frames
 // so it can pace the sender.
-func (s *session) stream(ctx context.Context, c *channel, body []byte) error {
+func (s *session) stream(
+	ctx context.Context,
+	c *channel,
+	body []byte,
+) error {
 	for len(body) > 0 {
 		n := min(len(body), streamChunk)
 
@@ -173,7 +190,9 @@ func (s *session) stream(ctx context.Context, c *channel, body []byte) error {
 		// Between frames, not after the last one: a device that has more to
 		// say says it now, and one with nothing to say costs a timeout.
 		if len(body) > 0 {
-			s.receive(ctx, replyReadWait)
+			if _, err := s.receive(ctx, replyReadWait); err != nil {
+				return err
+			}
 		}
 	}
 

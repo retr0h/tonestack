@@ -75,6 +75,8 @@ func (s *HandshakePublicTestSuite) session(d *scripted) *device.Session {
 }
 
 func (s *HandshakePublicTestSuite) TestCall() {
+	broken := errors.New("the bus went away")
+
 	tests := []struct {
 		name      string
 		channel   string
@@ -86,7 +88,24 @@ func (s *HandshakePublicTestSuite) TestCall() {
 		want    any
 		err     error
 		message string
+		// how many reads the call took, when that is the point.
+		reads int
 	}{
+		{
+			// A bus that has gone is not a device with nothing to say. Read
+			// as silence, it waited out the whole reply budget and then said
+			// no reply, which sends somebody looking at the wrong thing.
+			name:    "a device whose read fails outright",
+			channel: device.ControlChannel,
+			device: func() (*scripted, device.TestSender) {
+				d := &scripted{readErr: broken}
+
+				return d, d
+			},
+			err:     broken,
+			message: "reading from the device",
+			reads:   1,
+		},
 		{
 			// Cancellation is not silence. Reporting it as "no reply" told
 			// somebody who pressed Ctrl-C that their device had stopped
@@ -244,6 +263,11 @@ func (s *HandshakePublicTestSuite) TestCall() {
 
 			if tc.err != nil {
 				s.Require().ErrorIs(err, tc.err)
+			}
+
+			if tc.reads > 0 {
+				s.Require().Equal(tc.reads, in.reads, "within one read")
+				s.Require().NotContains(err.Error(), "no reply")
 			}
 		})
 	}

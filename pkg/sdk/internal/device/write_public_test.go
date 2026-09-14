@@ -65,20 +65,41 @@ func (s *WritePublicTestSuite) completes() *scripted {
 	)
 }
 
-// SetupTest shortens the wait for a commit, since no test here is waiting on
-// hardware.
+// SetupTest drops the flash settle, which is a real wait on hardware and dead
+// time here.
+//
+// The commit budget is left at what TestMain gives it. It must outlast the
+// reply budget, as it does on hardware, or a device that never answers is
+// reported as a commit that ran out of time rather than as no reply.
 func (s *WritePublicTestSuite) SetupTest() {
-	was := *device.CommitBudget
-	*device.CommitBudget = 50 * time.Millisecond
-
-	// The flash settle is a real wait on hardware and dead time here.
 	flash := *device.FlashBudget
 	*device.FlashBudget = 0
 
 	s.T().Cleanup(func() {
-		*device.CommitBudget = was
 		*device.FlashBudget = flash
 	})
+}
+
+// stream puts back together the message a session sent, from the data frames
+// it went out in, and returns the body of its envelope.
+func (s *WritePublicTestSuite) stream(
+	d *scripted,
+) []byte {
+	var joined []byte
+
+	for _, raw := range d.sent {
+		f, _, err := wire.DecodeFrame(raw)
+		s.Require().NoError(err)
+
+		if f.Type == wire.MsgData {
+			joined = append(joined, f.Payload...)
+		}
+	}
+
+	env, _, err := wire.DecodeEnvelope(joined)
+	s.Require().NoError(err, "the whole envelope arrived")
+
+	return env.Body
 }
 
 // session returns one with its channels open over a scripted device.
@@ -94,12 +115,51 @@ func (s *WritePublicTestSuite) session(d *scripted) *device.Session {
 // Both statuses have been seen on hardware for a write that landed, so
 // neither is read: the erase and program that follow never reach the wire.
 func (s *WritePublicTestSuite) TestWritePreset() {
+	large := bytes.Repeat([]byte{0x2a}, 2000)
+
 	tests := []struct {
-		name   string
-		device func() *scripted
-		is     error
-		says   string
+		name     string
+		device   func() *scripted
+		document []byte
+		// a caller who stopped waiting before the write, and one who stops
+		// once the first chunk has gone.
+		cancelled      bool
+		cancelsOnWrite bool
+		// nothing reached the device, or all of the message did.
+		nothingSent bool
+		whole       bool
+		is          error
+		says        string
 	}{
+		{
+			// Nothing has gone out, so nothing is owed: the write is not
+			// started.
+			name:        "a caller who stopped waiting before it began",
+			device:      func() *scripted { return answers(s.answer(device.FirstTxn, 0)) },
+			cancelled:   true,
+			nothingSent: true,
+			is:          context.Canceled,
+		},
+		{
+			// A device fed half a message and then a burst is the stall that
+			// needs a power cycle. Once the first chunk is out, the message
+			// is finished and its answer read, whoever stopped waiting.
+			name:           "a caller who stops waiting after the first chunk",
+			device:         func() *scripted { return answers(s.answer(device.FirstTxn, 0)) },
+			document:       large,
+			cancelsOnWrite: true,
+			whole:          true,
+		},
+		{
+			// A bus that goes away between chunks is reported, not paced
+			// against.
+			name: "a bus that cannot be read from partway through",
+			device: func() *scripted {
+				return &scripted{readErr: errors.New("the bus went away")}
+			},
+			document: large,
+			says:     "reading from the device",
+		},
 		{
 			name:   "a device that takes it and gets on with the erase",
 			device: func() *scripted { return answers(s.answer(device.FirstTxn, 1)) },
@@ -147,8 +207,35 @@ func (s *WritePublicTestSuite) TestWritePreset() {
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			err := s.session(tt.device()).WritePreset(
-				context.Background(), 0, 3, []byte{0x01})
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			d := tt.device()
+
+			if tt.cancelled {
+				cancel()
+			}
+
+			if tt.cancelsOnWrite {
+				d.onWrite = cancel
+			}
+
+			document := tt.document
+			if document == nil {
+				document = []byte{0x01}
+			}
+
+			err := s.session(d).WritePreset(ctx, 0, 3, document)
+
+			if tt.nothingSent {
+				s.Require().Empty(d.sent, "nothing reaches the device")
+			}
+
+			if tt.whole {
+				s.Require().Empty(d.replies, "the answer was read")
+				s.Require().Contains(string(s.stream(d)), string(document),
+					"every chunk of the message went out")
+			}
 
 			if tt.is == nil && tt.says == "" {
 				s.Require().NoError(err)

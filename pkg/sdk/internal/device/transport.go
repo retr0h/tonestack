@@ -71,18 +71,31 @@ func (s *session) send(c *channel, msgType uint16, payload []byte) error {
 // acknowledgement is owed: the device sends empty transfers when it has
 // nothing to say, and acknowledging one burns a sequence number and
 // desynchronises the channel.
-func (s *session) receive(ctx context.Context, wait time.Duration) bool {
+//
+// A read that timed out is quiet, not a failure. A caller who stopped waiting
+// is told so, and any other failure is the bus, returned rather than read as
+// silence: silence waits out a whole budget and then blames the device.
+func (s *session) receive(
+	ctx context.Context,
+	wait time.Duration,
+) (bool, error) {
 	rctx, cancel := context.WithTimeout(ctx, wait)
 	defer cancel()
 
 	buf := make([]byte, readBuffer)
 
 	n, err := s.in.ReadContext(rctx, buf)
-	if err != nil {
-		// A read that fails is the device having nothing to say. That is what
-		// a timeout looks like, and a timeout is the ordinary case: a device
+
+	switch {
+	case err == nil:
+	case ctx.Err() != nil:
+		return false, ctx.Err()
+	case errors.Is(err, context.DeadlineExceeded):
+		// The ordinary case: the device had nothing to say in time. A device
 		// is asked far more often than it answers.
-		return false
+		return false, nil
+	default:
+		return false, fmt.Errorf("reading from the device: %w", err)
 	}
 
 	if debug {
@@ -117,7 +130,7 @@ func (s *session) receive(ctx context.Context, wait time.Duration) bool {
 		got = true
 	}
 
-	return got
+	return got, nil
 }
 
 // channelFor finds which conversation a frame belongs to.
@@ -139,7 +152,9 @@ func (s *session) channelFor(f wire.Frame) *channel {
 // Bounded on purpose. A stale backlog clears in about a hundred frames; an
 // unbounded drain keeps the endpoint under load and has coincided with
 // devices locking up.
-func (s *session) drain(ctx context.Context) {
+func (s *session) drain(
+	ctx context.Context,
+) {
 	deadline := time.Now().Add(drainBudget)
 
 	quiet := 0
@@ -150,7 +165,14 @@ func (s *session) drain(ctx context.Context) {
 			break
 		}
 
-		if s.receive(ctx, drainReadWait) {
+		got, err := s.receive(ctx, drainReadWait)
+		if err != nil {
+			// A bus that has gone is not a quiet device. Reading on would
+			// spin against it for the whole budget.
+			break
+		}
+
+		if got {
 			quiet = 0
 
 			continue

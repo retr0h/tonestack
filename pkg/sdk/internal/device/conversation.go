@@ -20,7 +20,7 @@
 
 // This file is the conversation: what a session says and how it counts. It
 // takes its endpoints as interfaces, so all of it runs against a scripted
-// device. Finding and claiming hardware lives in usb_open.go.
+// device. Finding and claiming hardware lives in usb_darwin.go.
 package device
 
 import (
@@ -45,7 +45,6 @@ const (
 	openReadWait   = 800 * time.Millisecond
 	replyReadWait  = 300 * time.Millisecond
 	drainReadWait  = 150 * time.Millisecond
-	drainBudget    = 3 * time.Second
 	drainQuietRuns = 3
 	claimAttempts  = 7
 	claimBackoff   = 50 * time.Millisecond
@@ -54,6 +53,14 @@ const (
 // replyBudget is how long a device is given to answer. A variable rather than
 // a constant so a test can shorten it; nothing else writes to it.
 var replyBudget = 6 * time.Second
+
+// drainBudget bounds one drain. A variable so a test can shorten it.
+var drainBudget = 3 * time.Second
+
+// closeBudget bounds ending a session. Two drains and the frames between them
+// fit inside it; a device that never goes quiet does not hold Close open past
+// it. A variable so a test can shorten it.
+var closeBudget = 10 * time.Second
 
 // Opcodes this package uses.
 const (
@@ -110,7 +117,7 @@ const helloAck uint32 = 0x21000100
 
 // firstSeq is where a channel's counter goes after its opening frame.
 //
-// One, not two: HX Edit's counter jumps from zero straight to two, and the
+// Two, not one: HX Edit's counter jumps from zero straight to two, and the
 // device stops answering a client that sends one.
 const firstSeq = 2
 
@@ -176,7 +183,10 @@ func (s *session) Model() Model { return s.model }
 // until an otherwise innocent write stops the device.
 func (s *session) Close() {
 	if s.in != nil {
-		ctx := context.Background()
+		// Bounded as a whole. Each drain is bounded on its own, but a device
+		// that never goes quiet would hold Close for both of them.
+		ctx, cancel := context.WithTimeout(context.Background(), closeBudget)
+		defer cancel()
 
 		s.drain(ctx)
 

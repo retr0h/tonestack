@@ -34,7 +34,7 @@ import (
 // DiscoverBusPublicTestSuite covers finding a device and claiming it.
 //
 // All of it against a bus this file supplies. What libusb does is one
-// expression per method in usb.go, and none of the decisions are there.
+// expression per method in usb_darwin.go, and none of the decisions are there.
 type DiscoverBusPublicTestSuite struct {
 	suite.Suite
 }
@@ -146,6 +146,10 @@ func (s *DiscoverBusPublicTestSuite) TestOpenOver() {
 		// claim.
 		unusedClosed bool
 		busClosed    bool
+		// every handle the bus returned was given back, and the first was
+		// never claimed.
+		allClosed bool
+		unclaimed bool
 
 		err  bool
 		says string
@@ -159,14 +163,80 @@ func (s *DiscoverBusPublicTestSuite) TestOpenOver() {
 		},
 		{
 			// Enumerating can fail partway and still have found something.
-			// What it found is worth using.
+			// A listing that failed is not one to claim hardware from, and
+			// nothing it returned is left held.
 			name: "one that complained and found something anyway",
 			bus: func() *fakeBus {
 				return &fakeBus{
-					devices: []device.TestHandle{helix(answers())},
+					devices: []device.TestHandle{helix(answers()), helix(answers())},
 					err:     errors.New("boom"),
 				}
 			},
+			err:       true,
+			says:      "looking for a device",
+			busClosed: true,
+			allClosed: true,
+			unclaimed: true,
+		},
+		{
+			// A product identifier is only Line 6's under Line 6's vendor
+			// identifier. Somebody else's device that happens to share one is
+			// not a Helix, and claiming it talks this protocol at hardware
+			// that does not speak it.
+			name: "a Helix product identifier under somebody else's vendor",
+			bus: func() *fakeBus {
+				return &fakeBus{devices: []device.TestHandle{&fakeHandle{
+					desc:     device.Descriptor{Vendor: 0x1234, Product: 0x4246},
+					scripted: answers(),
+				}}}
+			},
+			err:       true,
+			is:        device.ErrNoDevice,
+			busClosed: true,
+			unclaimed: true,
+		},
+		{
+			name: "a device whose reads fail before the handshake starts",
+			bus: func() *fakeBus {
+				return &fakeBus{devices: []device.TestHandle{helix(&scripted{
+					readErr: errors.New("boom"),
+				})}}
+			},
+			err:  true,
+			says: "reading from the device",
+		},
+		{
+			// Three quiet reads drain the device; the fourth is the first
+			// read after a channel opening.
+			name: "one whose reads fail after the opening frame",
+			bus: func() *fakeBus {
+				return &fakeBus{devices: []device.TestHandle{helix(&scripted{
+					readErr: errors.New("boom"), readsOK: 3,
+				})}}
+			},
+			err:  true,
+			says: "reading from the device",
+		},
+		{
+			name: "one whose reads fail after a service is asked for",
+			bus: func() *fakeBus {
+				return &fakeBus{devices: []device.TestHandle{helix(&scripted{
+					readErr: errors.New("boom"), readsOK: 4,
+				})}}
+			},
+			err:  true,
+			says: "reading from the device",
+		},
+		{
+			// The read between closing a channel and reopening it.
+			name: "one whose reads fail after a channel is closed",
+			bus: func() *fakeBus {
+				return &fakeBus{devices: []device.TestHandle{helix(&scripted{
+					readErr: errors.New("boom"), readsOK: 5,
+				})}}
+			},
+			err:  true,
+			says: "reading from the device",
 		},
 		{
 			name: "a bus with nothing on it but somebody else's device",
@@ -310,6 +380,17 @@ func (s *DiscoverBusPublicTestSuite) TestOpenOver() {
 
 			if tt.busClosed {
 				s.Require().True(bus.closed, "a bus nobody is using is given back")
+			}
+
+			if tt.unclaimed {
+				s.Require().Zero(first.claims, "nothing is claimed")
+			}
+
+			if tt.allClosed {
+				for i, d := range bus.devices {
+					h, _ := d.(*fakeHandle)
+					s.Require().True(h.closed, "handle %d is given back", i)
+				}
 			}
 		})
 	}

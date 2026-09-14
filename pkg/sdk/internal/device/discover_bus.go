@@ -29,7 +29,7 @@ import (
 //
 // Declared here rather than taken from the library, so that finding and
 // claiming a device is logic over an interface instead of a call into C. What
-// remains in usb.go is one expression per method, forwarding.
+// remains in usb_darwin.go is one expression per method, forwarding.
 type bus interface {
 	// Devices returns every device the matcher accepts, opened.
 	Devices(match func(vendor, product uint16) bool) ([]handle, error)
@@ -108,13 +108,27 @@ func open(ctx context.Context, b bus) (Editor, error) {
 // More than one is possible and only the first is used. The rest are closed
 // rather than left open, because a device held by a process that is not using
 // it is a device nothing else can claim.
-func findDevice(b bus) (handle, Model, error) {
-	devs, err := b.Devices(func(_, product uint16) bool {
+//
+// A product identifier is Line 6's only under Line 6's vendor identifier. A
+// listing that failed is not claimed from, even when it returned something,
+// and whatever it returned is given back.
+func findDevice(
+	b bus,
+) (handle, Model, error) {
+	devs, err := b.Devices(func(vendor, product uint16) bool {
+		if vendor != vendorID {
+			return false
+		}
+
 		_, ok := modelFor(product)
 
 		return ok
 	})
-	if err != nil && len(devs) == 0 {
+	if err != nil {
+		for _, d := range devs {
+			_ = d.Close()
+		}
+
 		return nil, Model{}, fmt.Errorf("looking for a device: %w", err)
 	}
 

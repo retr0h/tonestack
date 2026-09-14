@@ -34,8 +34,17 @@ type scripted struct {
 	sent [][]byte
 	// writeErr fails every write.
 	writeErr error
-	// readErr fails every read.
+	// readErr fails every read after the first readsOK of them.
 	readErr error
+	readsOK int
+	// reads is how many times the session read.
+	reads int
+	// onWrite runs after every write the device took, so a test can stop
+	// waiting partway through a message.
+	onWrite func()
+	// noisy is handed back on every read once replies run out: a device that
+	// never goes quiet.
+	noisy []byte
 }
 
 func (d *scripted) Write(p []byte) (int, error) {
@@ -45,12 +54,22 @@ func (d *scripted) Write(p []byte) (int, error) {
 
 	d.sent = append(d.sent, append([]byte(nil), p...))
 
+	if d.onWrite != nil {
+		d.onWrite()
+	}
+
 	return len(p), nil
 }
 
 func (d *scripted) ReadContext(_ context.Context, p []byte) (int, error) {
-	if d.readErr != nil {
+	d.reads++
+
+	if d.readErr != nil && d.reads > d.readsOK {
 		return 0, d.readErr
+	}
+
+	if len(d.replies) == 0 && d.noisy != nil {
+		return copy(p, d.noisy), nil
 	}
 
 	if len(d.replies) == 0 {

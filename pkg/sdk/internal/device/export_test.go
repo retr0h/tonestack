@@ -65,7 +65,9 @@ func (s *session) Handshake(ctx context.Context) error { return s.handshake(ctx)
 func (s *session) Drain(ctx context.Context) { s.drain(ctx) }
 
 // Receive reads one transfer and routes every frame in it.
-func (s *session) Receive(ctx context.Context) bool {
+func (s *session) Receive(
+	ctx context.Context,
+) (bool, error) {
 	return s.receive(ctx, openReadWait)
 }
 
@@ -208,6 +210,14 @@ var CommitBudget = &commitBudget
 // ReplyBudget is how long a device is given to answer a call, exported so a
 // test can reach the silence without waiting out the whole of it.
 var ReplyBudget = &replyBudget
+
+// DrainBudget bounds how long a drain reads, exported so a test does not
+// spend it.
+var DrainBudget = &drainBudget
+
+// CloseBudget bounds how long ending a session takes, exported so a test can
+// reach it without waiting out the whole of it.
+var CloseBudget = &closeBudget
 
 // Write sends a request too large for one frame and waits for the device to
 // finish acting on it.
