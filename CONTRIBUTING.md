@@ -169,6 +169,14 @@ packages are the nouns it takes and hands back.
 | render those answers the way the CLI does | `cli`                                     |
 | serve the operations to an agent over MCP | `mcp`                                     |
 
+`sdk.New()` with no options uses the built-in catalog and statistics, the rigs
+that ship, and whatever device is on the USB bus. Anything that describes the
+Client rather than one call is an option: `WithCatalog`, `WithStats`,
+`WithRecipes`, `WithBackupDir`, `WithCapture` and `WithTrace`. Every method
+takes a `context.Context` first. The library reads no environment variable
+except `XDG_STATE_HOME`, so a program that wants `TONESTACK_USB_DUMP` or
+`TONESTACK_USB_DEBUG` reads them itself and passes a writer in, as `cmd` does.
+
 How each operation is done lives in `pkg/sdk/internal/`, where nothing outside
 the library can reach it. That is what keeps this list short, and what lets the
 implementation change without breaking a caller.
@@ -435,6 +443,11 @@ package thispackage
 
 Either way the directives live in a `generate.go` that holds no code, and the
 generated file carries `.gen` so a reader knows not to edit it.
+
+A test stands in for hardware through the Client it builds, never by swapping
+a package variable. `pkg/sdk/export_test.go` holds a `WithDevices` setter that
+takes a generated `device.Opener` mock, so each suite gets its own bus and can
+call `t.Parallel()`.
 
 Where call sites would otherwise repeat the same expectations, write a
 constructor returning a configured mock rather than introducing a hand-written
