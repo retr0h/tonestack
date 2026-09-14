@@ -70,7 +70,7 @@ license-check:
         echo "missing licence header: $f" >&2
         missing=$((missing+1))
       fi
-    done < <(find . -name '*.go' -not -path './.git/*' -not -name '*.gen.go')
+    done < <(find . -name '*.go' -not -path './.git/*' -not -name '*.gen.go' -not -name '*.gen_test.go')
     if [ "$missing" -ne 0 ]; then
       echo "$missing file(s) missing the header — see CONTRIBUTING.md" >&2
       exit 1

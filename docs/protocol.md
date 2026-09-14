@@ -90,7 +90,8 @@ needed, and [device.md](device.md) explains why.
 
 ## Framing
 
-Implemented in `pkg/sdk/internal/wire`, which is pure Go and tested without hardware.
+Implemented in `pkg/sdk/internal/wire`, which is pure Go and tested without
+hardware.
 
 There are **three** nested headers, not one. Flattening them works by accident
 because 8 + 8 = 16, and then falls apart the moment a reply is longer than one
