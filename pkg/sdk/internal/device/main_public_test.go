@@ -30,9 +30,9 @@ import (
 // TestMain shortens every wait this package spends on hardware, since nothing
 // here is talking to any.
 //
-// The ordering is the one a device has: a commit outlasts a reply, so a write
-// nobody answers still reads as no reply. A test that needs a different figure
-// sets its own and puts this one back.
+// The ordering is the one a device has: a commit outlasts a reply, and a
+// write is waited on for the commit budget. A test that needs a different
+// figure sets its own and puts this one back.
 func TestMain(m *testing.M) {
 	*device.ReplyBudget = 50 * time.Millisecond
 	*device.DrainBudget = 50 * time.Millisecond

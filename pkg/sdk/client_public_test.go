@@ -57,7 +57,9 @@ func (s *ClientPublicTestSuite) bus(
 }
 
 // stand puts a bus in front of the Client and gives back what undoes it.
-func (s *ClientPublicTestSuite) stand(b *mocks.MockBus) func() {
+func (s *ClientPublicTestSuite) stand(
+	b *mocks.MockBus,
+) func() {
 	restore := *sdk.NewLister
 	*sdk.NewLister = func() sdk.Closer { return b }
 

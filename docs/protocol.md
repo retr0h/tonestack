@@ -189,8 +189,9 @@ selecting preset 999 on a device holding 126 answers `1` and does nothing.
 
 Verified means an HX Stomp on firmware 3.80 answered, not that a test asserts
 it. Only `pkg/sdk/internal/device/usb_darwin.go` needs hardware. It counts
-against the 99% coverage gate rather than being excluded from it;
-`pkg/sdk/internal/wire` needs none and is covered in full.
+against the 99% coverage gate rather than being excluded from it, but only on
+macOS. No other platform compiles the file, so Linux CI never builds or counts
+it. `pkg/sdk/internal/wire` needs no hardware and is covered in full.
 
 ## Reading one preset
 

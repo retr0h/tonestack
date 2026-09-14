@@ -74,7 +74,9 @@ func (s *HandshakePublicTestSuite) replyOnData(txn uint64, status int, result an
 }
 
 // session returns one with its channels already open, over a scripted device.
-func (s *HandshakePublicTestSuite) session(d *deviceDouble) *device.Session {
+func (s *HandshakePublicTestSuite) session(
+	d *deviceDouble,
+) *device.Session {
 	out := device.NewTestSession(d.out, d.in)
 	out.OpenChannels()
 
@@ -288,6 +290,57 @@ func (s *HandshakePublicTestSuite) TestCall() {
 				s.Require().Equal(tc.reads, in.reads, "within one read")
 				s.Require().NotContains(err.Error(), "no reply")
 			}
+		})
+	}
+}
+
+// TestHandshake opens every channel, once, and stops at the first frame the
+// bus will not take. A handshake is never retried, so a failure partway
+// through is reported rather than papered over.
+func (s *HandshakePublicTestSuite) TestHandshake() {
+	tests := []struct {
+		name string
+		// how many frames the bus takes before it refuses the rest. Negative
+		// means it takes them all.
+		sendsOK int
+		says    string
+	}{
+		{name: "a device that takes every frame", sendsOK: -1},
+		{
+			// The hello goes out, and the frame that names the service does
+			// not.
+			name:    "a bus that refuses the opening of a service",
+			sendsOK: 1,
+			says:    "boom",
+		},
+		{
+			// The control channel serves two services, closed and reopened
+			// between them. A close that does not go out leaves the device
+			// talking about the first.
+			name:    "a bus that refuses the close between two services",
+			sendsOK: 3,
+			says:    "boom",
+		},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			d := answers(s.ctrl)
+
+			out := device.TestSender(d.out)
+			if tt.sendsOK >= 0 {
+				out = &device.FailAfter{Sender: d.out, OK: tt.sendsOK, Err: errors.New("boom")}
+			}
+
+			err := device.NewTestSession(out, d.in).Handshake(context.Background())
+
+			if tt.says == "" {
+				s.Require().NoError(err)
+
+				return
+			}
+
+			s.Require().ErrorContains(err, tt.says)
 		})
 	}
 }

@@ -27,6 +27,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/mock/gomock"
 
@@ -66,6 +67,34 @@ func (s *EditDevicePublicTestSuite) SetupTest() {
 }
 
 func (s *EditDevicePublicTestSuite) TearDownTest() { s.ctrl.Finish() }
+
+// errWriteRefused is what a device that will not take a write says.
+var errWriteRefused = errors.New("boom")
+
+// requireKept checks that a failed write names the n backups it made first,
+// and still wraps what went wrong. None made means no KeptError at all.
+func requireKept(
+	r *require.Assertions,
+	err error,
+	n int,
+) {
+	var kept *slots.KeptError
+
+	if n == 0 {
+		r.NotErrorAs(err, &kept, "nothing was kept, so nothing is named")
+
+		return
+	}
+
+	r.ErrorAs(err, &kept)
+	r.Len(kept.Kept, n)
+	r.NotNil(errors.Unwrap(err), "what went wrong is still there to match")
+
+	for _, path := range kept.Kept {
+		r.FileExists(path)
+		r.Contains(err.Error(), path, "the error says where the backup is")
+	}
+}
 
 // answer returns one slot as the hardware sent it.
 func (s *EditDevicePublicTestSuite) answer() []byte {
@@ -150,7 +179,7 @@ func (s *EditDevicePublicTestSuite) expectWrite(
 		WriteNamedPreset(gomock.Any(), setlist, slot, name, s.answer())
 
 	if !ok {
-		return call.Return(errors.New("boom"))
+		return call.Return(errWriteRefused)
 	}
 
 	return call.Return(nil)
@@ -177,12 +206,26 @@ func (s *EditDevicePublicTestSuite) TestCopyWith() {
 		cross bool
 		// the second setlist's listing is refused.
 		crossRefused bool
+		// the destination is the source itself.
+		same bool
 
 		contains []string
 		// part of the backup's filename, which names the setlist it came from.
-		keptAs  string
-		errText string
+		keptAs string
+		// how many backups the error names.
+		keptInErr int
+		is        error
+		errText   string
 	}{
+		{
+			// Nothing to move and nothing to keep. Reading and backing up a
+			// slot only to write it back over itself is a round trip for
+			// nothing, and the command was almost certainly a typo.
+			name:    "a slot copied onto itself",
+			same:    true,
+			is:      slots.ErrSameSlot,
+			errText: "01A",
+		},
 		{
 			name:   "a preset sent back byte for byte",
 			listed: true,
@@ -246,11 +289,15 @@ func (s *EditDevicePublicTestSuite) TestCopyWith() {
 			errText: "did not answer with a preset",
 		},
 		{
-			name:    "a slot it cannot write",
-			listed:  true,
-			read:    "answered",
-			write:   "refused",
-			errText: "writing slot 02A",
+			// The destination was kept before the write failed, and the
+			// error is the only thing left to say where.
+			name:      "a slot it cannot write",
+			listed:    true,
+			read:      "answered",
+			write:     "refused",
+			is:        errWriteRefused,
+			keptInErr: 1,
+			errText:   "writing slot 02A",
 		},
 		{
 			// Reading and writing are separate abilities, because writing is
@@ -278,7 +325,11 @@ func (s *EditDevicePublicTestSuite) TestCopyWith() {
 				toSetlist, toSlot, toName = 1, 0, "Holiday"
 			}
 
-			s.expectListing(reader, tt.listed)
+			if tt.same {
+				toSlot = 0
+			} else {
+				s.expectListing(reader, tt.listed)
+			}
 
 			if tt.cross && tt.crossRefused {
 				reader.EXPECT().Presets(gomock.Any(), 1).
@@ -320,6 +371,12 @@ func (s *EditDevicePublicTestSuite) TestCopyWith() {
 				s.Require().Error(err)
 				s.Require().Contains(err.Error(), tt.errText)
 
+				if tt.is != nil {
+					s.Require().ErrorIs(err, tt.is)
+				}
+
+				requireKept(s.Require(), err, tt.keptInErr)
+
 				return
 			}
 
@@ -358,10 +415,33 @@ func (s *EditDevicePublicTestSuite) TestSwapWith() {
 		cross bool
 		// part of each backup's filename, in the order they were kept.
 		keptIn []string
+		// the second slot is the first one.
+		same bool
+		// the caller stops waiting while the first write is going out.
+		cancelsOnFirstWrite bool
 
 		contains string
-		errText  string
+		// how many backups the error names.
+		keptInErr int
+		is        error
+		errText   string
 	}{
+		{
+			name:    "a slot swapped with itself",
+			same:    true,
+			is:      slots.ErrSameSlot,
+			errText: "01A",
+		},
+		{
+			// A swap that has written one slot finishes. Stopping between
+			// the two writes leaves both slots holding the same preset, with
+			// one original only in a backup.
+			name:                "a caller who stops waiting during the first write",
+			listed:              true,
+			reads:               []string{"answered", "answered"},
+			cancelsOnFirstWrite: true,
+			contains:            "swapped",
+		},
 		{
 			name:     "both slots, each holding what the other did",
 			listed:   true,
@@ -406,18 +486,24 @@ func (s *EditDevicePublicTestSuite) TestSwapWith() {
 			errText: "reading slot 02A",
 		},
 		{
-			name:    "the destination, which it cannot write",
-			listed:  true,
-			reads:   []string{"answered", "answered"},
-			writes:  []string{"refused"},
-			errText: "writing slot 02A",
+			name:      "the destination, which it cannot write",
+			listed:    true,
+			reads:     []string{"answered", "answered"},
+			writes:    []string{"refused"},
+			is:        errWriteRefused,
+			keptInErr: 2,
+			errText:   "writing slot 02A",
 		},
 		{
-			name:    "the source, which it cannot write",
-			listed:  true,
-			reads:   []string{"answered", "answered"},
-			writes:  []string{"landed", "refused"},
-			errText: "writing slot 01A",
+			// The worst place to fail: both slots hold the source, and the
+			// destination's preset is only in a backup. The error says which.
+			name:      "the source, which it cannot write",
+			listed:    true,
+			reads:     []string{"answered", "answered"},
+			writes:    []string{"landed", "refused"},
+			is:        errWriteRefused,
+			keptInErr: 2,
+			errText:   "writing slot 01A",
 		},
 		{
 			name:     "a session that cannot write",
@@ -438,6 +524,9 @@ func (s *EditDevicePublicTestSuite) TestSwapWith() {
 				dev = device.Editor(reader)
 			}
 
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
 			toSetlist, toSlot, toName := 0, 3, "Black Rusty"
 			if tt.cross {
 				toSetlist, toSlot, toName = 1, 0, "Holiday"
@@ -445,7 +534,30 @@ func (s *EditDevicePublicTestSuite) TestSwapWith() {
 				reader.EXPECT().Presets(gomock.Any(), 1).Return(s.elsewhere(), nil)
 			}
 
-			s.expectListing(reader, tt.listed)
+			if tt.same {
+				toSlot = 0
+			} else {
+				s.expectListing(reader, tt.listed)
+			}
+
+			if tt.cancelsOnFirstWrite {
+				// The first write lands and the caller gives up while it
+				// does. The second is a device refusing a context that has
+				// ended, the way a session's write does before sending.
+				first := s.dev.MockWriter.EXPECT().
+					WriteNamedPreset(gomock.Any(), toSetlist, toSlot, "Chunky Monkey", s.answer()).
+					DoAndReturn(func(context.Context, int, int, string, []byte) error {
+						cancel()
+
+						return nil
+					})
+				s.dev.MockWriter.EXPECT().
+					WriteNamedPreset(gomock.Any(), 0, 0, toName, s.answer()).
+					DoAndReturn(func(ctx context.Context, _, _ int, _ string, _ []byte) error {
+						return ctx.Err()
+					}).
+					After(first)
+			}
 
 			// A device that failed halfway through would leave one slot
 			// holding a copy of the other and the original gone, so both
@@ -474,7 +586,7 @@ func (s *EditDevicePublicTestSuite) TestSwapWith() {
 				}
 			}
 
-			change, err := slots.SwapWith(context.Background(), dev,
+			change, err := slots.SwapWith(ctx, dev,
 				slots.EditOptions{
 					FromSlot: 0, ToSetlist: toSetlist, ToSlot: toSlot,
 					BackupDir: s.backupDir(tt.badBackup),
@@ -483,6 +595,12 @@ func (s *EditDevicePublicTestSuite) TestSwapWith() {
 			if tt.errText != "" {
 				s.Require().Error(err)
 				s.Require().Contains(err.Error(), tt.errText)
+
+				if tt.is != nil {
+					s.Require().ErrorIs(err, tt.is)
+				}
+
+				requireKept(s.Require(), err, tt.keptInErr)
 
 				return
 			}

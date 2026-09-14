@@ -66,6 +66,10 @@ type deviceDouble struct {
 	// pause is how long a quiet read takes, cut short when its context ends:
 	// a device with nothing to say, read the way a real endpoint is read.
 	pause time.Duration
+	// holdFor keeps the replies back until that long after the first read: a
+	// device that answers, but late.
+	holdFor time.Duration
+	first   time.Time
 }
 
 // newDeviceDouble wires a sender and a receiver mock to a device's
@@ -86,7 +90,9 @@ func newDeviceDouble(
 }
 
 // write records what the session sent, and fails it when writeErr is set.
-func (d *deviceDouble) write(p []byte) (int, error) {
+func (d *deviceDouble) write(
+	p []byte,
+) (int, error) {
 	if d.writeErr != nil {
 		return 0, d.writeErr
 	}
@@ -102,8 +108,15 @@ func (d *deviceDouble) write(p []byte) (int, error) {
 
 // read hands back the next scripted reply, and fails it once readsOK of them
 // have gone out.
-func (d *deviceDouble) read(ctx context.Context, p []byte) (int, error) {
+func (d *deviceDouble) read(
+	ctx context.Context,
+	p []byte,
+) (int, error) {
 	d.reads++
+
+	if d.first.IsZero() {
+		d.first = time.Now()
+	}
 
 	if d.readErr != nil && d.reads > d.readsOK {
 		return 0, d.readErr
@@ -113,7 +126,9 @@ func (d *deviceDouble) read(ctx context.Context, p []byte) (int, error) {
 		return copy(p, d.noisy), nil
 	}
 
-	if len(d.replies) == 0 {
+	held := d.holdFor > 0 && time.Since(d.first) < d.holdFor
+
+	if len(d.replies) == 0 || held {
 		// A device with nothing to say answers with nothing inside its read
 		// window: context.DeadlineExceeded, what IOKit's readUntil returns
 		// once its own timeout elapses.
@@ -132,15 +147,36 @@ func (d *deviceDouble) read(ctx context.Context, p []byte) (int, error) {
 }
 
 // answers scripts a device to reply with each of the given frames in turn.
-func answers(ctrl *gomock.Controller, frames ...[]byte) *deviceDouble {
+func answers(
+	ctrl *gomock.Controller,
+	frames ...[]byte,
+) *deviceDouble {
 	d := newDeviceDouble(ctrl)
 	d.replies = frames
 
 	return d
 }
 
+// late scripts a device that says nothing until after has passed since it was
+// first read, and then replies with each of the given frames in turn.
+func late(
+	ctrl *gomock.Controller,
+	after time.Duration,
+	frames ...[]byte,
+) *deviceDouble {
+	d := answers(ctrl, frames...)
+	d.holdFor = after
+	// A quiet read that returned at once would spin the wait.
+	d.pause = time.Millisecond
+
+	return d
+}
+
 // readFails scripts a device whose read fails outright.
-func readFails(ctrl *gomock.Controller, err error) *deviceDouble {
+func readFails(
+	ctrl *gomock.Controller,
+	err error,
+) *deviceDouble {
 	d := newDeviceDouble(ctrl)
 	d.readErr = err
 
@@ -149,7 +185,11 @@ func readFails(ctrl *gomock.Controller, err error) *deviceDouble {
 
 // readFailsAfter scripts a device whose reads fail once n of them have
 // succeeded.
-func readFailsAfter(ctrl *gomock.Controller, err error, n int) *deviceDouble {
+func readFailsAfter(
+	ctrl *gomock.Controller,
+	err error,
+	n int,
+) *deviceDouble {
 	d := newDeviceDouble(ctrl)
 	d.readErr, d.readsOK = err, n
 
@@ -157,7 +197,10 @@ func readFailsAfter(ctrl *gomock.Controller, err error, n int) *deviceDouble {
 }
 
 // writeFails scripts a device whose write fails outright.
-func writeFails(ctrl *gomock.Controller, err error) *deviceDouble {
+func writeFails(
+	ctrl *gomock.Controller,
+	err error,
+) *deviceDouble {
 	d := newDeviceDouble(ctrl)
 	d.writeErr = err
 
@@ -165,7 +208,10 @@ func writeFails(ctrl *gomock.Controller, err error) *deviceDouble {
 }
 
 // paused scripts a device that takes wait before answering a quiet read.
-func paused(ctrl *gomock.Controller, wait time.Duration) *deviceDouble {
+func paused(
+	ctrl *gomock.Controller,
+	wait time.Duration,
+) *deviceDouble {
 	d := newDeviceDouble(ctrl)
 	d.pause = wait
 

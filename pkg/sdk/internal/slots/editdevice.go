@@ -22,12 +22,56 @@ package slots
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/retr0h/tonestack/pkg/sdk/internal/device"
 	"github.com/retr0h/tonestack/pkg/sdk/result"
 	slotpkg "github.com/retr0h/tonestack/pkg/sdk/slot"
 )
+
+// ErrSameSlot is a copy or a swap whose two slots are one slot.
+var ErrSameSlot = errors.New("the source and the destination are the same slot")
+
+// KeptError is a write to a device that failed after what a slot held was
+// backed up.
+//
+// A slot may already be overwritten by then, so its backup is the only copy
+// left. A result is not returned alongside an error, so the error has to say
+// where the backup is.
+type KeptError struct {
+	// Kept are the backups written before the write failed.
+	Kept []string
+	// Err is what went wrong.
+	Err error
+}
+
+// Error implements the error interface.
+func (e *KeptError) Error() string {
+	held := "the slot held is"
+	if len(e.Kept) > 1 {
+		held = "the slots held are"
+	}
+
+	return fmt.Sprintf("%v; what %s kept in %s",
+		e.Err, held, strings.Join(e.Kept, ", "))
+}
+
+// Unwrap returns what went wrong, so callers can still match it.
+func (e *KeptError) Unwrap() error { return e.Err }
+
+// keptError names the backups in err, when there are any.
+func keptError(
+	err error,
+	kept []string,
+) error {
+	if len(kept) == 0 {
+		return err
+	}
+
+	return &KeptError{Kept: kept, Err: err}
+}
 
 // CopyDevice puts what one slot holds into another, on an attached device.
 //
@@ -100,6 +144,13 @@ func editWith(
 	action result.Action,
 	apply applier,
 ) (result.Change, error) {
+	// Before anything is read or kept: moving a slot onto itself changes
+	// nothing, and is almost certainly not what was meant.
+	if opts.FromSetlist == opts.ToSetlist && opts.FromSlot == opts.ToSlot {
+		return result.Change{}, fmt.Errorf("%w: %s",
+			ErrSameSlot, slotpkg.Label(opts.FromSlot))
+	}
+
 	did, err := apply(ctx, s, opts)
 	if err != nil {
 		return result.Change{}, err
@@ -151,8 +202,8 @@ func copyOne(
 	// was, which is not what copying a preset means.
 	if err := w.WriteNamedPreset(
 		ctx, opts.ToSetlist, opts.ToSlot, from, body); err != nil {
-		return edited{}, fmt.Errorf("writing slot %s: %w",
-			slotpkg.Label(opts.ToSlot), err)
+		return edited{}, keptError(fmt.Errorf("writing slot %s: %w",
+			slotpkg.Label(opts.ToSlot), err), kept)
 	}
 
 	return edited{from: from, to: to, kept: kept}, nil
@@ -199,14 +250,17 @@ func swapTwo(
 
 	if err := w.WriteNamedPreset(
 		ctx, opts.ToSetlist, opts.ToSlot, from, source); err != nil {
-		return edited{}, fmt.Errorf("writing slot %s: %w",
-			slotpkg.Label(opts.ToSlot), err)
+		return edited{}, keptError(fmt.Errorf("writing slot %s: %w",
+			slotpkg.Label(opts.ToSlot), err), kept)
 	}
 
-	if err := w.WriteNamedPreset(
-		ctx, opts.FromSetlist, opts.FromSlot, to, destination); err != nil {
-		return edited{}, fmt.Errorf("writing slot %s: %w",
-			slotpkg.Label(opts.FromSlot), err)
+	// One slot is written, so the swap finishes whoever stops waiting.
+	// Stopping here would leave both slots holding the source, and what the
+	// destination held only in a backup.
+	if err := w.WriteNamedPreset(context.WithoutCancel(ctx),
+		opts.FromSetlist, opts.FromSlot, to, destination); err != nil {
+		return edited{}, keptError(fmt.Errorf("writing slot %s: %w",
+			slotpkg.Label(opts.FromSlot), err), kept)
 	}
 
 	return edited{from: from, to: to, kept: kept}, nil

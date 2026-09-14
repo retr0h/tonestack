@@ -149,16 +149,21 @@ func (s *session) Call(
 		return wire.Response{}, err
 	}
 
-	return s.awaitReply(ctx, c, txn, opcode)
+	return s.awaitReply(ctx, c, txn, opcode, replyBudget)
 }
 
-// awaitReply reads until the reply to one transaction arrives.
+// awaitReply reads until the reply to one transaction arrives, or budget runs
+// out.
+//
+// The budget is the caller's: a call is answered within the reply budget, and
+// a write, which answers once it has committed, is given the commit budget.
 func (s *session) awaitReply(
 	ctx context.Context,
 	c *channel,
 	txn, opcode uint64,
+	budget time.Duration,
 ) (wire.Response, error) {
-	deadline := time.Now().Add(replyBudget)
+	deadline := time.Now().Add(budget)
 
 	for time.Now().Before(deadline) {
 		// Checked before reading as well as by receive, which only sees a
@@ -210,10 +215,10 @@ func (s *session) awaitReply(
 	}
 
 	return wire.Response{}, fmt.Errorf(
-		"%w to opcode %d within %s", errNoReply, opcode, replyBudget)
+		"%w to opcode %d within %s", errNoReply, opcode, budget)
 }
 
-// errNoReply is a device that stayed silent for the whole reply budget.
+// errNoReply is a device that stayed silent for the whole of its budget.
 //
 // Told apart from a bus that failed, because a device busy switching presets
 // goes quiet too, and that is worth asking again.

@@ -139,8 +139,10 @@ func (s *ImportDevicePublicTestSuite) TestImportWith() {
 		sent     bool
 		contains []string
 		// the name the kept copy of the destination carries.
-		keptAs  string
-		errText string
+		keptAs string
+		// how many backups the error names.
+		keptInErr int
+		errText   string
 	}{
 		{
 			name:     "the chain a file describes",
@@ -175,6 +177,15 @@ func (s *ImportDevicePublicTestSuite) TestImportWith() {
 			name:    "a device that refuses the write",
 			refuses: true,
 			errText: "writing slot 03B",
+		},
+		{
+			// What the slot held is already on disk by then, and only the
+			// error is left to say where.
+			name:        "a device that refuses the write after the slot was kept",
+			refuses:     true,
+			destination: "held",
+			errText:     "writing slot 03B",
+			keptInErr:   1,
 		},
 		{
 			// A reading session must not be handed the ability to overwrite
@@ -280,6 +291,7 @@ func (s *ImportDevicePublicTestSuite) TestImportWith() {
 			if tt.errText != "" {
 				s.Require().Error(err)
 				s.Require().Contains(err.Error(), tt.errText)
+				requireKept(s.Require(), err, tt.keptInErr)
 
 				return
 			}

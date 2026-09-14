@@ -211,6 +211,9 @@ A device has no undo, so whatever the slot held is read and saved first, and the
 output says where. Put it back with `presets import --preset` and that file.
 `--backup-dir` changes where they go.
 
+A slot with no blocks is kept as a `.bin` file instead. It holds the bytes the
+device sent, so nothing is lost, but `presets import` can't read it yet.
+
 **Through HX Edit.** `HX Edit → Import` and choose the `.hlx`.
 
 **Into a backup**, with no device attached:

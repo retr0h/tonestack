@@ -91,8 +91,8 @@ func ImportWith(
 
 	if err := writer.WriteNamedPreset(
 		ctx, opts.Setlist, opts.Slot, name, body); err != nil {
-		return result.Change{}, fmt.Errorf(
-			"writing slot %s: %w", slotpkg.Label(opts.Slot), err)
+		return result.Change{}, keptError(fmt.Errorf(
+			"writing slot %s: %w", slotpkg.Label(opts.Slot), err), kept)
 	}
 
 	return result.Change{

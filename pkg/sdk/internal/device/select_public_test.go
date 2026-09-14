@@ -126,7 +126,9 @@ func (s *SelectPublicTestSuite) playing(txn uint64, setlist, slot int) []byte {
 	return device.Reply(device.DataChannel, buf.Bytes())
 }
 
-func (s *SelectPublicTestSuite) session(d *deviceDouble) *device.Session {
+func (s *SelectPublicTestSuite) session(
+	d *deviceDouble,
+) *device.Session {
 	out := device.NewTestSession(d.out, d.in)
 	out.OpenChannels()
 

@@ -142,15 +142,15 @@ func (s *session) write(
 		return err
 	}
 
-	// The commit budget bounds the wait for the answer, and only that.
-	actx, cancel := context.WithTimeout(context.WithoutCancel(ctx), commitBudget)
-	defer cancel()
-
-	if _, err := s.awaitReply(actx, c, txn, opcode); err != nil {
-		// Detached from the caller, so an ended context here is the budget's.
-		if actx.Err() != nil && errors.Is(err, context.DeadlineExceeded) {
-			return fmt.Errorf("no reply to opcode %d within the %s commit budget: %w",
-				opcode, commitBudget, err)
+	// The commit budget bounds the wait for the answer, and only that. A call
+	// gets the shorter reply budget; a write answers once it has committed,
+	// and giving up sooner races the next write against a commit still
+	// running.
+	if _, err := s.awaitReply(
+		context.WithoutCancel(ctx), c, txn, opcode, commitBudget); err != nil {
+		// Detached from the caller, so silence here is the budget running out.
+		if errors.Is(err, errNoReply) {
+			return fmt.Errorf("%w, the commit budget: %w", err, context.DeadlineExceeded)
 		}
 
 		return err
@@ -163,8 +163,10 @@ func (s *session) write(
 	// the slot. tonepush sends the same message as a plain request and sleeps
 	// for the flash, which is what settle is.
 	//
-	// The status is not read for this reason. Both 0 and 1 have been seen for
-	// a write that landed, and neither says anything about the erase.
+	// Both 0 and 1 have been seen for a write that landed, and neither says
+	// anything about the erase, so either is success. Any other status fails
+	// in awaitReply, which reads it through wire.Response.Err: 255 is a
+	// refusal, and anything else is a status nobody has seen.
 	settle()
 
 	return nil
@@ -183,6 +185,8 @@ var flashBudget = 750 * time.Millisecond
 
 // stream sends a message in the size a device takes, reading between frames
 // so it can pace the sender.
+//
+// Only a failed send stops it. See the read below.
 func (s *session) stream(
 	ctx context.Context,
 	c *channel,
@@ -199,10 +203,13 @@ func (s *session) stream(
 
 		// Between frames, not after the last one: a device that has more to
 		// say says it now, and one with nothing to say costs a timeout.
+		//
+		// A failed read is ignored. The read only paces the sender, and a
+		// message that has started must go out whole: a device left holding
+		// half of one is the stall docs/protocol.md describes. A bus that has
+		// really gone fails the next send, which does stop the message.
 		if len(body) > 0 {
-			if _, err := s.receive(ctx, replyReadWait); err != nil {
-				return err
-			}
+			_, _ = s.receive(ctx, replyReadWait)
 		}
 	}
 

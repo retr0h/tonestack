@@ -148,7 +148,9 @@ func (s *DiscoverBusPublicTestSuite) handle(
 }
 
 // helix is a device this package recognises.
-func (s *DiscoverBusPublicTestSuite) helix(d *deviceDouble) *handleDouble {
+func (s *DiscoverBusPublicTestSuite) helix(
+	d *deviceDouble,
+) *handleDouble {
 	return s.handle(device.Descriptor{Vendor: 0x0e41, Product: 0x4246}, d)
 }
 
