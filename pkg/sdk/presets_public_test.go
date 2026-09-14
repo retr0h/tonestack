@@ -59,6 +59,19 @@ func (s *PresetsPublicTestSuite) where() sdk.Where {
 	return sdk.Where{Path: fixture("setlist.hls"), CatalogPath: fixture("catalog.json")}
 }
 
+// noOpen fails the test if a call reaches for a device at all, which is what
+// an input refused before it is opened must never do.
+func (s *PresetsPublicTestSuite) noOpen() func() {
+	restore := *sdk.OpenDevice
+	*sdk.OpenDevice = func(context.Context) (device.Editor, error) {
+		s.T().Fatal("a device was opened for an input that should have been refused first")
+
+		return nil, nil
+	}
+
+	return func() { *sdk.OpenDevice = restore }
+}
+
 // TestOnDevice covers telling the two ends apart.
 func (s *PresetsPublicTestSuite) TestOnDevice() {
 	tests := []struct {
@@ -226,15 +239,52 @@ func (s *PresetsPublicTestSuite) TestCopyAndSwap() {
 			_, err := tt.call(sdk.Edit{ToSlot: 1})
 			s.Require().ErrorContains(err, "no device found")
 		})
+
+		s.Run(tt.name+" names a setlist on Where", func() {
+			defer s.noOpen()()
+
+			// Edit already has FromSetlist and ToSetlist, one per side of
+			// the move. Where.Setlist has no side to belong to and would
+			// otherwise be silently ignored.
+			_, err := tt.call(sdk.Edit{Where: sdk.Where{Setlist: 2}, ToSlot: 1})
+			s.Require().ErrorIs(err, sdk.ErrEditSetlist)
+		})
 	}
 }
 
 // TestSelect covers loading a preset, which writes nothing.
 func (s *PresetsPublicTestSuite) TestSelect() {
-	defer s.noDevice()()
+	s.Run("off a device that is not there", func() {
+		defer s.noDevice()()
 
-	_, err := sdk.New().Select(context.Background(), sdk.Read{Slot: 4})
-	s.Require().ErrorContains(err, "no device found")
+		_, err := sdk.New().Select(context.Background(), sdk.Read{Slot: 4})
+		s.Require().ErrorContains(err, "no device found")
+	})
+
+	// A slot is only ever selected on the device that plays it. Naming a
+	// file either way must be refused before a device is even sought.
+	tests := []struct {
+		name string
+		in   sdk.Read
+	}{
+		{
+			name: "Where names a file",
+			in:   sdk.Read{Where: sdk.Where{Path: fixture("setlist.hls")}, Slot: 4},
+		},
+		{
+			name: "File names a standalone preset",
+			in:   sdk.Read{File: fixture("preset.hlx"), Slot: 4},
+		},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			defer s.noOpen()()
+
+			_, err := sdk.New().Select(context.Background(), tt.in)
+			s.Require().ErrorIs(err, sdk.ErrSelectNeedsDevice)
+		})
+	}
 }
 
 // TestCompile covers building a preset from a rig on disk.

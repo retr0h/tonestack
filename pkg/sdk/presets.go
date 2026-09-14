@@ -204,7 +204,15 @@ func (e Edit) options() slots.EditOptions {
 // is rebuilt, which is what makes this the safest thing to write: a device
 // seeks through a preset by a table of byte offsets, and the surest way to
 // keep those right is to change nothing.
+//
+// Edit already has FromSetlist and ToSetlist, one per side of the move.
+// Where.Setlist has no side to belong to, so setting it is refused with
+// ErrEditSetlist rather than silently read as neither.
 func (c *Client) Copy(ctx context.Context, in Edit) (Change, error) {
+	if in.Setlist != 0 {
+		return Change{}, ErrEditSetlist
+	}
+
 	if in.OnDevice() {
 		return slots.CopyDevice(ctx, in.options())
 	}
@@ -217,7 +225,13 @@ func (c *Client) Copy(ctx context.Context, in Edit) (Change, error) {
 // This is what moving a preset means: a slot cannot be left blank without
 // writing an empty preset, and an empty preset carries routing that differs
 // by device and firmware. Swapping invents nothing.
+//
+// Where.Setlist is refused the same way Copy refuses it; see ErrEditSetlist.
 func (c *Client) Swap(ctx context.Context, in Edit) (Change, error) {
+	if in.Setlist != 0 {
+		return Change{}, ErrEditSetlist
+	}
+
 	if in.OnDevice() {
 		return slots.SwapDevice(ctx, in.options())
 	}
@@ -231,7 +245,15 @@ func (c *Client) Swap(ctx context.Context, in Edit) (Change, error) {
 // preset goes into the edit buffer and the slot it came from is untouched, so
 // this is the one device operation that changes what you hear without
 // changing what the device holds.
+//
+// A slot is only ever selected on the device that plays it. Where.Path or
+// Read.File naming a file is refused with ErrSelectNeedsDevice rather than
+// quietly going to the pedal anyway.
 func (c *Client) Select(ctx context.Context, in Read) (Change, error) {
+	if in.Path != "" || in.File != "" {
+		return Change{}, ErrSelectNeedsDevice
+	}
+
 	return slots.SelectDevice(ctx, slots.DeviceOptions{
 		Setlist: in.Setlist,
 		Slot:    in.Slot,
