@@ -151,18 +151,34 @@ tonestack devices list
 
 ## tonestack mcp
 
-Serve the catalog, the corpus, the shipped rigs, building presets and the
-attached pedal to an agent over the Model Context Protocol, on stdin and stdout.
+Serve tonestack's operations to an agent over the Model Context Protocol.
+
+The catalog, the corpus, the shipped rigs, building presets and the attached
+pedal become tools an agent calls, with typed results rather than text to
+parse.
+
+```text
+tonestack mcp <command> [flags]
+```
+
+| command | what it does |
+| --- | --- |
+| [start](#tonestack-mcp-start) | Run the MCP server on stdin and stdout |
+
+## tonestack mcp start
+
+Run the MCP server on stdin and stdout until the agent disconnects, or until
+Ctrl-C or SIGTERM.
 
 An agent starts this itself. For Claude Code:
 
-  claude mcp add tonestack -- tonestack mcp
+  claude mcp add tonestack -- tonestack mcp start
 
 Tools that overwrite what a pedal holds (import, copy, swap) are offered only
 with --allow-writes. Each still saves what it replaces to a file first.
 
 ```text
-tonestack mcp [flags]
+tonestack mcp start [flags]
 ```
 
 | flag | takes | default | what it does |

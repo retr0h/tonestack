@@ -19,50 +19,20 @@
 // DEALINGS IN THE SOFTWARE.
 package cmd
 
-import (
-	"context"
-	"errors"
-
-	"github.com/spf13/cobra"
-
-	"github.com/retr0h/tonestack/pkg/mcp"
-	"github.com/retr0h/tonestack/pkg/sdk"
-)
-
-var mcpAllowWrites bool
+import "github.com/spf13/cobra"
 
 // mcpCmd represents the mcp command.
 var mcpCmd = &cobra.Command{
 	Use:   "mcp",
 	Short: "Serve tonestack to an agent over MCP",
-	Long: `Serve the catalog, the corpus, the shipped rigs, building presets and the
-attached pedal to an agent over the Model Context Protocol, on stdin and stdout.
+	Args:  cobra.NoArgs,
+	Long: `Serve tonestack's operations to an agent over the Model Context Protocol.
 
-An agent starts this itself. For Claude Code:
-
-  claude mcp add tonestack -- tonestack mcp
-
-Tools that overwrite what a pedal holds (import, copy, swap) are offered only
-with --allow-writes. Each still saves what it replaces to a file first.`,
-	Args: cobra.NoArgs,
-	RunE: func(cmd *cobra.Command, _ []string) error {
-		err := mcp.New(sdk.New(), mcp.Options{
-			Version:     version,
-			AllowWrites: mcpAllowWrites,
-		}).Run(cmd.Context())
-
-		// Ctrl-C and SIGTERM are how this is meant to stop, not a failure.
-		if errors.Is(err, context.Canceled) {
-			return nil
-		}
-
-		return err
-	},
+The catalog, the corpus, the shipped rigs, building presets and the attached
+pedal become tools an agent calls, with typed results rather than text to
+parse.`,
 }
 
 func init() {
 	rootCmd.AddCommand(mcpCmd)
-
-	mcpCmd.Flags().BoolVar(&mcpAllowWrites, "allow-writes", false,
-		"offer the tools that overwrite slots on the pedal")
 }
