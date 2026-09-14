@@ -213,10 +213,12 @@ func describeDevice(d *usb.Device) Descriptor {
 func wrapDevice(d *usb.Device) handle { return iokitHandle{dev: d} }
 
 // closeDevice gives back a device reference nobody kept.
+// Best effort: nothing holds the reference, so a refusal has nobody to tell.
 func closeDevice(d *usb.Device) { _ = d.Close() }
 
 // openInterface claims an interface without seizing it.
 func openInterface(i *usb.InterfaceHandle) error { return i.Open() }
 
 // closeInterface gives back an interface reference.
+// Best effort: the claim is over either way, and a refusal has nobody to tell.
 func closeInterface(i *usb.InterfaceHandle) { _ = i.Close() }

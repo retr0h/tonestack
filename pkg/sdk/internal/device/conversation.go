@@ -25,6 +25,8 @@ package device
 
 import (
 	"context"
+	"fmt"
+	"os"
 	"time"
 
 	"github.com/retr0h/tonestack/pkg/sdk/internal/wire"
@@ -196,8 +198,11 @@ func (s *session) Close() {
 		// can compare against a capture.
 		for _, spec := range channelSpecs {
 			if c, ok := s.chans[spec.name]; ok {
-				// Unchecked: Close has nobody to tell, and one failed send must not stop the rest of the shutdown.
-				_ = s.send(c, wire.MsgAck, nil)
+				// Close has nobody to tell, and one failed send must not stop the
+				// rest of the shutdown. The wire trace is the one place it shows.
+				if err := s.send(c, wire.MsgAck, nil); err != nil && debug {
+					fmt.Fprintf(os.Stderr, "ERR %-8s ack on close: %v\n", c.name, err)
+				}
 			}
 		}
 
@@ -208,8 +213,10 @@ func (s *session) Close() {
 		// presets on the pedal itself.
 		for _, spec := range channelSpecs {
 			if c, ok := s.chans[spec.name]; ok {
-				// Unchecked for the same reason: every other channel still needs closing.
-				_ = s.closeChannel(c)
+				// For the same reason: every other channel still needs closing.
+				if err := s.closeChannel(c); err != nil && debug {
+					fmt.Fprintf(os.Stderr, "ERR %-8s hello on close: %v\n", c.name, err)
+				}
 			}
 		}
 
@@ -225,9 +232,11 @@ func (s *session) Close() {
 
 	// In the order they were taken: the interface first, then the device,
 	// then the library's own context.
-	for _, held := range s.holds {
-		// Unchecked: every hold must be released even when an earlier one refuses.
-		_ = held.Close()
+	for i, held := range s.holds {
+		// Every hold must be released even when an earlier one refuses.
+		if err := held.Close(); err != nil && debug {
+			fmt.Fprintf(os.Stderr, "ERR release %d on close: %v\n", i, err)
+		}
 	}
 }
 
