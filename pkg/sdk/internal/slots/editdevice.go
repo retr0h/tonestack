@@ -73,49 +73,6 @@ func keptError(
 	return &KeptError{Kept: kept, Err: err}
 }
 
-// CopyDevice puts what one slot holds into another, on an attached device.
-//
-// The preset is moved exactly as the device wrote it. Nothing is decoded and
-// nothing is rebuilt, which is what makes this the safest thing to write: a
-// device seeks through a preset by a table of byte offsets, and the surest way
-// to keep those right is to change nothing.
-//
-// The destination is overwritten. There is no undo on a device.
-func CopyDevice(
-	ctx context.Context,
-	devices Opener,
-	opts EditOptions,
-) (result.Change, error) {
-	return editDevice(ctx, devices, opts, result.Copied, copyOne)
-}
-
-// SwapDevice exchanges what two slots hold.
-func SwapDevice(
-	ctx context.Context,
-	devices Opener,
-	opts EditOptions,
-) (result.Change, error) {
-	return editDevice(ctx, devices, opts, result.Swapped, swapTwo)
-}
-
-// editDevice opens a session and hands it to one of the two above.
-func editDevice(
-	ctx context.Context,
-	devices Opener,
-	opts EditOptions,
-	action result.Action,
-	apply applier,
-) (result.Change, error) {
-	s, err := devices.Open(ctx)
-	if err != nil {
-		return result.Change{}, err
-	}
-
-	defer s.Close()
-
-	return editWith(ctx, s, opts, action, apply)
-}
-
 // applier performs one edit against a session and says what it did.
 type applier func(context.Context, device.Editor, EditOptions) (edited, error)
 
@@ -128,6 +85,13 @@ type edited struct {
 }
 
 // CopyWith puts what one slot holds into another, on the given session.
+//
+// The preset is moved exactly as the device wrote it. Nothing is decoded and
+// nothing is rebuilt, which is what makes this the safest thing to write: a
+// device seeks through a preset by a table of byte offsets, and the surest way
+// to keep those right is to change nothing.
+//
+// The destination is overwritten. There is no undo on a device.
 func CopyWith(
 	ctx context.Context,
 	s device.Editor,

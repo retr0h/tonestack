@@ -34,7 +34,6 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk/internal/device"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/device/mocks"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/slots"
-	slotmocks "github.com/retr0h/tonestack/pkg/sdk/internal/slots/mocks"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/wire"
 )
 
@@ -57,7 +56,7 @@ type editable struct {
 	*mocks.MockWriter
 }
 
-func (e *editable) Close() {}
+func (e *editable) Close() error { return nil }
 
 func (s *EditDevicePublicTestSuite) SetupTest() {
 	s.ctrl = gomock.NewController(s.T())
@@ -618,63 +617,6 @@ func (s *EditDevicePublicTestSuite) TestSwapWith() {
 					s.Require().Contains(filepath.Base(change.Kept[i]), want)
 				}
 			}
-		})
-	}
-}
-
-// TestCopyDeviceAndSwapDevice covers the two commands somebody actually runs.
-// One line each: find a session, hand it on, release it.
-func (s *EditDevicePublicTestSuite) TestCopyDeviceAndSwapDevice() {
-	tests := []struct {
-		name     string
-		attached bool
-	}{
-		{name: "a device on the bus", attached: true},
-		{name: "nothing on the bus"},
-	}
-
-	for _, tt := range tests {
-		s.Run(tt.name, func() {
-			devices := slotmocks.NewMockOpener(s.ctrl)
-
-			if !tt.attached {
-				devices.EXPECT().Open(gomock.Any()).
-					Return(nil, errors.New("no device found")).Times(2)
-			} else {
-				devices.EXPECT().Open(gomock.Any()).Return(s.dev, nil).Times(2)
-
-				s.dev.MockEditor.EXPECT().Presets(gomock.Any(), 0).
-					Return(s.listing(), nil).Times(2)
-				// Four: a copy reads its source and the destination it is
-				// about to replace, a swap reads both of the slots it moves
-				// and keeps them from those same reads.
-				s.dev.MockEditor.EXPECT().ReadPreset(gomock.Any(), 0, gomock.Any()).
-					Return(s.answer(), nil).Times(4)
-				s.dev.MockWriter.EXPECT().
-					WriteNamedPreset(
-						gomock.Any(), 0, gomock.Any(), gomock.Any(), gomock.Any()).
-					Return(nil).Times(3)
-			}
-
-			ctx := context.Background()
-			opts := slots.EditOptions{
-				FromSlot: 0, ToSlot: 3, BackupDir: s.T().TempDir(),
-			}
-
-			if !tt.attached {
-				_, copyErr := slots.CopyDevice(ctx, devices, opts)
-				_, swapErr := slots.SwapDevice(ctx, devices, opts)
-				s.Require().Error(copyErr)
-				s.Require().Error(swapErr)
-
-				return
-			}
-
-			_, err := slots.CopyDevice(ctx, devices, opts)
-			s.Require().NoError(err)
-
-			_, err = slots.SwapDevice(ctx, devices, opts)
-			s.Require().NoError(err)
 		})
 	}
 }

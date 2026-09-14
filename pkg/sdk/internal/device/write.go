@@ -57,14 +57,6 @@ const (
 // cycled.
 const streamChunk = 256
 
-// commitBudget is how long a device is given to finish a write.
-//
-// A write answers immediately to say it was accepted and reports finishing
-// later. Treating the first answer as the end races the next write against a
-// commit still running, which a device tolerates about a dozen times before
-// it stops accepting writes.
-var commitBudget = 10 * time.Second
-
 // WritePreset puts a document into a slot.
 //
 // The document must be the bytes a device would have written. A preset is
@@ -119,13 +111,45 @@ func (s *session) write(
 		return err
 	}
 
-	c, ok := s.chans[channelData]
-	if !ok {
-		return fmt.Errorf("no %s channel", channelData)
+	c, err := s.channel(channelData)
+	if err != nil {
+		return err
 	}
 
-	txn := c.txn
-	c.txn++
+	if err := s.commit(ctx, c, opcode, args); err != nil {
+		return err
+	}
+
+	// A slot write answers and is done. The erase and program that follow do
+	// not appear on the wire at all, and there is no completion notification
+	// to wait for: a device that took the write and was then waited on
+	// answers nothing for ten seconds while the preset it just wrote sits in
+	// the slot. tonepush sends the same message as a plain request and sleeps
+	// for the flash, which is what settle is.
+	s.settle()
+
+	return nil
+}
+
+// commit is the exchange a write is: the message, then its answer.
+//
+// Both 0 and 1 have been seen for a write that landed, and neither says
+// anything about the erase, so either is success. Any other status fails in
+// awaitReply, which reads it through wire.Response.Err: 255 is a refusal, and
+// anything else is a status nobody has seen.
+func (s *session) commit(
+	ctx context.Context,
+	c *channel,
+	opcode uint64,
+	args []wire.Arg,
+) error {
+	if err := s.begin(c); err != nil {
+		return err
+	}
+
+	defer s.finish(c)
+
+	txn := s.nextTxn(c)
 
 	body := wire.EncodeEnvelope(wire.Envelope{
 		Originator: wire.FromHost,
@@ -137,8 +161,8 @@ func (s *session) write(
 	// stops waiting; the next operation is the one that sees the
 	// cancellation. The message itself carries no deadline at all: a budget
 	// that ran out between chunks would leave the device holding half of it.
-	// It is finite regardless, one bounded read per chunk.
-	if err := s.stream(context.WithoutCancel(ctx), c, body); err != nil {
+	// It is finite regardless, one bounded pause per chunk.
+	if err := s.stream(c, body); err != nil {
 		return err
 	}
 
@@ -147,7 +171,7 @@ func (s *session) write(
 	// and giving up sooner races the next write against a commit still
 	// running.
 	if _, err := s.awaitReply(
-		context.WithoutCancel(ctx), c, txn, opcode, commitBudget); err != nil {
+		context.WithoutCancel(ctx), c, txn, opcode, s.budgets.commit); err != nil {
 		// Detached from the caller, so silence here is the budget running out.
 		if errors.Is(err, errNoReply) {
 			return fmt.Errorf("%w, the commit budget: %w", err, context.DeadlineExceeded)
@@ -155,19 +179,6 @@ func (s *session) write(
 
 		return err
 	}
-
-	// A slot write answers and is done. The erase and program that follow do
-	// not appear on the wire at all, and there is no completion notification
-	// to wait for: a device that took the write and was then waited on
-	// answers nothing for ten seconds while the preset it just wrote sits in
-	// the slot. tonepush sends the same message as a plain request and sleeps
-	// for the flash, which is what settle is.
-	//
-	// Both 0 and 1 have been seen for a write that landed, and neither says
-	// anything about the erase, so either is success. Any other status fails
-	// in awaitReply, which reads it through wire.Response.Err: 255 is a
-	// refusal, and anything else is a status nobody has seen.
-	settle()
 
 	return nil
 }
@@ -178,22 +189,32 @@ func (s *session) write(
 // and program that follow are not on the wire at all. A second write landing
 // inside that window stacks its commit on the first. tonepush waits the same
 // 750ms, and a restore writes preset after preset without it going wrong.
-func settle() { time.Sleep(flashBudget) }
+//
+// A wait on a timer, not a sleep of the only reader: the loop goes on reading
+// throughout.
+func (s *session) settle() {
+	timer := time.NewTimer(s.budgets.flash)
+	defer timer.Stop()
 
-// flashBudget is how long that takes.
-var flashBudget = 750 * time.Millisecond
+	<-timer.C
+}
 
-// stream sends a message in the size a device takes, reading between frames
+// stream sends a message in the size a device takes, pausing between frames
 // so it can pace the sender.
 //
-// Only a failed send stops it. See the read below.
+// Only a failed send stops it. Between frames, not after the last one: a
+// device that has more to say says it now, and one with nothing to say costs
+// the pace budget. A loop that has ended does not stop it either, because a
+// message that has started must go out whole: a device left holding half of
+// one is the stall docs/protocol.md describes. A bus that has really gone
+// fails the next send, which does stop the message.
 func (s *session) stream(
-	ctx context.Context,
 	c *channel,
 	body []byte,
 ) error {
 	for len(body) > 0 {
 		n := min(len(body), streamChunk)
+		mark := s.progress().transfers
 
 		if err := s.send(c, wire.MsgData, body[:n]); err != nil {
 			return err
@@ -201,15 +222,8 @@ func (s *session) stream(
 
 		body = body[n:]
 
-		// Between frames, not after the last one: a device that has more to
-		// say says it now, and one with nothing to say costs a timeout.
-		//
-		// A failed read is ignored. The read only paces the sender, and a
-		// message that has started must go out whole: a device left holding
-		// half of one is the stall docs/protocol.md describes. A bus that has
-		// really gone fails the next send, which does stop the message.
 		if len(body) > 0 {
-			_, _ = s.receive(ctx, replyReadWait)
+			s.pace(mark)
 		}
 	}
 

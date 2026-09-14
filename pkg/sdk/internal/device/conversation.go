@@ -27,6 +27,8 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/retr0h/tonestack/pkg/sdk/internal/wire"
@@ -40,9 +42,9 @@ const (
 	readBuffer  = 1024
 )
 
-// Timeouts, every one a figure arrived at against real hardware. The drain
-// budget is bounded because an unbounded one coincided with devices locking
-// up hard enough to need their power pulled.
+// Figures arrived at against real hardware. The waits are the defaults of a
+// session's budgets, so a test shortens its own rather than a package
+// variable.
 const (
 	openReadWait   = 800 * time.Millisecond
 	replyReadWait  = 300 * time.Millisecond
@@ -52,17 +54,63 @@ const (
 	claimBackoff   = 50 * time.Millisecond
 )
 
-// replyBudget is how long a device is given to answer. A variable rather than
-// a constant so a test can shorten it; nothing else writes to it.
-var replyBudget = 6 * time.Second
+// budgets are how long a session waits on each thing it waits for.
+//
+// A field of the session rather than package variables, so a test shortens
+// its own session's without reaching anybody else's.
+type budgets struct {
+	// reply is how long a device is given to answer a call.
+	reply time.Duration
+	// commit is how long a device is given to finish a write.
+	//
+	// A write answers immediately to say it was accepted and reports finishing
+	// later. Treating the first answer as the end races the next write against
+	// a commit still running, which a device tolerates about a dozen times
+	// before it stops accepting writes.
+	commit time.Duration
+	// flash is how long a write is given to reach flash before the next one
+	// starts.
+	flash time.Duration
+	// drain bounds one drain. It is bounded because an unbounded one
+	// coincided with devices locking up hard enough to need their power
+	// pulled.
+	drain time.Duration
+	// close bounds ending a session. Two drains and the frames between them
+	// fit inside it; a device that never goes quiet does not hold Close open
+	// past it.
+	close time.Duration
+	// selecting is how long a switch is given to land, and poll how often the
+	// device is asked whether it has.
+	selecting time.Duration
+	poll      time.Duration
+	// open is how long a handshake waits for the device to answer an opening.
+	open time.Duration
+	// pace is the most a message waits between two chunks for the device to
+	// say something.
+	pace time.Duration
+	// idle is how long a channel nobody is using stays quiet before what
+	// arrived on it is acknowledged.
+	idle time.Duration
+	// window is one read the loop posts. A drain counts quiet ones.
+	window time.Duration
+}
 
-// drainBudget bounds one drain. A variable so a test can shorten it.
-var drainBudget = 3 * time.Second
-
-// closeBudget bounds ending a session. Two drains and the frames between them
-// fit inside it; a device that never goes quiet does not hold Close open past
-// it. A variable so a test can shorten it.
-var closeBudget = 10 * time.Second
+// defaultBudgets are the figures real hardware needs.
+func defaultBudgets() budgets {
+	return budgets{
+		reply:     6 * time.Second,
+		commit:    10 * time.Second,
+		flash:     750 * time.Millisecond,
+		drain:     3 * time.Second,
+		close:     10 * time.Second,
+		selecting: 10 * time.Second,
+		poll:      150 * time.Millisecond,
+		open:      openReadWait,
+		pace:      replyReadWait,
+		idle:      replyReadWait,
+		window:    drainReadWait,
+	}
+}
 
 // Opcodes this package uses.
 const (
@@ -91,6 +139,10 @@ const listKind = 2
 // channelControl carries session control and the setlist list.
 const channelControl = "control"
 
+// channelEvents carries what the device says unasked. Nothing here reads it,
+// so its bytes are counted and acknowledged and never kept.
+const channelEvents = "events"
+
 // channelData carries presets and global settings.
 //
 // Reading a preset works on either, which is how every read here was written
@@ -106,8 +158,8 @@ var channelSpecs = []struct {
 	services []uint16
 }{
 	{channelControl, 0x1001, 0x03ef, []uint16{5, 2}},
-	{"events", 0x1002, 0x03f0, []uint16{4}},
-	{"data", 0x1080, 0x03ed, []uint16{6}},
+	{channelEvents, 0x1002, 0x03f0, []uint16{4}},
+	{channelData, 0x1080, 0x03ed, []uint16{6}},
 }
 
 // helloTail is the four bytes a channel opening carries, and helloAck sits in
@@ -124,38 +176,97 @@ const helloAck uint32 = 0x21000100
 const firstSeq = 2
 
 // channel is one conversation with the device.
+//
+// seq and txn change only under the session's send lock, and buf, open, busy
+// and lastRx only under its receive lock. rxBytes and ackSent are read from
+// both sides, so they are atomic.
 type channel struct {
-	name    string
-	device  uint16
-	host    uint16
-	seq     uint16
-	rxBytes uint32
-	txn     uint64
+	name   string
+	device uint16
+	host   uint16
+	seq    uint16
+	txn    uint64
+	// rxBytes is every stream byte routed here, and ackSent what the last
+	// acknowledgement this host sent on the channel said it had.
+	rxBytes atomic.Uint32
+	ackSent atomic.Uint32
 	buf     []byte
+	// open is whether the handshake has reached this channel. A frame on a
+	// channel nobody opened is not anybody's business.
+	open bool
+	// busy is set for the length of each exchange, and keeps the idle
+	// acknowledgement off the channel.
+	busy bool
+	// lastRx is when bytes last arrived.
+	lastRx time.Time
+	// arrived is signalled whenever bytes are routed here. One slot, so
+	// routing never waits and a waiter that was not yet waiting still wakes.
+	arrived chan struct{}
 }
 
-// ack is what this channel has consumed, in the form the device expects.
-// Not a bare count: the device ignores a client that sends one.
-func (c *channel) ack() uint32 { return wire.AckBase + c.rxBytes }
+// owed reports bytes that arrived since this host last acknowledged the
+// channel.
+func (c *channel) owed() bool { return c.rxBytes.Load() != c.ackSent.Load() }
 
 // session is an open conversation with a device.
 //
-// Not safe for concurrent use. The protocol is a sequence of exchanges with
-// per-channel counters, and two callers sharing one would desynchronise them.
+// One operation at a time. The protocol is a sequence of exchanges with
+// per-channel counters, and two callers interleaving exchanges would read
+// each other's answers, so whoever holds a session runs one operation after
+// another. Inside it, one goroutine keeps a read posted and routes what
+// arrives, and another acknowledges what arrives between operations.
 type session struct {
 	// holds is what the session took to reach the device, released in the
 	// order it was taken. Kept as an interface so that a session is a
 	// conversation rather than a piece of hardware: everything below this is
 	// framing and counters, and none of it needs a bus.
 	holds []releaser
-	// trace receives every frame in and out, and what Close could not do.
-	// Nil traces nothing.
-	trace io.Writer
 	done  func()
 	out   sender
 	in    receiver
-	chans map[string]*channel
-	model Model
+	// chans is every channel, made with the session and never written after,
+	// so the loop ranges over it without a lock.
+	chans   map[string]*channel
+	model   Model
+	budgets budgets
+
+	// traceMu guards trace, which the loop and the sender both write. A nil
+	// trace receives nothing.
+	traceMu sync.Mutex
+	trace   io.Writer
+
+	// sendMu covers the sequence counters, the transaction counters and the
+	// write itself, so frames leave in the order their numbers say.
+	sendMu sync.Mutex
+
+	// rxMu guards every channel's buffer and flags, and everything below it
+	// up to stop.
+	rxMu sync.Mutex
+	// windows counts reads the loop finished, transfers those that brought
+	// something, and quietRun how many in a row brought nothing.
+	windows   uint64
+	transfers uint64
+	quietRun  int
+	// changed is closed and replaced whenever a read finishes, so anybody
+	// waiting on the device selects on it.
+	changed chan struct{}
+	// closing keeps the idle acknowledgement out while Close is talking.
+	closing bool
+
+	// stop ends the loop and the acknowledger. loopDone and ackDone close
+	// once each has returned. Nil stop means neither was started.
+	stop     context.CancelFunc
+	loopDone chan struct{}
+	ackDone  chan struct{}
+	// poke tells the acknowledger a read finished.
+	poke chan struct{}
+	// dead closes when the loop ends on its own, and endErr says why.
+	dead    chan struct{}
+	endOnce sync.Once
+	endErr  error
+
+	closeOnce sync.Once
+	closeErr  error
 }
 
 // sender is the outgoing endpoint: everything this writes goes to a device.
@@ -178,55 +289,83 @@ type receiver interface {
 	ReadContext(ctx context.Context, p []byte) (int, error)
 }
 
+// newSession builds a session with every channel made and none of them open.
+// Nothing is read until start.
+func newSession(
+	out sender,
+	in receiver,
+	trace io.Writer,
+	model Model,
+	b budgets,
+) *session {
+	s := &session{
+		out:     out,
+		in:      in,
+		trace:   trace,
+		model:   model,
+		budgets: b,
+		chans:   map[string]*channel{},
+		changed: make(chan struct{}),
+		poke:    make(chan struct{}, 1),
+		dead:    make(chan struct{}),
+	}
+
+	for _, spec := range channelSpecs {
+		s.chans[spec.name] = &channel{
+			name:    spec.name,
+			device:  spec.device,
+			host:    spec.host,
+			txn:     wire.FirstTxn,
+			arrived: make(chan struct{}, 1),
+		}
+	}
+
+	return s
+}
+
 // Model returns what the device is.
 func (s *session) Model() Model { return s.model }
+
+// tracef writes one line of the wire trace, when there is one.
+func (s *session) tracef(
+	format string,
+	args ...any,
+) {
+	s.traceMu.Lock()
+	defer s.traceMu.Unlock()
+
+	if s.trace != nil {
+		fmt.Fprintf(s.trace, format, args...)
+	}
+}
 
 // Close ends the session.
 //
 // Whatever the device sent is drained and acknowledged first. Dropping the
 // interface with bytes unacknowledged carries a debt into later sessions,
 // until an otherwise innocent write stops the device.
-func (s *session) Close() {
-	if s.in != nil {
-		// Bounded as a whole. Each drain is bounded on its own, but a device
-		// that never goes quiet would hold Close for both of them.
-		ctx, cancel := context.WithTimeout(context.Background(), closeBudget)
-		defer cancel()
+//
+// Idempotent. Every call gives back what the session took and returns the
+// error that ended the read loop, if one did. A session whose loop ended says
+// nothing more to the device, because no read is posted to catch the answers.
+func (s *session) Close() error {
+	s.closeOnce.Do(func() { s.closeErr = s.close() })
 
-		s.drain(ctx)
+	return s.closeErr
+}
 
-		// In the order they were opened, rather than whichever way a map
-		// ranges today. A device is told about a session ending in a
-		// sequence, and a sequence that differs between runs is one nobody
-		// can compare against a capture.
-		for _, spec := range channelSpecs {
-			if c, ok := s.chans[spec.name]; ok {
-				// Close has nobody to tell, and one failed send must not stop the
-				// rest of the shutdown. The wire trace is the one place it shows.
-				if err := s.send(c, wire.MsgAck, nil); err != nil && s.trace != nil {
-					fmt.Fprintf(s.trace, "ERR %-8s ack on close: %v\n", c.name, err)
-				}
-			}
+// close is Close, once.
+func (s *session) close() error {
+	if s.stop != nil {
+		if s.ended() == nil {
+			s.farewell()
 		}
 
-		// The message that opens a channel closes one: it is a session
-		// boundary and appears at both ends of the conversation. A device
-		// left without it goes on believing an editor is attached, and its
-		// front panel stops refreshing footswitches as somebody browses
-		// presets on the pedal itself.
-		for _, spec := range channelSpecs {
-			if c, ok := s.chans[spec.name]; ok {
-				// For the same reason: every other channel still needs closing.
-				if err := s.closeChannel(c); err != nil && s.trace != nil {
-					fmt.Fprintf(s.trace, "ERR %-8s hello on close: %v\n", c.name, err)
-				}
-			}
-		}
-
-		// The device answers each one. Reading them is what makes the next
-		// session's handshake the first thing it sees rather than the last
-		// thing this one left.
-		s.drain(ctx)
+		// The loop reads until here, and only then is the interface let go.
+		// ReadContext looks at its context every slice, so this is short.
+		s.stop()
+		<-s.loopDone
+		<-s.ackDone
 	}
 
 	if s.done != nil {
@@ -237,10 +376,84 @@ func (s *session) Close() {
 	// then the library's own context.
 	for i, held := range s.holds {
 		// Every hold must be released even when an earlier one refuses.
-		if err := held.Close(); err != nil && s.trace != nil {
-			fmt.Fprintf(s.trace, "ERR release %d on close: %v\n", i, err)
+		if err := held.Close(); err != nil {
+			s.tracef("ERR release %d on close: %v\n", i, err)
 		}
 	}
+
+	return s.ended()
+}
+
+// farewell tells the device the session is over, while the loop is still
+// reading what it answers.
+func (s *session) farewell() {
+	s.rxMu.Lock()
+	s.closing = true
+	s.rxMu.Unlock()
+
+	// Bounded as a whole. Each drain is bounded on its own, but a device that
+	// never goes quiet would hold Close for both of them.
+	ctx, cancel := context.WithTimeout(context.Background(), s.budgets.close)
+	defer cancel()
+
+	s.drain(ctx)
+
+	// In the order they were opened, rather than whichever way a map ranges
+	// today. A device is told about a session ending in a sequence, and a
+	// sequence that differs between runs is one nobody can compare against a
+	// capture.
+	for _, c := range s.opened() {
+		// Close has nobody to tell, and one failed send must not stop the
+		// rest of the shutdown. The wire trace is the one place it shows.
+		if err := s.farewellFrame(c, wire.MsgAck); err != nil {
+			s.tracef("ERR %-8s ack on close: %v\n", c.name, err)
+		}
+	}
+
+	// The message that opens a channel closes one: it is a session boundary
+	// and appears at both ends of the conversation. A device left without it
+	// goes on believing an editor is attached, and its front panel stops
+	// refreshing footswitches as somebody browses presets on the pedal
+	// itself.
+	for _, c := range s.opened() {
+		// For the same reason: every other channel still needs closing.
+		if err := s.farewellFrame(c, wire.MsgHello); err != nil {
+			s.tracef("ERR %-8s hello on close: %v\n", c.name, err)
+		}
+	}
+
+	// The device answers each one. Reading them is what makes the next
+	// session's handshake the first thing it sees rather than the last thing
+	// this one left.
+	s.drain(ctx)
+}
+
+// farewellFrame sends one closing frame, unless the loop ended meanwhile.
+func (s *session) farewellFrame(
+	c *channel,
+	msgType uint16,
+) error {
+	if err := s.ended(); err != nil {
+		return err
+	}
+
+	return s.send(c, msgType, nil)
+}
+
+// opened is every channel the handshake reached, in the order they open.
+func (s *session) opened() []*channel {
+	s.rxMu.Lock()
+	defer s.rxMu.Unlock()
+
+	var out []*channel
+
+	for _, spec := range channelSpecs {
+		if c := s.chans[spec.name]; c.open {
+			out = append(out, c)
+		}
+	}
+
+	return out
 }
 
 // retry runs something until it works, or until patience runs out.

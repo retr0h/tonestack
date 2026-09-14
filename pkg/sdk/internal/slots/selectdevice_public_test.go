@@ -31,7 +31,6 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk/internal/device"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/device/mocks"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/slots"
-	slotmocks "github.com/retr0h/tonestack/pkg/sdk/internal/slots/mocks"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/wire"
 )
 
@@ -49,7 +48,7 @@ type selectable struct {
 	*mocks.MockSelector
 }
 
-func (*selectable) Close() {}
+func (*selectable) Close() error { return nil }
 
 func (s *SelectDevicePublicTestSuite) SetupTest() {
 	s.ctrl = gomock.NewController(s.T())
@@ -144,61 +143,6 @@ func (s *SelectDevicePublicTestSuite) TestSelectWith() {
 			}
 		})
 	}
-}
-
-// TestSelectDevice covers the entry point somebody runs, which is one line:
-// find a session, hand it on, release it.
-func (s *SelectDevicePublicTestSuite) TestSelectDevice() {
-	tests := []struct {
-		name     string
-		attached bool
-		contains string
-		errText  string
-	}{
-		{name: "a device on the bus", attached: true, contains: "selected"},
-		{name: "nothing on the bus", errText: "nothing on the bus"},
-	}
-
-	for _, tt := range tests {
-		s.Run(tt.name, func() {
-			if tt.attached {
-				s.dev.MockEditor.EXPECT().Presets(gomock.Any(), 0).
-					Return(s.listing(), nil)
-				s.dev.MockSelector.EXPECT().
-					SelectPreset(gomock.Any(), 0, 4).Return(nil)
-
-			}
-
-			devices := s.stand(nil, errors.New("nothing on the bus"))
-			if tt.attached {
-				devices = s.stand(s.dev, nil)
-			}
-
-			change, err := slots.SelectDevice(
-				context.Background(), devices, slots.DeviceOptions{Slot: 4})
-
-			if tt.errText != "" {
-				s.Require().ErrorContains(err, tt.errText)
-
-				return
-			}
-
-			s.Require().NoError(err)
-			s.Require().Contains(did(change), tt.contains)
-		})
-	}
-}
-
-// stand is a bus that hands back dev, or fails with err, in place of the one
-// that needs hardware.
-func (s *SelectDevicePublicTestSuite) stand(
-	dev device.Editor,
-	err error,
-) slots.Opener {
-	o := slotmocks.NewMockOpener(s.ctrl)
-	o.EXPECT().Open(gomock.Any()).Return(dev, err).AnyTimes()
-
-	return o
 }
 
 func TestSelectDevicePublicTestSuite(t *testing.T) {

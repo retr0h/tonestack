@@ -18,27 +18,17 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-package device_test
+package slot
 
-import (
-	"testing"
-	"time"
-
-	"github.com/retr0h/tonestack/pkg/sdk/internal/device"
-)
-
-// TestMain shortens every wait this package spends on hardware, since nothing
-// here is talking to any.
+// Address is one slot on a device: which setlist, and which position within
+// it, both counted from zero.
 //
-// The ordering is the one a device has: a commit outlasts a reply, and a
-// write is waited on for the commit budget. A test that needs a different
-// figure sets its own and puts this one back.
-func TestMain(m *testing.M) {
-	*device.ReplyBudget = 50 * time.Millisecond
-	*device.DrainBudget = 50 * time.Millisecond
-	*device.CommitBudget = 500 * time.Millisecond
-	*device.FlashBudget = 0
-	*device.CloseBudget = 500 * time.Millisecond
-
-	m.Run()
+// A slot number means nothing without the setlist it is in, so a device is
+// addressed by both at once.
+type Address struct {
+	// Setlist is the setlist, from zero.
+	Setlist int
+	// Slot is the position within it, from zero. Label renders it the way
+	// the pedal does.
+	Slot int
 }

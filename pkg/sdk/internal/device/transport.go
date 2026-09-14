@@ -21,7 +21,6 @@
 package device
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"time"
@@ -32,12 +31,34 @@ import (
 // send writes one frame on a channel and advances its counter.
 //
 // Every frame the host sends advances the sequence, acknowledgements and
-// keep-alives included.
-func (s *session) send(c *channel, msgType uint16, payload []byte) error {
-	flags := wire.FlagNormal
-	ack := c.ack()
+// keep-alives included. The send lock is held for the whole of it, so frames
+// leave in the order their numbers say.
+func (s *session) send(
+	c *channel,
+	msgType uint16,
+	payload []byte,
+) error {
+	s.sendMu.Lock()
+	defer s.sendMu.Unlock()
 
-	if msgType == wire.MsgHello && payload != nil {
+	return s.sendLocked(c, msgType, payload)
+}
+
+// sendLocked is send, for a caller already holding the send lock.
+//
+// The acknowledgement a frame carries is read as it goes out, so it covers
+// every byte routed by then.
+func (s *session) sendLocked(
+	c *channel,
+	msgType uint16,
+	payload []byte,
+) error {
+	flags := wire.FlagNormal
+	rx := c.rxBytes.Load()
+	ack := wire.AckBase + rx
+	hello := msgType == wire.MsgHello && payload != nil
+
+	if hello {
 		flags = wire.FlagHandshake
 		ack = helloAck
 	}
@@ -47,13 +68,15 @@ func (s *session) send(c *channel, msgType uint16, payload []byte) error {
 		Seq: c.seq, Type: msgType, Ack: ack, Payload: payload,
 	})
 
-	if s.trace != nil {
-		fmt.Fprintf(s.trace, "OUT %-8s seq=%d type=%#04x ack=%#x: %x\n",
-			c.name, c.seq, msgType, ack, raw[:min(len(raw), 40)])
-	}
+	s.tracef("OUT %-8s seq=%d type=%#04x ack=%#x: %x\n",
+		c.name, c.seq, msgType, ack, raw[:min(len(raw), 40)])
 
 	if _, err := s.out.Write(raw); err != nil {
-		return fmt.Errorf("writing to %s: %w", c.name, err)
+		return &busError{err: fmt.Errorf("writing to %s: %w", c.name, err)}
+	}
+
+	if !hello {
+		c.ackSent.Store(rx)
 	}
 
 	c.seq++
@@ -61,46 +84,44 @@ func (s *session) send(c *channel, msgType uint16, payload []byte) error {
 	return nil
 }
 
-// receive reads one transfer and routes every frame in it.
+// nextTxn takes a channel's next transaction number.
+func (s *session) nextTxn(
+	c *channel,
+) uint64 {
+	s.sendMu.Lock()
+	defer s.sendMu.Unlock()
+
+	txn := c.txn
+	c.txn++
+
+	return txn
+}
+
+// route takes one transfer apart and hands every frame in it to its channel.
 //
-// Reports whether any stream bytes arrived, which is what decides if an
-// acknowledgement is owed: the device sends empty transfers when it has
-// nothing to say, and acknowledging one burns a sequence number and
-// desynchronises the channel.
+// Holds the receive lock only while it appends, and never waits on a send,
+// so a slow write cannot hold a read back.
+func (s *session) route(
+	transfer []byte,
+) {
+	s.tracef("IN  %d bytes: %x\n", len(transfer), transfer[:min(len(transfer), 48)])
+
+	s.deliver(transfer)
+	s.tick(true)
+}
+
+// deliver appends each frame's payload to its channel.
 //
-// A read that timed out is quiet, not a failure. A caller who stopped waiting
-// is told so, and any other failure is the bus, returned rather than read as
-// silence: silence waits out a whole budget and then blames the device.
-func (s *session) receive(
-	ctx context.Context,
-	wait time.Duration,
-) (bool, error) {
-	rctx, cancel := context.WithTimeout(ctx, wait)
-	defer cancel()
+// A frame without stream bytes is not counted: the device sends empty
+// transfers when it has nothing to say, and acknowledging one burns a
+// sequence number and desynchronises the channel.
+func (s *session) deliver(
+	transfer []byte,
+) {
+	s.rxMu.Lock()
+	defer s.rxMu.Unlock()
 
-	buf := make([]byte, readBuffer)
-
-	n, err := s.in.ReadContext(rctx, buf)
-
-	switch {
-	case err == nil:
-	case ctx.Err() != nil:
-		return false, ctx.Err()
-	case errors.Is(err, context.DeadlineExceeded):
-		// The ordinary case: the device had nothing to say in time. A device
-		// is asked far more often than it answers.
-		return false, nil
-	default:
-		return false, fmt.Errorf("reading from the device: %w", err)
-	}
-
-	if s.trace != nil {
-		fmt.Fprintf(s.trace, "IN  %d bytes: %x\n", n, buf[:min(n, 48)])
-	}
-
-	var got bool
-
-	rest := buf[:n]
+	rest := transfer
 
 	for len(rest) > 0 {
 		f, remainder, err := wire.DecodeFrame(rest)
@@ -121,21 +142,31 @@ func (s *session) receive(
 			continue
 		}
 
-		c.rxBytes += uint32(len(f.Payload))
-		c.buf = append(c.buf, f.Payload...)
-		got = true
-	}
+		c.rxBytes.Add(uint32(len(f.Payload)))
+		c.lastRx = time.Now()
 
-	return got, nil
+		// Nothing reads the events channel, so its bytes are counted and
+		// acknowledged, and kept nowhere.
+		if c.name != channelEvents {
+			c.buf = append(c.buf, f.Payload...)
+		}
+
+		select {
+		case c.arrived <- struct{}{}:
+		default:
+		}
+	}
 }
 
-// channelFor finds which conversation a frame belongs to.
+// channelFor finds which open conversation a frame belongs to.
 //
 // The device swaps the node fields, so its frames carry the host node where
 // a host frame carries the device node.
-func (s *session) channelFor(f wire.Frame) *channel {
+func (s *session) channelFor(
+	f wire.Frame,
+) *channel {
 	for _, c := range s.chans {
-		if f.HostNode == c.device || f.DeviceNode == c.device {
+		if c.open && (f.HostNode == c.device || f.DeviceNode == c.device) {
 			return c
 		}
 	}
@@ -143,51 +174,57 @@ func (s *session) channelFor(f wire.Frame) *channel {
 	return nil
 }
 
-// drain reads until the device genuinely has nothing left.
-//
-// Bounded on purpose. A stale backlog clears in about a hundred frames; an
-// unbounded drain keeps the endpoint under load and has coincided with
-// devices locking up.
-func (s *session) drain(
-	ctx context.Context,
-) {
-	deadline := time.Now().Add(drainBudget)
+// channel finds a channel the handshake opened.
+func (s *session) channel(
+	name string,
+) (*channel, error) {
+	s.rxMu.Lock()
+	defer s.rxMu.Unlock()
 
-	quiet := 0
-
-	for quiet < drainQuietRuns && time.Now().Before(deadline) {
-		// Somebody who stopped waiting is not owed a drained endpoint.
-		if ctx.Err() != nil {
-			break
-		}
-
-		got, err := s.receive(ctx, drainReadWait)
-		if err != nil {
-			// A bus that has gone is not a quiet device. Reading on would
-			// spin against it for the whole budget.
-			break
-		}
-
-		if got {
-			quiet = 0
-
-			continue
-		}
-
-		quiet++
+	c, ok := s.chans[name]
+	if !ok || !c.open {
+		return nil, fmt.Errorf("no %s channel", name)
 	}
 
-	// Whatever arrived is consumed, not replayed into a later reply.
-	for _, c := range s.chans {
-		c.buf = nil
-	}
+	return c, nil
 }
 
-// message takes one complete envelope out of a channel's buffer.
+// begin marks an exchange in flight on a channel, which keeps the idle
+// acknowledgement off it. A session whose loop has ended starts nothing: no
+// read is posted to catch the answer.
+func (s *session) begin(
+	c *channel,
+) error {
+	if err := s.ended(); err != nil {
+		return err
+	}
+
+	s.rxMu.Lock()
+	defer s.rxMu.Unlock()
+
+	c.busy = true
+
+	return nil
+}
+
+// finish marks the exchange over.
+func (s *session) finish(
+	c *channel,
+) {
+	s.rxMu.Lock()
+	defer s.rxMu.Unlock()
+
+	c.busy = false
+}
+
+// message takes one complete envelope out of a channel's buffer. The caller
+// holds the receive lock.
 //
 // A reply is a byte stream split across frames at 256 bytes each, so it is
 // complete only once the declared length has arrived.
-func message(c *channel) ([]byte, bool) {
+func message(
+	c *channel,
+) ([]byte, bool) {
 	env, _, err := wire.DecodeEnvelope(c.buf)
 	if err != nil {
 		// A frame that has not all arrived is waited for. A length no frame

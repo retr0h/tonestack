@@ -50,14 +50,6 @@ type SelectPublicTestSuite struct {
 
 func (s *SelectPublicTestSuite) SetupTest() {
 	s.ctrl = gomock.NewController(s.T())
-
-	poll, budget := *device.SelectPoll, *device.SelectBudget
-	*device.SelectPoll = time.Millisecond
-	*device.SelectBudget = 50 * time.Millisecond
-
-	s.T().Cleanup(func() {
-		*device.SelectPoll, *device.SelectBudget = poll, budget
-	})
 }
 
 // status is the device answering with one status and nothing else.
@@ -129,7 +121,7 @@ func (s *SelectPublicTestSuite) playing(txn uint64, setlist, slot int) []byte {
 func (s *SelectPublicTestSuite) session(
 	d *deviceDouble,
 ) *device.Session {
-	out := device.NewTestSession(d.out, d.in)
+	out := device.NewTestSession(s.T(), d.out, d.in)
 	out.OpenChannels()
 
 	return out
@@ -188,7 +180,7 @@ func (s *SelectPublicTestSuite) TestSelectPreset() {
 			name: "a bus that goes away while it switches",
 			device: func() *deviceDouble {
 				d := answers(s.ctrl, s.took(device.FirstTxn))
-				d.readErr, d.readsOK = errors.New("the bus went away"), 1
+				d.readErr, d.failAfter = errors.New("the bus went away"), 1
 
 				return d
 			},
@@ -248,19 +240,21 @@ func (s *SelectPublicTestSuite) TestSelectPreset() {
 				defer stop()
 			}
 
+			b := device.ShortBudgets()
 			if tt.poll > 0 {
-				poll, budget := *device.SelectPoll, *device.SelectBudget
-				*device.SelectPoll, *device.SelectBudget = tt.poll, 10*tt.poll
-
-				defer func() { *device.SelectPoll, *device.SelectBudget = poll, budget }()
+				b.Poll, b.Selecting = tt.poll, 10*tt.poll
 			}
 
 			d := tt.device()
-			err := s.session(d).SelectPreset(ctx, 0, 99)
+
+			session := device.NewTestSessionWith(s.T(), d.out, d.in, b)
+			session.OpenChannels()
+
+			err := session.SelectPreset(ctx, 0, 99)
 
 			if tt.says == "" {
 				s.Require().NoError(err)
-				s.Require().Empty(d.replies, "every answer was read")
+				s.Require().Zero(d.pending(), "every answer was read")
 
 				return
 			}

@@ -574,18 +574,6 @@ func (s *DevicePublicTestSuite) TestExportWithWritesTheDevicesOwnFile() {
 		"the routing a device wraps a chain in comes too")
 }
 
-// stand is a bus that hands back dev, or fails with err, in place of the one
-// that needs hardware.
-func (s *DevicePublicTestSuite) stand(
-	dev device.Editor,
-	err error,
-) slots.Opener {
-	o := slotmocks.NewMockOpener(s.ctrl)
-	o.EXPECT().Open(gomock.Any()).Return(dev, err).AnyTimes()
-
-	return o
-}
-
 // refusing is a capture that will not take a write.
 //
 // Written by hand because io.Writer is the standard library's interface.
@@ -595,94 +583,6 @@ func (refusing) Write(
 	[]byte,
 ) (int, error) {
 	return 0, errors.New("nowhere to keep it")
-}
-
-// TestTheCommandsThatFindTheirOwnDevice covers the three entry points, which
-// are one line each: find a session, hand it on, release it. They are the
-// only lines in the package that need hardware.
-func (s *DevicePublicTestSuite) TestTheCommandsThatFindTheirOwnDevice() {
-	out := filepath.Join(s.T().TempDir(), "rig.yaml")
-
-	s.dev.EXPECT().Presets(gomock.Any(), 0).Return(s.listing(), nil).Times(3)
-	// Twice for the two that read one slot, and once more for the listing,
-	// which reads every named slot to say which of them hold anything.
-	s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 0).
-		Return(s.answer("preset.bin"), nil).Times(3)
-	s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 24).
-		Return(s.answer("switches.bin"), nil)
-	s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 79).
-		Return(s.answer("empty.bin"), nil)
-	s.dev.EXPECT().Close().Times(3)
-
-	devices := s.stand(s.dev, nil)
-
-	ctx := context.Background()
-
-	_, err := slots.ListDevice(ctx, devices, slots.DeviceOptions{})
-	s.Require().NoError(err)
-
-	_, err = slots.ShowDevice(ctx, devices, slots.DeviceOptions{})
-	s.Require().NoError(err)
-
-	_, err = slots.ExportDevice(ctx, devices, slots.ExportOptions{OutputPath: out})
-	s.Require().NoError(err)
-}
-
-// TestShowDeviceOnAnEmptySlot covers the entry point somebody runs, where a
-// slot holding nothing is an answer rather than a failure.
-func (s *DevicePublicTestSuite) TestShowDeviceOnAnEmptySlot() {
-	tests := []struct {
-		name     string
-		answer   []byte
-		fails    error
-		contains string
-		says     string
-	}{
-		{
-			name:     "a slot holding nothing",
-			contains: "02B is empty",
-		},
-		{
-			name:  "an error that is not an empty slot",
-			fails: errors.New("no answer"),
-			says:  "no answer",
-		},
-	}
-
-	for _, tt := range tests {
-		s.Run(tt.name, func() {
-			s.dev.EXPECT().Presets(gomock.Any(), 0).Return(s.listing(), nil)
-			s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 4).Return(tt.answer, tt.fails)
-			s.dev.EXPECT().Close()
-
-			read, err := slots.ShowDevice(context.Background(),
-				s.stand(s.dev, nil), slots.DeviceOptions{Slot: 4})
-
-			if tt.says != "" {
-				s.Require().ErrorContains(err, tt.says)
-
-				return
-			}
-
-			s.Require().NoError(err)
-			s.Require().Contains(said(s.T(), read), tt.contains)
-		})
-	}
-}
-
-// TestReportsADeviceItCannotOpen covers all three entry points finding none.
-func (s *DevicePublicTestSuite) TestReportsADeviceItCannotOpen() {
-	devices := s.stand(nil, errors.New("no device found"))
-
-	ctx := context.Background()
-
-	_, listing := slots.ListDevice(ctx, devices, slots.DeviceOptions{})
-	_, showing := slots.ShowDevice(ctx, devices, slots.DeviceOptions{})
-	_, exporting := slots.ExportDevice(ctx, devices, slots.ExportOptions{})
-
-	for _, err := range []error{listing, showing, exporting} {
-		s.Require().ErrorContains(err, "no device found")
-	}
 }
 
 func TestDevicePublicTestSuite(t *testing.T) {

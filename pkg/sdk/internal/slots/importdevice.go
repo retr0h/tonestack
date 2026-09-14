@@ -31,29 +31,13 @@ import (
 	slotpkg "github.com/retr0h/tonestack/pkg/sdk/slot"
 )
 
-// ImportDevice puts a preset file into a slot on an attached device.
+// ImportWith puts a preset file into a slot on the given session.
 //
 // The preset is built into an unused slot the device itself wrote, so
 // everything a chain does not describe is what the device expects to find
 // there. See wire.Blank.
 //
 // The destination is overwritten. There is no undo on a device.
-func ImportDevice(
-	ctx context.Context,
-	devices Opener,
-	opts ImportOptions,
-) (result.Change, error) {
-	s, err := devices.Open(ctx)
-	if err != nil {
-		return result.Change{}, err
-	}
-
-	defer s.Close()
-
-	return ImportWith(ctx, s, opts)
-}
-
-// ImportWith puts a preset file into a slot on the given session.
 func ImportWith(
 	ctx context.Context,
 	s device.Editor,

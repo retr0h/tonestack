@@ -63,17 +63,31 @@ type DevicePublicTestSuite struct {
 // blocks, so footswitches, snapshot state and routing come from the blank
 // rather than the source. That is known and tracked, and a test demanding
 // otherwise would fail on the import rather than on the transport.
+//
+// The whole round trip is one Session: one claim, one handshake, and the read
+// loop running between every step, which is the timing a held Session gives
+// an agent.
 func (s *DevicePublicTestSuite) TestRoundTrip() {
 	ctx := context.Background()
-	client := sdk.New()
 
 	source := s.slotFrom("TONESTACK_SOURCE_SLOT", "01A")
 
-	want, err := client.Preset(ctx, sdk.Read{Slot: source})
+	session, err := sdk.New().Open(ctx)
 	if errors.Is(err, device.ErrNoDevice) {
 		s.T().Skip("no Helix attached")
 	}
 
+	s.Require().NoError(err)
+
+	// Registered before anything that puts the slot back, so it runs after
+	// it: cleanups run last first.
+	s.T().Cleanup(func() {
+		if err := session.Close(); err != nil {
+			s.T().Errorf("closing the session: %v", err)
+		}
+	})
+
+	want, err := session.Preset(ctx, slot.Address{Slot: source})
 	s.Require().NoError(err)
 	s.Require().NotNil(want.Doc,
 		"%s holds nothing to round-trip; set TONESTACK_SOURCE_SLOT", slot.Label(source))
@@ -85,17 +99,14 @@ func (s *DevicePublicTestSuite) TestRoundTrip() {
 	scratch := s.slotFrom("TONESTACK_SCRATCH_SLOT", "")
 	s.Require().NotEqual(source, scratch, "the scratch slot must not be the source")
 
-	before, err := client.Preset(ctx, sdk.Read{Slot: scratch})
+	before, err := session.Preset(ctx, slot.Address{Slot: scratch})
 	s.Require().NoError(err)
 
-	exported, err := client.Export(ctx, sdk.Export{
-		Slot:       source,
-		As:         "hlx",
-		OutputPath: filepath.Join(s.T().TempDir(), "source.hlx"),
-	})
+	exported, err := session.Export(ctx, slot.Address{Slot: source},
+		filepath.Join(s.T().TempDir(), "source.hlx"), "hlx")
 	s.Require().NoError(err)
 
-	put, err := client.Import(ctx, sdk.Put{File: exported.Path, Slot: scratch})
+	put, err := session.Import(ctx, exported.Path, slot.Address{Slot: scratch})
 	s.Require().NoError(err)
 
 	// Registered the moment something was overwritten, so a failure below
@@ -103,13 +114,13 @@ func (s *DevicePublicTestSuite) TestRoundTrip() {
 	if len(put.Kept) > 0 {
 		t, kept := s.T(), put.Kept[0]
 		t.Logf("kept what %s held at %s", slot.Label(scratch), kept)
-		t.Cleanup(func() { restore(ctx, t, client, kept, scratch, before) })
+		t.Cleanup(func() { restore(ctx, t, session, kept, scratch, before) })
 	} else {
 		s.T().Logf("%s was empty, so it is left holding a copy of %s",
 			slot.Label(scratch), slot.Label(source))
 	}
 
-	got, err := client.Preset(ctx, sdk.Read{Slot: scratch})
+	got, err := session.Preset(ctx, slot.Address{Slot: scratch})
 	s.Require().NoError(err)
 	s.Require().Empty(chainDiff(want.Rig, got.Rig),
 		"a preset written to %s must read back with the chain in %s",
@@ -184,18 +195,18 @@ func (s *DevicePublicTestSuite) slotFrom(name, fallback string) int {
 func restore(
 	ctx context.Context,
 	t *testing.T,
-	client *sdk.Client,
+	session *sdk.Session,
 	kept string,
 	at int,
 	before sdk.Reading,
 ) {
-	if _, err := client.Import(ctx, sdk.Put{File: kept, Slot: at}); err != nil {
+	if _, err := session.Import(ctx, kept, slot.Address{Slot: at}); err != nil {
 		t.Errorf("could not put %s back: %v; the original is at %s", slot.Label(at), err, kept)
 
 		return
 	}
 
-	after, err := client.Preset(ctx, sdk.Read{Slot: at})
+	after, err := session.Preset(ctx, slot.Address{Slot: at})
 	if err != nil {
 		t.Errorf("could not read %s after putting it back: %v", slot.Label(at), err)
 

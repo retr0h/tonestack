@@ -23,6 +23,7 @@ import (
 	"errors"
 
 	"github.com/retr0h/tonestack/pkg/sdk/internal/catalogview"
+	"github.com/retr0h/tonestack/pkg/sdk/internal/device"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/recipes"
 )
 
@@ -45,4 +46,12 @@ var (
 	// Edit already has FromSetlist and ToSetlist for that, one per side of
 	// the move; Where.Setlist has no side to belong to and is never read.
 	ErrEditSetlist = errors.New("name the setlists with FromSetlist and ToSetlist")
+
+	// ErrClosed reports a Session method called after Close.
+	ErrClosed = errors.New("the session is closed")
+	// ErrBus reports a Session the bus ended: a read or a write the bus
+	// refused, or the Session's read loop stopping on its own. That Session
+	// is finished and nothing reconnects it; a caller who wants the pedal
+	// again closes it and opens another.
+	ErrBus = device.ErrBus
 )

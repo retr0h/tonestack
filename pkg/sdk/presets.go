@@ -24,6 +24,7 @@ import (
 	"context"
 
 	"github.com/retr0h/tonestack/pkg/sdk/internal/slots"
+	"github.com/retr0h/tonestack/pkg/sdk/slot"
 )
 
 // Where a setlist is read from.
@@ -54,13 +55,40 @@ func (c *Client) deps(
 	}
 }
 
+// once opens a Session, makes one call on it and closes it.
+//
+// What the one-shot device methods are: the CLI runs one operation per
+// process, and a caller who wants several opens a Session instead.
+func once[T any](
+	ctx context.Context,
+	c *Client,
+	call func(*Session) (T, error),
+) (T, error) {
+	s, err := c.Open(ctx)
+	if err != nil {
+		var zero T
+
+		return zero, err
+	}
+
+	out, err := call(s)
+
+	// The call's own answer is what the caller needs. A read loop that ended
+	// during the call already failed it with that error, and one that ended
+	// afterwards changed nothing the call reported.
+	_ = s.Close()
+
+	return out, err
+}
+
 // Presets reports what a setlist holds, slot by slot.
-func (c *Client) Presets(ctx context.Context, in Where) (Listing, error) {
+func (c *Client) Presets(
+	ctx context.Context,
+	in Where,
+) (Listing, error) {
 	if in.OnDevice() {
-		return slots.ListDevice(ctx, c.opts.devices, slots.DeviceOptions{
-			Deps:        c.deps(ctx),
-			Setlist:     in.Setlist,
-			CatalogPath: c.opts.catalog,
+		return once(ctx, c, func(s *Session) (Listing, error) {
+			return s.Presets(ctx, in.Setlist)
 		})
 	}
 
@@ -76,7 +104,10 @@ func (c *Client) Presets(ctx context.Context, in Where) (Listing, error) {
 //
 // A rig, not a rendering of one. What comes out compiles back into the preset
 // it came from, unchanged.
-func (c *Client) Preset(ctx context.Context, in Read) (Reading, error) {
+func (c *Client) Preset(
+	ctx context.Context,
+	in Read,
+) (Reading, error) {
 	// A standalone .hlx is neither a device nor a setlist, so it is asked
 	// for by name and answered before either.
 	if in.File != "" || !in.OnDevice() {
@@ -90,12 +121,14 @@ func (c *Client) Preset(ctx context.Context, in Read) (Reading, error) {
 		})
 	}
 
-	return slots.ShowDevice(ctx, c.opts.devices, slots.DeviceOptions{
-		Deps:        c.deps(ctx),
-		Setlist:     in.Setlist,
-		Slot:        in.Slot,
-		CatalogPath: c.opts.catalog,
+	return once(ctx, c, func(s *Session) (Reading, error) {
+		return s.Preset(ctx, in.address())
 	})
+}
+
+// address is the slot a Read names on a device.
+func (r Read) address() slot.Address {
+	return slot.Address{Setlist: r.Setlist, Slot: r.Slot}
 }
 
 // Read addresses one preset.
@@ -122,8 +155,18 @@ type Export struct {
 }
 
 // Export writes one slot out.
-func (c *Client) Export(ctx context.Context, in Export) (Written, error) {
-	opts := slots.ExportOptions{
+func (c *Client) Export(
+	ctx context.Context,
+	in Export,
+) (Written, error) {
+	if in.OnDevice() {
+		return once(ctx, c, func(s *Session) (Written, error) {
+			return s.Export(ctx, slot.Address{Setlist: in.Setlist, Slot: in.Slot},
+				in.OutputPath, in.As)
+		})
+	}
+
+	return slots.Export(slots.ExportOptions{
 		Deps:        c.deps(ctx),
 		Path:        in.Path,
 		Setlist:     in.Setlist,
@@ -131,13 +174,7 @@ func (c *Client) Export(ctx context.Context, in Export) (Written, error) {
 		OutputPath:  in.OutputPath,
 		As:          slots.Format(in.As),
 		CatalogPath: c.opts.catalog,
-	}
-
-	if in.OnDevice() {
-		return slots.ExportDevice(ctx, c.opts.devices, opts)
-	}
-
-	return slots.Export(opts)
+	})
 }
 
 // Put addresses a preset going into a slot.
@@ -158,8 +195,17 @@ type Put struct {
 // Whatever the slot held is gone. A device has no undo, so what was there is
 // read and kept first, in the directory WithBackupDir named; a file is left
 // alone and the result goes somewhere new.
-func (c *Client) Import(ctx context.Context, in Put) (Change, error) {
-	opts := slots.ImportOptions{
+func (c *Client) Import(
+	ctx context.Context,
+	in Put,
+) (Change, error) {
+	if in.OnDevice() {
+		return once(ctx, c, func(s *Session) (Change, error) {
+			return s.Import(ctx, in.File, slot.Address{Setlist: in.Setlist, Slot: in.Slot})
+		})
+	}
+
+	return slots.Import(slots.ImportOptions{
 		BackupDir:   c.opts.backupDir,
 		Deps:        c.deps(ctx),
 		Path:        in.Path,
@@ -168,13 +214,7 @@ func (c *Client) Import(ctx context.Context, in Put) (Change, error) {
 		Slot:        in.Slot,
 		OutputPath:  in.OutputPath,
 		CatalogPath: c.opts.catalog,
-	}
-
-	if in.OnDevice() {
-		return slots.ImportDevice(ctx, c.opts.devices, opts)
-	}
-
-	return slots.Import(opts)
+	})
 }
 
 // Edit addresses two slots.
@@ -220,13 +260,18 @@ func (c *Client) editOptions(
 // Edit already has FromSetlist and ToSetlist, one per side of the move.
 // Where.Setlist has no side to belong to, so setting it is refused with
 // ErrEditSetlist rather than silently read as neither.
-func (c *Client) Copy(ctx context.Context, in Edit) (Change, error) {
+func (c *Client) Copy(
+	ctx context.Context,
+	in Edit,
+) (Change, error) {
 	if in.Setlist != 0 {
 		return Change{}, ErrEditSetlist
 	}
 
 	if in.OnDevice() {
-		return slots.CopyDevice(ctx, c.opts.devices, c.editOptions(ctx, in))
+		return once(ctx, c, func(s *Session) (Change, error) {
+			return s.Copy(ctx, in.from(), in.to())
+		})
 	}
 
 	return slots.Copy(c.editOptions(ctx, in))
@@ -239,16 +284,31 @@ func (c *Client) Copy(ctx context.Context, in Edit) (Change, error) {
 // by device and firmware. Swapping invents nothing.
 //
 // Where.Setlist is refused the same way Copy refuses it; see ErrEditSetlist.
-func (c *Client) Swap(ctx context.Context, in Edit) (Change, error) {
+func (c *Client) Swap(
+	ctx context.Context,
+	in Edit,
+) (Change, error) {
 	if in.Setlist != 0 {
 		return Change{}, ErrEditSetlist
 	}
 
 	if in.OnDevice() {
-		return slots.SwapDevice(ctx, c.opts.devices, c.editOptions(ctx, in))
+		return once(ctx, c, func(s *Session) (Change, error) {
+			return s.Swap(ctx, in.from(), in.to())
+		})
 	}
 
 	return slots.Swap(c.editOptions(ctx, in))
+}
+
+// from is the slot an Edit moves from, on a device.
+func (e Edit) from() slot.Address {
+	return slot.Address{Setlist: e.FromSetlist, Slot: e.FromSlot}
+}
+
+// to is the slot an Edit moves to, on a device.
+func (e Edit) to() slot.Address {
+	return slot.Address{Setlist: e.ToSetlist, Slot: e.ToSlot}
 }
 
 // Select makes one preset the active one on an attached device.
@@ -261,15 +321,16 @@ func (c *Client) Swap(ctx context.Context, in Edit) (Change, error) {
 // A slot is only ever selected on the device that plays it. Where.Path or
 // Read.File naming a file is refused with ErrSelectNeedsDevice rather than
 // quietly going to the pedal anyway.
-func (c *Client) Select(ctx context.Context, in Read) (Change, error) {
+func (c *Client) Select(
+	ctx context.Context,
+	in Read,
+) (Change, error) {
 	if in.Path != "" || in.File != "" {
 		return Change{}, ErrSelectNeedsDevice
 	}
 
-	return slots.SelectDevice(ctx, c.opts.devices, slots.DeviceOptions{
-		Deps:    c.deps(ctx),
-		Setlist: in.Setlist,
-		Slot:    in.Slot,
+	return once(ctx, c, func(s *Session) (Change, error) {
+		return s.Select(ctx, in.address())
 	})
 }
 

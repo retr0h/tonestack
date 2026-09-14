@@ -29,6 +29,10 @@ import (
 type usbOpener struct {
 	// trace receives every frame in and out. Nil traces nothing.
 	trace io.Writer
+	// buses is where a bus comes from.
+	buses buses
+	// budgets are how long each session it opens waits on the device.
+	budgets budgets
 }
 
 // NewUSB returns the Opener that reaches hardware over USB.
@@ -39,7 +43,7 @@ type usbOpener struct {
 func NewUSB(
 	trace io.Writer,
 ) Opener {
-	return usbOpener{trace: trace}
+	return usbOpener{trace: trace, buses: usbBuses{}, budgets: defaultBudgets()}
 }
 
 // List reports every device on the bus.
@@ -63,5 +67,5 @@ func (usbOpener) List(
 func (u usbOpener) Open(
 	ctx context.Context,
 ) (Editor, error) {
-	return open(ctx, newBus(), u.trace)
+	return open(ctx, u.buses.Bus(), u.trace, u.budgets)
 }

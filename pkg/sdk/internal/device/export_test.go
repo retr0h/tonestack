@@ -23,36 +23,121 @@ package device
 import (
 	"context"
 	"io"
+	"testing"
 	"time"
 
 	"github.com/retr0h/tonestack/pkg/sdk/internal/wire"
 )
 
-// NewTestSession builds a session over the given endpoints, so the protocol
-// above them can be exercised against a scripted device.
+// Budgets are how long a session waits on each thing, exported so a test
+// builds a session with its own rather than writing a package variable.
+type Budgets struct {
+	Reply     time.Duration
+	Commit    time.Duration
+	Flash     time.Duration
+	Drain     time.Duration
+	Close     time.Duration
+	Selecting time.Duration
+	Poll      time.Duration
+	Open      time.Duration
+	Pace      time.Duration
+	Idle      time.Duration
+	Window    time.Duration
+}
+
+// ShortBudgets are waits a scripted device fits inside, since nothing here is
+// talking to hardware.
+//
+// The ordering is the one a device has: a commit outlasts a reply, and a
+// write is waited on for the commit budget. The idle acknowledgement is held
+// off, so an answer a test scripted is not acknowledged and thrown away before
+// the call it answers; the suites about it shorten it.
+func ShortBudgets() Budgets {
+	return Budgets{
+		Reply:     50 * time.Millisecond,
+		Commit:    500 * time.Millisecond,
+		Drain:     50 * time.Millisecond,
+		Close:     500 * time.Millisecond,
+		Selecting: 50 * time.Millisecond,
+		Poll:      time.Millisecond,
+		Open:      5 * time.Millisecond,
+		Pace:      5 * time.Millisecond,
+		Idle:      time.Hour,
+		Window:    5 * time.Millisecond,
+	}
+}
+
+// budgets is b as a session holds it.
+func (b Budgets) budgets() budgets {
+	return budgets{
+		reply:     b.Reply,
+		commit:    b.Commit,
+		flash:     b.Flash,
+		drain:     b.Drain,
+		close:     b.Close,
+		selecting: b.Selecting,
+		poll:      b.Poll,
+		open:      b.Open,
+		pace:      b.Pace,
+		idle:      b.Idle,
+		window:    b.Window,
+	}
+}
+
+// NewTestSession builds a session over the given endpoints with the test
+// budgets, so the protocol above them can be exercised against a scripted
+// device.
 //
 // Everything a session does apart from finding and claiming hardware happens
 // here: framing, sequence numbers, acknowledgements, opening a channel and
 // making a call.
-func NewTestSession(out sender, in receiver) *session {
-	return &session{
-		out:   out,
-		in:    in,
-		chans: map[string]*channel{},
-		model: Model{Name: "HX Stomp"},
+func NewTestSession(
+	t testing.TB,
+	out sender,
+	in receiver,
+) *session {
+	return NewTestSessionWith(t, out, in, ShortBudgets())
+}
+
+// NewTestSessionWith is NewTestSession with budgets of the test's own.
+//
+// A session with somewhere to read from starts its loop at once, as one that
+// claimed hardware does, and is closed when the test ends so no loop outlives
+// the double it reads. A test that asserts on Close calls it first.
+func NewTestSessionWith(
+	t testing.TB,
+	out sender,
+	in receiver,
+	b Budgets,
+) *session {
+	s := newSession(out, in, nil, Model{Name: "HX Stomp"}, b.budgets())
+
+	if in != nil {
+		s.start()
+		// Close is idempotent, and a test that cares what it reports has
+		// already asked.
+		t.Cleanup(func() { _ = s.Close() })
 	}
+
+	return s
 }
 
 // Holding records what a session took to reach a device, so that releasing
 // it can be tested without one.
-func (s *session) Holding(held ...func() error) {
+func (s *session) Holding(
+	held ...func() error,
+) {
 	for _, release := range held {
 		s.holds = append(s.holds, releaseFunc(release))
 	}
 }
 
 // OnDone records what a session does with the interface it claimed.
-func (s *session) OnDone(done func()) { s.done = done }
+func (s *session) OnDone(
+	done func(),
+) {
+	s.done = done
+}
 
 // releaseFunc makes a function into something a session can give back.
 type releaseFunc func() error
@@ -60,16 +145,17 @@ type releaseFunc func() error
 func (f releaseFunc) Close() error { return f() }
 
 // Handshake opens every channel the editor uses.
-func (s *session) Handshake(ctx context.Context) error { return s.handshake(ctx) }
-
-// Drain reads until the device has nothing left to say.
-func (s *session) Drain(ctx context.Context) { s.drain(ctx) }
-
-// Receive reads one transfer and routes every frame in it.
-func (s *session) Receive(
+func (s *session) Handshake(
 	ctx context.Context,
-) (bool, error) {
-	return s.receive(ctx, openReadWait)
+) error {
+	return s.handshake(ctx)
+}
+
+// Drain waits until the device has nothing left to say.
+func (s *session) Drain(
+	ctx context.Context,
+) {
+	s.drain(ctx)
 }
 
 // Trace sends the wire trace to w, which is how both directions were read off
@@ -77,17 +163,59 @@ func (s *session) Receive(
 func (s *session) Trace(
 	w io.Writer,
 ) {
+	s.traceMu.Lock()
+	defer s.traceMu.Unlock()
+
 	s.trace = w
 }
 
+// Received is how many stream bytes the loop has routed to a channel.
+func (s *session) Received(
+	name string,
+) uint32 {
+	return s.chans[name].rxBytes.Load()
+}
+
+// Buffered is how many bytes a channel holds that nobody has taken.
+func (s *session) Buffered(
+	name string,
+) int {
+	s.rxMu.Lock()
+	defer s.rxMu.Unlock()
+
+	return len(s.chans[name].buf)
+}
+
+// Transfers is how many reads have brought something.
+func (s *session) Transfers() uint64 { return s.progress().transfers }
+
+// Windows is how many reads the loop has finished.
+func (s *session) Windows() uint64 { return s.progress().windows }
+
+// LoopDone closes once the read loop has returned.
+func (s *session) LoopDone() <-chan struct{} { return s.loopDone }
+
+// Dead closes when the read loop ends on its own.
+func (s *session) Dead() <-chan struct{} { return s.dead }
+
+// Ended is what ended the read loop, or nil while it runs.
+func (s *session) Ended() error { return s.ended() }
+
 // ControlChannel is the channel calls are made on.
-const ControlChannel = "control"
+const ControlChannel = channelControl
+
+// EventsChannel is the channel the device talks on unasked.
+const EventsChannel = channelEvents
 
 // DataChannel is the channel presets are written on.
 const DataChannel = channelData
 
 // FrameFor renders a frame the way a device would answer on a channel.
-func FrameFor(name string, msgType uint16, payload []byte) []byte {
+func FrameFor(
+	name string,
+	msgType uint16,
+	payload []byte,
+) []byte {
 	for _, spec := range channelSpecs {
 		if spec.name != name {
 			continue
@@ -105,27 +233,45 @@ func FrameFor(name string, msgType uint16, payload []byte) []byte {
 	return nil
 }
 
+// ChannelOf names the channel a frame the host sent went out on.
+func ChannelOf(
+	f wire.Frame,
+) string {
+	for _, spec := range channelSpecs {
+		if f.DeviceNode == spec.device {
+			return spec.name
+		}
+	}
+
+	return ""
+}
+
 // Reply renders a device's answer to one call, framed on a channel the way
 // the device would send it.
-func Reply(name string, body []byte) []byte {
+func Reply(
+	name string,
+	body []byte,
+) []byte {
 	return FrameFor(name, wire.MsgData, wire.EncodeEnvelope(wire.Envelope{
 		Originator: wire.FromDevice, Service: 2, Body: body,
 	}))
 }
 
-// OpenChannels puts a channel in place without a handshake, so a call can be
+// OpenChannels opens every channel without a handshake, so a call can be
 // tested without scripting one first.
 func (s *session) OpenChannels() {
-	for _, spec := range channelSpecs {
-		s.chans[spec.name] = &channel{
-			name: spec.name, device: spec.device, host: spec.host,
-			txn: wire.FirstTxn,
-		}
+	s.rxMu.Lock()
+	defer s.rxMu.Unlock()
+
+	for _, c := range s.chans {
+		c.open = true
 	}
 }
 
 // MessageKind reads the message type out of a frame a session sent.
-func MessageKind(frame []byte) (uint16, error) {
+func MessageKind(
+	frame []byte,
+) (uint16, error) {
 	f, _, err := wire.DecodeFrame(frame)
 
 	return f.Type, err
@@ -152,7 +298,9 @@ type FailAfter struct {
 	Err    error
 }
 
-func (f *FailAfter) Write(p []byte) (int, error) {
+func (f *FailAfter) Write(
+	p []byte,
+) (int, error) {
 	if f.OK <= 0 {
 		return 0, f.Err
 	}
@@ -168,20 +316,34 @@ var Retry = retry
 // ClaimAttempts is how many times a busy interface is waited on.
 const ClaimAttempts = claimAttempts
 
-// Bus, Handle and Endpoints are what finding a device runs against, exported
-// so a test can supply them.
+// Bus, Handle, Endpoints and Buses are what finding a device runs against,
+// exported so a test can supply them.
 type (
 	TestBus       = bus
 	TestHandle    = handle
 	TestEndpoints = endpoints
+	TestBuses     = buses
 )
 
-// NewBus is how a bus is obtained, exported so a test can stand in for the
-// only line in this package that reaches hardware.
-var NewBus = &newBus
+// OpenOver starts a session over the given bus, with the test budgets.
+func OpenOver(
+	ctx context.Context,
+	b bus,
+) (Editor, error) {
+	return open(ctx, b, nil, ShortBudgets().budgets())
+}
 
-// OpenOver starts a session over the given bus.
-func OpenOver(ctx context.Context, b bus) (Editor, error) { return open(ctx, b, nil) }
+// NewUSBOver is NewUSB taking its buses from source, with the test budgets.
+func NewUSBOver(
+	trace io.Writer,
+	source buses,
+) Opener {
+	return usbOpener{trace: trace, buses: source, budgets: ShortBudgets().budgets()}
+}
+
+// USBBus is the bus NewUSB reaches hardware through. Opening one reads
+// nothing; its Devices is what enumerates.
+func USBBus() TestBus { return usbBuses{}.Bus() }
 
 // TestSender and TestReceiver are the endpoints a session talks over.
 type (
@@ -192,36 +354,13 @@ type (
 // StreamChunk is how much of a message a device takes per frame.
 const StreamChunk = streamChunk
 
-// FlashBudget is how long a write is given to reach flash, exported so a test
-// does not spend it.
-var FlashBudget = &flashBudget
-
-// SelectPoll and SelectBudget pace the wait for a switch to land, exported so
-// a test does not spend it.
-var (
-	SelectPoll   = &selectPoll
-	SelectBudget = &selectBudget
-)
-
-// CommitBudget is how long a device is given to finish a write, exported so a
-// test need not wait the whole of it.
-var CommitBudget = &commitBudget
-
-// ReplyBudget is how long a device is given to answer a call, exported so a
-// test can reach the silence without waiting out the whole of it.
-var ReplyBudget = &replyBudget
-
-// DrainBudget bounds how long a drain reads, exported so a test does not
-// spend it.
-var DrainBudget = &drainBudget
-
-// CloseBudget bounds how long ending a session takes, exported so a test can
-// reach it without waiting out the whole of it.
-var CloseBudget = &closeBudget
-
 // Write sends a request too large for one frame and waits for the device to
 // finish acting on it.
-func (s *session) Write(ctx context.Context, opcode uint64, args []wire.Arg) error {
+func (s *session) Write(
+	ctx context.Context,
+	opcode uint64,
+	args []wire.Arg,
+) error {
 	return s.write(ctx, opcode, args)
 }
 
@@ -250,7 +389,12 @@ func Matching[T any](
 }
 
 // PickFirst takes the first entry and releases the rest.
-func PickFirst[T any](all []T, release func(T)) (T, bool) { return pickFirst(all, release) }
+func PickFirst[T any](
+	all []T,
+	release func(T),
+) (T, bool) {
+	return pickFirst(all, release)
+}
 
 // ReadUntil waits for a read that returns something, or for ctx to end.
 func ReadUntil(
@@ -264,10 +408,18 @@ func ReadUntil(
 }
 
 // Refused explains why the editor interface could not be claimed.
-func Refused(err error, busy bool) error { return refused(err, busy) }
+func Refused(
+	err error,
+	busy bool,
+) error {
+	return refused(err, busy)
+}
 
 // Located names a device by a location ID.
-func Located(vendor, product uint16, location uint32) Descriptor {
+func Located(
+	vendor, product uint16,
+	location uint32,
+) Descriptor {
 	return located(vendor, product, location)
 }
 
@@ -307,7 +459,11 @@ func ClaimOne[T any](
 }
 
 // Piped turns a pipe lookup into an endpoint.
-func Piped[S any](ref uint8, err error, wrap func(uint8) S) (S, error) {
+func Piped[S any](
+	ref uint8,
+	err error,
+	wrap func(uint8) S,
+) (S, error) {
 	return piped(ref, err, wrap)
 }
 

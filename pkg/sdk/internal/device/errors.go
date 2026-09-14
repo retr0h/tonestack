@@ -28,6 +28,30 @@ import (
 // ErrNoDevice reports that no recognised device is attached.
 var ErrNoDevice = errors.New("no device found")
 
+// ErrBus reports a session the bus has ended: a read or a write the bus
+// refused, or the read loop stopping on its own. A session that returned it
+// is finished, and nothing reconnects it.
+var ErrBus = errors.New("the device session ended")
+
+// busError is a failure of the bus itself. Its message is the failure's own,
+// and it matches ErrBus.
+type busError struct {
+	err error
+}
+
+// Error implements the error interface.
+func (e *busError) Error() string { return e.err.Error() }
+
+// Unwrap returns the failure, so callers can still match it.
+func (e *busError) Unwrap() error { return e.err }
+
+// Is reports whether target is ErrBus.
+func (*busError) Is(
+	target error,
+) bool {
+	return target == ErrBus
+}
+
 // ErrUnknownModel reports a Line 6 device whose product identifier this
 // package does not recognise.
 var ErrUnknownModel = errors.New("unrecognised model")
