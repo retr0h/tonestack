@@ -35,8 +35,9 @@ type NotFoundError struct {
 
 // Error implements the error interface.
 func (e *NotFoundError) Error() string {
-	return fmt.Sprintf("no such block %q (%d in this catalog — try 'tonestack catalog list')",
-		e.ID, e.Known)
+	// No command to run next: a terminal and an agent each have their own,
+	// and the wrapper that knows which one it is says so.
+	return fmt.Sprintf("no such block %q (%d in this catalog)", e.ID, e.Known)
 }
 
 // Unwrap returns ErrNotFound so callers can match with errors.Is.

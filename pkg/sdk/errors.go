@@ -17,36 +17,21 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
-package cmd
+package sdk
 
 import (
-	"github.com/spf13/cobra"
-
-	"github.com/retr0h/tonestack/pkg/cli"
-	"github.com/retr0h/tonestack/pkg/sdk"
+	"github.com/retr0h/tonestack/pkg/sdk/internal/catalogview"
+	"github.com/retr0h/tonestack/pkg/sdk/internal/recipes"
 )
 
-var catalogShowModel string
-
-// catalogShowCmd represents the catalog show command.
-var catalogShowCmd = &cobra.Command{
-	Use:   "show",
-	Short: "Show one block's parameters",
-	Args:  cobra.NoArgs,
-	RunE: func(cmd *cobra.Command, _ []string) error {
-		block, err := sdk.New().Block(catalogPath, catalogShowModel)
-		if err != nil {
-			return cli.Hint(err)
-		}
-
-		return cli.Block(cmd.OutOrStdout(), block)
-	},
-}
-
-func init() {
-	catalogCmd.AddCommand(catalogShowCmd)
-
-	catalogShowCmd.Flags().StringVar(&catalogShowModel, "model", "",
-		"model identifier, e.g. HD2_AmpSVBeastNrm")
-	_ = catalogShowCmd.MarkFlagRequired("model")
-}
+// Errors a caller matches with errors.Is.
+//
+// Each says what went wrong and nothing about what to do next. A terminal
+// runs a command and an agent calls a tool, so the wrapper that knows which
+// it is adds the next step.
+var (
+	// ErrNoSuchBlock reports a model the catalog does not carry.
+	ErrNoSuchBlock = catalogview.ErrNotFound
+	// ErrNoSuchRecipe reports a rig nobody has written.
+	ErrNoSuchRecipe = recipes.ErrNotFound
+)

@@ -17,36 +17,19 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
-package cmd
+package mcp
 
 import (
-	"github.com/spf13/cobra"
-
-	"github.com/retr0h/tonestack/pkg/cli"
-	"github.com/retr0h/tonestack/pkg/sdk"
+	"context"
+	"io"
 )
 
-var catalogShowModel string
-
-// catalogShowCmd represents the catalog show command.
-var catalogShowCmd = &cobra.Command{
-	Use:   "show",
-	Short: "Show one block's parameters",
-	Args:  cobra.NoArgs,
-	RunE: func(cmd *cobra.Command, _ []string) error {
-		block, err := sdk.New().Block(catalogPath, catalogShowModel)
-		if err != nil {
-			return cli.Hint(err)
-		}
-
-		return cli.Block(cmd.OutOrStdout(), block)
-	},
-}
-
-func init() {
-	catalogCmd.AddCommand(catalogShowCmd)
-
-	catalogShowCmd.Flags().StringVar(&catalogShowModel, "model", "",
-		"model identifier, e.g. HD2_AmpSVBeastNrm")
-	_ = catalogShowCmd.MarkFlagRequired("model")
+// RunOver serves over r and w the way Run serves over stdin and stdout, so a
+// test can play the client without touching the process's own streams.
+func (s *Server) RunOver(
+	ctx context.Context,
+	r io.ReadCloser,
+	w io.Writer,
+) error {
+	return s.run(ctx, r, w)
 }

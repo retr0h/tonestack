@@ -289,7 +289,7 @@ func (s *CatalogViewPublicTestSuite) TestNotFoundError() {
 
 	s.Require().Contains(err.Error(), "HD2_Nope")
 	s.Require().Contains(err.Error(), "665")
-	s.Require().Contains(err.Error(), "catalog list")
+	s.Require().NotContains(err.Error(), "tonestack")
 	s.Require().ErrorIs(err, catalogview.ErrNotFound)
 }
 

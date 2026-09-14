@@ -22,6 +22,7 @@ package tools_test
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 
 	gomcp "github.com/modelcontextprotocol/go-sdk/mcp"
@@ -132,14 +133,27 @@ func (s *OfflinePublicTestSuite) TestCatalogBlock() {
 			},
 		},
 		{
+			// An agent is pointed at the tool that finds blocks, not at a
+			// command it cannot run.
 			name: "a block it does not",
 			args: tools.ID{ID: "HD2_Nope"},
 			setup: func(c *mocks.MockClient) {
 				c.EXPECT().
 					Block("", "HD2_Nope").
-					Return(catalog.Block{}, errors.New("no block HD2_Nope"))
+					Return(catalog.Block{}, fmt.Errorf("%w %q", sdk.ErrNoSuchBlock, "HD2_Nope"))
 			},
-			want: "no block HD2_Nope",
+			want: "call catalog_search",
+			err:  true,
+		},
+		{
+			name: "a catalog that will not open",
+			args: tools.ID{ID: "HD2_AmpSVBeastBrt"},
+			setup: func(c *mocks.MockClient) {
+				c.EXPECT().
+					Block("", "HD2_AmpSVBeastBrt").
+					Return(catalog.Block{}, errUnreadable)
+			},
+			want: "catalog unreadable",
 			err:  true,
 		},
 	})
@@ -256,9 +270,11 @@ func (s *OfflinePublicTestSuite) TestRigShow() {
 			name: "a rig that does not",
 			args: tools.ID{ID: "nobody"},
 			setup: func(c *mocks.MockClient) {
-				c.EXPECT().Recipe("", "nobody").Return(sdk.Recipe{}, errors.New("no rig nobody"))
+				c.EXPECT().
+					Recipe("", "nobody").
+					Return(sdk.Recipe{}, fmt.Errorf("%w %q", sdk.ErrNoSuchRecipe, "nobody"))
 			},
-			want: "no rig nobody",
+			want: "call rigs_list",
 			err:  true,
 		},
 	})
@@ -303,6 +319,17 @@ func (s *OfflinePublicTestSuite) TestPresetBuild() {
 				c.EXPECT().Build(gomock.Any()).Return(sdk.Made{}, errors.New("over budget"))
 			},
 			want: "over budget",
+			err:  true,
+		},
+		{
+			name: "a shipped rig nobody wrote",
+			args: tools.Build{RecipeID: "nobody", Out: "nobody.hlx"},
+			setup: func(c *mocks.MockClient) {
+				c.EXPECT().
+					Build(gomock.Any()).
+					Return(sdk.Made{}, fmt.Errorf("%w %q", sdk.ErrNoSuchRecipe, "nobody"))
+			},
+			want: "call rigs_list",
 			err:  true,
 		},
 		{

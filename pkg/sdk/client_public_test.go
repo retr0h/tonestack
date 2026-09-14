@@ -185,18 +185,18 @@ func (s *ClientPublicTestSuite) TestBlock() {
 	tests := []struct {
 		name string
 		id   string
-		err  bool
+		is   error
 	}{
 		{name: "a block the catalog carries", id: "HD2_DistMinotaur"},
-		{name: "one it does not", id: "HD2_NoSuchBlock", err: true},
+		{name: "one it does not", id: "HD2_NoSuchBlock", is: sdk.ErrNoSuchBlock},
 	}
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
 			got, err := sdk.New().Block("", tt.id)
 
-			if tt.err {
-				s.Require().Error(err)
+			if tt.is != nil {
+				s.Require().ErrorIs(err, tt.is)
 
 				return
 			}
@@ -293,18 +293,18 @@ func (s *ClientPublicTestSuite) TestRecipe() {
 	tests := []struct {
 		name string
 		id   string
-		err  bool
+		is   error
 	}{
 		{name: "a rig that ships", id: "mike-dirnt"},
-		{name: "one nobody wrote", id: "nobody-at-all", err: true},
+		{name: "one nobody wrote", id: "nobody-at-all", is: sdk.ErrNoSuchRecipe},
 	}
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
 			got, err := sdk.New().Recipe("", tt.id)
 
-			if tt.err {
-				s.Require().Error(err)
+			if tt.is != nil {
+				s.Require().ErrorIs(err, tt.is)
 
 				return
 			}

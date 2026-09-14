@@ -27,6 +27,7 @@ package mcp
 
 import (
 	"context"
+	"os"
 
 	gomcp "github.com/modelcontextprotocol/go-sdk/mcp"
 
@@ -80,10 +81,13 @@ func New(
 }
 
 // Run serves over stdin and stdout until ctx ends or the agent disconnects.
+//
+// An agent disconnecting ends the session cleanly, including when it closes
+// stdin while a reply is still being written.
 func (s *Server) Run(
 	ctx context.Context,
 ) error {
-	return s.Serve(ctx, &gomcp.StdioTransport{})
+	return s.run(ctx, os.Stdin, os.Stdout)
 }
 
 // Serve serves over any transport until ctx ends or the agent disconnects.

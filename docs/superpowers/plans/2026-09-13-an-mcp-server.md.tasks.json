@@ -5,7 +5,7 @@
     {"id": 2, "subject": "MCP Task 2: tools that read the pedal, one call at a time", "status": "completed", "blockedBy": [1]},
     {"id": 3, "subject": "MCP Task 3: tools that write the pedal, behind allowWrites", "status": "completed", "blockedBy": [2]},
     {"id": 4, "subject": "MCP Task 4: pkg/mcp and TestTheMCPStandsAlone", "status": "completed", "blockedBy": [3]},
-    {"id": 5, "subject": "MCP Task 5: tonestack mcp, docs, gate and pull request", "status": "in_progress", "blockedBy": [4]}
+    {"id": 5, "subject": "MCP Task 5: tonestack mcp, docs, gate and pull request", "status": "completed", "blockedBy": [4]}
   ],
   "lastUpdated": "2026-09-14T04:00:00Z"
 }

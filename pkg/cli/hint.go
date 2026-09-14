@@ -17,8 +17,7 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
-
-package tools
+package cli
 
 import (
 	"errors"
@@ -27,36 +26,20 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk"
 )
 
-var (
-	// ErrNoSource is preset_build given nothing to build from.
-	ErrNoSource = errors.New("name a recipe_id or a rig_path to build from")
-	// ErrTwoSources is preset_build given both.
-	ErrTwoSources = errors.New("name a recipe_id or a rig_path, not both")
-	// ErrNotInCatalog is corpus_model's model measured but missing from the
-	// catalog it was resolved against, a sign the corpus and catalog have
-	// drifted apart.
-	ErrNotInCatalog = errors.New("measured but not in the catalog")
-)
-
-// notInCatalog wraps ErrNotInCatalog with the model id that could not be
-// found, so the agent sees which model and not just an opaque schema failure.
-func notInCatalog(id string) error {
-	return fmt.Errorf("%w: %s", ErrNotInCatalog, id)
-}
-
-// remedy names the tool to call next, for the errors that have one.
+// Hint adds the command to run next to an error somebody at a terminal can act
+// on.
 //
-// The SDK says what went wrong and leaves the next step to its caller. A
-// person at a terminal is told a command; an agent here is told a tool it can
-// call. Any other error comes back as it was.
-func remedy(
+// The SDK says what went wrong and leaves the next step to whoever called it,
+// because an agent over MCP calls tools rather than commands. Any other error
+// comes back as it was.
+func Hint(
 	err error,
 ) error {
 	switch {
 	case errors.Is(err, sdk.ErrNoSuchBlock):
-		return fmt.Errorf("%w, call catalog_search to find one", err)
+		return fmt.Errorf("%w, try 'tonestack catalog list'", err)
 	case errors.Is(err, sdk.ErrNoSuchRecipe):
-		return fmt.Errorf("%w, call rigs_list to see the rigs that ship", err)
+		return fmt.Errorf("%w, try 'tonestack recipes list'", err)
 	default:
 		return err
 	}

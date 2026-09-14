@@ -42,7 +42,7 @@ words then move the controls they name.`,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		made, err := sdk.New().Build(presetsMakeOptions)
 		if err != nil {
-			return err
+			return cli.Hint(err)
 		}
 
 		cat, err := catalog.Open(presetsMakeOptions.CatalogPath)
