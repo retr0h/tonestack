@@ -422,6 +422,16 @@ func (s *DevicePublicTestSuite) TestExportWith() {
 			is:     slots.ErrEmptySlot,
 		},
 		{
+			// A slot the device answers for with nothing on the grid. As the
+			// device's own file there is no document to write, and a file
+			// saying null is not a preset.
+			name:   "a slot with no blocks",
+			opts:   slots.ExportOptions{Slot: 79, As: "hlx"},
+			answer: s.answer("empty.bin"),
+			out:    "blocks.hlx",
+			is:     slots.ErrEmptySlot,
+		},
+		{
 			name:   "somewhere it cannot write",
 			opts:   slots.ExportOptions{Slot: 0},
 			answer: s.answer("preset.bin"),

@@ -137,8 +137,8 @@ func (c *Client) Recipe(dir, id string) (Recipe, error) {
 
 // NewRecipe describes the rig to scaffold.
 type NewRecipe struct {
-	// Dir is where recipes live. Empty writes beside the ones that ship,
-	// which is not usually what anybody wants.
+	// Dir is where recipes live. Required: empty is refused rather than read
+	// as wherever the program happened to run.
 	Dir string
 	// ID is the identifier, and the filename stem.
 	ID string

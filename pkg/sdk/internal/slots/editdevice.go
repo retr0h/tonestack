@@ -141,7 +141,7 @@ func copyOne(
 	// The destination is about to stop being what it was, and unlike the
 	// source nobody has read it yet.
 	kept, err := replacing(ctx, s, opts.Deps, opts.CatalogPath, opts.BackupDir,
-		opts.ToSetlist, opts.ToSlot)
+		opts.ToSetlist, opts.ToSlot, to)
 	if err != nil {
 		return edited{}, err
 	}
@@ -191,8 +191,8 @@ func swapTwo(
 	// Both of them, because a swap replaces both. No extra reads: a swap has
 	// already read what it is about to move.
 	kept, err := keep(opts.Deps, opts.CatalogPath, opts.BackupDir,
-		at{body: destination, slot: opts.ToSlot},
-		at{body: source, slot: opts.FromSlot})
+		at{body: destination, setlist: opts.ToSetlist, slot: opts.ToSlot, name: to},
+		at{body: source, setlist: opts.FromSetlist, slot: opts.FromSlot, name: from})
 	if err != nil {
 		return edited{}, err
 	}
@@ -232,13 +232,30 @@ func slotBytes(
 }
 
 // names reads what the device calls both slots, before either is changed.
-func names(ctx context.Context, s device.Editor, opts EditOptions) (string, string, error) {
-	found, err := s.Presets(ctx, opts.FromSetlist)
+//
+// Each from its own setlist. A slot number means nothing without the setlist
+// it is in, and a destination looked up in the source's listing would be
+// reported, renamed and backed up as another preset.
+func names(
+	ctx context.Context,
+	s device.Editor,
+	opts EditOptions,
+) (string, string, error) {
+	from, err := s.Presets(ctx, opts.FromSetlist)
 	if err != nil {
 		return "", "", fmt.Errorf("listing presets: %w", err)
 	}
 
-	return nameOf(found, opts.FromSlot), nameOf(found, opts.ToSlot), nil
+	to := from
+
+	if opts.ToSetlist != opts.FromSetlist {
+		to, err = s.Presets(ctx, opts.ToSetlist)
+		if err != nil {
+			return "", "", fmt.Errorf("listing presets: %w", err)
+		}
+	}
+
+	return nameOf(from, opts.FromSlot), nameOf(to, opts.ToSlot), nil
 }
 
 // writerFor asks whether this session can write.

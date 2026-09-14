@@ -25,9 +25,11 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/retr0h/tonestack/pkg/sdk/internal/atomicfile"
 	"github.com/retr0h/tonestack/pkg/sdk/preset"
 	"github.com/retr0h/tonestack/pkg/sdk/result"
 	"github.com/retr0h/tonestack/pkg/sdk/rig"
+	slotpkg "github.com/retr0h/tonestack/pkg/sdk/slot"
 )
 
 // Format is what an export is written as.
@@ -112,18 +114,18 @@ func Export(opts ExportOptions) (result.Written, error) {
 // One place, so a slot read off the hardware and one read out of a backup
 // land as the same bytes. They describe the same preset, and an export that
 // depended on which end it came from would be saying otherwise.
-func write(read result.Reading, opts ExportOptions) (result.Written, error) {
+func write(
+	read result.Reading,
+	opts ExportOptions,
+) (result.Written, error) {
 	var buf bytes.Buffer
 
-	if opts.As == FormatPreset {
-		// A payload that decoded encodes again.
-		_ = preset.Write(&buf, read.Doc)
-	} else if err := rig.Write(&buf, read.Rig); err != nil {
-		return result.Written{}, fmt.Errorf("writing the rig: %w", err)
+	if err := render(&buf, read, opts); err != nil {
+		return result.Written{}, err
 	}
 
-	if err := os.WriteFile(opts.OutputPath, buf.Bytes(), 0o600); err != nil {
-		return result.Written{}, fmt.Errorf("writing %s: %w", opts.OutputPath, err)
+	if err := atomicfile.Write(opts.OutputPath, buf.Bytes(), 0o600); err != nil {
+		return result.Written{}, err
 	}
 
 	return result.Written{
@@ -131,6 +133,34 @@ func write(read result.Reading, opts ExportOptions) (result.Written, error) {
 		Name: read.Name,
 		Path: opts.OutputPath,
 	}, nil
+}
+
+// render encodes a reading in the format that was asked for.
+//
+// A slot with no blocks reads as no document at all. Asked for as the
+// device's own file, that is an empty slot rather than a file saying null.
+func render(
+	buf *bytes.Buffer,
+	read result.Reading,
+	opts ExportOptions,
+) error {
+	if opts.As != FormatPreset {
+		if err := rig.Write(buf, read.Rig); err != nil {
+			return fmt.Errorf("writing the rig: %w", err)
+		}
+
+		return nil
+	}
+
+	if read.Doc == nil {
+		return fmt.Errorf("%w: %s", ErrEmptySlot, slotpkg.Label(opts.Slot))
+	}
+
+	if err := preset.Write(buf, read.Doc); err != nil {
+		return fmt.Errorf("writing %s: %w", opts.OutputPath, err)
+	}
+
+	return nil
 }
 
 // ImportOptions says which preset file to put in which slot.

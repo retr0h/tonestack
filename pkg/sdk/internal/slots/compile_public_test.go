@@ -22,13 +22,17 @@ package slots_test
 
 import (
 	"bytes"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
+	"go.uber.org/mock/gomock"
 
+	catalogpkg "github.com/retr0h/tonestack/pkg/sdk/catalog"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/slots"
+	slotmocks "github.com/retr0h/tonestack/pkg/sdk/internal/slots/mocks"
 	"github.com/retr0h/tonestack/pkg/sdk/preset"
 	"github.com/retr0h/tonestack/pkg/sdk/rig"
 )
@@ -108,6 +112,9 @@ func (s *CompilePublicTestSuite) TestCompile() {
 		// the chain must come back out of what was written.
 		loadable bool
 
+		// a compiler that leaves the preset unable to encode.
+		unencodable bool
+
 		err     error
 		errText string
 	}{
@@ -179,6 +186,13 @@ func (s *CompilePublicTestSuite) TestCompile() {
 			errText: "catalog",
 		},
 		{
+			// Reported, rather than a file holding nothing where a preset
+			// was meant to be.
+			name:        "a preset that will not encode",
+			unencodable: true,
+			errText:     "encoding preset",
+		},
+		{
 			name:    "a destination directory that is not there",
 			out:     filepath.Join("no", "out.hlx"),
 			errText: "writing",
@@ -214,10 +228,29 @@ func (s *CompilePublicTestSuite) TestCompile() {
 				catalog = tt.catalog
 			}
 
-			built, err := slots.Compile(slots.CompileOptions{
+			opts := slots.CompileOptions{
 				RigPath: rigPath, OutputPath: out, CatalogPath: catalog,
 				TemplatePath: tt.template,
-			})
+			}
+
+			if tt.unencodable {
+				compiler := slotmocks.NewMockCompiler(gomock.NewController(s.T()))
+				compiler.EXPECT().
+					Lower(gomock.Any(), gomock.Any(), gomock.Any()).
+					DoAndReturn(func(doc *preset.Document, _ rig.Spec, _ *catalogpkg.Catalog) error {
+						doc.Meta = json.RawMessage("{")
+
+						return nil
+					})
+
+				opts.Compiler = compiler
+			}
+
+			built, err := slots.Compile(opts)
+
+			if tt.unencodable {
+				s.Require().NoFileExists(out)
+			}
 
 			if tt.err != nil || tt.errText != "" {
 				s.Require().Error(err)

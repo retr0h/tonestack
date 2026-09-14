@@ -84,6 +84,13 @@ func (s *EditDevicePublicTestSuite) listing() []wire.Preset {
 	}
 }
 
+// elsewhere is what the device says a second setlist holds. Slot 01A there
+// is called something else than slot 01A in the first, which is how a name
+// looked up in the wrong setlist shows.
+func (s *EditDevicePublicTestSuite) elsewhere() []wire.Preset {
+	return []wire.Preset{{Slot: 0, Name: "Holiday"}}
+}
+
 // backupDir returns somewhere a backup can go, or somewhere it cannot.
 func (s *EditDevicePublicTestSuite) backupDir(bad bool) string {
 	dir := s.T().TempDir()
@@ -114,18 +121,18 @@ func (s *EditDevicePublicTestSuite) expectListing(reader *mocks.MockEditor, ok b
 // something that is not a preset.
 func (s *EditDevicePublicTestSuite) expectRead(
 	reader *mocks.MockEditor,
-	slot int,
+	setlist, slot int,
 	outcome string,
 ) *gomock.Call {
 	switch outcome {
 	case "refused":
-		return reader.EXPECT().ReadPreset(gomock.Any(), 0, slot).
+		return reader.EXPECT().ReadPreset(gomock.Any(), setlist, slot).
 			Return(nil, errors.New("boom"))
 	case "not a preset":
-		return reader.EXPECT().ReadPreset(gomock.Any(), 0, slot).
+		return reader.EXPECT().ReadPreset(gomock.Any(), setlist, slot).
 			Return(nil, nil)
 	default:
-		return reader.EXPECT().ReadPreset(gomock.Any(), 0, slot).
+		return reader.EXPECT().ReadPreset(gomock.Any(), setlist, slot).
 			Return(s.answer(), nil)
 	}
 }
@@ -135,12 +142,12 @@ func (s *EditDevicePublicTestSuite) expectRead(
 // the wrong places, and the device would accept it and then read the preset as
 // empty.
 func (s *EditDevicePublicTestSuite) expectWrite(
-	slot int,
+	setlist, slot int,
 	name string,
 	ok bool,
 ) *gomock.Call {
 	call := s.dev.MockWriter.EXPECT().
-		WriteNamedPreset(gomock.Any(), 0, slot, name, s.answer())
+		WriteNamedPreset(gomock.Any(), setlist, slot, name, s.answer())
 
 	if !ok {
 		return call.Return(errors.New("boom"))
@@ -165,10 +172,16 @@ func (s *EditDevicePublicTestSuite) TestCopyWith() {
 		readTo string
 		// somewhere a backup cannot be written.
 		badBackup bool
-		// a writer nothing can be written to.
+		// a destination in the second setlist, slot 01A, rather than slot
+		// 02A beside the source.
+		cross bool
+		// the second setlist's listing is refused.
+		crossRefused bool
 
 		contains []string
-		errText  string
+		// part of the backup's filename, which names the setlist it came from.
+		keptAs  string
+		errText string
 	}{
 		{
 			name:   "a preset sent back byte for byte",
@@ -182,7 +195,25 @@ func (s *EditDevicePublicTestSuite) TestCopyWith() {
 				"Black Rusty",
 			},
 		},
+		{
+			// Each slot is named from its own setlist. Looking the
+			// destination up in the source's setlist would report, and
+			// back up, a preset under another preset's name.
+			name:   "a preset copied into another setlist",
+			listed: true,
+			read:   "answered",
+			write:  "landed",
+			cross:  true,
+			keptAs: "01A-s1-",
+		},
 		{name: "a listing it cannot get", errText: "listing presets"},
+		{
+			name:         "a second setlist it cannot list",
+			listed:       true,
+			cross:        true,
+			crossRefused: true,
+			errText:      "listing presets",
+		},
 		{
 			// The destination is read so it can be kept. A device that will
 			// not say what is there is a device that cannot be replaced
@@ -242,10 +273,22 @@ func (s *EditDevicePublicTestSuite) TestCopyWith() {
 				dev = device.Editor(reader)
 			}
 
+			toSetlist, toSlot, toName := 0, 3, "Black Rusty"
+			if tt.cross {
+				toSetlist, toSlot, toName = 1, 0, "Holiday"
+			}
+
 			s.expectListing(reader, tt.listed)
 
+			if tt.cross && tt.crossRefused {
+				reader.EXPECT().Presets(gomock.Any(), 1).
+					Return(nil, errors.New("boom"))
+			} else if tt.cross {
+				reader.EXPECT().Presets(gomock.Any(), 1).Return(s.elsewhere(), nil)
+			}
+
 			if tt.read != "" {
-				s.expectRead(reader, 0, tt.read)
+				s.expectRead(reader, 0, 0, tt.read)
 			}
 
 			// The destination is read as well now, so that what it held can
@@ -258,16 +301,19 @@ func (s *EditDevicePublicTestSuite) TestCopyWith() {
 					outcome = "answered"
 				}
 
-				s.expectRead(reader, 3, outcome)
+				s.expectRead(reader, toSetlist, toSlot, outcome)
 			}
 
+			// The destination takes the source's name along with its
+			// contents.
 			if tt.write != "" {
-				s.expectWrite(3, "Chunky Monkey", tt.write == "landed")
+				s.expectWrite(toSetlist, toSlot, "Chunky Monkey", tt.write == "landed")
 			}
 
 			change, err := slots.CopyWith(context.Background(), dev,
 				slots.EditOptions{
-					FromSlot: 0, ToSlot: 3, BackupDir: s.backupDir(tt.badBackup),
+					FromSlot: 0, ToSetlist: toSetlist, ToSlot: toSlot,
+					BackupDir: s.backupDir(tt.badBackup),
 				})
 
 			if tt.errText != "" {
@@ -278,9 +324,16 @@ func (s *EditDevicePublicTestSuite) TestCopyWith() {
 			}
 
 			s.Require().NoError(err)
+			s.Require().Equal(toName, change.Replaced,
+				"what the destination was called, in its own setlist")
 
 			for _, want := range tt.contains {
 				s.Require().Contains(did(change), want)
+			}
+
+			if tt.keptAs != "" {
+				s.Require().Len(change.Kept, 1)
+				s.Require().Contains(filepath.Base(change.Kept[0]), tt.keptAs)
 			}
 		})
 	}
@@ -300,6 +353,10 @@ func (s *EditDevicePublicTestSuite) TestSwapWith() {
 		// somewhere a backup cannot be written.
 		badBackup bool
 
+		// the second slot is 01A of the second setlist rather than 02A of the
+		// first.
+		cross bool
+
 		contains string
 		errText  string
 	}{
@@ -308,6 +365,17 @@ func (s *EditDevicePublicTestSuite) TestSwapWith() {
 			listed:   true,
 			reads:    []string{"answered", "answered"},
 			writes:   []string{"landed", "landed"},
+			contains: "swapped",
+		},
+		{
+			// Each slot keeps the name it had in its own setlist when it
+			// moves. Named from the source's setlist, both would come back
+			// called Chunky Monkey.
+			name:     "two slots in two setlists",
+			listed:   true,
+			reads:    []string{"answered", "answered"},
+			writes:   []string{"landed", "landed"},
+			cross:    true,
 			contains: "swapped",
 		},
 		{name: "a listing it cannot get", errText: "listing presets"},
@@ -365,6 +433,13 @@ func (s *EditDevicePublicTestSuite) TestSwapWith() {
 				dev = device.Editor(reader)
 			}
 
+			toSetlist, toSlot, toName := 0, 3, "Black Rusty"
+			if tt.cross {
+				toSetlist, toSlot, toName = 1, 0, "Holiday"
+
+				reader.EXPECT().Presets(gomock.Any(), 1).Return(s.elsewhere(), nil)
+			}
+
 			s.expectListing(reader, tt.listed)
 
 			// A device that failed halfway through would leave one slot
@@ -373,7 +448,8 @@ func (s *EditDevicePublicTestSuite) TestSwapWith() {
 			var last *gomock.Call
 
 			for i, outcome := range tt.reads {
-				call := s.expectRead(reader, []int{0, 3}[i], outcome)
+				call := s.expectRead(reader,
+					[]int{0, toSetlist}[i], []int{0, toSlot}[i], outcome)
 				if last != nil {
 					call.After(last)
 				}
@@ -383,8 +459,9 @@ func (s *EditDevicePublicTestSuite) TestSwapWith() {
 
 			for i, outcome := range tt.writes {
 				call := s.expectWrite(
-					[]int{3, 0}[i],
-					[]string{"Chunky Monkey", "Black Rusty"}[i],
+					[]int{toSetlist, 0}[i],
+					[]int{toSlot, 0}[i],
+					[]string{"Chunky Monkey", toName}[i],
 					outcome == "landed")
 
 				if last != nil {
@@ -394,7 +471,8 @@ func (s *EditDevicePublicTestSuite) TestSwapWith() {
 
 			change, err := slots.SwapWith(context.Background(), dev,
 				slots.EditOptions{
-					FromSlot: 0, ToSlot: 3, BackupDir: s.backupDir(tt.badBackup),
+					FromSlot: 0, ToSetlist: toSetlist, ToSlot: toSlot,
+					BackupDir: s.backupDir(tt.badBackup),
 				})
 
 			if tt.errText != "" {
@@ -406,6 +484,8 @@ func (s *EditDevicePublicTestSuite) TestSwapWith() {
 
 			s.Require().NoError(err)
 			s.Require().Contains(did(change), tt.contains)
+			s.Require().Equal(toName, change.Replaced,
+				"what the second slot was called, in its own setlist")
 		})
 	}
 }

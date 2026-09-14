@@ -23,6 +23,7 @@ package recipes
 import (
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -30,6 +31,7 @@ import (
 	"strings"
 
 	"github.com/retr0h/tonestack/pkg/sdk/catalog"
+	"github.com/retr0h/tonestack/pkg/sdk/internal/atomicfile"
 	"github.com/retr0h/tonestack/pkg/sdk/result"
 )
 
@@ -39,6 +41,8 @@ var (
 	ErrBadID = errors.New("bad identifier")
 	// ErrExists reports a recipe that is already there.
 	ErrExists = errors.New("recipe already exists")
+	// ErrNoDir reports a recipe with nowhere named to go.
+	ErrNoDir = errors.New("no directory to write the recipe into")
 	// ErrNoSuchGear reports gear this device does not model.
 	ErrNoSuchGear = errors.New("no such gear")
 )
@@ -91,8 +95,8 @@ func (*NoSuchGearError) Unwrap() error { return ErrNoSuchGear }
 
 // NewOptions describes the recipe to scaffold.
 type NewOptions struct {
-	// Dir is where recipes live. Empty writes beside the built-in ones,
-	// which is not usually what anybody wants.
+	// Dir is where recipes live. Required: empty is refused with ErrNoDir
+	// rather than read as wherever the command happened to run.
 	Dir string
 	// ID is the identifier, and the filename stem.
 	ID string
@@ -130,22 +134,31 @@ func New(opts NewOptions) (result.Scaffolded, error) {
 		return result.Scaffolded{}, &BadIDError{ID: opts.ID}
 	}
 
+	if opts.Dir == "" {
+		return result.Scaffolded{}, ErrNoDir
+	}
+
 	body, err := scaffoldFor(opts)
 	if err != nil {
 		return result.Scaffolded{}, err
 	}
 
 	path := filepath.Join(opts.Dir, "artists", opts.ID+".yaml")
-	if _, err := os.Stat(path); err == nil {
-		return result.Scaffolded{}, &ExistsError{Path: path}
-	}
 
 	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 		return result.Scaffolded{}, fmt.Errorf("making room for %s: %w", path, err)
 	}
 
-	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
-		return result.Scaffolded{}, fmt.Errorf("writing %s: %w", path, err)
+	// Never over a recipe already there. The write itself refuses, rather
+	// than a look beforehand, so one written in between is not replaced
+	// either.
+	err = atomicfile.WriteNew(path, []byte(body), 0o600)
+	if errors.Is(err, fs.ErrExist) {
+		return result.Scaffolded{}, &ExistsError{Path: path}
+	}
+
+	if err != nil {
+		return result.Scaffolded{}, err
 	}
 
 	return result.Scaffolded{

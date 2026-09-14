@@ -21,6 +21,7 @@
 package slots_test
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -36,6 +37,7 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk/internal/device/mocks"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/slots"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/wire"
+	"github.com/retr0h/tonestack/pkg/sdk/preset"
 )
 
 // ImportDevicePublicTestSuite covers putting a preset file on a device.
@@ -130,17 +132,34 @@ func (s *ImportDevicePublicTestSuite) TestImportWith() {
 		// what the destination slot answers when it is read to be kept.
 		// Empty means it holds nothing.
 		destination string
+		// the listing that names the destination is refused.
+		unlisted bool
 
 		// the document that left for the device must hold the file's chain.
 		sent     bool
 		contains []string
-		errText  string
+		// the name the kept copy of the destination carries.
+		keptAs  string
+		errText string
 	}{
 		{
 			name:     "the chain a file describes",
 			writes:   true,
 			sent:     true,
 			contains: []string{"03B", "written"},
+		},
+		{
+			// Kept under the name the device gives it, which is what
+			// somebody looking for it later will search for.
+			name:        "a destination holding a preset",
+			writes:      true,
+			destination: "held",
+			keptAs:      "Minor Threat",
+		},
+		{
+			name:     "a destination it cannot name",
+			unlisted: true,
+			errText:  "listing presets",
 		},
 		{
 			name:    "a preset file that is not there",
@@ -228,7 +247,15 @@ func (s *ImportDevicePublicTestSuite) TestImportWith() {
 			// Exactly once, and only where the write gets far enough to
 			// reach it. The controller is shared across these rows, so an
 			// expectation left standing would answer a later one's call.
+			if tt.unlisted {
+				s.dev.MockEditor.EXPECT().Presets(gomock.Any(), 0).
+					Return(nil, errors.New("boom"))
+			}
+
 			if tt.writes || tt.refuses || tt.destination != "" {
+				s.dev.MockEditor.EXPECT().Presets(gomock.Any(), 0).
+					Return([]wire.Preset{{Slot: 7, Name: "Minor Threat"}}, nil)
+
 				switch tt.destination {
 				case "refused":
 					s.dev.MockEditor.EXPECT().
@@ -261,6 +288,17 @@ func (s *ImportDevicePublicTestSuite) TestImportWith() {
 
 			for _, want := range tt.contains {
 				s.Require().Contains(did(change), want)
+			}
+
+			if tt.keptAs != "" {
+				s.Require().Len(change.Kept, 1)
+
+				raw, err := os.ReadFile(change.Kept[0]) //nolint:gosec // a path this test chose
+				s.Require().NoError(err)
+
+				doc, err := preset.Read(bytes.NewReader(raw))
+				s.Require().NoError(err)
+				s.Require().Equal(tt.keptAs, doc.Data.Meta.Name)
 			}
 
 			if !tt.sent {
@@ -297,7 +335,10 @@ func (s *ImportDevicePublicTestSuite) TestImportDevice() {
 			defer func() { slots.OpenDevice = restore }()
 
 			if tt.attached {
-				// The destination is read first, so what it held is kept.
+				// The destination is named and read first, so what it held
+				// is kept under the name it had.
+				s.dev.MockEditor.EXPECT().Presets(gomock.Any(), 0).
+					Return(nil, nil)
 				s.dev.MockEditor.EXPECT().
 					ReadPreset(gomock.Any(), 0, 7).
 					Return(nil, nil)
