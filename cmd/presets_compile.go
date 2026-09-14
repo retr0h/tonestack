@@ -27,7 +27,10 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk"
 )
 
-var presetsCompileOptions sdk.Compile
+var (
+	presetsCompileOptions sdk.Compile
+	presetsCompileClient  clientFlags
+)
 
 // presetsCompileCmd represents the presets compile command.
 var presetsCompileCmd = &cobra.Command{
@@ -46,7 +49,8 @@ hardware has written. Pass --template to use a particular preset as that base,
 which is what makes a rig read off a device rebuild exactly.`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		built, err := sdk.New().Compile(presetsCompileOptions)
+		built, err := presetsCompileClient.client().
+			Compile(cmd.Context(), presetsCompileOptions)
 		if err != nil {
 			return err
 		}
@@ -64,7 +68,7 @@ func init() {
 		"where to write the preset")
 	f.StringVar(&presetsCompileOptions.TemplatePath, "template", "",
 		"a preset to write the chain into, instead of an untouched one")
-	f.StringVar(&presetsCompileOptions.CatalogPath, "catalog", "",
+	f.StringVar(&presetsCompileClient.catalog, "catalog", "",
 		"a generated catalog to use instead of the built-in one")
 	// Fails only for a flag that does not exist, and these are defined above.
 	_ = presetsCompileCmd.MarkFlagRequired("rig")

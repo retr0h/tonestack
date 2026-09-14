@@ -17,30 +17,51 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
-// Package device reports what hardware is attached.
-package attached
+
+package device
 
 import (
 	"context"
-
-	"github.com/retr0h/tonestack/pkg/sdk/result"
-
-	"github.com/retr0h/tonestack/pkg/sdk/internal/device"
+	"io"
 )
 
-// NewLister is how a bus is obtained, so a test can stand in for it.
-//
-// The one thing in this package that needs hardware; everything reached
-// through it takes the lister as an argument instead. Exported because the
-// Client's own test has to stand in for it too, and this package is private
-// to pkg/sdk either way — the compiler says so, not a lowercase letter.
-var NewLister = device.NewUSBLister
+// usbOpener is the Opener that reaches hardware.
+type usbOpener struct {
+	// trace receives every frame in and out. Nil traces nothing.
+	trace io.Writer
+}
 
-// List reports every recognised device on the bus.
-func List(ctx context.Context) (result.Attached, error) {
-	l := NewLister()
+// NewUSB returns the Opener that reaches hardware over USB.
+//
+// Nothing is opened until a method is called. trace receives every frame a
+// session sends and reads, which is how both directions were read off a device
+// in the first place; nil traces nothing.
+func NewUSB(
+	trace io.Writer,
+) Opener {
+	return usbOpener{trace: trace}
+}
+
+// List reports every device on the bus.
+func (usbOpener) List(
+	ctx context.Context,
+) ([]Descriptor, error) {
+	l := NewUSBLister()
 	// The listing is already made; a lister that will not close takes nothing from it.
 	defer func() { _ = l.Close() }()
 
-	return ListWith(ctx, l)
+	return l.List(ctx)
+}
+
+// Open starts a session with the first attached device.
+//
+// HX Edit must be quit first: it claims the editor interface exclusively.
+//
+// Returns the interface rather than the type behind it, so that everything
+// above this package can be given a session instead of finding one, which is
+// what lets reading a device be tested without one attached.
+func (u usbOpener) Open(
+	ctx context.Context,
+) (Editor, error) {
+	return open(ctx, newBus(), u.trace)
 }

@@ -21,9 +21,11 @@
 package slots_test
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -322,33 +324,19 @@ func (s *DevicePublicTestSuite) TestShowWith() {
 func (s *DevicePublicTestSuite) TestShowWithKeepsTheAnswer() {
 	tests := []struct {
 		name string
-		path func() string
+		// a capture that refuses every write.
+		refuses bool
 		// a device answering with something that is not a preset, which is
 		// the answer most worth keeping.
 		notPreset bool
 		err       bool
 	}{
+		{name: "somewhere it can write"},
+		{name: "somewhere it cannot", refuses: true, err: true},
+		{name: "an answer nobody could decode", notPreset: true},
 		{
-			name: "somewhere it can write",
-			path: func() string { return filepath.Join(s.T().TempDir(), "slot.bin") },
-		},
-		{
-			name: "somewhere it cannot",
-			path: func() string {
-				return filepath.Join(s.T().TempDir(), "no", "such", "dir.bin")
-			},
-			err: true,
-		},
-		{
-			name:      "an answer nobody could decode",
-			path:      func() string { return filepath.Join(s.T().TempDir(), "slot.bin") },
-			notPreset: true,
-		},
-		{
-			name: "one nowhere to keep",
-			path: func() string {
-				return filepath.Join(s.T().TempDir(), "no", "such", "dir.bin")
-			},
+			name:      "one nowhere to keep",
+			refuses:   true,
 			notPreset: true,
 			err:       true,
 		},
@@ -356,8 +344,12 @@ func (s *DevicePublicTestSuite) TestShowWithKeepsTheAnswer() {
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			path := tt.path()
-			s.T().Setenv("TONESTACK_USB_DUMP", path)
+			var kept bytes.Buffer
+
+			capture := io.Writer(&kept)
+			if tt.refuses {
+				capture = refusing{}
+			}
 
 			s.dev.EXPECT().Presets(gomock.Any(), 0).Return(s.listing(), nil)
 
@@ -370,7 +362,7 @@ func (s *DevicePublicTestSuite) TestShowWithKeepsTheAnswer() {
 			}
 
 			_, err := slots.ShowWith(context.Background(), s.dev,
-				slots.DeviceOptions{Slot: 0})
+				slots.DeviceOptions{Deps: slots.Deps{Capture: capture}, Slot: 0})
 
 			if tt.err {
 				s.Require().Error(err)
@@ -380,8 +372,7 @@ func (s *DevicePublicTestSuite) TestShowWithKeepsTheAnswer() {
 
 			s.Require().NoError(err)
 
-			body, readErr := os.ReadFile(path) //nolint:gosec // a path this test wrote
-			s.Require().NoError(readErr)
+			body := kept.Bytes()
 
 			if tt.notPreset {
 				// A decoded document is kept as JSON, since there are no
@@ -583,15 +574,27 @@ func (s *DevicePublicTestSuite) TestExportWithWritesTheDevicesOwnFile() {
 		"the routing a device wraps a chain in comes too")
 }
 
-// stand puts a session in place of the one that needs hardware, and takes it
-// away again.
-func (s *DevicePublicTestSuite) stand(dev device.Editor, err error) func() {
-	restore := slots.OpenDevice
-	slots.OpenDevice = func(context.Context) (device.Editor, error) {
-		return dev, err
-	}
+// stand is a bus that hands back dev, or fails with err, in place of the one
+// that needs hardware.
+func (s *DevicePublicTestSuite) stand(
+	dev device.Editor,
+	err error,
+) slots.Opener {
+	o := slotmocks.NewMockOpener(s.ctrl)
+	o.EXPECT().Open(gomock.Any()).Return(dev, err).AnyTimes()
 
-	return func() { slots.OpenDevice = restore }
+	return o
+}
+
+// refusing is a capture that will not take a write.
+//
+// Written by hand because io.Writer is the standard library's interface.
+type refusing struct{}
+
+func (refusing) Write(
+	[]byte,
+) (int, error) {
+	return 0, errors.New("nowhere to keep it")
 }
 
 // TestTheCommandsThatFindTheirOwnDevice covers the three entry points, which
@@ -611,17 +614,17 @@ func (s *DevicePublicTestSuite) TestTheCommandsThatFindTheirOwnDevice() {
 		Return(s.answer("empty.bin"), nil)
 	s.dev.EXPECT().Close().Times(3)
 
-	defer s.stand(s.dev, nil)()
+	devices := s.stand(s.dev, nil)
 
 	ctx := context.Background()
 
-	_, err := slots.ListDevice(ctx, slots.DeviceOptions{})
+	_, err := slots.ListDevice(ctx, devices, slots.DeviceOptions{})
 	s.Require().NoError(err)
 
-	_, err = slots.ShowDevice(ctx, slots.DeviceOptions{})
+	_, err = slots.ShowDevice(ctx, devices, slots.DeviceOptions{})
 	s.Require().NoError(err)
 
-	_, err = slots.ExportDevice(ctx, slots.ExportOptions{OutputPath: out})
+	_, err = slots.ExportDevice(ctx, devices, slots.ExportOptions{OutputPath: out})
 	s.Require().NoError(err)
 }
 
@@ -652,10 +655,8 @@ func (s *DevicePublicTestSuite) TestShowDeviceOnAnEmptySlot() {
 			s.dev.EXPECT().ReadPreset(gomock.Any(), 0, 4).Return(tt.answer, tt.fails)
 			s.dev.EXPECT().Close()
 
-			defer s.stand(s.dev, nil)()
-
 			read, err := slots.ShowDevice(context.Background(),
-				slots.DeviceOptions{Slot: 4})
+				s.stand(s.dev, nil), slots.DeviceOptions{Slot: 4})
 
 			if tt.says != "" {
 				s.Require().ErrorContains(err, tt.says)
@@ -671,13 +672,13 @@ func (s *DevicePublicTestSuite) TestShowDeviceOnAnEmptySlot() {
 
 // TestReportsADeviceItCannotOpen covers all three entry points finding none.
 func (s *DevicePublicTestSuite) TestReportsADeviceItCannotOpen() {
-	defer s.stand(nil, errors.New("no device found"))()
+	devices := s.stand(nil, errors.New("no device found"))
 
 	ctx := context.Background()
 
-	_, listing := slots.ListDevice(ctx, slots.DeviceOptions{})
-	_, showing := slots.ShowDevice(ctx, slots.DeviceOptions{})
-	_, exporting := slots.ExportDevice(ctx, slots.ExportOptions{})
+	_, listing := slots.ListDevice(ctx, devices, slots.DeviceOptions{})
+	_, showing := slots.ShowDevice(ctx, devices, slots.DeviceOptions{})
+	_, exporting := slots.ExportDevice(ctx, devices, slots.ExportOptions{})
 
 	for _, err := range []error{listing, showing, exporting} {
 		s.Require().ErrorContains(err, "no device found")

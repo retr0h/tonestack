@@ -21,6 +21,7 @@
 package recipes
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -113,8 +114,9 @@ type NewOptions struct {
 	Cab string
 	// Pedals are real-world pedals, in signal order.
 	Pedals []string
-	// CatalogPath is a catalog to check against instead of the built-in one.
-	CatalogPath string
+	// Catalogs hands over the catalog gear is checked against. Asked only
+	// when scaffolding from gear, since a copy checks nothing.
+	Catalogs Catalogs
 	// From is a rig to copy, by identifier. The copy is a whole rig and
 	// records where it came from in `extends`; nothing merges the two.
 	From string
@@ -129,7 +131,10 @@ type NewOptions struct {
 // Checking first is the point. A recipe naming gear no device models is only
 // discovered when somebody tries to build from it, and by then the name has
 // usually been copied somewhere else too.
-func New(opts NewOptions) (result.Scaffolded, error) {
+func New(
+	ctx context.Context,
+	opts NewOptions,
+) (result.Scaffolded, error) {
 	if !idPattern.MatchString(opts.ID) {
 		return result.Scaffolded{}, &BadIDError{ID: opts.ID}
 	}
@@ -138,7 +143,7 @@ func New(opts NewOptions) (result.Scaffolded, error) {
 		return result.Scaffolded{}, ErrNoDir
 	}
 
-	body, err := scaffoldFor(opts)
+	body, err := scaffoldFor(ctx, opts)
 	if err != nil {
 		return result.Scaffolded{}, err
 	}
@@ -255,7 +260,10 @@ func near(cat *catalog.Catalog, want string) []string {
 // resolved when it was written and the copy has not changed any gear yet.
 // Scaffolding from flags checks every name against the catalog, which is the
 // only moment a typo is cheap to fix.
-func scaffoldFor(opts NewOptions) (string, error) {
+func scaffoldFor(
+	ctx context.Context,
+	opts NewOptions,
+) (string, error) {
 	if opts.From != "" {
 		parent, from, err := findFile(opts.Dir, opts.From)
 		if err != nil {
@@ -265,7 +273,7 @@ func scaffoldFor(opts NewOptions) (string, error) {
 		return scaffold(parent, from, opts), nil
 	}
 
-	cat, err := catalog.Open(opts.CatalogPath)
+	cat, err := opts.Catalogs.Catalog(ctx)
 	if err != nil {
 		return "", err
 	}

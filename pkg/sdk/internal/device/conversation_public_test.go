@@ -21,9 +21,8 @@
 package device_test
 
 import (
+	"bytes"
 	"errors"
-	"io"
-	"os"
 	"testing"
 	"time"
 
@@ -141,11 +140,9 @@ func (s *ConversationPublicTestSuite) TestClose() {
 				func() error { given = append(given, "library"); return released },
 			)
 
-			var stop func() string
+			var trace bytes.Buffer
 			if tt.refuse {
-				defer device.SetDebug(true)()
-
-				stop = s.captureStderr()
+				session.Trace(&trace)
 			}
 
 			if tt.noisy {
@@ -171,11 +168,8 @@ func (s *ConversationPublicTestSuite) TestClose() {
 			// In the order they were taken.
 			s.Require().Equal(tt.order, given)
 
-			if stop != nil {
-				out := stop()
-				for _, want := range tt.trace {
-					s.Require().Contains(out, want)
-				}
+			for _, want := range tt.trace {
+				s.Require().Contains(trace.String(), want)
 			}
 
 			if !tt.sent {
@@ -198,36 +192,6 @@ func (s *ConversationPublicTestSuite) TestClose() {
 			s.Require().Equal(tt.closes, closes,
 				"every channel is told the session is over")
 		})
-	}
-}
-
-// captureStderr redirects stderr until the function it returns is called,
-// which answers with what was written. The pipe is read on its own
-// goroutine, so a full one cannot hold a writer.
-func (s *ConversationPublicTestSuite) captureStderr() func() string {
-	r, w, err := os.Pipe()
-	s.Require().NoError(err)
-
-	was := os.Stderr
-	os.Stderr = w
-
-	s.T().Cleanup(func() { os.Stderr = was })
-
-	read := make(chan string, 1)
-
-	go func() {
-		out, _ := io.ReadAll(r)
-		read <- string(out)
-	}()
-
-	return func() string {
-		os.Stderr = was
-		s.Require().NoError(w.Close())
-
-		out := <-read
-		s.Require().NoError(r.Close())
-
-		return out
 	}
 }
 

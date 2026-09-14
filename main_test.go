@@ -21,6 +21,8 @@
 package main
 
 import (
+	"fmt"
+	"go/ast"
 	"go/parser"
 	"go/token"
 	"io/fs"
@@ -28,6 +30,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -270,6 +273,122 @@ func (s *MainTestSuite) TestTheMCPStandsAlone() {
 				Fail("reaches too far", "pkg/mcp reaches %s, which a tonestack-mcp would not have", dep)
 		}
 	}
+}
+
+// TestTheSDKReadsOneVariable holds the library to reading the environment in
+// one place.
+//
+// A library that reads the environment is configured by whoever started the
+// process rather than by whoever called it, and two Clients in one process
+// cannot differ. So the CLI reads TONESTACK_USB_DUMP and TONESTACK_USB_DEBUG
+// and passes options in. XDG_STATE_HOME is the exception: where state lives by
+// default is the platform's convention, the way os.UserConfigDir is.
+//
+// Only non-test files. A test sets and reads what it likes.
+func (s *MainTestSuite) TestTheSDKReadsOneVariable() {
+	// What reads the environment, by import path.
+	reads := map[string]map[string]bool{
+		"os": {
+			"Getenv": true, "LookupEnv": true, "Environ": true, "ExpandEnv": true,
+		},
+		"syscall": {"Getenv": true, "Environ": true},
+	}
+
+	fset := token.NewFileSet()
+
+	var found []string
+
+	err := filepath.WalkDir(filepath.Join("pkg", "sdk"),
+		func(path string, d fs.DirEntry, err error) error {
+			switch {
+			case err != nil:
+				return err
+			case d.IsDir(),
+				!strings.HasSuffix(path, ".go"),
+				strings.HasSuffix(path, "_test.go"):
+				return nil
+			}
+
+			f, err := parser.ParseFile(fset, path, nil, 0)
+			if err != nil {
+				return err
+			}
+
+			// The name each watched package goes by in this file, which an
+			// alias changes. A dot import leaves no name to find, so it is
+			// reported on its own.
+			named := map[string]string{}
+
+			for _, imp := range f.Imports {
+				path, err := strconv.Unquote(imp.Path.Value)
+				if err != nil || reads[path] == nil {
+					continue
+				}
+
+				name := path
+				if imp.Name != nil {
+					name = imp.Name.Name
+				}
+
+				switch name {
+				case "_":
+				case ".":
+					found = append(found, fmt.Sprintf("%s: dot import of %s",
+						fset.Position(imp.Pos()), path))
+				default:
+					named[name] = path
+				}
+			}
+
+			// A literal argument, where the reference is called with one.
+			args := map[*ast.SelectorExpr]string{}
+
+			ast.Inspect(f, func(n ast.Node) bool {
+				if call, ok := n.(*ast.CallExpr); ok {
+					sel, isSel := call.Fun.(*ast.SelectorExpr)
+					if isSel && len(call.Args) == 1 {
+						if lit, isLit := call.Args[0].(*ast.BasicLit); isLit {
+							args[sel] = lit.Value
+						}
+					}
+				}
+
+				return true
+			})
+
+			// Every reference, called or not: a function value read into a
+			// variable reads the environment when it is called later.
+			ast.Inspect(f, func(n ast.Node) bool {
+				sel, ok := n.(*ast.SelectorExpr)
+				if !ok {
+					return true
+				}
+
+				pkg, ok := sel.X.(*ast.Ident)
+				if !ok {
+					return true
+				}
+
+				path, ok := named[pkg.Name]
+				if !ok || !reads[path][sel.Sel.Name] {
+					return true
+				}
+
+				found = append(found, fmt.Sprintf("%s: %s.%s(%s)",
+					fset.Position(sel.Pos()), path, sel.Sel.Name, args[sel]))
+
+				return true
+			})
+
+			return nil
+		})
+	s.Require().NoError(err)
+
+	s.Require().Len(found, 1,
+		"pkg/sdk reads the environment in more places than one: %v; "+
+			"read it in cmd and pass an option in", found)
+	s.Require().Contains(found[0], `os.Getenv("XDG_STATE_HOME")`,
+		"the one variable pkg/sdk reads is XDG_STATE_HOME")
 }
 
 func TestMainTestSuite(t *testing.T) {

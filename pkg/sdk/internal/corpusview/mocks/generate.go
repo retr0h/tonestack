@@ -17,38 +17,7 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
-package cmd
 
-import (
-	"github.com/spf13/cobra"
+package mocks
 
-	"github.com/retr0h/tonestack/pkg/cli"
-	"github.com/retr0h/tonestack/pkg/sdk"
-)
-
-var catalogShowModel string
-
-// catalogShowCmd represents the catalog show command.
-var catalogShowCmd = &cobra.Command{
-	Use:   "show",
-	Short: "Show one block's parameters",
-	Args:  cobra.NoArgs,
-	RunE: func(cmd *cobra.Command, _ []string) error {
-		block, err := newClient(sdk.WithCatalog(catalogPath)).
-			Block(cmd.Context(), catalogShowModel)
-		if err != nil {
-			return cli.Hint(err)
-		}
-
-		return cli.Block(cmd.OutOrStdout(), block)
-	},
-}
-
-func init() {
-	catalogCmd.AddCommand(catalogShowCmd)
-
-	catalogShowCmd.Flags().StringVar(&catalogShowModel, "model", "",
-		"model identifier, e.g. HD2_AmpSVBeastNrm")
-	// Fails only for a flag that does not exist, and these are defined above.
-	_ = catalogShowCmd.MarkFlagRequired("model")
-}
+//go:generate go tool go.uber.org/mock/mockgen -source=../types.go -destination=types.gen.go -package=mocks

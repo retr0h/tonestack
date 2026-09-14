@@ -20,19 +20,22 @@
 
 package sdk
 
-import (
-	"github.com/retr0h/tonestack/pkg/sdk/internal/attached"
-	"github.com/retr0h/tonestack/pkg/sdk/internal/device"
-	"github.com/retr0h/tonestack/pkg/sdk/internal/slots"
-)
+import "github.com/retr0h/tonestack/pkg/sdk/internal/device"
 
-// NewLister is the one line in this library that needs hardware, exported so
-// a test can stand in for it.
-var NewLister = &attached.NewLister
+// Opener is the bus a Client was built over, so a test can see which one New
+// chose and what it handed that bus.
+func (c *Client) Opener() device.Opener {
+	return c.opts.devices
+}
 
-// Closer is a lister that holds something needing release.
-type Closer = device.Bus
-
-// OpenDevice is how a session is obtained, exported so a test can stand in
-// for the other line that needs hardware.
-var OpenDevice = &slots.OpenDevice
+// WithDevices is the bus a Client reaches hardware through, in place of USB.
+//
+// Here rather than beside the other options because a caller outside the
+// library cannot build a device.Editor: it answers in wire types. A test
+// builds its own Client over a generated double, so no two tests share a bus
+// and every suite can run in parallel.
+func WithDevices(
+	d device.Opener,
+) Option {
+	return func(o *options) { o.devices = d }
+}

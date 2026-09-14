@@ -18,9 +18,17 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-package attached
+package recipes
 
-import "github.com/retr0h/tonestack/pkg/sdk/internal/device"
+import (
+	"context"
 
-// Closer is a lister that holds something needing release.
-type Closer = device.Bus
+	"github.com/retr0h/tonestack/pkg/sdk/catalog"
+)
+
+// Catalogs hands over the catalog a new rig's gear is checked against. The
+// sdk Client satisfies it, and keeps the catalog it opened.
+type Catalogs interface {
+	// Catalog returns the catalog, opening it on first use.
+	Catalog(ctx context.Context) (*catalog.Catalog, error)
+}

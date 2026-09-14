@@ -81,23 +81,32 @@ func keptError(
 // to keep those right is to change nothing.
 //
 // The destination is overwritten. There is no undo on a device.
-func CopyDevice(ctx context.Context, opts EditOptions) (result.Change, error) {
-	return editDevice(ctx, opts, result.Copied, copyOne)
+func CopyDevice(
+	ctx context.Context,
+	devices Opener,
+	opts EditOptions,
+) (result.Change, error) {
+	return editDevice(ctx, devices, opts, result.Copied, copyOne)
 }
 
 // SwapDevice exchanges what two slots hold.
-func SwapDevice(ctx context.Context, opts EditOptions) (result.Change, error) {
-	return editDevice(ctx, opts, result.Swapped, swapTwo)
+func SwapDevice(
+	ctx context.Context,
+	devices Opener,
+	opts EditOptions,
+) (result.Change, error) {
+	return editDevice(ctx, devices, opts, result.Swapped, swapTwo)
 }
 
 // editDevice opens a session and hands it to one of the two above.
 func editDevice(
 	ctx context.Context,
+	devices Opener,
 	opts EditOptions,
 	action result.Action,
 	apply applier,
 ) (result.Change, error) {
-	s, err := OpenDevice(ctx)
+	s, err := devices.Open(ctx)
 	if err != nil {
 		return result.Change{}, err
 	}

@@ -24,10 +24,12 @@ import (
 
 	"github.com/retr0h/tonestack/pkg/cli"
 	"github.com/retr0h/tonestack/pkg/sdk"
-	"github.com/retr0h/tonestack/pkg/sdk/catalog"
 )
 
-var presetsMakeOptions sdk.Make
+var (
+	presetsMakeOptions sdk.Make
+	presetsMakeClient  clientFlags
+)
 
 // presetsMakeCmd represents the presets make command.
 var presetsMakeCmd = &cobra.Command{
@@ -40,12 +42,14 @@ parameter is set to what Line 6 states as its default — a recipe's character
 words then move the controls they name.`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		made, err := sdk.New().Build(presetsMakeOptions)
+		client := presetsMakeClient.client()
+
+		made, err := client.Build(cmd.Context(), presetsMakeOptions)
 		if err != nil {
 			return cli.Hint(err)
 		}
 
-		cat, err := catalog.Open(presetsMakeOptions.CatalogPath)
+		cat, err := client.Catalog(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -60,14 +64,14 @@ func init() {
 	f := presetsMakeCmd.Flags()
 	f.StringVar(&presetsMakeOptions.RecipeID, "id", "", "recipe to build from")
 	f.StringVar(
-		&presetsMakeOptions.RecipesDir,
+		&presetsMakeClient.recipes,
 		"recipes",
 		"",
 		"a directory of recipes to use instead of the built-in ones",
 	)
-	f.StringVar(&presetsMakeOptions.CatalogPath, "catalog", "",
+	f.StringVar(&presetsMakeClient.catalog, "catalog", "",
 		"a generated catalog to use instead of the built-in one")
-	f.StringVar(&presetsMakeOptions.StatsPath, "stats", "",
+	f.StringVar(&presetsMakeClient.stats, "stats", "",
 		"measured corpus statistics to use instead of the built-in ones")
 	f.StringVar(&presetsMakeOptions.OutputPath, "out", "", "where to write the preset")
 	// Fails only for a flag that does not exist, and these are defined above.

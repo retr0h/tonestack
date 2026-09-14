@@ -34,6 +34,7 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk/internal/device"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/device/mocks"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/slots"
+	slotmocks "github.com/retr0h/tonestack/pkg/sdk/internal/slots/mocks"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/wire"
 )
 
@@ -634,17 +635,13 @@ func (s *EditDevicePublicTestSuite) TestCopyDeviceAndSwapDevice() {
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			restore := slots.OpenDevice
-			defer func() { slots.OpenDevice = restore }()
+			devices := slotmocks.NewMockOpener(s.ctrl)
 
 			if !tt.attached {
-				slots.OpenDevice = func(context.Context) (device.Editor, error) {
-					return nil, errors.New("no device found")
-				}
+				devices.EXPECT().Open(gomock.Any()).
+					Return(nil, errors.New("no device found")).Times(2)
 			} else {
-				slots.OpenDevice = func(context.Context) (device.Editor, error) {
-					return s.dev, nil
-				}
+				devices.EXPECT().Open(gomock.Any()).Return(s.dev, nil).Times(2)
 
 				s.dev.MockEditor.EXPECT().Presets(gomock.Any(), 0).
 					Return(s.listing(), nil).Times(2)
@@ -665,18 +662,18 @@ func (s *EditDevicePublicTestSuite) TestCopyDeviceAndSwapDevice() {
 			}
 
 			if !tt.attached {
-				_, copyErr := slots.CopyDevice(ctx, opts)
-				_, swapErr := slots.SwapDevice(ctx, opts)
+				_, copyErr := slots.CopyDevice(ctx, devices, opts)
+				_, swapErr := slots.SwapDevice(ctx, devices, opts)
 				s.Require().Error(copyErr)
 				s.Require().Error(swapErr)
 
 				return
 			}
 
-			_, err := slots.CopyDevice(ctx, opts)
+			_, err := slots.CopyDevice(ctx, devices, opts)
 			s.Require().NoError(err)
 
-			_, err = slots.SwapDevice(ctx, opts)
+			_, err = slots.SwapDevice(ctx, devices, opts)
 			s.Require().NoError(err)
 		})
 	}

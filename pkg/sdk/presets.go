@@ -38,27 +38,37 @@ type Where struct {
 	Path string
 	// Setlist selects one setlist within a bundle.
 	Setlist int
-	// CatalogPath is a catalog to name gear against. Empty means the one
-	// built into this binary.
-	CatalogPath string
 }
 
 // OnDevice says whether this addresses the hardware rather than a file.
 func (w Where) OnDevice() bool { return w.Path == "" }
 
+// deps are the collaborators every flow is handed: the Client's own catalog,
+// and where a device's answers are captured.
+func (c *Client) deps(
+	ctx context.Context,
+) slots.Deps {
+	return slots.Deps{
+		Catalogs: catalogs{client: c, ctx: ctx},
+		Capture:  c.opts.capture,
+	}
+}
+
 // Presets reports what a setlist holds, slot by slot.
 func (c *Client) Presets(ctx context.Context, in Where) (Listing, error) {
 	if in.OnDevice() {
-		return slots.ListDevice(ctx, slots.DeviceOptions{
+		return slots.ListDevice(ctx, c.opts.devices, slots.DeviceOptions{
+			Deps:        c.deps(ctx),
 			Setlist:     in.Setlist,
-			CatalogPath: in.CatalogPath,
+			CatalogPath: c.opts.catalog,
 		})
 	}
 
 	return slots.List(slots.ListOptions{
+		Deps:        c.deps(ctx),
 		Path:        in.Path,
 		Setlist:     in.Setlist,
-		CatalogPath: in.CatalogPath,
+		CatalogPath: c.opts.catalog,
 	})
 }
 
@@ -71,18 +81,20 @@ func (c *Client) Preset(ctx context.Context, in Read) (Reading, error) {
 	// for by name and answered before either.
 	if in.File != "" || !in.OnDevice() {
 		return slots.Show(slots.ShowOptions{
+			Deps:        c.deps(ctx),
 			Path:        in.Path,
 			File:        in.File,
 			Setlist:     in.Setlist,
 			Slot:        in.Slot,
-			CatalogPath: in.CatalogPath,
+			CatalogPath: c.opts.catalog,
 		})
 	}
 
-	return slots.ShowDevice(ctx, slots.DeviceOptions{
+	return slots.ShowDevice(ctx, c.opts.devices, slots.DeviceOptions{
+		Deps:        c.deps(ctx),
 		Setlist:     in.Setlist,
 		Slot:        in.Slot,
-		CatalogPath: in.CatalogPath,
+		CatalogPath: c.opts.catalog,
 	})
 }
 
@@ -112,16 +124,17 @@ type Export struct {
 // Export writes one slot out.
 func (c *Client) Export(ctx context.Context, in Export) (Written, error) {
 	opts := slots.ExportOptions{
+		Deps:        c.deps(ctx),
 		Path:        in.Path,
 		Setlist:     in.Setlist,
 		Slot:        in.Slot,
 		OutputPath:  in.OutputPath,
 		As:          slots.Format(in.As),
-		CatalogPath: in.CatalogPath,
+		CatalogPath: c.opts.catalog,
 	}
 
 	if in.OnDevice() {
-		return slots.ExportDevice(ctx, opts)
+		return slots.ExportDevice(ctx, c.opts.devices, opts)
 	}
 
 	return slots.Export(opts)
@@ -138,29 +151,27 @@ type Put struct {
 	// OutputPath is where the edited setlist is written. Ignored for a
 	// device, which is written in place.
 	OutputPath string
-	// BackupDir is where the destination's old contents are kept. Empty
-	// uses the state directory. Only a device is backed up: a file write
-	// goes somewhere new and leaves the original alone.
-	BackupDir string
 }
 
 // Import puts a preset file into a slot.
 //
 // Whatever the slot held is gone. A device has no undo, so what was there is
-// read and kept first; a file is left alone and the result goes somewhere new.
+// read and kept first, in the directory WithBackupDir named; a file is left
+// alone and the result goes somewhere new.
 func (c *Client) Import(ctx context.Context, in Put) (Change, error) {
 	opts := slots.ImportOptions{
-		BackupDir:   in.BackupDir,
+		BackupDir:   c.opts.backupDir,
+		Deps:        c.deps(ctx),
 		Path:        in.Path,
 		File:        in.File,
 		Setlist:     in.Setlist,
 		Slot:        in.Slot,
 		OutputPath:  in.OutputPath,
-		CatalogPath: in.CatalogPath,
+		CatalogPath: c.opts.catalog,
 	}
 
 	if in.OnDevice() {
-		return slots.ImportDevice(ctx, opts)
+		return slots.ImportDevice(ctx, c.opts.devices, opts)
 	}
 
 	return slots.Import(opts)
@@ -179,22 +190,23 @@ type Edit struct {
 	// OutputPath is where the edited setlist is written. Ignored for a
 	// device, which is written in place.
 	OutputPath string
-	// BackupDir is where a device slot's old contents are kept. Empty uses
-	// the state directory.
-	BackupDir string
 }
 
-// options is what the flow takes.
-func (e Edit) options() slots.EditOptions {
+// editOptions is what the flow takes for one edit.
+func (c *Client) editOptions(
+	ctx context.Context,
+	e Edit,
+) slots.EditOptions {
 	return slots.EditOptions{
+		Deps:        c.deps(ctx),
 		Path:        e.Path,
 		FromSetlist: e.FromSetlist,
 		FromSlot:    e.FromSlot,
 		ToSetlist:   e.ToSetlist,
 		ToSlot:      e.ToSlot,
 		OutputPath:  e.OutputPath,
-		BackupDir:   e.BackupDir,
-		CatalogPath: e.CatalogPath,
+		BackupDir:   c.opts.backupDir,
+		CatalogPath: c.opts.catalog,
 	}
 }
 
@@ -214,10 +226,10 @@ func (c *Client) Copy(ctx context.Context, in Edit) (Change, error) {
 	}
 
 	if in.OnDevice() {
-		return slots.CopyDevice(ctx, in.options())
+		return slots.CopyDevice(ctx, c.opts.devices, c.editOptions(ctx, in))
 	}
 
-	return slots.Copy(in.options())
+	return slots.Copy(c.editOptions(ctx, in))
 }
 
 // Swap exchanges what two slots hold.
@@ -233,10 +245,10 @@ func (c *Client) Swap(ctx context.Context, in Edit) (Change, error) {
 	}
 
 	if in.OnDevice() {
-		return slots.SwapDevice(ctx, in.options())
+		return slots.SwapDevice(ctx, c.opts.devices, c.editOptions(ctx, in))
 	}
 
-	return slots.Swap(in.options())
+	return slots.Swap(c.editOptions(ctx, in))
 }
 
 // Select makes one preset the active one on an attached device.
@@ -254,7 +266,8 @@ func (c *Client) Select(ctx context.Context, in Read) (Change, error) {
 		return Change{}, ErrSelectNeedsDevice
 	}
 
-	return slots.SelectDevice(ctx, slots.DeviceOptions{
+	return slots.SelectDevice(ctx, c.opts.devices, slots.DeviceOptions{
+		Deps:    c.deps(ctx),
 		Setlist: in.Setlist,
 		Slot:    in.Slot,
 	})
@@ -269,17 +282,22 @@ type Compile struct {
 	// TemplatePath is a preset to write the chain into. Empty uses an
 	// untouched one the device itself wrote.
 	TemplatePath string
-	// CatalogPath is the catalog to resolve models against. Empty means the
-	// one built into this binary.
-	CatalogPath string
 }
 
 // Compile builds a preset from a rig on disk.
-func (c *Client) Compile(in Compile) (Built, error) {
+func (c *Client) Compile(
+	ctx context.Context,
+	in Compile,
+) (Built, error) {
+	if err := ctx.Err(); err != nil {
+		return Built{}, err
+	}
+
 	return slots.Compile(slots.CompileOptions{
+		Deps:         c.deps(ctx),
 		RigPath:      in.RigPath,
 		OutputPath:   in.OutputPath,
 		TemplatePath: in.TemplatePath,
-		CatalogPath:  in.CatalogPath,
+		CatalogPath:  c.opts.catalog,
 	})
 }

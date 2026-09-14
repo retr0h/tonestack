@@ -55,6 +55,9 @@ func (r Reading) Empty() bool { return r.Doc == nil }
 
 // DumpEnv names a file to write a device's raw answer to.
 //
+// The library does not read it. The CLI does, and hands the file to the
+// Client as a capture, which is where a renderer's hint to set it comes from.
+//
 // Reading a preset off the hardware is the one call whose reply nobody has
 // seen. Capturing it is what turns a guess about the wire format into a test,
 // and it costs one plugged-in session rather than one per attempt.

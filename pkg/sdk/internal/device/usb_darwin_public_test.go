@@ -50,6 +50,11 @@ func (s *USBDarwinPublicTestSuite) TestList() {
 	s.Require().NoError(err)
 	s.Require().NotNil(got)
 	s.Require().NoError(l.Close())
+
+	got, err = device.NewUSB(nil).List(context.Background())
+
+	s.Require().NoError(err)
+	s.Require().NotNil(got)
 }
 
 // TestSearch covers looking through the registry for devices.

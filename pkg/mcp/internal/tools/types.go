@@ -34,13 +34,13 @@ import (
 // Declared here, where it is used, so a test can put a generated double in
 // front of the handlers without a pedal on the bus.
 type Client interface {
-	Blocks(catalogPath string, f sdk.Filter) (sdk.Blocks, error)
-	Block(catalogPath, id string) (catalog.Block, error)
-	Measurements(in sdk.Corpus) (sdk.Measured, error)
-	Recipes(dir string) (sdk.Recipes, error)
-	Recipe(dir, id string) (sdk.Recipe, error)
-	Build(in sdk.Make) (sdk.Made, error)
-	Compile(in sdk.Compile) (sdk.Built, error)
+	Blocks(ctx context.Context, f sdk.Filter) (sdk.Blocks, error)
+	Block(ctx context.Context, id string) (catalog.Block, error)
+	Measurements(ctx context.Context, in sdk.Corpus) (sdk.Measured, error)
+	Recipes(ctx context.Context) (sdk.Recipes, error)
+	Recipe(ctx context.Context, id string) (sdk.Recipe, error)
+	Build(ctx context.Context, in sdk.Make) (sdk.Made, error)
+	Compile(ctx context.Context, in sdk.Compile) (sdk.Built, error)
 	Devices(ctx context.Context) (sdk.Attached, error)
 	Presets(ctx context.Context, in sdk.Where) (sdk.Listing, error)
 	Preset(ctx context.Context, in sdk.Read) (sdk.Reading, error)

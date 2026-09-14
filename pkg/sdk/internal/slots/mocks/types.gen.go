@@ -10,10 +10,12 @@
 package mocks
 
 import (
+	context "context"
 	reflect "reflect"
 
 	catalog "github.com/retr0h/tonestack/pkg/sdk/catalog"
 	chain "github.com/retr0h/tonestack/pkg/sdk/chain"
+	device "github.com/retr0h/tonestack/pkg/sdk/internal/device"
 	wire "github.com/retr0h/tonestack/pkg/sdk/internal/wire"
 	preset "github.com/retr0h/tonestack/pkg/sdk/preset"
 	rig "github.com/retr0h/tonestack/pkg/sdk/rig"
@@ -236,4 +238,43 @@ func (m *MockTranslator) Snapshots(got wire.DevicePreset) *[]rig.Snapshot {
 func (mr *MockTranslatorMockRecorder) Snapshots(got any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Snapshots", reflect.TypeOf((*MockTranslator)(nil).Snapshots), got)
+}
+
+// MockOpener is a mock of Opener interface.
+type MockOpener struct {
+	ctrl     *gomock.Controller
+	recorder *MockOpenerMockRecorder
+	isgomock struct{}
+}
+
+// MockOpenerMockRecorder is the mock recorder for MockOpener.
+type MockOpenerMockRecorder struct {
+	mock *MockOpener
+}
+
+// NewMockOpener creates a new mock instance.
+func NewMockOpener(ctrl *gomock.Controller) *MockOpener {
+	mock := &MockOpener{ctrl: ctrl}
+	mock.recorder = &MockOpenerMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockOpener) EXPECT() *MockOpenerMockRecorder {
+	return m.recorder
+}
+
+// Open mocks base method.
+func (m *MockOpener) Open(ctx context.Context) (device.Editor, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Open", ctx)
+	ret0, _ := ret[0].(device.Editor)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Open indicates an expected call of Open.
+func (mr *MockOpenerMockRecorder) Open(ctx any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Open", reflect.TypeOf((*MockOpener)(nil).Open), ctx)
 }

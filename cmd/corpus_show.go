@@ -27,7 +27,10 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk"
 )
 
-var corpusShowOptions sdk.Corpus
+var (
+	corpusShowOptions sdk.Corpus
+	corpusShowClient  clientFlags
+)
 
 // corpusShowCmd represents the corpus show command.
 var corpusShowCmd = &cobra.Command{
@@ -43,7 +46,8 @@ The spread is the useful column. A parameter everybody sets the same way is one
 this tool can be confident about; one nobody agrees on belongs to the player.`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		measured, err := sdk.New().Measurements(corpusShowOptions)
+		measured, err := corpusShowClient.client().
+			Measurements(cmd.Context(), corpusShowOptions)
 		if err != nil {
 			return err
 		}
@@ -60,9 +64,9 @@ func init() {
 		"show one model's parameter distributions, by identifier")
 	f.StringVar(&corpusShowOptions.Instrument, "instrument", "",
 		"limit the chain grammar to guitar or bass")
-	f.StringVar(&corpusShowOptions.StatsPath, "stats", "",
+	f.StringVar(&corpusShowClient.stats, "stats", "",
 		"measured statistics to use instead of the built-in ones")
-	f.StringVar(&corpusShowOptions.CatalogPath, "catalog", "",
+	f.StringVar(&corpusShowClient.catalog, "catalog", "",
 		"a generated catalog to use instead of the built-in one")
 	corpusShowCmd.MarkFlagsMutuallyExclusive("model", "instrument")
 }

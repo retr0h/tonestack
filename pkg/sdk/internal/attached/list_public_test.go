@@ -55,18 +55,6 @@ func (s *ListPublicTestSuite) lister(
 	return l
 }
 
-// bus is a lister that also holds something needing release, the way
-// NewLister's real return value does.
-func (s *ListPublicTestSuite) bus(
-	descs []device.Descriptor,
-) *mocks.MockBus {
-	b := mocks.NewMockBus(s.ctrl)
-	b.EXPECT().List(gomock.Any()).Return(descs, nil).AnyTimes()
-	b.EXPECT().Close().Return(nil).AnyTimes()
-
-	return b
-}
-
 func stomp() device.Descriptor {
 	return device.Descriptor{Vendor: 0x0e41, Product: 0x4246, Bus: 2, Address: 1}
 }
@@ -141,22 +129,6 @@ func (s *ListPublicTestSuite) TestListWith() {
 			}
 		})
 	}
-}
-
-// TestList finds its own bus. One line — find a bus, hand it on, release it —
-// and the only line in this package that needs hardware.
-func (s *ListPublicTestSuite) TestList() {
-	restore := attached.NewLister
-	defer func() { attached.NewLister = restore }()
-
-	attached.NewLister = func() attached.Closer {
-		return s.bus([]device.Descriptor{stomp()})
-	}
-
-	found, err := attached.List(context.Background())
-	s.Require().NoError(err)
-	s.Require().Len(found.Devices, 1)
-	s.Require().Equal("HX Stomp", found.Devices[0].Model)
 }
 
 func TestListPublicTestSuite(t *testing.T) {

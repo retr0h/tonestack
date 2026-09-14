@@ -23,6 +23,7 @@ package device
 import (
 	"context"
 	"fmt"
+	"io"
 )
 
 // bus is a USB bus this package can look at.
@@ -61,20 +62,15 @@ type endpoints interface {
 // what it was given.
 var newBus = openUSB
 
-// Open starts a session with the first attached device.
-//
-// HX Edit must be quit first: it claims the editor interface exclusively.
-//
-// Returns the interface rather than the type behind it, so that everything
-// above this package can be given a session instead of finding one — which is
-// what lets reading a device be tested without one attached.
-func Open(ctx context.Context) (Editor, error) { return open(ctx, newBus()) }
-
-// open starts a session over the given bus.
+// open starts a session over the given bus, tracing its frames to trace.
 //
 // The bus is closed on failure and handed to the session on success, because
 // a session holds it open for as long as it is talking.
-func open(ctx context.Context, b bus) (Editor, error) {
+func open(
+	ctx context.Context,
+	b bus,
+	trace io.Writer,
+) (Editor, error) {
 	dev, model, err := findDevice(b)
 	if err != nil {
 		// Best effort: err below is what the caller needs, not a bus that would not close.
@@ -85,6 +81,7 @@ func open(ctx context.Context, b bus) (Editor, error) {
 
 	s := &session{
 		holds: []releaser{dev, b},
+		trace: trace,
 		model: model,
 		chans: map[string]*channel{},
 	}

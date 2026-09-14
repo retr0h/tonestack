@@ -21,6 +21,7 @@
 package device_test
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"testing"
@@ -418,10 +419,16 @@ func (s *DiscoverBusPublicTestSuite) TestOpenFindsItsOwnBus() {
 		return s.bus(nil, s.helix(answers(s.ctrl))).mock
 	}
 
-	got, err := device.Open(context.Background())
+	var trace bytes.Buffer
+
+	got, err := device.NewUSB(&trace).Open(context.Background())
 
 	s.Require().NoError(err)
 	s.Require().NotNil(got)
+
+	// The trace NewUSB was given reaches the session it opens: the handshake
+	// goes out through it.
+	s.Require().Contains(trace.String(), "OUT ")
 }
 
 func TestDiscoverBusTestSuite(t *testing.T) {

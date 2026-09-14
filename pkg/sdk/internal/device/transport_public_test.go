@@ -21,6 +21,7 @@
 package device_test
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"io"
@@ -242,16 +243,20 @@ func (s *TransportPublicTestSuite) TestReceive() {
 // TestTheWireTrace is how both directions were read off a device in the
 // first place, and the thing that found the tag a write goes out under.
 func (s *TransportPublicTestSuite) TestTheWireTrace() {
-	defer device.SetDebug(true)()
-
 	d := answers(s.ctrl, device.FrameFor("control", wire.MsgData, []byte("noise")))
 
+	var trace bytes.Buffer
+
 	session := device.NewTestSession(d.out, d.in)
+	session.Trace(&trace)
 	session.OpenChannels()
 	session.Drain(context.Background())
 
 	// Both directions: what was asked as well as what came back.
 	_, _ = session.Call(context.Background(), device.ControlChannel, 1, nil)
+
+	s.Require().Contains(trace.String(), "IN ")
+	s.Require().Contains(trace.String(), "OUT control")
 }
 
 func TestTransportTestSuite(t *testing.T) {

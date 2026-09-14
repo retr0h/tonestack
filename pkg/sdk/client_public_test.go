@@ -21,8 +21,11 @@
 package sdk_test
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"io"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -32,6 +35,7 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/device"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/device/mocks"
+	"github.com/retr0h/tonestack/pkg/sdk/internal/wire"
 )
 
 type ClientPublicTestSuite struct {
@@ -44,26 +48,57 @@ func (s *ClientPublicTestSuite) SetupTest() {
 	s.ctrl = gomock.NewController(s.T())
 }
 
+// cancelled is a context whose caller has already stopped waiting.
+func cancelled() context.Context {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	return ctx
+}
+
 // bus stands in for the one thing this library needs hardware for.
 func (s *ClientPublicTestSuite) bus(
 	descs []device.Descriptor,
 	err error,
-) *mocks.MockBus {
-	b := mocks.NewMockBus(s.ctrl)
+) *mocks.MockOpener {
+	b := mocks.NewMockOpener(s.ctrl)
 	b.EXPECT().List(gomock.Any()).Return(descs, err).AnyTimes()
-	b.EXPECT().Close().Return(nil).AnyTimes()
 
 	return b
 }
 
-// stand puts a bus in front of the Client and gives back what undoes it.
-func (s *ClientPublicTestSuite) stand(
-	b *mocks.MockBus,
-) func() {
-	restore := *sdk.NewLister
-	*sdk.NewLister = func() sdk.Closer { return b }
+// writable is a session that can both read and write.
+type writable struct {
+	*mocks.MockEditor
+	*mocks.MockWriter
+}
 
-	return func() { *sdk.NewLister = restore }
+// pedal is a bus whose one device holds a real HX Stomp preset in every slot,
+// and takes whatever is written to it.
+func (s *ClientPublicTestSuite) pedal() *mocks.MockOpener {
+	body, err := os.ReadFile(filepath.Join("internal", "wire", "testdata", "preset.bin"))
+	s.Require().NoError(err)
+
+	dev := &writable{
+		MockEditor: mocks.NewMockEditor(s.ctrl),
+		MockWriter: mocks.NewMockWriter(s.ctrl),
+	}
+	dev.MockEditor.EXPECT().Model().Return(device.Model{Name: "HX Stomp"}).AnyTimes()
+	dev.MockEditor.EXPECT().Presets(gomock.Any(), 0).Return([]wire.Preset{
+		{Slot: 0, Name: "Chunky Monkey"},
+		{Slot: 1, Name: "Longview"},
+	}, nil).AnyTimes()
+	dev.MockEditor.EXPECT().ReadPreset(gomock.Any(), 0, gomock.Any()).
+		Return(body, nil).AnyTimes()
+	dev.MockEditor.EXPECT().Close().AnyTimes()
+	dev.MockWriter.EXPECT().
+		WriteNamedPreset(gomock.Any(), 0, gomock.Any(), gomock.Any(), gomock.Any()).
+		Return(nil).AnyTimes()
+
+	b := mocks.NewMockOpener(s.ctrl)
+	b.EXPECT().Open(gomock.Any()).Return(dev, nil).AnyTimes()
+
+	return b
 }
 
 // TestNew covers building a Client.
@@ -78,8 +113,17 @@ func (s *ClientPublicTestSuite) TestNew() {
 			name: "with nothing said about it",
 		},
 		{
-			name: "with an option that says nothing yet",
-			opts: []sdk.Option{func(*sdk.Options) {}},
+			// Nothing is opened, so even settings naming nothing real
+			// build a Client. What they name is found out on use.
+			name: "with every setting",
+			opts: []sdk.Option{
+				sdk.WithCatalog("no.json"),
+				sdk.WithStats("no.json.gz"),
+				sdk.WithRecipes("no-such-directory"),
+				sdk.WithBackupDir("no-such-directory"),
+				sdk.WithCapture(io.Discard),
+				sdk.WithTrace(io.Discard),
+			},
 		},
 	}
 
@@ -90,13 +134,207 @@ func (s *ClientPublicTestSuite) TestNew() {
 	}
 }
 
+// TestWithCatalog covers naming a catalog other than the built-in one.
+func (s *ClientPublicTestSuite) TestWithCatalog() {
+	builtIn, err := sdk.New().Blocks(context.Background(), sdk.Filter{})
+	s.Require().NoError(err)
+
+	tests := []struct {
+		name string
+		path string
+		err  bool
+	}{
+		{name: "a catalog of its own", path: fixture("catalog.json")},
+		{name: "a catalog that is not there", path: "no.json", err: true},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			got, err := sdk.New(sdk.WithCatalog(tt.path)).
+				Blocks(context.Background(), sdk.Filter{})
+
+			if tt.err {
+				s.Require().Error(err)
+
+				return
+			}
+
+			s.Require().NoError(err)
+			s.Require().NotEqual(builtIn.Total, got.Total,
+				"the Client read the catalog it was given")
+		})
+	}
+}
+
+// TestWithStats covers naming statistics other than the built-in ones.
+func (s *ClientPublicTestSuite) TestWithStats() {
+	_, err := sdk.New(sdk.WithStats("no.json.gz")).
+		Measurements(context.Background(), sdk.Corpus{})
+
+	s.Require().Error(err, "the Client read the statistics it was given")
+}
+
+// TestWithRecipes covers naming a directory of rigs.
+func (s *ClientPublicTestSuite) TestWithRecipes() {
+	got, err := sdk.New(sdk.WithRecipes("no-such-directory")).
+		Recipes(context.Background())
+
+	s.Require().NoError(err)
+	s.Require().Equal("no-such-directory", got.Dir)
+	s.Require().Empty(got.Rigs)
+}
+
+// TestWithBackupDir covers where a device slot's old contents go.
+func (s *ClientPublicTestSuite) TestWithBackupDir() {
+	tests := []struct {
+		name string
+		dir  func() string
+		err  bool
+	}{
+		{
+			name: "a directory it can write",
+			dir:  func() string { return s.T().TempDir() },
+		},
+		{
+			// A write whose backup failed does not happen.
+			name: "somewhere nothing can be kept",
+			dir: func() string {
+				path := filepath.Join(s.T().TempDir(), "a-file")
+				s.Require().NoError(os.WriteFile(path, nil, 0o600))
+
+				return path
+			},
+			err: true,
+		},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			dir := tt.dir()
+
+			got, err := sdk.New(sdk.WithDevices(s.pedal()), sdk.WithBackupDir(dir)).
+				Copy(context.Background(), sdk.Edit{FromSlot: 0, ToSlot: 1})
+
+			if tt.err {
+				s.Require().Error(err)
+
+				return
+			}
+
+			s.Require().NoError(err)
+			s.Require().Len(got.Kept, 1)
+			s.Require().Equal(dir, filepath.Dir(got.Kept[0]))
+		})
+	}
+}
+
+// TestWithCapture covers keeping what a device answered.
+func (s *ClientPublicTestSuite) TestWithCapture() {
+	body, err := os.ReadFile(filepath.Join("internal", "wire", "testdata", "preset.bin"))
+	s.Require().NoError(err)
+
+	tests := []struct {
+		name  string
+		asked bool
+	}{
+		{name: "when asked", asked: true},
+		{name: "when nobody asked"},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			var kept bytes.Buffer
+
+			opts := []sdk.Option{sdk.WithDevices(s.pedal())}
+			if tt.asked {
+				opts = append(opts, sdk.WithCapture(&kept))
+			}
+
+			_, err := sdk.New(opts...).Preset(context.Background(), sdk.Read{Slot: 0})
+			s.Require().NoError(err)
+
+			if !tt.asked {
+				s.Require().Zero(kept.Len())
+
+				return
+			}
+
+			s.Require().Equal(body, kept.Bytes(), "kept verbatim")
+		})
+	}
+}
+
+// TestWithTrace covers where the frames go.
+//
+// A double sends no frames, so this asks which bus New built: the USB one,
+// handed the trace. device's own tests show a session writes its frames there.
+func (s *ClientPublicTestSuite) TestWithTrace() {
+	var trace bytes.Buffer
+
+	tests := []struct {
+		name  string
+		opts  []sdk.Option
+		trace io.Writer
+	}{
+		{name: "asked for", opts: []sdk.Option{sdk.WithTrace(&trace)}, trace: &trace},
+		{name: "not asked for"},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			s.Require().Equal(device.NewUSB(tt.trace), sdk.New(tt.opts...).Opener())
+		})
+	}
+}
+
+// TestCatalog covers the catalog a Client names gear against.
+func (s *ClientPublicTestSuite) TestCatalog() {
+	tests := []struct {
+		name string
+		path string
+		ctx  context.Context
+		err  bool
+	}{
+		{name: "the catalog in the binary"},
+		{name: "a catalog of its own", path: fixture("catalog.json")},
+		{name: "a catalog that is not there", path: "no.json", err: true},
+		{name: "a caller who stopped waiting", ctx: cancelled(), err: true},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			ctx := tt.ctx
+			if ctx == nil {
+				ctx = context.Background()
+			}
+
+			client := sdk.New(sdk.WithCatalog(tt.path))
+
+			got, err := client.Catalog(ctx)
+
+			if tt.err {
+				s.Require().Error(err)
+
+				return
+			}
+
+			s.Require().NoError(err)
+
+			// Opened once and kept, so a renderer reads what the operation did.
+			again, err := client.Catalog(ctx)
+			s.Require().NoError(err)
+			s.Require().Same(got, again)
+		})
+	}
+}
+
 // TestDevices covers reporting what is attached.
 func (s *ClientPublicTestSuite) TestDevices() {
 	stomp := device.Descriptor{Vendor: 0x0e41, Product: 0x4246, Bus: 20, Address: 3}
 
 	tests := []struct {
 		name  string
-		bus   *mocks.MockBus
+		bus   *mocks.MockOpener
 		want  int
 		first string
 		err   bool
@@ -123,9 +361,7 @@ func (s *ClientPublicTestSuite) TestDevices() {
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			defer s.stand(tt.bus)()
-
-			found, err := sdk.New().Devices(context.Background())
+			found, err := sdk.New(sdk.WithDevices(tt.bus)).Devices(context.Background())
 
 			if tt.err {
 				s.Require().Error(err)
@@ -147,14 +383,12 @@ func (s *ClientPublicTestSuite) TestDevices() {
 func (s *ClientPublicTestSuite) TestBlocks() {
 	tests := []struct {
 		name    string
-		path    string
+		ctx     context.Context
 		filter  sdk.Filter
 		matched bool
 		err     bool
 	}{
 		{
-			// No path means the catalog in the binary, which is what anyone
-			// who has not generated their own wants.
 			name:    "the catalog in the binary",
 			filter:  sdk.Filter{Search: "klon"},
 			matched: true,
@@ -163,12 +397,17 @@ func (s *ClientPublicTestSuite) TestBlocks() {
 			name:   "a filter nothing matches",
 			filter: sdk.Filter{Category: "no such category"},
 		},
-		{name: "a catalog that is not there", path: "no.json", err: true},
+		{name: "a caller who stopped waiting", ctx: cancelled(), err: true},
 	}
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			got, err := sdk.New().Blocks(tt.path, tt.filter)
+			ctx := tt.ctx
+			if ctx == nil {
+				ctx = context.Background()
+			}
+
+			got, err := sdk.New().Blocks(ctx, tt.filter)
 
 			if tt.err {
 				s.Require().Error(err)
@@ -193,17 +432,43 @@ func (s *ClientPublicTestSuite) TestBlocks() {
 // TestBlock covers reporting one block and what it accepts.
 func (s *ClientPublicTestSuite) TestBlock() {
 	tests := []struct {
-		name string
-		id   string
-		is   error
+		name    string
+		ctx     context.Context
+		catalog string
+		id      string
+		is      error
+		err     bool
 	}{
 		{name: "a block the catalog carries", id: "HD2_DistMinotaur"},
 		{name: "one it does not", id: "HD2_NoSuchBlock", is: sdk.ErrNoSuchBlock},
+		{
+			name: "a caller who stopped waiting",
+			ctx:  cancelled(),
+			id:   "HD2_DistMinotaur",
+			is:   context.Canceled,
+		},
+		{
+			name:    "a catalog that is not there",
+			catalog: "no.json",
+			id:      "HD2_DistMinotaur",
+			err:     true,
+		},
 	}
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			got, err := sdk.New().Block("", tt.id)
+			ctx := tt.ctx
+			if ctx == nil {
+				ctx = context.Background()
+			}
+
+			got, err := sdk.New(sdk.WithCatalog(tt.catalog)).Block(ctx, tt.id)
+
+			if tt.err {
+				s.Require().Error(err)
+
+				return
+			}
 
 			if tt.is != nil {
 				s.Require().ErrorIs(err, tt.is)
@@ -221,6 +486,7 @@ func (s *ClientPublicTestSuite) TestBlock() {
 func (s *ClientPublicTestSuite) TestMeasurements() {
 	tests := []struct {
 		name     string
+		ctx      context.Context
 		in       sdk.Corpus
 		aboutOne bool
 		err      bool
@@ -239,16 +505,17 @@ func (s *ClientPublicTestSuite) TestMeasurements() {
 			in:   sdk.Corpus{Model: "HD2_NoSuchModel"},
 			err:  true,
 		},
-		{
-			name: "statistics that are not there",
-			in:   sdk.Corpus{StatsPath: "no.json.gz"},
-			err:  true,
-		},
+		{name: "a caller who stopped waiting", ctx: cancelled(), err: true},
 	}
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			got, err := sdk.New().Measurements(tt.in)
+			ctx := tt.ctx
+			if ctx == nil {
+				ctx = context.Background()
+			}
+
+			got, err := sdk.New().Measurements(ctx, tt.in)
 
 			if tt.err {
 				s.Require().Error(err)
@@ -267,32 +534,33 @@ func (s *ClientPublicTestSuite) TestMeasurements() {
 func (s *ClientPublicTestSuite) TestRecipes() {
 	tests := []struct {
 		name string
-		dir  string
-		// a shelf with nothing on it, which is an answer rather than a
-		// failure: somebody who just made the directory is owed one.
-		empty bool
+		ctx  context.Context
+		err  bool
 	}{
 		{
 			// No directory means the rigs that ship, which is the case for
 			// anyone who has not written their own.
 			name: "the rigs that ship",
 		},
-		{name: "a shelf that is not there", dir: "no-such-directory", empty: true},
+		{name: "a caller who stopped waiting", ctx: cancelled(), err: true},
 	}
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			got, err := sdk.New().Recipes(tt.dir)
+			ctx := tt.ctx
+			if ctx == nil {
+				ctx = context.Background()
+			}
 
-			s.Require().NoError(err)
-			s.Require().Equal(tt.dir, got.Dir)
+			got, err := sdk.New().Recipes(ctx)
 
-			if tt.empty {
-				s.Require().Empty(got.Rigs)
+			if tt.err {
+				s.Require().Error(err)
 
 				return
 			}
 
+			s.Require().NoError(err)
 			s.Require().NotEmpty(got.Rigs)
 		})
 	}
@@ -302,16 +570,28 @@ func (s *ClientPublicTestSuite) TestRecipes() {
 func (s *ClientPublicTestSuite) TestRecipe() {
 	tests := []struct {
 		name string
+		ctx  context.Context
 		id   string
 		is   error
 	}{
 		{name: "a rig that ships", id: "mike-dirnt"},
 		{name: "one nobody wrote", id: "nobody-at-all", is: sdk.ErrNoSuchRecipe},
+		{
+			name: "a caller who stopped waiting",
+			ctx:  cancelled(),
+			id:   "mike-dirnt",
+			is:   context.Canceled,
+		},
 	}
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			got, err := sdk.New().Recipe("", tt.id)
+			ctx := tt.ctx
+			if ctx == nil {
+				ctx = context.Background()
+			}
+
+			got, err := sdk.New().Recipe(ctx, tt.id)
 
 			if tt.is != nil {
 				s.Require().ErrorIs(err, tt.is)
@@ -329,8 +609,11 @@ func (s *ClientPublicTestSuite) TestRecipe() {
 func (s *ClientPublicTestSuite) TestScaffold() {
 	tests := []struct {
 		name string
+		ctx  context.Context
 		in   sdk.NewRecipe
-		err  bool
+		// nowhere means the Client was given no directory of rigs.
+		nowhere bool
+		err     bool
 	}{
 		{
 			name: "a rig naming gear this device models",
@@ -354,14 +637,38 @@ func (s *ClientPublicTestSuite) TestScaffold() {
 			in:   sdk.NewRecipe{ID: "Not An ID", Amp: "Ampeg SVT"},
 			err:  true,
 		},
+		{
+			// Refused rather than written wherever the program happened to
+			// run.
+			name: "a Client given nowhere to write",
+			in: sdk.NewRecipe{
+				ID: "test-player", Name: "Test Player",
+				Instrument: "bass", Amp: "Ampeg SVT",
+			},
+			nowhere: true,
+			err:     true,
+		},
+		{
+			name: "a caller who stopped waiting",
+			ctx:  cancelled(),
+			in:   sdk.NewRecipe{ID: "test-player", Amp: "Ampeg SVT"},
+			err:  true,
+		},
 	}
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			in := tt.in
-			in.Dir = s.T().TempDir()
+			ctx := tt.ctx
+			if ctx == nil {
+				ctx = context.Background()
+			}
 
-			got, err := sdk.New().Scaffold(in)
+			var opts []sdk.Option
+			if !tt.nowhere {
+				opts = append(opts, sdk.WithRecipes(s.T().TempDir()))
+			}
+
+			got, err := sdk.New(opts...).Scaffold(ctx, tt.in)
 
 			if tt.err {
 				s.Require().Error(err)
@@ -380,18 +687,25 @@ func (s *ClientPublicTestSuite) TestScaffold() {
 func (s *ClientPublicTestSuite) TestBuild() {
 	tests := []struct {
 		name string
+		ctx  context.Context
 		id   string
 		err  bool
 	}{
 		{name: "a rig that ships", id: "mike-dirnt"},
 		{name: "one nobody wrote", id: "nobody-at-all", err: true},
+		{name: "a caller who stopped waiting", ctx: cancelled(), id: "mike-dirnt", err: true},
 	}
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
+			ctx := tt.ctx
+			if ctx == nil {
+				ctx = context.Background()
+			}
+
 			out := filepath.Join(s.T().TempDir(), "out.hlx")
 
-			got, err := sdk.New().Build(sdk.Make{RecipeID: tt.id, OutputPath: out})
+			got, err := sdk.New().Build(ctx, sdk.Make{RecipeID: tt.id, OutputPath: out})
 
 			if tt.err {
 				s.Require().Error(err)
@@ -407,5 +721,7 @@ func (s *ClientPublicTestSuite) TestBuild() {
 }
 
 func TestClientPublicTestSuite(t *testing.T) {
+	t.Parallel()
+
 	suite.Run(t, new(ClientPublicTestSuite))
 }

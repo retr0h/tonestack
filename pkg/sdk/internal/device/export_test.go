@@ -22,6 +22,7 @@ package device
 
 import (
 	"context"
+	"io"
 	"time"
 
 	"github.com/retr0h/tonestack/pkg/sdk/internal/wire"
@@ -71,13 +72,12 @@ func (s *session) Receive(
 	return s.receive(ctx, openReadWait)
 }
 
-// SetDebug turns the wire trace on, which is how both directions were read
-// off a device in the first place.
-func SetDebug(on bool) func() {
-	was := debug
-	debug = on
-
-	return func() { debug = was }
+// Trace sends the wire trace to w, which is how both directions were read off
+// a device in the first place.
+func (s *session) Trace(
+	w io.Writer,
+) {
+	s.trace = w
 }
 
 // ControlChannel is the channel calls are made on.
@@ -181,7 +181,7 @@ type (
 var NewBus = &newBus
 
 // OpenOver starts a session over the given bus.
-func OpenOver(ctx context.Context, b bus) (Editor, error) { return open(ctx, b) }
+func OpenOver(ctx context.Context, b bus) (Editor, error) { return open(ctx, b, nil) }
 
 // TestSender and TestReceiver are the endpoints a session talks over.
 type (

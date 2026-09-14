@@ -27,7 +27,10 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk"
 )
 
-var recipesNewOptions sdk.NewRecipe
+var (
+	recipesNewOptions sdk.NewRecipe
+	recipesNewCatalog string
+)
 
 // recipesNewCmd represents the recipes new command.
 var recipesNewCmd = &cobra.Command{
@@ -46,12 +49,13 @@ whole rig and editing it does not touch the original. Use it for a rig that
 departs from another, such as one song played differently from the rest.`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		recipesNewOptions.Dir = recipesDir
-		if recipesNewOptions.Dir == "" {
-			recipesNewOptions.Dir = "pkg/sdk/rigs"
+		dir := recipesDir
+		if dir == "" {
+			dir = "pkg/sdk/rigs"
 		}
 
-		made, err := sdk.New().Scaffold(recipesNewOptions)
+		made, err := newClient(sdk.WithRecipes(dir), sdk.WithCatalog(recipesNewCatalog)).
+			Scaffold(cmd.Context(), recipesNewOptions)
 		if err != nil {
 			return cli.Hint(err)
 		}
@@ -76,7 +80,7 @@ func init() {
 		"real-world cabinet; omit to take the amp's own pairing")
 	f.StringSliceVar(&recipesNewOptions.Pedals, "pedal", nil,
 		"real-world pedal, in signal order; repeat for more")
-	f.StringVar(&recipesNewOptions.CatalogPath, "catalog", "",
+	f.StringVar(&recipesNewCatalog, "catalog", "",
 		"a generated catalog to check against instead of the built-in one")
 	f.StringVar(&recipesNewOptions.From, "from", "",
 		"copy an existing recipe by identifier, rather than naming gear")

@@ -116,7 +116,6 @@ func (s *CatalogViewPublicTestSuite) TestList() {
 		// since it carries a version this test has no business pinning.
 		total  int
 		source string
-		err    bool
 	}{
 		{
 			name:     "every block, with a count",
@@ -188,24 +187,14 @@ func (s *CatalogViewPublicTestSuite) TestList() {
 			path:   s.path(),
 			source: "",
 		},
-		{
-			name: "a catalog that will not open",
-			path: filepath.Join("testdata", "nope.json"),
-			err:  true,
-		},
 	}
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			blocks, err := catalogview.List(tt.path, tt.filter)
-
-			if tt.err {
-				s.Require().Error(err)
-
-				return
-			}
-
+			cat, err := catalog.Open(tt.path)
 			s.Require().NoError(err)
+
+			blocks := catalogview.List(cat, tt.filter)
 
 			got := make([]string, 0, len(blocks.Matched))
 			for _, b := range blocks.Matched {
@@ -255,17 +244,14 @@ func (s *CatalogViewPublicTestSuite) TestShow() {
 			id:   "HD2_Nope",
 			err:  true,
 		},
-		{
-			name: "a catalog that will not open",
-			path: filepath.Join("testdata", "nope.json"),
-			id:   "x",
-			err:  true,
-		},
 	}
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			block, err := catalogview.Show(tt.path, tt.id)
+			cat, err := catalog.Open(tt.path)
+			s.Require().NoError(err)
+
+			block, err := catalogview.Show(cat, tt.id)
 
 			if tt.err {
 				s.Require().Error(err)

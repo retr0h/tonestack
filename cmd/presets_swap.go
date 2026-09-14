@@ -26,7 +26,10 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk"
 )
 
-var presetsSwapOptions sdk.Edit
+var (
+	presetsSwapOptions sdk.Edit
+	presetsSwapClient  clientFlags
+)
 
 // presetsSwapCmd represents the presets swap command.
 var presetsSwapCmd = &cobra.Command{
@@ -53,7 +56,7 @@ firmware. Swapping invents nothing and undoes itself when repeated.`,
 
 func init() {
 	presetsCmd.AddCommand(presetsSwapCmd)
-	editFlags(presetsSwapCmd, &presetsSwapOptions)
+	editFlags(presetsSwapCmd, &presetsSwapOptions, &presetsSwapClient)
 }
 
 // swapped exchanges two slots, on the device or in a file.
@@ -61,5 +64,5 @@ func init() {
 // No file means the device itself, which is what somebody with one plugged in
 // almost always wants.
 func swapped(cmd *cobra.Command) (sdk.Change, error) {
-	return sdk.New().Swap(cmd.Context(), presetsSwapOptions)
+	return presetsSwapClient.client().Swap(cmd.Context(), presetsSwapOptions)
 }

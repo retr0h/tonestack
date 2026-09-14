@@ -36,6 +36,7 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk/internal/device"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/device/mocks"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/slots"
+	slotmocks "github.com/retr0h/tonestack/pkg/sdk/internal/slots/mocks"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/wire"
 	"github.com/retr0h/tonestack/pkg/sdk/preset"
 )
@@ -343,8 +344,7 @@ func (s *ImportDevicePublicTestSuite) TestImportDevice() {
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			restore := slots.OpenDevice
-			defer func() { slots.OpenDevice = restore }()
+			devices := slotmocks.NewMockOpener(s.ctrl)
 
 			if tt.attached {
 				// The destination is named and read first, so what it held
@@ -361,16 +361,13 @@ func (s *ImportDevicePublicTestSuite) TestImportDevice() {
 						gomock.Any(), gomock.Any()).
 					Return(nil)
 
-				slots.OpenDevice = func(context.Context) (device.Editor, error) {
-					return s.dev, nil
-				}
+				devices.EXPECT().Open(gomock.Any()).Return(s.dev, nil)
 			} else {
-				slots.OpenDevice = func(context.Context) (device.Editor, error) {
-					return nil, errors.New("nothing on the bus")
-				}
+				devices.EXPECT().Open(gomock.Any()).
+					Return(nil, errors.New("nothing on the bus"))
 			}
 
-			change, err := slots.ImportDevice(s.T().Context(),
+			change, err := slots.ImportDevice(s.T().Context(), devices,
 				slots.ImportOptions{
 					File: s.preset(), Slot: 7, BackupDir: s.T().TempDir(),
 				})

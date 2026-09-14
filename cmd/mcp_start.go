@@ -26,7 +26,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/retr0h/tonestack/pkg/mcp"
-	"github.com/retr0h/tonestack/pkg/sdk"
 )
 
 var mcpStartAllowWrites bool
@@ -46,7 +45,7 @@ Tools that overwrite what a pedal holds (import, copy, swap) are offered only
 with --allow-writes. Each still saves what it replaces to a file first.`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		err := mcp.New(sdk.New(), mcp.Options{
+		err := mcp.New(newClient(), mcp.Options{
 			Version:     version,
 			AllowWrites: mcpStartAllowWrites,
 		}).Run(cmd.Context())

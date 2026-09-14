@@ -27,7 +27,10 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk/slot"
 )
 
-var presetsImportOptions sdk.Put
+var (
+	presetsImportOptions sdk.Put
+	presetsImportClient  clientFlags
+)
 
 // presetsImportCmd represents the presets import command.
 var presetsImportCmd = &cobra.Command{
@@ -78,9 +81,9 @@ func init() {
 		"which slot — a label the pedal shows such as 31A, or a number from zero",
 	)
 	f.StringVar(&presetsImportOptions.OutputPath, "out", "", "where to write the edited setlist")
-	f.StringVar(&presetsImportOptions.BackupDir, "backup-dir", "",
+	f.StringVar(&presetsImportClient.backupDir, "backup-dir", "",
 		"where to keep what a device slot held; the state directory by default")
-	f.StringVar(&presetsImportOptions.CatalogPath, "catalog", "",
+	f.StringVar(&presetsImportClient.catalog, "catalog", "",
 		"a catalog to resolve models against, when writing to a device")
 	// Fails only for a flag that does not exist, and these are defined above.
 	_ = presetsImportCmd.MarkFlagRequired("preset")
@@ -97,5 +100,5 @@ func init() {
 // No file means the device itself, which is what somebody with one plugged in
 // almost always wants.
 func imported(cmd *cobra.Command) (sdk.Change, error) {
-	return sdk.New().Import(cmd.Context(), presetsImportOptions)
+	return presetsImportClient.client().Import(cmd.Context(), presetsImportOptions)
 }

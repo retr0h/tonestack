@@ -21,9 +21,13 @@
 package slots
 
 import (
+	"context"
+	"io"
+
 	"github.com/retr0h/tonestack/pkg/sdk/catalog"
 	"github.com/retr0h/tonestack/pkg/sdk/chain"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/compile"
+	"github.com/retr0h/tonestack/pkg/sdk/internal/device"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/editor"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/wire"
 	"github.com/retr0h/tonestack/pkg/sdk/preset"
@@ -84,6 +88,19 @@ type Deps struct {
 	Compiler Compiler
 	// Translator reads what a device says. Nil uses pkg/editor.
 	Translator Translator
+	// Capture receives each device answer a read gets, verbatim. Nil keeps
+	// nothing.
+	Capture io.Writer
+}
+
+// Opener starts a session with an attached device. device.Opener satisfies
+// it.
+//
+// Taken as an argument by every command that finds its own device, so a test
+// hands one a double rather than swapping a package variable.
+type Opener interface {
+	// Open starts a session with the first attached device.
+	Open(ctx context.Context) (device.Editor, error)
 }
 
 func (d Deps) catalogs() Catalogs {

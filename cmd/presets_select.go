@@ -42,7 +42,7 @@ is the one device command that changes what you hear without changing what the
 device holds.`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		change, err := sdk.New().Select(cmd.Context(), presetsSelectOptions)
+		change, err := newClient().Select(cmd.Context(), presetsSelectOptions)
 		if err != nil {
 			return err
 		}

@@ -26,7 +26,7 @@ package device
 import (
 	"context"
 	"fmt"
-	"os"
+	"io"
 	"time"
 
 	"github.com/retr0h/tonestack/pkg/sdk/internal/wire"
@@ -148,6 +148,9 @@ type session struct {
 	// conversation rather than a piece of hardware: everything below this is
 	// framing and counters, and none of it needs a bus.
 	holds []releaser
+	// trace receives every frame in and out, and what Close could not do.
+	// Nil traces nothing.
+	trace io.Writer
 	done  func()
 	out   sender
 	in    receiver
@@ -200,8 +203,8 @@ func (s *session) Close() {
 			if c, ok := s.chans[spec.name]; ok {
 				// Close has nobody to tell, and one failed send must not stop the
 				// rest of the shutdown. The wire trace is the one place it shows.
-				if err := s.send(c, wire.MsgAck, nil); err != nil && debug {
-					fmt.Fprintf(os.Stderr, "ERR %-8s ack on close: %v\n", c.name, err)
+				if err := s.send(c, wire.MsgAck, nil); err != nil && s.trace != nil {
+					fmt.Fprintf(s.trace, "ERR %-8s ack on close: %v\n", c.name, err)
 				}
 			}
 		}
@@ -214,8 +217,8 @@ func (s *session) Close() {
 		for _, spec := range channelSpecs {
 			if c, ok := s.chans[spec.name]; ok {
 				// For the same reason: every other channel still needs closing.
-				if err := s.closeChannel(c); err != nil && debug {
-					fmt.Fprintf(os.Stderr, "ERR %-8s hello on close: %v\n", c.name, err)
+				if err := s.closeChannel(c); err != nil && s.trace != nil {
+					fmt.Fprintf(s.trace, "ERR %-8s hello on close: %v\n", c.name, err)
 				}
 			}
 		}
@@ -234,8 +237,8 @@ func (s *session) Close() {
 	// then the library's own context.
 	for i, held := range s.holds {
 		// Every hold must be released even when an earlier one refuses.
-		if err := held.Close(); err != nil && debug {
-			fmt.Fprintf(os.Stderr, "ERR release %d on close: %v\n", i, err)
+		if err := held.Close(); err != nil && s.trace != nil {
+			fmt.Fprintf(s.trace, "ERR release %d on close: %v\n", i, err)
 		}
 	}
 }

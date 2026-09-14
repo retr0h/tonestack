@@ -30,11 +30,11 @@ import (
 )
 
 func (h *handlers) catalogSearch(
-	_ context.Context,
+	ctx context.Context,
 	_ *gomcp.CallToolRequest,
 	in Search,
 ) (*gomcp.CallToolResult, sdk.Blocks, error) {
-	found, err := h.client.Blocks("", sdk.Filter{
+	found, err := h.client.Blocks(ctx, sdk.Filter{
 		Category:    in.Category,
 		Subcategory: in.Subcategory,
 		Search:      in.Search,
@@ -47,11 +47,11 @@ func (h *handlers) catalogSearch(
 }
 
 func (h *handlers) catalogBlock(
-	_ context.Context,
+	ctx context.Context,
 	_ *gomcp.CallToolRequest,
 	in ID,
 ) (*gomcp.CallToolResult, catalog.Block, error) {
-	block, err := h.client.Block("", in.ID)
+	block, err := h.client.Block(ctx, in.ID)
 	if err != nil {
 		return nil, catalog.Block{}, remedy(err)
 	}
@@ -60,11 +60,11 @@ func (h *handlers) catalogBlock(
 }
 
 func (h *handlers) corpusModel(
-	_ context.Context,
+	ctx context.Context,
 	_ *gomcp.CallToolRequest,
 	in ID,
 ) (*gomcp.CallToolResult, Model, error) {
-	measured, err := h.client.Measurements(sdk.Corpus{Model: in.ID})
+	measured, err := h.client.Measurements(ctx, sdk.Corpus{Model: in.ID})
 	if err != nil {
 		return nil, Model{}, err
 	}
@@ -81,11 +81,11 @@ func (h *handlers) corpusModel(
 }
 
 func (h *handlers) rigsList(
-	_ context.Context,
+	ctx context.Context,
 	_ *gomcp.CallToolRequest,
 	_ None,
 ) (*gomcp.CallToolResult, sdk.Recipes, error) {
-	found, err := h.client.Recipes("")
+	found, err := h.client.Recipes(ctx)
 	if err != nil {
 		return nil, sdk.Recipes{}, err
 	}
@@ -94,11 +94,11 @@ func (h *handlers) rigsList(
 }
 
 func (h *handlers) rigShow(
-	_ context.Context,
+	ctx context.Context,
 	_ *gomcp.CallToolRequest,
 	in ID,
 ) (*gomcp.CallToolResult, sdk.Recipe, error) {
-	found, err := h.client.Recipe("", in.ID)
+	found, err := h.client.Recipe(ctx, in.ID)
 	if err != nil {
 		return nil, sdk.Recipe{}, remedy(err)
 	}
@@ -107,7 +107,7 @@ func (h *handlers) rigShow(
 }
 
 func (h *handlers) presetBuild(
-	_ context.Context,
+	ctx context.Context,
 	_ *gomcp.CallToolRequest,
 	in Build,
 ) (*gomcp.CallToolResult, Built, error) {
@@ -124,14 +124,14 @@ func (h *handlers) presetBuild(
 
 	switch {
 	case in.RecipeID != "":
-		made, err := h.client.Build(sdk.Make{RecipeID: in.RecipeID, OutputPath: in.Out})
+		made, err := h.client.Build(ctx, sdk.Make{RecipeID: in.RecipeID, OutputPath: in.Out})
 		if err != nil {
 			return nil, Built{}, remedy(err)
 		}
 
 		return said("wrote %s from rig %s", in.Out, in.RecipeID), Built{FromRecipe: &made}, nil
 	default:
-		built, err := h.client.Compile(sdk.Compile{RigPath: in.RigPath, OutputPath: in.Out})
+		built, err := h.client.Compile(ctx, sdk.Compile{RigPath: in.RigPath, OutputPath: in.Out})
 		if err != nil {
 			return nil, Built{}, err
 		}
