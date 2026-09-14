@@ -128,7 +128,10 @@ func (s *ConversationPublicTestSuite) TestClose() {
 			var released error
 			if tt.refuse {
 				released = refused
-				session = device.NewTestSession(&device.FailAfter{Sender: d.out, Err: refused}, d.in)
+				session = device.NewTestSession(
+					&device.FailAfter{Sender: d.out, Err: refused},
+					d.in,
+				)
 				session.OpenChannels()
 			}
 
