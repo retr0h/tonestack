@@ -21,6 +21,8 @@
 package compile
 
 import (
+	"math"
+
 	"github.com/retr0h/tonestack/pkg/sdk/catalog"
 	"github.com/retr0h/tonestack/pkg/sdk/chain"
 	"github.com/retr0h/tonestack/pkg/sdk/corpus"
@@ -84,14 +86,15 @@ type turn struct {
 
 // turns is what a term does, for the terms that do anything.
 //
-// Four axes of the ten, because four have a direction that is not a guess.
-// Mid, Treble and Drive need no explaining. Sag does, and the Pilot's Guide
-// explains it: lower values offer tighter responsiveness, higher values more
-// touch dynamics and sustain.
+// Six axes of the ten, because six have a control and a direction that is not
+// a guess. Mid, Treble and Drive need no explaining. Sag does, and the Pilot's
+// Guide explains it: lower values offer tighter responsiveness, higher values
+// more touch dynamics and sustain.
 //
-// The other six axes — decay, attack, space, string-noise, pickup, movement —
-// are not amplifier controls. A term from one of those is recorded and moves
-// nothing, which a build says out loud.
+// The other four axes — decay, string-noise, pickup, movement — describe the
+// player and the instrument, and no amplifier, reverb or compressor has a
+// control for them. A term from one of those is recorded and moves nothing,
+// which a build says out loud.
 var turns = map[string]turn{
 	"mid-forward": {category: catalog.CategoryAmp, param: "Mid", steps: 1},
 	"scooped":     {category: catalog.CategoryAmp, param: "Mid", steps: -1},
@@ -130,6 +133,16 @@ var turns = map[string]turn{
 // about it costs little, and used only where too few presets hold this model
 // for a spread to mean anything.
 const fallbackStep = 0.1
+
+// maxStep is the furthest one term moves a parameter, as a share of its range.
+//
+// A quarter. The corpus spread is a good step where players mostly agree, and
+// for Mid, Treble and Sag three steps in four are a quarter of the range or
+// less. Where they disagree wildly the spread is no step at all: Sag on the
+// Cali 400 and on the Ampeg SVT's normal channel spreads across half its
+// range, so one word would put it on the rail. A word is one opinion, and one
+// opinion should not decide the whole of a control.
+const maxStep = 0.25
 
 // move applies a rig's character to whichever blocks answer for it.
 //
@@ -238,20 +251,23 @@ func apply(
 // The corpus spread where there is one: a parameter every player sets the same
 // way is one nobody has an opinion about, and a term should barely move it. A
 // parameter players disagree about is one where an opinion is worth having.
-// Line 6's range would say the same thing about both.
+// Line 6's range would say the same thing about both. No step is wider than
+// maxStep of the range, however much players disagree.
 func step(
 	b catalog.Block,
 	key string,
 	p catalog.Param,
 	stats *corpus.Stats,
 ) float64 {
+	span := p.Max - p.Min
+
 	if stats != nil {
 		if d, ok := stats.Param(b.ID, key); ok && d.Spread() > 0 {
-			return d.Spread()
+			return math.Min(d.Spread(), span*maxStep)
 		}
 	}
 
-	return (p.Max - p.Min) * fallbackStep
+	return span * fallbackStep
 }
 
 // clamp keeps a value inside what the device accepts.

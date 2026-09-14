@@ -138,12 +138,14 @@ claiming both has claimed nothing.
 Six of those axes turn a knob. `mids`, `highs`, `drive` and `low-end` move the
 first amplifier in the chain, `space` moves the first reverb and `attack` moves
 the first compressor. Each word is worth one step from where the corpus left
-that control, so a build reports what it heard and what it did about it:
+that control. A step is how much players disagree about it, and never more than
+a quarter of the control's range, so one word cannot put a knob on its limit. A
+build reports what it heard and what it did about it:
 
 ```console
 $ tonestack presets make --id mike-dirnt
   heard mid-forward — Mid 0.79 to 0.89
-  heard grit-on-attack — Drive 0.60 to 0.76
+  heard grit-on-attack — Drive 0.60 to 0.72
   heard tight-low-end — Sag 0.50 to 0.40
   heard short-decay — nothing acts on this yet
   heard audible-pick-attack — Attack 0.04 to 0.05
@@ -178,7 +180,9 @@ is already what it asked for:
 
 The other four axes, `decay`, `string-noise`, `pickup` and `movement`, describe
 the player and the instrument rather than the rig. They are recorded and move
-nothing.
+nothing on purpose, because no amplifier, reverb or compressor has a control for
+how a player mutes a string or where they pick it. Use them anyway. They are
+part of what somebody listening compares the preset against.
 
 A word that is not on the list is reported and not refused:
 
