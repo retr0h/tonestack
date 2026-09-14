@@ -71,14 +71,13 @@ func once[T any](
 		return zero, err
 	}
 
-	out, err := call(s)
+	// Deferred, so a flow that panics still lets the pedal go on its way up
+	// the stack. The call's own answer is what the caller needs: a read loop
+	// that ended during the call already failed it with that error, and one
+	// that ended afterwards changed nothing the call reported.
+	defer func() { _ = s.Close() }()
 
-	// The call's own answer is what the caller needs. A read loop that ended
-	// during the call already failed it with that error, and one that ended
-	// afterwards changed nothing the call reported.
-	_ = s.Close()
-
-	return out, err
+	return call(s)
 }
 
 // Presets reports what a setlist holds, slot by slot.

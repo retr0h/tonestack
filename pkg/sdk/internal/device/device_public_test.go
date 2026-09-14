@@ -65,6 +65,9 @@ type deviceDouble struct {
 	// been written.
 	readErr   error
 	failAfter int
+	// partial comes back beside every frame a read hands over: bytes that
+	// arrived with a timeout.
+	partial error
 	// reads is how many times the session read.
 	reads int
 	// onWrite runs after every write the device took, so a test can act
@@ -171,7 +174,7 @@ func (d *deviceDouble) next(
 		frame := d.ready[0]
 		d.ready = d.ready[1:]
 
-		return copy(p, frame), 0, true, nil
+		return copy(p, frame), 0, true, d.partial
 	}
 
 	if d.readErr != nil && len(d.sent) >= d.failAfter {

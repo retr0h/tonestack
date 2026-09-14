@@ -56,7 +56,13 @@ type pedal struct {
 	// armed counts every arming and disarming, so an idle close that fired
 	// late leaves alone a Session a later call has used.
 	armed uint64
+	// closed is set once the server has let the pedal go. No call opens it
+	// again after that.
+	closed bool
 }
+
+// errStopped is a device call that arrives after the server let the pedal go.
+var errStopped = errors.New("the server has stopped, so the pedal is not reachable")
 
 // newPedal holds nothing until the first device call.
 func newPedal(
@@ -72,10 +78,17 @@ func (p *pedal) take(
 ) error {
 	select {
 	case p.lock <- struct{}{}:
-		return nil
 	case <-ctx.Done():
 		return fmt.Errorf("waiting for the device: %w", ctx.Err())
 	}
+
+	if p.closed {
+		p.give()
+
+		return errStopped
+	}
+
+	return nil
 }
 
 // give lets the pedal go for the next call.
@@ -126,9 +139,21 @@ func onPedal[T any](
 
 	p.disarm()
 
-	// Armed again however the call ends, a panic included, so a held Session
-	// is always on its way to being let go.
+	// Armed again however the call ends, so a held Session is always on its
+	// way to being let go.
 	defer p.arm()
+
+	// go-sdk does not recover a handler that panics. The Session may be
+	// partway through an exchange, so it is let go before the panic carries
+	// on, rather than left holding the pedal until the process dies. What
+	// Close says is lost to the panic.
+	defer func() {
+		if v := recover(); v != nil {
+			_ = p.release()
+
+			panic(v)
+		}
+	}()
 
 	out, err := call(p.session)
 
@@ -197,6 +222,7 @@ func (p *pedal) Close() error {
 	p.lock <- struct{}{}
 	defer p.give()
 
+	p.closed = true
 	p.disarm()
 
 	return p.release()

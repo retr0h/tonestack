@@ -95,22 +95,55 @@ func (s *LoopPublicTestSuite) playing(
 	return device.Reply(device.DataChannel, buf.Bytes())
 }
 
-// unaskedLater makes the device say something on the control channel a
-// little after it is first written to, while whatever that write started is
-// still waiting.
-func unaskedLater(
-	d *deviceDouble,
-	after time.Duration,
-) {
-	var once sync.Once
+// clock is a pause the test lets go of. Every wait on it blocks until
+// release, and entered signals once one has started.
+type clock struct {
+	gate    chan time.Time
+	entered chan struct{}
+	once    sync.Once
+}
 
-	d.onWrite = func() {
-		once.Do(func() {
-			time.AfterFunc(after, func() {
-				d.tell(device.FrameFor(device.ControlChannel, wire.MsgData, []byte("unasked")))
-			})
-		})
+// newClock is a clock that holds every pause, released when the test ends if
+// the test has not released it already.
+func (s *LoopPublicTestSuite) newClock() *clock {
+	c := &clock{gate: make(chan time.Time), entered: make(chan struct{}, 1)}
+	s.T().Cleanup(c.release)
+
+	return c
+}
+
+// after is the session's clock.
+func (c *clock) after(
+	time.Duration,
+) <-chan time.Time {
+	select {
+	case c.entered <- struct{}{}:
+	default:
 	}
+
+	return c.gate
+}
+
+// release lets every pause go, now and from now on.
+func (c *clock) release() {
+	c.once.Do(func() { close(c.gate) })
+}
+
+// looked waits until the acknowledger has been round several more times, so
+// what it would have sent by now has been sent.
+func (s *LoopPublicTestSuite) looked(
+	session *device.Session,
+) {
+	from := session.IdlePasses()
+
+	s.Require().Eventually(func() bool {
+		return session.IdlePasses() > from+3
+	}, 5*time.Second, time.Millisecond, "the acknowledger kept looking")
+}
+
+// unasked is a notification on the control channel.
+func unaskedFrame() []byte {
+	return device.FrameFor(device.ControlChannel, wire.MsgData, []byte("unasked"))
 }
 
 // TestLoop keeps a read posted from start to Close, and ends the session
@@ -122,7 +155,10 @@ func (s *LoopPublicTestSuite) TestLoop() {
 		name    string
 		device  func() *deviceDouble
 		budgets func(b *device.Budgets)
-		run     func(session *device.Session, d *deviceDouble)
+		// clocked holds the flash pause, pacing and the poll until the row
+		// releases them.
+		clocked bool
+		run     func(session *device.Session, d *deviceDouble, clk *clock)
 	}{
 		{
 			// Nothing is running, and the device is still read. Before the
@@ -131,54 +167,70 @@ func (s *LoopPublicTestSuite) TestLoop() {
 			device: func() *deviceDouble {
 				return answers(s.ctrl, s.status(device.ControlChannel, device.FirstTxn, 0))
 			},
-			run: func(session *device.Session, d *deviceDouble) {
+			run: func(session *device.Session, d *deviceDouble, _ *clock) {
 				_, err := session.Call(context.Background(), device.ControlChannel, 1, nil)
 				s.Require().NoError(err)
 
 				before := session.Received(device.ControlChannel)
-				d.tell(device.FrameFor(device.ControlChannel, wire.MsgData, []byte("unasked")))
+				d.tell(unaskedFrame())
 
 				s.Require().Eventually(func() bool {
 					return session.Received(device.ControlChannel) > before
-				}, time.Second, time.Millisecond, "read with no operation running")
+				}, 5*time.Second, time.Millisecond, "read with no operation running")
 			},
 		},
 		{
-			// The flash pause waits on a timer, not by sleeping the only
+			// The flash pause waits on a clock, not by sleeping the only
 			// reader.
 			name: "a notification during the flash pause",
 			device: func() *deviceDouble {
-				d := answers(s.ctrl, s.status(device.DataChannel, device.FirstTxn, 0))
-				unaskedLater(d, 40*time.Millisecond)
-
-				return d
+				return answers(s.ctrl, s.status(device.DataChannel, device.FirstTxn, 0))
 			},
-			budgets: func(b *device.Budgets) { b.Flash = 200 * time.Millisecond },
-			run: func(session *device.Session, _ *deviceDouble) {
-				s.Require().NoError(session.WritePreset(context.Background(), 0, 3, []byte{0x01}))
-				s.Require().NotZero(session.Received(device.ControlChannel),
-					"read while the write settled")
+			clocked: true,
+			run: func(session *device.Session, d *deviceDouble, clk *clock) {
+				done := make(chan error, 1)
+
+				go func() { done <- session.WritePreset(context.Background(), 0, 3, []byte{0x01}) }()
+
+				// One chunk, so the first pause is the flash pause.
+				<-clk.entered
+				d.tell(unaskedFrame())
+
+				s.Require().Eventually(func() bool {
+					return session.Received(device.ControlChannel) > 0
+				}, 5*time.Second, time.Millisecond, "read while the write settled")
+
+				clk.release()
+				s.Require().NoError(<-done)
 			},
 		},
 		{
 			name: "a notification while a switch is polled",
 			device: func() *deviceDouble {
-				d := answers(s.ctrl,
+				return answers(s.ctrl,
 					s.status(device.DataChannel, device.FirstTxn, 1),
 					s.playing(device.FirstTxn+1, 5),
 					s.playing(device.FirstTxn+2, 99),
 				)
-				unaskedLater(d, 40*time.Millisecond)
+			},
+			budgets: func(b *device.Budgets) { b.Selecting = time.Hour },
+			clocked: true,
+			run: func(session *device.Session, d *deviceDouble, clk *clock) {
+				done := make(chan error, 1)
 
-				return d
-			},
-			budgets: func(b *device.Budgets) {
-				b.Poll, b.Selecting = 200*time.Millisecond, 2*time.Second
-			},
-			run: func(session *device.Session, _ *deviceDouble) {
-				s.Require().NoError(session.SelectPreset(context.Background(), 0, 99))
-				s.Require().NotZero(session.Received(device.ControlChannel),
-					"read between the questions")
+				go func() { done <- session.SelectPreset(context.Background(), 0, 99) }()
+
+				// The device answered with the old preset, so it is asked again
+				// after a poll.
+				<-clk.entered
+				d.tell(unaskedFrame())
+
+				s.Require().Eventually(func() bool {
+					return session.Received(device.ControlChannel) > 0
+				}, 5*time.Second, time.Millisecond, "read between the questions")
+
+				clk.release()
+				s.Require().NoError(<-done)
 			},
 		},
 		{
@@ -186,12 +238,35 @@ func (s *LoopPublicTestSuite) TestLoop() {
 			// happens.
 			name:   "reads that time out",
 			device: func() *deviceDouble { return readFails(s.ctrl, context.DeadlineExceeded) },
-			run: func(session *device.Session, _ *deviceDouble) {
+			run: func(session *device.Session, _ *deviceDouble, _ *clock) {
 				start := session.Windows()
 
 				s.Require().Eventually(func() bool {
 					return session.Windows() > start+5
-				}, time.Second, time.Millisecond)
+				}, 5*time.Second, time.Millisecond)
+				s.Require().NoError(session.Ended())
+			},
+		},
+		{
+			// A read can end on its timeout with bytes already in hand. They
+			// are an answer, and the read was not a failure.
+			name: "bytes that came back with a timeout",
+			device: func() *deviceDouble {
+				d := unasked(s.ctrl, unaskedFrame())
+				d.partial = context.DeadlineExceeded
+
+				return d
+			},
+			run: func(session *device.Session, _ *deviceDouble, _ *clock) {
+				s.Require().Eventually(func() bool {
+					return session.Received(device.ControlChannel) == uint32(len("unasked"))
+				}, 5*time.Second, time.Millisecond, "the bytes were routed")
+
+				start := session.Windows()
+
+				s.Require().Eventually(func() bool {
+					return session.Windows() > start+3
+				}, 5*time.Second, time.Millisecond)
 				s.Require().NoError(session.Ended())
 			},
 		},
@@ -201,15 +276,12 @@ func (s *LoopPublicTestSuite) TestLoop() {
 			// reading.
 			name:    "a bus that fails while a call waits",
 			device:  func() *deviceDouble { return readFailsAfter(s.ctrl, broken, 1) },
-			budgets: func(b *device.Budgets) { b.Reply = 5 * time.Second },
-			run: func(session *device.Session, d *deviceDouble) {
-				started := time.Now()
-
+			budgets: func(b *device.Budgets) { b.Reply = time.Hour },
+			run: func(session *device.Session, d *deviceDouble, _ *clock) {
 				_, err := session.Call(context.Background(), device.ControlChannel, 1, nil)
 				s.Require().ErrorIs(err, broken)
 				s.Require().ErrorIs(err, device.ErrBus)
 				s.Require().ErrorContains(err, "reading from the device")
-				s.Require().Less(time.Since(started), time.Second)
 
 				sent := len(d.frames())
 
@@ -219,14 +291,56 @@ func (s *LoopPublicTestSuite) TestLoop() {
 			},
 		},
 		{
+			// The message still goes out whole, the loop goes on posting reads
+			// while it does, and the session ends once it is out. Close still
+			// tells the device the editor has gone.
+			name:   "a bus that fails while a message goes out",
+			device: func() *deviceDouble { return readFailsAfter(s.ctrl, broken, 1) },
+			run: func(session *device.Session, d *deviceDouble, _ *clock) {
+				err := session.WritePreset(
+					context.Background(),
+					0,
+					3,
+					bytes.Repeat([]byte{0x2a}, 2000),
+				)
+				s.Require().ErrorIs(err, broken)
+				s.Require().ErrorIs(err, device.ErrBus)
+
+				chunks := 0
+
+				for _, raw := range d.frames() {
+					if kind, _ := device.MessageKind(raw); kind == wire.MsgData {
+						chunks++
+					}
+				}
+
+				s.Require().GreaterOrEqual(chunks, 2000/device.StreamChunk, "every chunk went out")
+				s.Require().Greater(d.readCount(), 2, "reads were posted again while it went out")
+
+				before := len(d.frames())
+
+				s.Require().ErrorIs(session.Close(), broken)
+
+				hellos := 0
+
+				for _, raw := range d.frames()[before:] {
+					if kind, _ := device.MessageKind(raw); kind == wire.MsgHello {
+						hellos++
+					}
+				}
+
+				s.Require().Equal(len(device.ChannelNames()), hellos, "the farewell was attempted")
+			},
+		},
+		{
 			// Recovered, and ended the way a bus error ends it, so the caller
 			// gets an error rather than a process that died.
 			name: "a panic in routing while a call waits",
 			device: func() *deviceDouble {
 				return answers(s.ctrl, s.status(device.ControlChannel, device.FirstTxn, 0))
 			},
-			budgets: func(b *device.Budgets) { b.Reply = 5 * time.Second },
-			run: func(session *device.Session, _ *deviceDouble) {
+			budgets: func(b *device.Budgets) { b.Reply = time.Hour },
+			run: func(session *device.Session, _ *deviceDouble, _ *clock) {
 				session.Trace(panicking{})
 
 				_, err := session.Call(context.Background(), device.ControlChannel, 1, nil)
@@ -234,21 +348,53 @@ func (s *LoopPublicTestSuite) TestLoop() {
 				s.Require().ErrorContains(err, "the read loop panicked")
 			},
 		},
+		{
+			// The acknowledger is a goroutine nobody joins too.
+			name: "a panic in the acknowledger",
+			device: func() *deviceDouble {
+				d := unasked(s.ctrl, unaskedFrame())
+
+				var once sync.Once
+
+				d.onWrite = func() {
+					fire := false
+					once.Do(func() { fire = true })
+
+					if fire {
+						panic("a bug inside an acknowledgement")
+					}
+				}
+
+				return d
+			},
+			budgets: func(b *device.Budgets) { b.Idle = time.Millisecond },
+			run: func(session *device.Session, _ *deviceDouble, _ *clock) {
+				<-session.Dead()
+
+				s.Require().ErrorIs(session.Ended(), device.ErrBus)
+				s.Require().ErrorContains(session.Ended(), "the acknowledger panicked")
+			},
+		},
 	}
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
 			d := tt.device()
+			clk := s.newClock()
 
 			b := device.ShortBudgets()
 			if tt.budgets != nil {
 				tt.budgets(&b)
 			}
 
+			if tt.clocked {
+				b.After = clk.after
+			}
+
 			session := device.NewTestSessionWith(s.T(), d.out, d.in, b)
 			session.OpenChannels()
 
-			tt.run(session, d)
+			tt.run(session, d, clk)
 		})
 	}
 }
@@ -277,7 +423,22 @@ func acks(
 	return count, last
 }
 
-// TestIdleAck settles what arrives on a channel nobody is using.
+// allAcks counts the acknowledgements a session sent on every channel.
+func allAcks(
+	d *deviceDouble,
+) int {
+	total := 0
+
+	for _, name := range device.ChannelNames() {
+		count, _ := acks(d, name)
+		total += count
+	}
+
+	return total
+}
+
+// TestIdleAck settles what arrives on a channel nobody is using, and never
+// inside a write.
 func (s *LoopPublicTestSuite) TestIdleAck() {
 	answer := device.Reply(device.ControlChannel, []byte{0x80})
 	whole := wire.EncodeEnvelope(wire.Envelope{
@@ -339,7 +500,7 @@ func (s *LoopPublicTestSuite) TestIdleAck() {
 			}
 
 			b := device.ShortBudgets()
-			b.Idle = 20 * time.Millisecond
+			b.Idle = time.Millisecond
 
 			session := device.NewTestSessionWith(s.T(), out, d.in, b)
 			session.OpenChannels()
@@ -349,12 +510,12 @@ func (s *LoopPublicTestSuite) TestIdleAck() {
 
 			d.tell(tt.frame)
 
-			if tt.refused {
-				s.Require().Eventually(func() bool {
-					return session.Received(tt.channel) > 0
-				}, time.Second, time.Millisecond)
+			s.Require().Eventually(func() bool {
+				return session.Received(tt.channel) > 0
+			}, 5*time.Second, time.Millisecond)
 
-				time.Sleep(10 * b.Idle)
+			if tt.refused {
+				s.looked(session)
 				s.Require().NoError(session.Close())
 				s.Require().Contains(trace.String(), "idle ack: writing to events: refused")
 
@@ -365,11 +526,11 @@ func (s *LoopPublicTestSuite) TestIdleAck() {
 				count, _ := acks(d, tt.channel)
 
 				return count > 0
-			}, time.Second, time.Millisecond, "acknowledged once it went quiet")
+			}, 5*time.Second, time.Millisecond, "acknowledged once it went quiet")
 
-			// Several quiet periods later, still the one: the acknowledgement
-			// settled what was owed.
-			time.Sleep(10 * b.Idle)
+			// Several rounds later, still the one: the acknowledgement settled
+			// what was owed.
+			s.looked(session)
 
 			count, ack := acks(d, tt.channel)
 			s.Require().Equal(1, count, "at most once a quiet period")
@@ -378,55 +539,76 @@ func (s *LoopPublicTestSuite) TestIdleAck() {
 		})
 	}
 
-	s.Run("a channel with an exchange in flight", func() {
-		// Write chunks carry the acknowledgement in their header and nothing
-		// goes between them. Bytes that arrive partway through a message are
-		// owed, and the idle acknowledgement still keeps out.
+	s.Run("a write going out, on any channel", func() {
+		// A notification arrives on the events channel as a write starts.
+		// Before the gate was session-wide, an acknowledgement for it went
+		// out between two data chunks.
+		clk := s.newClock()
 		d := answers(s.ctrl, s.status(device.DataChannel, device.FirstTxn, 0))
 
 		var once sync.Once
 
 		d.onWrite = func() {
 			once.Do(func() {
-				d.tell(device.FrameFor(device.DataChannel, wire.MsgData, []byte("unasked")))
+				d.tell(device.FrameFor(device.EventsChannel, wire.MsgData, []byte("unasked")))
 			})
 		}
 
 		b := device.ShortBudgets()
-		b.Idle, b.Pace = time.Millisecond, 30*time.Millisecond
+		b.Idle, b.After = time.Millisecond, clk.after
 
 		session := device.NewTestSessionWith(s.T(), d.out, d.in, b)
 		session.OpenChannels()
 
-		s.Require().NoError(session.WritePreset(
-			context.Background(), 0, 3, bytes.Repeat([]byte{0x2a}, 2000)))
+		done := make(chan error, 1)
 
-		first, last := -1, -1
+		go func() {
+			done <- session.WritePreset(
+				context.Background(), 0, 3, bytes.Repeat([]byte{0x2a}, 2000))
+		}()
 
-		var kinds []uint16
+		s.Require().Eventually(func() bool {
+			return session.Received(device.EventsChannel) > 0
+		}, 5*time.Second, time.Millisecond)
 
-		for i, raw := range d.frames() {
-			f, _, err := wire.DecodeFrame(raw)
-			s.Require().NoError(err)
+		// The clock holds a pause between two chunks, so the message is still
+		// going out while the acknowledger looks.
+		s.looked(session)
+		s.Require().Zero(allAcks(d), "nothing is acknowledged while a message goes out")
 
-			kinds = append(kinds, f.Type)
+		clk.release()
+		s.Require().NoError(<-done)
+	})
 
-			if device.ChannelOf(f) != device.DataChannel || f.Type != wire.MsgData {
-				continue
-			}
+	s.Run("the flash pause after a write", func() {
+		// The write's answer is owed an acknowledgement, and it waits until
+		// the flash pause is over.
+		clk := s.newClock()
+		d := answers(s.ctrl, s.status(device.DataChannel, device.FirstTxn, 0))
 
-			if first < 0 {
-				first = i
-			}
+		b := device.ShortBudgets()
+		b.Idle, b.After = time.Millisecond, clk.after
 
-			last = i
-		}
+		session := device.NewTestSessionWith(s.T(), d.out, d.in, b)
+		session.OpenChannels()
 
-		s.Require().Greater(last, first, "the message went out in more than one chunk")
+		done := make(chan error, 1)
 
-		for i := first; i <= last; i++ {
-			s.Require().NotEqual(wire.MsgAck, kinds[i], "frame %d came between two chunks", i)
-		}
+		go func() { done <- session.WritePreset(context.Background(), 0, 3, []byte{0x01}) }()
+
+		// One chunk, so the first pause is the flash pause.
+		<-clk.entered
+		s.looked(session)
+		s.Require().Zero(allAcks(d), "nothing is acknowledged while flash settles")
+
+		clk.release()
+		s.Require().NoError(<-done)
+
+		s.Require().Eventually(func() bool {
+			count, _ := acks(d, device.DataChannel)
+
+			return count > 0
+		}, 5*time.Second, time.Millisecond, "acknowledged once the pause was over")
 	})
 }
 

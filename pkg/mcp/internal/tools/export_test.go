@@ -21,11 +21,32 @@
 package tools
 
 import (
+	"context"
 	"io"
 	"time"
 
 	gomcp "github.com/modelcontextprotocol/go-sdk/mcp"
 )
+
+// Pedal holds a Session across calls, exported so a test can run a call on it
+// without a server: a handler that panics takes the server's process with it.
+type Pedal = pedal
+
+// NewPedal holds nothing until the first call, and never lets go for idling.
+func NewPedal(
+	c Client,
+) *Pedal {
+	return newPedal(c, time.Hour)
+}
+
+// OnPedal runs call on the Session p holds.
+func OnPedal(
+	ctx context.Context,
+	p *Pedal,
+	call func(Session) (int, error),
+) (int, error) {
+	return onPedal(ctx, p, call)
+}
 
 // RegisterIdle is Register with the pedal let go after idle rather than ten
 // seconds, so a test can watch it happen.

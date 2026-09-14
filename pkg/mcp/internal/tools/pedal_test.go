@@ -49,8 +49,9 @@ func waiting() (context.Context, *pedal) {
 // TestTake covers waiting for the pedal.
 func (s *PedalTestSuite) TestTake() {
 	tests := []struct {
-		name string
-		held bool
+		name   string
+		held   bool
+		closed bool
 	}{
 		{name: "a free pedal"},
 		{
@@ -59,6 +60,12 @@ func (s *PedalTestSuite) TestTake() {
 			name: "a held one, and a call that gave up",
 			held: true,
 		},
+		{
+			// A call that arrives after the server let go would otherwise
+			// claim the pedal again.
+			name:   "one the server has let go",
+			closed: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -66,6 +73,15 @@ func (s *PedalTestSuite) TestTake() {
 			if tt.held {
 				ctx, p := waiting()
 				s.Require().ErrorIs(p.take(ctx), context.Canceled)
+
+				return
+			}
+
+			if tt.closed {
+				p := newPedal(nil, time.Hour)
+				s.Require().NoError(p.Close())
+				s.Require().ErrorIs(p.take(context.Background()), errStopped)
+				s.Empty(p.lock, "the lock is given back")
 
 				return
 			}

@@ -186,9 +186,10 @@ func (s *WritePublicTestSuite) TestWritePreset() {
 			// up on it at the reply budget races the next write against it.
 			name: "a device that answers after a call would have given up",
 			device: func() *deviceDouble {
-				return late(s.ctrl, 100*time.Millisecond, s.answer(device.FirstTxn, 0))
+				return late(s.ctrl, 300*time.Millisecond, s.answer(device.FirstTxn, 0))
 			},
-			replyBudget: 20 * time.Millisecond,
+			replyBudget:  20 * time.Millisecond,
+			commitBudget: time.Minute,
 		},
 		{
 			name:   "a device that takes it and gets on with the erase",

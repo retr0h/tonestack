@@ -93,6 +93,9 @@ type budgets struct {
 	idle time.Duration
 	// window is one read the loop posts. A drain counts quiet ones.
 	window time.Duration
+	// after is the clock the flash pause, pacing and the select poll wait on.
+	// Nil is the real one.
+	after func(time.Duration) <-chan time.Time
 }
 
 // defaultBudgets are the figures real hardware needs.
@@ -177,7 +180,7 @@ const firstSeq = 2
 
 // channel is one conversation with the device.
 //
-// seq and txn change only under the session's send lock, and buf, open, busy
+// seq and txn change only under the session's send lock, and buf, open
 // and lastRx only under its receive lock. rxBytes and ackSent are read from
 // both sides, so they are atomic.
 type channel struct {
@@ -194,9 +197,6 @@ type channel struct {
 	// open is whether the handshake has reached this channel. A frame on a
 	// channel nobody opened is not anybody's business.
 	open bool
-	// busy is set for the length of each exchange, and keeps the idle
-	// acknowledgement off the channel.
-	busy bool
 	// lastRx is when bytes last arrived.
 	lastRx time.Time
 	// arrived is signalled whenever bytes are routed here. One slot, so
@@ -252,6 +252,17 @@ type session struct {
 	changed chan struct{}
 	// closing keeps the idle acknowledgement out while Close is talking.
 	closing bool
+	// inflight counts exchanges, writes and channel openings under way. While
+	// any is, the idle acknowledgement sends nothing on any channel.
+	inflight int
+	// streaming counts messages going out chunk by chunk, and readErr is the
+	// first read failure seen while one was. It is noted rather than ending
+	// the session, so a read stays posted until the message is out.
+	streaming int
+	readErr   error
+	// passes counts the acknowledger's rounds, so a test can wait for it to
+	// have looked rather than for time to pass.
+	passes atomic.Uint64
 
 	// stop ends the loop and the acknowledger. loopDone and ackDone close
 	// once each has returned. Nil stop means neither was started.
@@ -346,8 +357,8 @@ func (s *session) tracef(
 // until an otherwise innocent write stops the device.
 //
 // Idempotent. Every call gives back what the session took and returns the
-// error that ended the read loop, if one did. A session whose loop ended says
-// nothing more to the device, because no read is posted to catch the answers.
+// error that ended the read loop, if one did. A session whose loop ended still
+// says goodbye, though nothing reads what the device answers.
 func (s *session) Close() error {
 	s.closeOnce.Do(func() { s.closeErr = s.close() })
 
@@ -357,9 +368,10 @@ func (s *session) Close() error {
 // close is Close, once.
 func (s *session) close() error {
 	if s.stop != nil {
-		if s.ended() == nil {
-			s.farewell()
-		}
+		// Attempted even when the bus has failed, as a session did before
+		// there was a loop: a device never told the editor is gone keeps its
+		// front panel stale. Its drains end at once, since nothing reads.
+		s.farewell()
 
 		// The loop reads until here, and only then is the interface let go.
 		// ReadContext looks at its context every slice, so this is short.
@@ -428,15 +440,11 @@ func (s *session) farewell() {
 	s.drain(ctx)
 }
 
-// farewellFrame sends one closing frame, unless the loop ended meanwhile.
+// farewellFrame sends one closing frame.
 func (s *session) farewellFrame(
 	c *channel,
 	msgType uint16,
 ) error {
-	if err := s.ended(); err != nil {
-		return err
-	}
-
 	return s.send(c, msgType, nil)
 }
 

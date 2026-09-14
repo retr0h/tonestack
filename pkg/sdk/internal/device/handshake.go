@@ -63,10 +63,11 @@ func (s *session) openChannel(
 	services []uint16,
 ) error {
 	s.rxMu.Lock()
-	c.open, c.busy = true, true
+	c.open = true
+	s.inflight++
 	s.rxMu.Unlock()
 
-	defer s.finish(c)
+	defer s.finish()
 
 	for i, service := range services {
 		// A channel serving two services is opened twice, from scratch, with
@@ -182,11 +183,11 @@ func (s *session) Call(
 		return wire.Response{}, err
 	}
 
-	if err := s.begin(c); err != nil {
+	if err := s.begin(); err != nil {
 		return wire.Response{}, err
 	}
 
-	defer s.finish(c)
+	defer s.finish()
 
 	txn := s.nextTxn(c)
 	body := wire.EncodeRequest(wire.Request{Txn: txn, Opcode: opcode, Args: args})

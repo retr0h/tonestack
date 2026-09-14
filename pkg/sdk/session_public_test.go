@@ -26,6 +26,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -561,8 +562,14 @@ func (s *SessionPublicTestSuite) TestClose() {
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
+			var closes, closedUnder atomic.Int32
+
 			dev := s.device()
-			dev.MockEditor.EXPECT().Close().Return(tt.released)
+			dev.MockEditor.EXPECT().Close().DoAndReturn(func() error {
+				closes.Add(1)
+
+				return tt.released
+			})
 
 			client := s.over(dev)
 
@@ -581,6 +588,10 @@ func (s *SessionPublicTestSuite) TestClose() {
 						close(entered)
 						<-release
 
+						// Read as the operation ends: a Close that did not
+						// wait would have let the device go by now.
+						closedUnder.Store(closes.Load())
+
 						return nil, nil
 					})
 
@@ -592,14 +603,10 @@ func (s *SessionPublicTestSuite) TestClose() {
 
 				go func() { closing <- session.Close() }()
 
-				select {
-				case <-closing:
-					s.FailNow("Close returned with an operation in flight")
-				case <-time.After(50 * time.Millisecond):
-				}
-
 				close(release)
 				s.Require().NoError(<-closing)
+				s.Require().Zero(closedUnder.Load(),
+					"the device was not let go under the operation")
 			} else {
 				s.Require().Equal(tt.released, session.Close())
 			}

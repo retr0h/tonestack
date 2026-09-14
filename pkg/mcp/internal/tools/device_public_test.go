@@ -26,6 +26,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -145,14 +146,26 @@ func (s *DevicePublicTestSuite) TestDevicesList() {
 	})
 
 	s.Run("two calls at once", func() {
-		// A barrier rather than a sleep: the first call holds the device
-		// until the test lets it go, so the second has every chance to get
-		// in and must not.
+		// A barrier and a counter rather than a sleep: the first call holds
+		// the device until the test lets it go, and how many calls were ever
+		// inside at once is read after both have finished.
+		var inside, most atomic.Int32
+
 		entered := make(chan struct{}, 2)
 		release := make(chan struct{})
 
 		s.client.EXPECT().Devices(gomock.Any()).Times(2).DoAndReturn(
 			func(context.Context) (sdk.Attached, error) {
+				now := inside.Add(1)
+				defer inside.Add(-1)
+
+				for {
+					seen := most.Load()
+					if now <= seen || most.CompareAndSwap(seen, now) {
+						break
+					}
+				}
+
 				entered <- struct{}{}
 				<-release
 
@@ -167,7 +180,6 @@ func (s *DevicePublicTestSuite) TestDevicesList() {
 		}
 
 		var wg sync.WaitGroup
-		defer wg.Wait()
 
 		wg.Go(devices)
 
@@ -175,22 +187,16 @@ func (s *DevicePublicTestSuite) TestDevicesList() {
 		case <-entered:
 		case <-time.After(5 * time.Second):
 			close(release)
+			wg.Wait()
 			s.FailNow("the first call never reached the device")
 		}
 
 		wg.Go(devices)
-
-		select {
-		case <-entered:
-			close(release)
-			s.FailNow("the second call reached the device while the first held it")
-		case <-time.After(200 * time.Millisecond):
-		}
-
 		close(release)
 		wg.Wait()
 
-		s.Len(entered, 1, "the second call reached the device once the first let go")
+		s.Len(entered, 1, "the second call reached the device too")
+		s.Equal(int32(1), most.Load(), "never two calls inside at once")
 	})
 }
 

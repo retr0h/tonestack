@@ -83,10 +83,8 @@ func (s *ConversationPublicTestSuite) TestClose() {
 		before func(session *device.Session, d *deviceDouble)
 		// released is what the last hold says when it is given back.
 		released error
-		// closes is how many channel closings Close sends, and silent that it
-		// sends nothing at all.
+		// closes is how many channel closings Close sends.
 		closes int
-		silent bool
 		trace  []string
 		// fast is a Close that must end at its own budget.
 		fast bool
@@ -157,16 +155,17 @@ func (s *ConversationPublicTestSuite) TestClose() {
 			closes: len(device.ChannelNames()),
 		},
 		{
-			// No read is posted to catch the device's answers, so nothing
-			// more is said to it. The interface is still given back, and the
-			// error that ended the loop is what Close says.
+			// The device is still told the editor has gone, as it was before
+			// there was a loop, though nothing reads what it answers. The
+			// interface is given back, and the error that ended the loop is
+			// what Close says.
 			name:   "a session the bus ended",
 			device: func() *deviceDouble { return readFails(s.ctrl, broken) },
 			opened: true,
 			before: func(session *device.Session, _ *deviceDouble) {
 				<-session.Dead()
 			},
-			silent: true,
+			closes: len(device.ChannelNames()),
 			err:    broken,
 		},
 		{
@@ -181,7 +180,7 @@ func (s *ConversationPublicTestSuite) TestClose() {
 				d.tell(noise)
 				<-session.Dead()
 			},
-			silent: true,
+			closes: len(device.ChannelNames()),
 			says:   "the read loop panicked: routing went wrong",
 		},
 		{
@@ -274,11 +273,6 @@ func (s *ConversationPublicTestSuite) TestClose() {
 				}
 			default:
 				s.Require().NoError(err)
-			}
-
-			if tt.silent {
-				s.Require().Len(d.frames(), before,
-					"nothing is said to a device nobody is reading")
 			}
 
 			if tt.closes == 0 {

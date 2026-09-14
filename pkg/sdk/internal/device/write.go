@@ -24,7 +24,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/retr0h/tonestack/pkg/sdk/internal/wire"
 )
@@ -116,6 +115,15 @@ func (s *session) write(
 		return err
 	}
 
+	// In flight from the first chunk through the flash pause, so the idle
+	// acknowledgement sends nothing on any channel inside the window a device
+	// punishes.
+	if err := s.begin(); err != nil {
+		return err
+	}
+
+	defer s.finish()
+
 	if err := s.commit(ctx, c, opcode, args); err != nil {
 		return err
 	}
@@ -143,12 +151,6 @@ func (s *session) commit(
 	opcode uint64,
 	args []wire.Arg,
 ) error {
-	if err := s.begin(c); err != nil {
-		return err
-	}
-
-	defer s.finish(c)
-
 	txn := s.nextTxn(c)
 
 	body := wire.EncodeEnvelope(wire.Envelope{
@@ -193,10 +195,7 @@ func (s *session) commit(
 // A wait on a timer, not a sleep of the only reader: the loop goes on reading
 // throughout.
 func (s *session) settle() {
-	timer := time.NewTimer(s.budgets.flash)
-	defer timer.Stop()
-
-	<-timer.C
+	<-s.after(s.budgets.flash)
 }
 
 // stream sends a message in the size a device takes, pausing between frames
@@ -204,14 +203,18 @@ func (s *session) settle() {
 //
 // Only a failed send stops it. Between frames, not after the last one: a
 // device that has more to say says it now, and one with nothing to say costs
-// the pace budget. A loop that has ended does not stop it either, because a
+// the pace budget. A read that fails does not stop it either, because a
 // message that has started must go out whole: a device left holding half of
-// one is the stall docs/protocol.md describes. A bus that has really gone
+// one is the stall docs/protocol.md describes. The loop goes on reading and
+// reports the failure once the last chunk is out. A bus that has really gone
 // fails the next send, which does stop the message.
 func (s *session) stream(
 	c *channel,
 	body []byte,
 ) error {
+	s.streamStart()
+	defer s.streamEnd()
+
 	for len(body) > 0 {
 		n := min(len(body), streamChunk)
 		mark := s.progress().transfers

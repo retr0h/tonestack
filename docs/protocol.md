@@ -151,6 +151,21 @@ and then jumps to **2, not 1**; the device stops answering a client that sends
 a stream byte is the envelope including its own header. Sending a bare count
 instead makes the device stop responding.
 
+A session also acknowledges bytes nobody asked for. A channel that received
+stream bytes outside an exchange gets one acknowledgement once it has been quiet
+for 300ms, and any whole envelopes it holds are dropped. The events channel gets
+these, because nothing reads it. So does a control or data channel that heard
+from the device between operations. None is sent, on any channel, while an
+exchange, a write or a channel opening is under way. A write counts from its
+first chunk through its answer and the 750ms flash pause, because that is the
+window a device punishes.
+
+A read that fails while a message is going out does not stop the message. The
+session posts reads again until the last chunk has gone, then ends. Closing a
+session whose reads failed still sends the acknowledgements and the closing
+hellos, as it did before sessions had a read loop, though nothing reads what the
+device answers.
+
 ## Remote calls
 
 Three shapes, all MessagePack maps with integer keys:

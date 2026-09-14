@@ -124,12 +124,13 @@ func (s *BackendPublicTestSuite) TestReadUntil() {
 			want:   errBroken, calls: 2,
 		},
 		{
-			// Bytes arrived with the timeout, so they are handed back rather
-			// than dropped.
+			// Bytes arrived with the timeout, so they are handed back as an
+			// answer. Reported with the timeout, the loop read them as a bus
+			// that failed and threw them away.
 			name:   "a short read that also timed out",
 			reads:  []error{errIdle},
 			counts: []int{4},
-			wantN:  4, want: errIdle, calls: 1,
+			wantN:  4, calls: 1,
 		},
 		{
 			// Ctrl-C has to reach a session holding the interface.

@@ -62,6 +62,10 @@ holds a Session across device tools and closes it 10 seconds after the last one,
 or when a call fails on the bus. The front panel is dead while the Session is
 held and comes back once it closes.
 
+`devices_list` does not go through the Session. It lists the bus even while a
+Session holds the editor interface, which reads what is attached and claims
+nothing.
+
 ## Selecting a preset has to be waited for
 
 `presets select` loads a preset, which is what stepping on a footswitch does.

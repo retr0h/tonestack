@@ -52,6 +52,11 @@ func (s *session) start() {
 }
 
 // loop reads until ctx ends or the bus fails.
+//
+// A read that fails while a message is going out does not end it. The read
+// is posted again a window later, and the failure is reported once the last
+// chunk has gone, because a device left holding half a message is the stall
+// docs/protocol.md describes.
 func (s *session) loop(
 	ctx context.Context,
 ) {
@@ -60,30 +65,47 @@ func (s *session) loop(
 	// A panic on a goroutine nobody joins kills the process without running
 	// the caller's deferred Close, and that leaves the pedal needing a power
 	// cycle. So it ends the session the way a bus error does instead.
-	defer func() {
-		if v := recover(); v != nil {
-			s.end(&busError{
-				err: fmt.Errorf("the read loop panicked: %v\n%s", v, debug.Stack()),
-			})
-		}
-	}()
+	defer s.recoverAs("the read loop")
 
 	buf := make([]byte, readBuffer)
 
 	for ctx.Err() == nil {
-		if err := s.readOnce(ctx, buf); err != nil {
+		err := s.readOnce(ctx, buf)
+		if err == nil {
+			continue
+		}
+
+		if !s.tolerate(err) {
 			s.end(err)
 
 			return
 		}
+
+		// A bus failing at once would spin the loop, so the next read waits a
+		// window.
+		select {
+		case <-ctx.Done():
+		case <-time.After(s.budgets.window):
+		}
+
+		s.tick(false, false)
+	}
+}
+
+// recoverAs ends the session on a panic in one of its goroutines.
+func (s *session) recoverAs(
+	who string,
+) {
+	if v := recover(); v != nil {
+		s.end(&busError{err: fmt.Errorf("%s panicked: %v\n%s", who, v, debug.Stack())})
 	}
 }
 
 // readOnce posts one read for a window and routes whatever it brings.
 //
-// A read that timed out is quiet, not a failure. Any other failure is the
-// bus, and ends the session: read as silence, it would wait out every budget
-// and then blame the device.
+// A read that timed out is quiet, not a failure, and bytes that came back
+// with a timeout are still bytes. Any other failure is the bus: read as
+// silence, it would wait out every budget and then blame the device.
 func (s *session) readOnce(
 	ctx context.Context,
 	buf []byte,
@@ -93,17 +115,22 @@ func (s *session) readOnce(
 
 	n, err := s.in.ReadContext(window, buf)
 
+	if err == nil || n > 0 {
+		s.route(buf[:n])
+	}
+
 	switch {
 	case err == nil:
-		s.route(buf[:n])
 	case ctx.Err() != nil:
 		// Close stopped the loop, which is not a failure.
 	case errors.Is(err, context.DeadlineExceeded):
 		// The ordinary case: the device had nothing to say in time. One that
 		// says so before the window is up would spin the loop, so the rest of
 		// the window is waited out.
-		<-window.Done()
-		s.tick(false)
+		if n == 0 {
+			<-window.Done()
+			s.tick(false, false)
+		}
 	default:
 		return &busError{err: fmt.Errorf("reading from the device: %w", err)}
 	}
@@ -111,11 +138,35 @@ func (s *session) readOnce(
 	return nil
 }
 
+// tolerate notes a read failure while a message is going out, and reports
+// whether the loop should read on.
+func (s *session) tolerate(
+	err error,
+) bool {
+	s.rxMu.Lock()
+	defer s.rxMu.Unlock()
+
+	if s.streaming == 0 {
+		return false
+	}
+
+	if s.readErr == nil {
+		s.readErr = err
+	}
+
+	return true
+}
+
 // tick records a finished read and wakes whoever is waiting on one.
+//
+// transfer is a read that returned something, and carried one that brought
+// stream bytes. Only the second ends a drain's quiet run: a device sends empty
+// transfers when it has nothing to say.
 func (s *session) tick(
 	transfer bool,
+	carried bool,
 ) {
-	s.advance(transfer)
+	s.advance(transfer, carried)
 
 	// One slot: a pending poke already says a read finished.
 	select {
@@ -127,6 +178,7 @@ func (s *session) tick(
 // advance counts a finished read.
 func (s *session) advance(
 	transfer bool,
+	carried bool,
 ) {
 	s.rxMu.Lock()
 	defer s.rxMu.Unlock()
@@ -135,6 +187,9 @@ func (s *session) advance(
 
 	if transfer {
 		s.transfers++
+	}
+
+	if carried {
 		s.quietRun = 0
 	} else {
 		s.quietRun++
@@ -167,7 +222,7 @@ func (s *session) ended() error {
 // progress is where the loop has got to.
 type progress struct {
 	// windows counts finished reads, transfers those that brought something,
-	// and quiet how many in a row brought nothing.
+	// and quiet how many in a row brought no stream bytes.
 	windows   uint64
 	transfers uint64
 	quiet     int
@@ -196,6 +251,7 @@ func (s *session) acknowledge(
 	ctx context.Context,
 ) {
 	defer close(s.ackDone)
+	defer s.recoverAs("the acknowledger")
 
 	for {
 		select {
@@ -209,14 +265,16 @@ func (s *session) acknowledge(
 		for _, c := range s.opened() {
 			s.idleAck(c)
 		}
+
+		s.passes.Add(1)
 	}
 }
 
 // idleAck acknowledges a channel whose unasked-for bytes have gone quiet.
 //
 // At most once a quiet period, since the acknowledgement itself settles what
-// is owed. The send lock is taken before the channel is looked at, so an
-// exchange cannot start between deciding and sending.
+// is owed. The send lock is taken before anything is looked at, so an
+// exchange cannot start its first frame between deciding and sending.
 func (s *session) idleAck(
 	c *channel,
 ) {
@@ -237,15 +295,18 @@ func (s *session) idleAck(
 // idleDue reports a channel owed an idle acknowledgement, and drops the
 // complete envelopes nobody asked for.
 //
-// A partial envelope stays until the rest of it arrives, because the framing
-// has no marker to resynchronise on.
+// Nothing is due on any channel while an exchange, a write or a handshake is
+// under way: a write is the window a device punishes, from its first chunk
+// through its answer and the flash pause, and before the loop nothing was
+// ever sent inside one. A partial envelope stays until the rest of it
+// arrives, because the framing has no marker to resynchronise on.
 func (s *session) idleDue(
 	c *channel,
 ) bool {
 	s.rxMu.Lock()
 	defer s.rxMu.Unlock()
 
-	if s.closing || c.busy || !c.owed() || time.Since(c.lastRx) < s.budgets.idle {
+	if s.closing || s.inflight > 0 || !c.owed() || time.Since(c.lastRx) < s.budgets.idle {
 		return false
 	}
 
@@ -264,6 +325,18 @@ func dropMessages(
 			return
 		}
 	}
+}
+
+// after is the clock the session's pauses run on: the budgets' own when a
+// test gave one, the real one otherwise.
+func (s *session) after(
+	d time.Duration,
+) <-chan time.Time {
+	if s.budgets.after != nil {
+		return s.budgets.after(d)
+	}
+
+	return time.After(d)
 }
 
 // pause waits for the device to say anything after mark, or for wait to
@@ -305,8 +378,7 @@ func (s *session) pause(
 func (s *session) pace(
 	mark uint64,
 ) {
-	timer := time.NewTimer(s.budgets.pace)
-	defer timer.Stop()
+	budget := s.after(s.budgets.pace)
 
 	for {
 		at := s.progress()
@@ -316,7 +388,7 @@ func (s *session) pace(
 
 		select {
 		case <-at.next:
-		case <-timer.C:
+		case <-budget:
 			return
 		}
 	}
@@ -325,7 +397,7 @@ func (s *session) pace(
 // drain waits until the device genuinely has nothing left, and throws away
 // what it said.
 //
-// Three reads in a row with no transfer is a device with nothing left.
+// Three reads in a row with no stream bytes is a device with nothing left.
 // Bounded on purpose. A stale backlog clears in about a hundred frames; an
 // unbounded drain keeps the endpoint under load and has coincided with
 // devices locking up.

@@ -43,6 +43,9 @@ type Budgets struct {
 	Pace      time.Duration
 	Idle      time.Duration
 	Window    time.Duration
+	// After is the clock the flash pause, pacing and the select poll wait
+	// on. Nil is the real one.
+	After func(time.Duration) <-chan time.Time
 }
 
 // ShortBudgets are waits a scripted device fits inside, since nothing here is
@@ -81,6 +84,7 @@ func (b Budgets) budgets() budgets {
 		pace:      b.Pace,
 		idle:      b.Idle,
 		window:    b.Window,
+		after:     b.After,
 	}
 }
 
@@ -191,6 +195,10 @@ func (s *session) Transfers() uint64 { return s.progress().transfers }
 
 // Windows is how many reads the loop has finished.
 func (s *session) Windows() uint64 { return s.progress().windows }
+
+// IdlePasses is how many rounds the acknowledger has made, so a test waits
+// for it to have looked rather than for time to pass.
+func (s *session) IdlePasses() uint64 { return s.passes.Load() }
 
 // LoopDone closes once the read loop has returned.
 func (s *session) LoopDone() <-chan struct{} { return s.loopDone }

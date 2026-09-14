@@ -119,14 +119,10 @@ func (s *session) awaitLoaded(
 				slot, s.budgets.selecting)
 		}
 
-		poll := time.NewTimer(s.budgets.poll)
-
 		select {
 		case <-ctx.Done():
-			poll.Stop()
-
 			return ctx.Err()
-		case <-poll.C:
+		case <-s.after(s.budgets.poll):
 		}
 	}
 }

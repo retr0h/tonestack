@@ -21,6 +21,7 @@
 package tools_test
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sync"
@@ -189,6 +190,38 @@ func (s *PedalPublicTestSuite) TestOnPedal() {
 	}
 }
 
+// TestOnPedalPanicking covers a call that panics, which cannot go through a
+// server: go-sdk does not recover the handler, so the process would die.
+func (s *PedalPublicTestSuite) TestOnPedalPanicking() {
+	s.Run("a call that panics lets the Session go", func() {
+		c := mocks.NewMockClient(s.ctrl)
+		first, second := mocks.NewMockSession(s.ctrl), mocks.NewMockSession(s.ctrl)
+
+		gomock.InOrder(
+			c.EXPECT().Open(gomock.Any()).Return(first, nil),
+			c.EXPECT().Open(gomock.Any()).Return(second, nil),
+		)
+		first.EXPECT().Close().Return(nil)
+		second.EXPECT().Close().Return(nil)
+
+		p := tools.NewPedal(c)
+
+		s.Require().PanicsWithValue("a bug inside a tool", func() {
+			_, _ = tools.OnPedal(context.Background(), p, func(tools.Session) (int, error) {
+				panic("a bug inside a tool")
+			})
+		})
+
+		// Let go on the way up, so the next call opens a fresh Session.
+		got, err := tools.OnPedal(context.Background(), p, func(tools.Session) (int, error) {
+			return 1, nil
+		})
+		s.Require().NoError(err)
+		s.Require().Equal(1, got)
+		s.Require().NoError(p.Close())
+	})
+}
+
 // TestClose covers letting the pedal go when the server stops.
 func (s *PedalPublicTestSuite) TestClose() {
 	ended := errors.New("the read loop ended")
@@ -226,6 +259,12 @@ func (s *PedalPublicTestSuite) TestClose() {
 			}
 
 			s.Require().NoError(pedal.Close(), "nothing is held the second time")
+
+			// A call that arrives after the server let go does not claim the
+			// pedal again.
+			res := call(s.T(), session, "presets_list", tools.None{})
+			s.True(res.IsError)
+			s.Contains(text(s.T(), res), "the server has stopped")
 		})
 	}
 }

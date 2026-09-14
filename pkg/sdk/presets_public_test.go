@@ -26,6 +26,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/mock/gomock"
@@ -33,6 +34,7 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/device"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/device/mocks"
+	"github.com/retr0h/tonestack/pkg/sdk/internal/wire"
 )
 
 // PresetsPublicTestSuite covers the operations a wrapper reaches through the
@@ -141,6 +143,37 @@ func (s *PresetsPublicTestSuite) TestPresets() {
 		got, err := s.attachedTo().Presets(context.Background(), sdk.Where{})
 		s.Require().NoError(err)
 		s.Require().Len(got.Slots, 2)
+	})
+
+	s.Run("off a device, when the flow panics", func() {
+		dev := &attached{
+			MockEditor:   mocks.NewMockEditor(s.ctrl),
+			MockWriter:   mocks.NewMockWriter(s.ctrl),
+			MockSelector: mocks.NewMockSelector(s.ctrl),
+		}
+		dev.MockEditor.EXPECT().Presets(gomock.Any(), 0).DoAndReturn(
+			func(context.Context, int) ([]wire.Preset, error) {
+				panic("a bug inside a flow")
+			})
+		dev.MockEditor.EXPECT().Close().Return(nil).Times(2)
+
+		bus := mocks.NewMockOpener(s.ctrl)
+		bus.EXPECT().Open(gomock.Any()).Return(dev, nil).Times(2)
+
+		client := sdk.New(sdk.WithDevices(bus))
+
+		s.Require().Panics(func() {
+			_, _ = client.Presets(context.Background(), sdk.Where{})
+		})
+
+		// The pedal was let go on the way up, so the Client opens it again
+		// rather than waiting on a claim nobody will give back.
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		again, err := client.Open(ctx)
+		s.Require().NoError(err)
+		s.Require().NoError(again.Close())
 	})
 }
 

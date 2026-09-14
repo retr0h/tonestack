@@ -106,21 +106,22 @@ func (s *session) route(
 ) {
 	s.tracef("IN  %d bytes: %x\n", len(transfer), transfer[:min(len(transfer), 48)])
 
-	s.deliver(transfer)
-	s.tick(true)
+	s.tick(true, s.deliver(transfer))
 }
 
-// deliver appends each frame's payload to its channel.
+// deliver appends each frame's payload to its channel, and reports whether
+// any stream bytes arrived.
 //
 // A frame without stream bytes is not counted: the device sends empty
 // transfers when it has nothing to say, and acknowledging one burns a
 // sequence number and desynchronises the channel.
 func (s *session) deliver(
 	transfer []byte,
-) {
+) bool {
 	s.rxMu.Lock()
 	defer s.rxMu.Unlock()
 
+	carried := false
 	rest := transfer
 
 	for len(rest) > 0 {
@@ -144,6 +145,7 @@ func (s *session) deliver(
 
 		c.rxBytes.Add(uint32(len(f.Payload)))
 		c.lastRx = time.Now()
+		carried = true
 
 		// Nothing reads the events channel, so its bytes are counted and
 		// acknowledged, and kept nowhere.
@@ -156,6 +158,8 @@ func (s *session) deliver(
 		default:
 		}
 	}
+
+	return carried
 }
 
 // channelFor finds which open conversation a frame belongs to.
@@ -189,12 +193,10 @@ func (s *session) channel(
 	return c, nil
 }
 
-// begin marks an exchange in flight on a channel, which keeps the idle
-// acknowledgement off it. A session whose loop has ended starts nothing: no
-// read is posted to catch the answer.
-func (s *session) begin(
-	c *channel,
-) error {
+// begin marks an exchange or a write in flight, which keeps the idle
+// acknowledgement off every channel until finish. A session whose loop has
+// ended starts nothing: no read is posted to catch the answer.
+func (s *session) begin() error {
 	if err := s.ended(); err != nil {
 		return err
 	}
@@ -202,19 +204,44 @@ func (s *session) begin(
 	s.rxMu.Lock()
 	defer s.rxMu.Unlock()
 
-	c.busy = true
+	s.inflight++
 
 	return nil
 }
 
-// finish marks the exchange over.
-func (s *session) finish(
-	c *channel,
-) {
+// finish marks one exchange or write over.
+func (s *session) finish() {
 	s.rxMu.Lock()
 	defer s.rxMu.Unlock()
 
-	c.busy = false
+	s.inflight--
+}
+
+// streamStart marks a message going out chunk by chunk.
+func (s *session) streamStart() {
+	s.rxMu.Lock()
+	defer s.rxMu.Unlock()
+
+	s.streaming++
+}
+
+// streamEnd marks the message out, and ends the session with the read
+// failure that was noted while it went, if there was one.
+func (s *session) streamEnd() {
+	s.rxMu.Lock()
+
+	s.streaming--
+
+	var err error
+	if s.streaming == 0 {
+		err = s.readErr
+	}
+
+	s.rxMu.Unlock()
+
+	if err != nil {
+		s.end(err)
+	}
 }
 
 // message takes one complete envelope out of a channel's buffer. The caller

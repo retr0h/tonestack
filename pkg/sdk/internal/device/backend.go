@@ -180,8 +180,15 @@ func readUntil(
 		}
 
 		n, err := read(p, slice)
-		if n == 0 && err != nil && idle(err) {
-			continue
+		if err != nil && idle(err) {
+			if n == 0 {
+				continue
+			}
+
+			// Bytes that came back with the timeout are an answer. The timeout
+			// is only how the read ended, and reported as a failure it would
+			// throw them away.
+			return n, nil
 		}
 
 		return n, err

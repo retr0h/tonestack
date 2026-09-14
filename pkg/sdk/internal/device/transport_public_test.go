@@ -101,6 +101,19 @@ func (s *TransportPublicTestSuite) TestDrain() {
 			opened: true,
 		},
 		{
+			// The device sends empty transfers when it has nothing to say.
+			// Counted as traffic, they held every drain for its whole budget.
+			name: "one that sends nothing but empty transfers",
+			device: func() *deviceDouble {
+				d := answers(s.ctrl)
+				d.noisy = device.FrameFor(device.ControlChannel, wire.MsgAck, nil)
+
+				return d
+			},
+			opened: true,
+			quiet:  true,
+		},
+		{
 			// A stale backlog clears in about a hundred frames. A device that
 			// never stops is not waited on past the budget.
 			name: "one that never goes quiet",
@@ -128,7 +141,7 @@ func (s *TransportPublicTestSuite) TestDrain() {
 			b.Drain = 300 * time.Millisecond
 
 			if !tt.atBudget {
-				b.Drain = 5 * time.Second
+				b.Drain = time.Minute
 			}
 
 			session := device.NewTestSessionWith(s.T(), d.out, d.in, b)
@@ -144,17 +157,20 @@ func (s *TransportPublicTestSuite) TestDrain() {
 				cancel()
 			}
 
+			start := session.Windows()
 			started := time.Now()
 
 			session.Drain(ctx)
 
 			took := time.Since(started)
 
-			s.Require().Less(took, 2*time.Second,
-				"a drain ends when it has an answer, not at a budget it did not need")
+			if !tt.atBudget {
+				s.Require().Less(took, b.Drain,
+					"a drain ends when it has an answer, not at a budget it did not need")
+			}
 
 			if tt.quiet {
-				s.Require().GreaterOrEqual(took, 3*b.Window, "three quiet reads")
+				s.Require().GreaterOrEqual(session.Windows()-start, uint64(3), "three quiet reads")
 			}
 
 			if tt.atBudget {
