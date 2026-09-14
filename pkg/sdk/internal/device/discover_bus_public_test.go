@@ -26,6 +26,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/suite"
+	"go.uber.org/mock/gomock"
 
 	"github.com/retr0h/tonestack/pkg/sdk/internal/device"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/wire"
@@ -34,41 +35,62 @@ import (
 // DiscoverBusPublicTestSuite covers finding a device and claiming it.
 //
 // All of it against a bus this file supplies. What libusb does is one
-// expression per method in usb.go, and none of the decisions are there.
+// expression per method in usb_darwin.go, and none of the decisions are there.
 type DiscoverBusPublicTestSuite struct {
 	suite.Suite
+
+	ctrl *gomock.Controller
 }
 
-// bus is a set of devices, or a failure to look for them.
-type fakeBus struct {
-	devices []device.TestHandle
+func (s *DiscoverBusPublicTestSuite) SetupTest() {
+	s.ctrl = gomock.NewController(s.T())
+}
+
+// busDouble is a set of devices, or a failure to look for them: a Mockbus
+// wired to the knobs a test sets directly, the same way handleDouble wires a
+// Mockhandle.
+type busDouble struct {
+	mock    *device.Mockbus
+	handles []*handleDouble
 	err     error
 	closed  bool
 }
 
-func (b *fakeBus) Devices(
-	match func(vendor, product uint16) bool,
-) ([]device.TestHandle, error) {
-	var out []device.TestHandle
+// bus wires a Mockbus to a set of devices, or to a failure to look for them.
+func (s *DiscoverBusPublicTestSuite) bus(
+	err error,
+	handles ...*handleDouble,
+) *busDouble {
+	b := &busDouble{handles: handles, err: err}
 
-	for _, d := range b.devices {
-		desc := d.Descriptor()
-		if match(desc.Vendor, desc.Product) {
-			out = append(out, d)
-		}
-	}
+	b.mock = device.NewMockbus(s.ctrl)
+	b.mock.EXPECT().Devices(gomock.Any()).DoAndReturn(
+		func(match func(vendor, product uint16) bool) ([]device.TestHandle, error) {
+			var out []device.TestHandle
 
-	return out, b.err
+			for _, h := range b.handles {
+				if match(h.desc.Vendor, h.desc.Product) {
+					out = append(out, h.mock)
+				}
+			}
+
+			return out, b.err
+		}).AnyTimes()
+	b.mock.EXPECT().Close().DoAndReturn(func() error {
+		b.closed = true
+
+		return nil
+	}).AnyTimes()
+
+	return b
 }
 
-func (b *fakeBus) Close() error {
-	b.closed = true
+// handleDouble is one device on a fake bus: a Mockhandle wired to the knobs
+// a test sets directly, the same way deviceDouble wires a sender and a
+// receiver.
+type handleDouble struct {
+	mock *device.Mockhandle
 
-	return nil
-}
-
-// handle is one device on it.
-type fakeHandle struct {
 	desc      device.Descriptor
 	claimErr  error
 	outErr    error
@@ -76,67 +98,72 @@ type fakeHandle struct {
 	claims    int
 	closed    bool
 	released  int
-	scripted  *scripted
+	device    *deviceDouble
 	failClaim int
 }
 
-func (h *fakeHandle) Descriptor() device.Descriptor { return h.desc }
+// handle wires a Mockhandle to a device.
+func (s *DiscoverBusPublicTestSuite) handle(
+	desc device.Descriptor,
+	d *deviceDouble,
+) *handleDouble {
+	h := &handleDouble{desc: desc, device: d}
 
-func (h *fakeHandle) Close() error {
-	h.closed = true
+	h.mock = device.NewMockhandle(s.ctrl)
+	h.mock.EXPECT().Descriptor().DoAndReturn(func() device.Descriptor {
+		return h.desc
+	}).AnyTimes()
+	h.mock.EXPECT().Close().DoAndReturn(func() error {
+		h.closed = true
 
-	return nil
-}
+		return nil
+	}).AnyTimes()
+	h.mock.EXPECT().Claim().DoAndReturn(func() (device.TestEndpoints, func(), error) {
+		h.claims++
 
-func (h *fakeHandle) Claim() (device.TestEndpoints, func(), error) {
-	h.claims++
+		if h.claimErr != nil && h.claims > h.failClaim {
+			return nil, nil, h.claimErr
+		}
 
-	if h.claimErr != nil && h.claims > h.failClaim {
-		return nil, nil, h.claimErr
-	}
+		ends := device.NewMockendpoints(s.ctrl)
+		ends.EXPECT().Out().DoAndReturn(func() (device.TestSender, error) {
+			if h.outErr != nil {
+				return nil, h.outErr
+			}
 
-	return &fakeEnds{h: h}, func() { h.released++ }, nil
-}
+			return h.device.out, nil
+		}).AnyTimes()
+		ends.EXPECT().In().DoAndReturn(func() (device.TestReceiver, error) {
+			if h.inErr != nil {
+				return nil, h.inErr
+			}
 
-// ends is a claimed interface.
-type fakeEnds struct {
-	h *fakeHandle
-}
+			return h.device.in, nil
+		}).AnyTimes()
 
-func (e *fakeEnds) Out() (device.TestSender, error) {
-	if e.h.outErr != nil {
-		return nil, e.h.outErr
-	}
+		return ends, func() { h.released++ }, nil
+	}).AnyTimes()
 
-	return e.h.scripted, nil
-}
-
-func (e *fakeEnds) In() (device.TestReceiver, error) {
-	if e.h.inErr != nil {
-		return nil, e.h.inErr
-	}
-
-	return e.h.scripted, nil
+	return h
 }
 
 // helix is a device this package recognises.
-func helix(d *scripted) *fakeHandle {
-	return &fakeHandle{
-		desc:     device.Descriptor{Vendor: 0x0e41, Product: 0x4246},
-		scripted: d,
-	}
+func (s *DiscoverBusPublicTestSuite) helix(
+	d *deviceDouble,
+) *handleDouble {
+	return s.handle(device.Descriptor{Vendor: 0x0e41, Product: 0x4246}, d)
 }
 
 // foreign is a device on the bus that is nothing to do with this.
-func foreign() *fakeHandle {
-	return &fakeHandle{desc: device.Descriptor{Vendor: 0x1234, Product: 0x5678}}
+func (s *DiscoverBusPublicTestSuite) foreign() *handleDouble {
+	return s.handle(device.Descriptor{Vendor: 0x1234, Product: 0x5678}, nil)
 }
 
 // TestOpenOver finds a device on a bus, claims it and hands back a session.
 func (s *DiscoverBusPublicTestSuite) TestOpenOver() {
 	tests := []struct {
 		name string
-		bus  func() *fakeBus
+		bus  func() *busDouble
 		// how many times the interface must be claimed and given back, and
 		// which handles must be closed.
 		claims   int
@@ -146,6 +173,10 @@ func (s *DiscoverBusPublicTestSuite) TestOpenOver() {
 		// claim.
 		unusedClosed bool
 		busClosed    bool
+		// every handle the bus returned was given back, and the first was
+		// never claimed.
+		allClosed bool
+		unclaimed bool
 
 		err  bool
 		says string
@@ -153,25 +184,79 @@ func (s *DiscoverBusPublicTestSuite) TestOpenOver() {
 	}{
 		{
 			name: "a bus with one this package recognises",
-			bus: func() *fakeBus {
-				return &fakeBus{devices: []device.TestHandle{foreign(), helix(answers())}}
+			bus: func() *busDouble {
+				return s.bus(nil, s.foreign(), s.helix(answers(s.ctrl)))
 			},
 		},
 		{
 			// Enumerating can fail partway and still have found something.
-			// What it found is worth using.
+			// A listing that failed is not one to claim hardware from, and
+			// nothing it returned is left held.
 			name: "one that complained and found something anyway",
-			bus: func() *fakeBus {
-				return &fakeBus{
-					devices: []device.TestHandle{helix(answers())},
-					err:     errors.New("boom"),
-				}
+			bus: func() *busDouble {
+				return s.bus(errors.New("boom"),
+					s.helix(answers(s.ctrl)), s.helix(answers(s.ctrl)))
 			},
+			err:       true,
+			says:      "looking for a device",
+			busClosed: true,
+			allClosed: true,
+			unclaimed: true,
+		},
+		{
+			// A product identifier is only Line 6's under Line 6's vendor
+			// identifier. Somebody else's device that happens to share one is
+			// not a Helix, and claiming it talks this protocol at hardware
+			// that does not speak it.
+			name: "a Helix product identifier under somebody else's vendor",
+			bus: func() *busDouble {
+				return s.bus(nil, s.handle(
+					device.Descriptor{Vendor: 0x1234, Product: 0x4246}, answers(s.ctrl)))
+			},
+			err:       true,
+			is:        device.ErrNoDevice,
+			busClosed: true,
+			unclaimed: true,
+		},
+		{
+			name: "a device whose reads fail before the handshake starts",
+			bus: func() *busDouble {
+				return s.bus(nil, s.helix(readFails(s.ctrl, errors.New("boom"))))
+			},
+			err:  true,
+			says: "reading from the device",
+		},
+		{
+			// Three quiet reads drain the device; the fourth is the first
+			// read after a channel opening.
+			name: "one whose reads fail after the opening frame",
+			bus: func() *busDouble {
+				return s.bus(nil, s.helix(readFailsAfter(s.ctrl, errors.New("boom"), 3)))
+			},
+			err:  true,
+			says: "reading from the device",
+		},
+		{
+			name: "one whose reads fail after a service is asked for",
+			bus: func() *busDouble {
+				return s.bus(nil, s.helix(readFailsAfter(s.ctrl, errors.New("boom"), 4)))
+			},
+			err:  true,
+			says: "reading from the device",
+		},
+		{
+			// The read between closing a channel and reopening it.
+			name: "one whose reads fail after a channel is closed",
+			bus: func() *busDouble {
+				return s.bus(nil, s.helix(readFailsAfter(s.ctrl, errors.New("boom"), 5)))
+			},
+			err:  true,
+			says: "reading from the device",
 		},
 		{
 			name: "a bus with nothing on it but somebody else's device",
-			bus: func() *fakeBus {
-				return &fakeBus{devices: []device.TestHandle{foreign()}}
+			bus: func() *busDouble {
+				return s.bus(nil, s.foreign())
 			},
 			busClosed: true,
 			err:       true,
@@ -182,31 +267,29 @@ func (s *DiscoverBusPublicTestSuite) TestOpenOver() {
 			// release between the two claims is what clears it. This is what
 			// HX Edit does, and what the device needs.
 			name: "a device claimed twice, as the device requires",
-			bus: func() *fakeBus {
-				return &fakeBus{devices: []device.TestHandle{helix(answers(
+			bus: func() *busDouble {
+				return s.bus(nil, s.helix(answers(s.ctrl,
 					device.FrameFor("control", wire.MsgHello, nil),
 					device.FrameFor("control", wire.MsgAck, nil),
-				))}}
+				)))
 			},
 			claims:   2,
 			released: 1,
 		},
 		{
 			name: "a bus carrying more than one of them",
-			bus: func() *fakeBus {
-				return &fakeBus{devices: []device.TestHandle{
-					helix(answers()), helix(answers()),
-				}}
+			bus: func() *busDouble {
+				return s.bus(nil, s.helix(answers(s.ctrl)), s.helix(answers(s.ctrl)))
 			},
 			unusedClosed: true,
 		},
 		{
 			name: "a device that stops listening partway through opening",
-			bus: func() *fakeBus {
-				d := answers()
+			bus: func() *busDouble {
+				d := answers(s.ctrl)
 				d.writeErr = errors.New("boom")
 
-				return &fakeBus{devices: []device.TestHandle{helix(d)}}
+				return s.bus(nil, s.helix(d))
 			},
 			// Twice: once between the two claims, and once when the session
 			// that could not finish gives back what it took.
@@ -215,17 +298,17 @@ func (s *DiscoverBusPublicTestSuite) TestOpenOver() {
 		},
 		{
 			name: "one that cannot be looked at at all",
-			bus:  func() *fakeBus { return &fakeBus{err: errors.New("boom")} },
+			bus:  func() *busDouble { return s.bus(errors.New("boom")) },
 			err:  true,
 			says: "looking for a device",
 		},
 		{
 			name: "an interface something else is holding",
-			bus: func() *fakeBus {
-				dev := helix(answers())
-				dev.claimErr = errors.New("busy")
+			bus: func() *busDouble {
+				h := s.helix(answers(s.ctrl))
+				h.claimErr = errors.New("busy")
 
-				return &fakeBus{devices: []device.TestHandle{dev}}
+				return s.bus(nil, h)
 			},
 			err:  true,
 			says: "is HX Edit running?",
@@ -234,32 +317,32 @@ func (s *DiscoverBusPublicTestSuite) TestOpenOver() {
 			// The interface is claimed twice, and the second can fail where
 			// the first did not.
 			name: "one that comes free and then does not",
-			bus: func() *fakeBus {
-				dev := helix(answers())
-				dev.claimErr, dev.failClaim = errors.New("busy"), 1
+			bus: func() *busDouble {
+				h := s.helix(answers(s.ctrl))
+				h.claimErr, h.failClaim = errors.New("busy"), 1
 
-				return &fakeBus{devices: []device.TestHandle{dev}}
+				return s.bus(nil, h)
 			},
 			err: true,
 		},
 		{
 			name: "an outgoing endpoint that will not open",
-			bus: func() *fakeBus {
-				dev := helix(answers())
-				dev.outErr = errors.New("boom")
+			bus: func() *busDouble {
+				h := s.helix(answers(s.ctrl))
+				h.outErr = errors.New("boom")
 
-				return &fakeBus{devices: []device.TestHandle{dev}}
+				return s.bus(nil, h)
 			},
 			err:  true,
 			says: "outgoing",
 		},
 		{
 			name: "an incoming one",
-			bus: func() *fakeBus {
-				dev := helix(answers())
-				dev.inErr = errors.New("boom")
+			bus: func() *busDouble {
+				h := s.helix(answers(s.ctrl))
+				h.inErr = errors.New("boom")
 
-				return &fakeBus{devices: []device.TestHandle{dev}}
+				return s.bus(nil, h)
 			},
 			err:  true,
 			says: "incoming",
@@ -268,9 +351,9 @@ func (s *DiscoverBusPublicTestSuite) TestOpenOver() {
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			bus := tt.bus()
+			b := tt.bus()
 
-			got, err := device.OpenOver(context.Background(), bus)
+			got, err := device.OpenOver(context.Background(), b.mock)
 
 			if tt.err {
 				s.Require().Error(err)
@@ -287,9 +370,9 @@ func (s *DiscoverBusPublicTestSuite) TestOpenOver() {
 				s.Require().Equal("HX Stomp", got.Model().Name)
 			}
 
-			var first *fakeHandle
-			if len(bus.devices) > 0 {
-				first, _ = bus.devices[0].(*fakeHandle)
+			var first *handleDouble
+			if len(b.handles) > 0 {
+				first = b.handles[0]
 			}
 
 			if tt.claims > 0 {
@@ -302,14 +385,24 @@ func (s *DiscoverBusPublicTestSuite) TestOpenOver() {
 			}
 
 			if tt.unusedClosed {
-				second, _ := bus.devices[1].(*fakeHandle)
+				second := b.handles[1]
 
 				s.Require().False(first.closed)
 				s.Require().True(second.closed, "the one nobody used is given back")
 			}
 
 			if tt.busClosed {
-				s.Require().True(bus.closed, "a bus nobody is using is given back")
+				s.Require().True(b.closed, "a bus nobody is using is given back")
+			}
+
+			if tt.unclaimed {
+				s.Require().Zero(first.claims, "nothing is claimed")
+			}
+
+			if tt.allClosed {
+				for i, h := range b.handles {
+					s.Require().True(h.closed, "handle %d is given back", i)
+				}
 			}
 		})
 	}
@@ -322,7 +415,7 @@ func (s *DiscoverBusPublicTestSuite) TestOpenFindsItsOwnBus() {
 	defer func() { *device.NewBus = restore }()
 
 	*device.NewBus = func() device.TestBus {
-		return &fakeBus{devices: []device.TestHandle{helix(answers())}}
+		return s.bus(nil, s.helix(answers(s.ctrl))).mock
 	}
 
 	got, err := device.Open(context.Background())

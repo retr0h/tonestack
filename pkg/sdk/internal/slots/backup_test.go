@@ -23,6 +23,7 @@ package slots
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -34,6 +35,7 @@ import (
 	"go.uber.org/mock/gomock"
 
 	"github.com/retr0h/tonestack/pkg/sdk/internal/device/mocks"
+	slotmocks "github.com/retr0h/tonestack/pkg/sdk/internal/slots/mocks"
 	"github.com/retr0h/tonestack/pkg/sdk/preset"
 )
 
@@ -139,8 +141,14 @@ func (s *BackupTestSuite) TestBackup() {
 		// a path that is a file, so no directory can be made under it.
 		blocked bool
 		// nowhere to work out a default from.
-		noHome  bool
-		kept    bool
+		noHome bool
+		// what the device calls the slot.
+		named string
+		// a document that will not encode again.
+		unencodable bool
+		kept        bool
+		// kept as the bytes the device sent, rather than as a preset.
+		raw     bool
 		errText string
 	}{
 		{
@@ -149,16 +157,34 @@ func (s *BackupTestSuite) TestBackup() {
 			kept: true,
 		},
 		{
+			// Somebody looking for a lost tone looks for its name.
+			name:  "a slot the device has a name for",
+			body:  s.answer,
+			named: "Chunky Monkey",
+			kept:  true,
+		},
+		{
+			// Reported rather than kept as nothing. A backup that silently
+			// held a blank file would be found to be useless only when it
+			// was needed.
+			name:        "a preset that will not encode again",
+			body:        s.answer,
+			unencodable: true,
+			errText:     "encoding preset",
+		},
+		{
 			// Nothing to lose, and a file saying so would only leave
 			// somebody wondering what it was for.
 			name: "a slot holding nothing",
 			body: func() []byte { return nil },
 		},
 		{
-			// A slot the device answers for and has nothing in. There is
-			// nothing to lose, so nothing is written and nothing complains.
-			name: "a slot the device says is empty",
+			// A slot the device answers for with no blocks in it. Nothing
+			// here reads a chain out of it, which is not the same as there
+			// being nothing in it, so the bytes are kept exactly as sent.
+			name: "a slot the device says has no blocks",
 			body: s.emptied,
+			raw:  true,
 		},
 		{
 			name:    "an answer that is not a preset",
@@ -210,7 +236,18 @@ func (s *BackupTestSuite) TestBackup() {
 				})
 			}
 
-			path, err := backup(tt.body(), DeviceOptions{Slot: 7}, dir)
+			opts := DeviceOptions{Setlist: 2, Slot: 7, Name: tt.named}
+
+			if tt.unencodable {
+				translator := slotmocks.NewMockTranslator(s.ctrl)
+				translator.EXPECT().
+					Document(gomock.Any(), gomock.Any(), gomock.Any()).
+					Return(&preset.Document{Meta: json.RawMessage("{")}, false, nil)
+
+				opts.Translator = translator
+			}
+
+			path, err := backup(tt.body(), opts, dir)
 
 			if tt.errText != "" {
 				s.Require().ErrorContains(err, tt.errText)
@@ -220,15 +257,27 @@ func (s *BackupTestSuite) TestBackup() {
 
 			s.Require().NoError(err)
 
-			if !tt.kept {
+			if !tt.kept && !tt.raw {
 				s.Require().Empty(path)
 
 				return
 			}
 
-			// Named for the slot the pedal shows and the moment, so a second write does not
-			// overwrite the copy taken before the first.
-			s.Require().Contains(filepath.Base(path), "03B-")
+			// Named for the slot the pedal shows, the setlist it is in and
+			// the moment, so a second write does not overwrite the copy
+			// taken before the first.
+			s.Require().Contains(filepath.Base(path), "03B-s2-")
+
+			if tt.raw {
+				s.Require().True(strings.HasSuffix(path, ".bin"))
+
+				got, err := os.ReadFile(path) //nolint:gosec // a path this test chose
+				s.Require().NoError(err)
+				s.Require().Equal(tt.body(), got)
+
+				return
+			}
+
 			s.Require().True(strings.HasSuffix(path, ".hlx"))
 
 			// The claim worth holding: what came out is a preset this tool
@@ -241,6 +290,10 @@ func (s *BackupTestSuite) TestBackup() {
 			doc, err := preset.Read(f)
 			s.Require().NoError(err)
 			s.Require().NotEmpty(doc.Data.Meta.Name)
+
+			if tt.named != "" {
+				s.Require().Equal(tt.named, doc.Data.Meta.Name)
+			}
 		})
 	}
 }
@@ -283,21 +336,115 @@ func (s *BackupTestSuite) TestHolds() {
 
 // TestKeep covers backing up every slot an edit is about to replace.
 func (s *BackupTestSuite) TestKeep() {
-	dir := s.T().TempDir()
+	tests := []struct {
+		name    string
+		catalog string
+		all     []at
+		// the extension of each file kept, in order. Empty means nothing is
+		// kept.
+		kept []string
+		// part of the first kept file's name.
+		base string
+		// the name the first kept preset carries.
+		named string
+		fails bool
+	}{
+		{
+			name: "a slot holding nothing",
+			all:  []at{{slot: 3}},
+		},
+		{
+			// Two, because a swap replaces two.
+			name: "two slots",
+			all:  []at{{body: s.answer(), slot: 3}, {body: s.answer(), slot: 0}},
+			kept: []string{".hlx", ".hlx"},
+		},
+		{
+			// The setlist and the name come along, so a backup says which
+			// preset it was and where it lived.
+			name:  "a named slot in another setlist",
+			all:   []at{{body: s.answer(), setlist: 1, slot: 3, name: "Black Rusty"}},
+			kept:  []string{".hlx"},
+			base:  "02A-s1-",
+			named: "Black Rusty",
+		},
+		{
+			// Named to the second, the second backup would have been
+			// written over the first.
+			name: "the same slot of the same setlist twice within a second",
+			all:  []at{{body: s.answer(), slot: 0}, {body: s.answer(), slot: 0}},
+			kept: []string{".hlx", ".hlx"},
+		},
+		{
+			// A chain is somebody's, whatever the slot is still called.
+			name: "blocks in a slot still called what it shipped as",
+			all:  []at{{body: s.answer(), name: untouched}},
+			kept: []string{".hlx"},
+		},
+		{
+			// A blank slot nobody has used. Keeping it would fill the
+			// backup directory with copies of nothing.
+			name: "no blocks in a slot still called what it shipped as",
+			all:  []at{{body: s.emptied(), name: untouched}},
+		},
+		{
+			// Somebody renamed it, so whatever is in it may be theirs.
+			name: "no blocks in a slot somebody renamed",
+			all:  []at{{body: s.emptied(), name: "Riff Ideas"}},
+			kept: []string{".bin"},
+		},
+		{
+			// Nothing said what it is called, so nothing says it is blank.
+			name: "no blocks in a slot no listing named",
+			all:  []at{{body: s.emptied()}},
+			kept: []string{".bin"},
+		},
+		{
+			name:    "a catalog it cannot read",
+			catalog: filepath.Join("testdata", "nope.json"),
+			all:     []at{{body: s.answer(), slot: 3}},
+			fails:   true,
+		},
+	}
 
-	got, err := keep(Deps{}, "", dir, at{slot: 3})
-	s.Require().NoError(err)
-	s.Require().Empty(got, "a slot holding nothing contributes nothing")
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			got, err := keep(Deps{}, tt.catalog, s.T().TempDir(), tt.all...)
 
-	// Two, because a swap replaces two.
-	got, err = keep(Deps{}, "", dir,
-		at{body: s.answer(), slot: 3}, at{body: s.answer(), slot: 0})
-	s.Require().NoError(err)
-	s.Require().Len(got, 2)
+			if tt.fails {
+				s.Require().Error(err)
 
-	_, err = keep(Deps{}, filepath.Join("testdata", "nope.json"), dir,
-		at{body: s.answer(), slot: 3})
-	s.Require().Error(err)
+				return
+			}
+
+			s.Require().NoError(err)
+			s.Require().Len(got, len(tt.kept))
+
+			for i, ext := range tt.kept {
+				s.Require().True(strings.HasSuffix(got[i], ext), got[i])
+				s.Require().FileExists(got[i])
+			}
+
+			if len(got) == 2 {
+				s.Require().NotEqual(got[0], got[1])
+			}
+
+			if tt.base != "" {
+				s.Require().Contains(filepath.Base(got[0]), tt.base)
+			}
+
+			if tt.named == "" {
+				return
+			}
+
+			raw, err := os.ReadFile(got[0]) //nolint:gosec // a path this test chose
+			s.Require().NoError(err)
+
+			doc, err := preset.Read(bytes.NewReader(raw))
+			s.Require().NoError(err)
+			s.Require().Equal(tt.named, doc.Data.Meta.Name)
+		})
+	}
 }
 
 // TestReplacing covers reading a slot and keeping what it held.
@@ -336,7 +483,7 @@ func (s *BackupTestSuite) TestReplacing() {
 			dev.EXPECT().ReadPreset(gomock.Any(), 0, 3).Return(tt.body, tt.err)
 
 			got, err := replacing(
-				context.Background(), dev, Deps{}, "", dir, 0, 3)
+				context.Background(), dev, Deps{}, "", dir, 0, 3, "Black Rusty")
 
 			if tt.errText != "" {
 				s.Require().ErrorContains(err, tt.errText)

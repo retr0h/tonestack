@@ -23,8 +23,10 @@ package device_test
 import (
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/suite"
+	"go.uber.org/mock/gomock"
 
 	"github.com/retr0h/tonestack/pkg/sdk/internal/device"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/wire"
@@ -33,6 +35,12 @@ import (
 // ConversationPublicTestSuite covers a session's beginning and end.
 type ConversationPublicTestSuite struct {
 	suite.Suite
+
+	ctrl *gomock.Controller
+}
+
+func (s *ConversationPublicTestSuite) SetupTest() {
+	s.ctrl = gomock.NewController(s.T())
 }
 
 // TestClose gives back what the session took, and tells the device it is
@@ -44,7 +52,21 @@ func (s *ConversationPublicTestSuite) TestClose() {
 		order  []string
 		closes int
 		sent   bool
+		// a device that never goes quiet, which Close must not wait on past
+		// its budget.
+		noisy bool
 	}{
+		{
+			// Two drains, each bounded on its own, would hold Close for twice
+			// the drain budget. The close budget bounds the whole, and the
+			// device is still told the session is over.
+			name:   "a session whose device never goes quiet",
+			opened: true,
+			order:  []string{"interface", "device", "library"},
+			closes: len(device.ChannelNames()),
+			sent:   true,
+			noisy:  true,
+		},
 		{
 			// What the device sent is drained and acknowledged first:
 			// dropping the interface with bytes unacknowledged carries a
@@ -70,11 +92,11 @@ func (s *ConversationPublicTestSuite) TestClose() {
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			d := answers(device.FrameFor("control", wire.MsgData, []byte("noise")))
+			d := answers(s.ctrl, device.FrameFor("control", wire.MsgData, []byte("noise")))
 
 			var given []string
 
-			session := device.NewTestSession(d, d)
+			session := device.NewTestSession(d.out, d.in)
 
 			if !tt.opened {
 				session = device.NewTestSession(nil, nil)
@@ -88,9 +110,25 @@ func (s *ConversationPublicTestSuite) TestClose() {
 				func() error { given = append(given, "library"); return nil },
 			)
 
+			if tt.noisy {
+				d.noisy = device.FrameFor("control", wire.MsgData, []byte("noise"))
+
+				drain, closing := *device.DrainBudget, *device.CloseBudget
+				*device.DrainBudget = 2 * time.Second
+				*device.CloseBudget = 50 * time.Millisecond
+
+				defer func() { *device.DrainBudget, *device.CloseBudget = drain, closing }()
+			}
+
 			before := len(d.sent)
+			started := time.Now()
 
 			session.Close()
+
+			if tt.noisy {
+				s.Require().Less(time.Since(started), time.Second,
+					"Close ends at its budget, not after two drains")
+			}
 
 			// In the order they were taken.
 			s.Require().Equal(tt.order, given)

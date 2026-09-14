@@ -209,6 +209,13 @@ func (s *NewPublicTestSuite) TestNew() {
 			dir:     "a file",
 			errText: "making room",
 		},
+		{
+			// Empty used to mean a directory relative to wherever the
+			// command happened to run, which is nowhere anybody chose.
+			name: "no directory at all",
+			dir:  "none",
+			err:  recipes.ErrNoDir,
+		},
 	}
 
 	for _, tt := range tests {
@@ -220,6 +227,8 @@ func (s *NewPublicTestSuite) TestNew() {
 				dir = s.readOnly()
 			case "a file":
 				dir = s.file()
+			case "none":
+				dir = ""
 			}
 
 			o := s.opts(dir)

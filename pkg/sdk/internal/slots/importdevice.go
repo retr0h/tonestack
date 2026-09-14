@@ -73,9 +73,16 @@ func ImportWith(
 		return result.Change{}, err
 	}
 
+	// What the device calls the slot, so the copy kept of it carries that
+	// name. The preset read back for one slot does not say.
+	found, err := s.Presets(ctx, opts.Setlist)
+	if err != nil {
+		return result.Change{}, fmt.Errorf("listing presets: %w", err)
+	}
+
 	// What the slot holds now, before it stops holding it.
 	kept, err := replacing(ctx, s, opts.Deps, opts.CatalogPath, opts.BackupDir,
-		opts.Setlist, opts.Slot)
+		opts.Setlist, opts.Slot, nameOf(found, opts.Slot))
 	if err != nil {
 		return result.Change{}, err
 	}
@@ -84,8 +91,8 @@ func ImportWith(
 
 	if err := writer.WriteNamedPreset(
 		ctx, opts.Setlist, opts.Slot, name, body); err != nil {
-		return result.Change{}, fmt.Errorf(
-			"writing slot %s: %w", slotpkg.Label(opts.Slot), err)
+		return result.Change{}, keptError(fmt.Errorf(
+			"writing slot %s: %w", slotpkg.Label(opts.Slot), err), kept)
 	}
 
 	return result.Change{

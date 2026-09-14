@@ -29,6 +29,7 @@ import (
 
 	"github.com/stretchr/testify/suite"
 	"github.com/vmihailenco/msgpack/v5"
+	"go.uber.org/mock/gomock"
 
 	"github.com/retr0h/tonestack/pkg/sdk/internal/device"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/wire"
@@ -41,6 +42,8 @@ import (
 // write is not finished when it says it was accepted.
 type WritePublicTestSuite struct {
 	suite.Suite
+
+	ctrl *gomock.Controller
 }
 
 // answer encodes a reply carrying one status.
@@ -58,32 +61,57 @@ func (s *WritePublicTestSuite) answer(txn uint64, status int) []byte {
 }
 
 // accepted then done is what a device says about a write it completed.
-func (s *WritePublicTestSuite) completes() *scripted {
-	return answers(
+func (s *WritePublicTestSuite) completes() *deviceDouble {
+	return answers(s.ctrl,
 		s.answer(device.FirstTxn, 1),
 		s.answer(device.FirstTxn, 0),
 	)
 }
 
-// SetupTest shortens the wait for a commit, since no test here is waiting on
-// hardware.
+// SetupTest drops the flash settle, which is a real wait on hardware and dead
+// time here.
+//
+// The commit budget is left at what TestMain gives it. A write waits that
+// long for its answer, not the reply budget a call gets, so it must outlast
+// the reply budget as it does on hardware.
 func (s *WritePublicTestSuite) SetupTest() {
-	was := *device.CommitBudget
-	*device.CommitBudget = 50 * time.Millisecond
+	s.ctrl = gomock.NewController(s.T())
 
-	// The flash settle is a real wait on hardware and dead time here.
 	flash := *device.FlashBudget
 	*device.FlashBudget = 0
 
 	s.T().Cleanup(func() {
-		*device.CommitBudget = was
 		*device.FlashBudget = flash
 	})
 }
 
+// stream puts back together the message a session sent, from the data frames
+// it went out in, and returns the body of its envelope.
+func (s *WritePublicTestSuite) stream(
+	d *deviceDouble,
+) []byte {
+	var joined []byte
+
+	for _, raw := range d.sent {
+		f, _, err := wire.DecodeFrame(raw)
+		s.Require().NoError(err)
+
+		if f.Type == wire.MsgData {
+			joined = append(joined, f.Payload...)
+		}
+	}
+
+	env, _, err := wire.DecodeEnvelope(joined)
+	s.Require().NoError(err, "the whole envelope arrived")
+
+	return env.Body
+}
+
 // session returns one with its channels open over a scripted device.
-func (s *WritePublicTestSuite) session(d *scripted) *device.Session {
-	out := device.NewTestSession(d, d)
+func (s *WritePublicTestSuite) session(
+	d *deviceDouble,
+) *device.Session {
+	out := device.NewTestSession(d.out, d.in)
 	out.OpenChannels()
 
 	return out
@@ -91,32 +119,104 @@ func (s *WritePublicTestSuite) session(d *scripted) *device.Session {
 
 // TestWritePreset puts a document into a slot.
 //
-// Both statuses have been seen on hardware for a write that landed, so
-// neither is read: the erase and program that follow never reach the wire.
+// Both 0 and 1 have been seen on hardware for a write that landed, so either
+// is success: the erase and program that follow never reach the wire. A
+// refusal, or a status nobody has seen, fails.
 func (s *WritePublicTestSuite) TestWritePreset() {
+	large := bytes.Repeat([]byte{0x2a}, 2000)
+
 	tests := []struct {
-		name   string
-		device func() *scripted
-		is     error
-		says   string
+		name     string
+		device   func() *deviceDouble
+		document []byte
+		// a caller who stopped waiting before the write, and one who stops
+		// once the first chunk has gone.
+		cancelled      bool
+		cancelsOnWrite bool
+		// nothing reached the device, or all of the message did.
+		nothingSent bool
+		whole       bool
+		// a commit budget of its own, when that is the point.
+		commitBudget time.Duration
+		// a call's reply budget of its own, shorter than the commit budget.
+		replyBudget time.Duration
+		is          error
+		says        string
 	}{
 		{
+			// The commit budget bounds waiting for the answer, never sending
+			// the message. A budget that ran out between chunks left the
+			// device holding half a preset, which is the stall a started
+			// write exists to prevent.
+			name: "a commit budget that runs out while the message is going out",
+			device: func() *deviceDouble {
+				return paused(s.ctrl, 10*time.Millisecond)
+			},
+			document:     large,
+			commitBudget: 20 * time.Millisecond,
+			whole:        true,
+			is:           context.DeadlineExceeded,
+			says:         "commit budget",
+		},
+		{
+			// Nothing has gone out, so nothing is owed: the write is not
+			// started.
+			name:        "a caller who stopped waiting before it began",
+			device:      func() *deviceDouble { return answers(s.ctrl, s.answer(device.FirstTxn, 0)) },
+			cancelled:   true,
+			nothingSent: true,
+			is:          context.Canceled,
+		},
+		{
+			// A device fed half a message and then a burst is the stall that
+			// needs a power cycle. Once the first chunk is out, the message
+			// is finished and its answer read, whoever stopped waiting.
+			name:           "a caller who stops waiting after the first chunk",
+			device:         func() *deviceDouble { return answers(s.ctrl, s.answer(device.FirstTxn, 0)) },
+			document:       large,
+			cancelsOnWrite: true,
+			whole:          true,
+		},
+		{
+			// A read between chunks only paces the sender. One that fails
+			// does not stop a message that has started: the device is owed
+			// the rest of it, and a bus that has really gone fails the send.
+			// What is reported is the wait for the answer.
+			name: "a bus that cannot be read from partway through",
+			device: func() *deviceDouble {
+				return readFails(s.ctrl, errors.New("the bus went away"))
+			},
+			document: large,
+			whole:    true,
+			says:     "reading from the device",
+		},
+		{
+			// A write is waited on for the commit budget, not the shorter one
+			// a call gets. A device still committing answers late, and giving
+			// up on it at the reply budget races the next write against it.
+			name: "a device that answers after a call would have given up",
+			device: func() *deviceDouble {
+				return late(s.ctrl, 100*time.Millisecond, s.answer(device.FirstTxn, 0))
+			},
+			replyBudget: 20 * time.Millisecond,
+		},
+		{
 			name:   "a device that takes it and gets on with the erase",
-			device: func() *scripted { return answers(s.answer(device.FirstTxn, 1)) },
+			device: func() *deviceDouble { return answers(s.ctrl, s.answer(device.FirstTxn, 1)) },
 		},
 		{
 			// Nothing says a device must defer. One that answers done is
 			// done.
 			name:   "one that says it finished",
-			device: func() *scripted { return answers(s.answer(device.FirstTxn, 0)) },
+			device: func() *deviceDouble { return answers(s.ctrl, s.answer(device.FirstTxn, 0)) },
 		},
 		{
 			// A device sends notifications unasked while a write commits.
 			// One that will not decode, and one carrying another
 			// transaction, are both somebody else's business.
 			name: "one talking about something else at the same time",
-			device: func() *scripted {
-				return answers(
+			device: func() *deviceDouble {
+				return answers(s.ctrl,
 					s.answer(device.FirstTxn, 1),
 					device.Reply(device.ControlChannel, []byte{0xc1}),
 					s.answer(device.FirstTxn+7, 0),
@@ -128,27 +228,68 @@ func (s *WritePublicTestSuite) TestWritePreset() {
 			// What a wrongly tagged document drew: the device answers, and
 			// what it answers is no.
 			name:   "one that refuses it",
-			device: func() *scripted { return answers(s.answer(device.FirstTxn, 255)) },
+			device: func() *deviceDouble { return answers(s.ctrl, s.answer(device.FirstTxn, 255)) },
 			is:     wire.ErrRefused,
 		},
 		{
 			// Saying nothing at all is a different thing from answering and
 			// getting on with the erase.
 			name:   "one that never answers",
-			device: func() *scripted { return answers() },
+			device: func() *deviceDouble { return answers(s.ctrl) },
 			says:   "no reply",
 		},
 		{
 			name:   "a bus that cannot be written to",
-			device: func() *scripted { return &scripted{writeErr: errors.New("boom")} },
+			device: func() *deviceDouble { return writeFails(s.ctrl, errors.New("boom")) },
 			says:   "boom",
 		},
 	}
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			err := s.session(tt.device()).WritePreset(
-				context.Background(), 0, 3, []byte{0x01})
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			d := tt.device()
+
+			if tt.cancelled {
+				cancel()
+			}
+
+			if tt.cancelsOnWrite {
+				d.onWrite = cancel
+			}
+
+			if tt.commitBudget > 0 {
+				was := *device.CommitBudget
+				*device.CommitBudget = tt.commitBudget
+
+				defer func() { *device.CommitBudget = was }()
+			}
+
+			if tt.replyBudget > 0 {
+				was := *device.ReplyBudget
+				*device.ReplyBudget = tt.replyBudget
+
+				defer func() { *device.ReplyBudget = was }()
+			}
+
+			document := tt.document
+			if document == nil {
+				document = []byte{0x01}
+			}
+
+			err := s.session(d).WritePreset(ctx, 0, 3, document)
+
+			if tt.nothingSent {
+				s.Require().Empty(d.sent, "nothing reaches the device")
+			}
+
+			if tt.whole {
+				s.Require().Empty(d.replies, "the answer was read")
+				s.Require().Contains(string(s.stream(d)), string(document),
+					"every chunk of the message went out")
+			}
 
 			if tt.is == nil && tt.says == "" {
 				s.Require().NoError(err)
@@ -208,7 +349,7 @@ func (s *WritePublicTestSuite) TestAWriteIsPacedForTheFlash() {
 
 	started := time.Now()
 
-	s.Require().NoError(s.session(answers(s.answer(device.FirstTxn, 0))).
+	s.Require().NoError(s.session(answers(s.ctrl, s.answer(device.FirstTxn, 0))).
 		WritePreset(context.Background(), 0, 3, []byte{0x01}))
 
 	s.Require().GreaterOrEqual(time.Since(started), 40*time.Millisecond)
@@ -232,7 +373,7 @@ func (s *WritePublicTestSuite) TestWriteNamedPreset() {
 func (s *WritePublicTestSuite) TestAWriteOnAChannelNobodyOpened() {
 	d := s.completes()
 
-	err := device.NewTestSession(d, d).Write(context.Background(), 5, nil)
+	err := device.NewTestSession(d.out, d.in).Write(context.Background(), 5, nil)
 
 	s.Require().ErrorContains(err, "no data channel")
 }

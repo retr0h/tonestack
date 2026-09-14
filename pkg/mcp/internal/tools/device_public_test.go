@@ -23,8 +23,9 @@ package tools_test
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -55,6 +56,8 @@ type deviceRow struct {
 	want  string
 	err   bool
 	check func(s *DevicePublicTestSuite, res *gomcp.CallToolResult)
+	// allowWrites starts the server the way --allow-writes does.
+	allowWrites bool
 }
 
 func (s *DevicePublicTestSuite) run(
@@ -67,7 +70,7 @@ func (s *DevicePublicTestSuite) run(
 				tt.setup(s.client)
 			}
 
-			res := call(s.T(), connect(s.T(), s.client, false), tool, tt.args)
+			res := call(s.T(), connect(s.T(), s.client, tt.allowWrites), tool, tt.args)
 
 			s.Equal(tt.err, res.IsError)
 			s.Contains(text(s.T(), res), tt.want)
@@ -112,36 +115,52 @@ func (s *DevicePublicTestSuite) TestDevicesList() {
 	})
 
 	s.Run("two calls at once", func() {
-		var inside, peak atomic.Int32
+		// A barrier rather than a sleep: the first call holds the device
+		// until the test lets it go, so the second has every chance to get
+		// in and must not.
+		entered := make(chan struct{}, 2)
+		release := make(chan struct{})
 
 		s.client.EXPECT().Devices(gomock.Any()).Times(2).DoAndReturn(
 			func(context.Context) (sdk.Attached, error) {
-				now := inside.Add(1)
-				for {
-					old := peak.Load()
-					if now <= old || peak.CompareAndSwap(old, now) {
-						break
-					}
-				}
-				time.Sleep(20 * time.Millisecond)
-				inside.Add(-1)
+				entered <- struct{}{}
+				<-release
 
 				return sdk.Attached{}, nil
 			})
 
 		session := connect(s.T(), s.client, false)
-
-		var wg sync.WaitGroup
-		for range 2 {
-			wg.Go(func() {
-				_, _ = session.CallTool(context.Background(), &gomcp.CallToolParams{
-					Name: "devices_list", Arguments: tools.None{},
-				})
+		devices := func() {
+			_, _ = session.CallTool(context.Background(), &gomcp.CallToolParams{
+				Name: "devices_list", Arguments: tools.None{},
 			})
 		}
+
+		var wg sync.WaitGroup
+		defer wg.Wait()
+
+		wg.Go(devices)
+
+		select {
+		case <-entered:
+		case <-time.After(5 * time.Second):
+			close(release)
+			s.FailNow("the first call never reached the device")
+		}
+
+		wg.Go(devices)
+
+		select {
+		case <-entered:
+			close(release)
+			s.FailNow("the second call reached the device while the first held it")
+		case <-time.After(200 * time.Millisecond):
+		}
+
+		close(release)
 		wg.Wait()
 
-		s.Equal(int32(1), peak.Load())
+		s.Len(entered, 1, "the second call reached the device once the first let go")
 	})
 }
 
@@ -212,7 +231,39 @@ func (s *DevicePublicTestSuite) TestPresetShow() {
 
 // TestPresetExport covers writing a slot out.
 func (s *DevicePublicTestSuite) TestPresetExport() {
+	dir := s.T().TempDir()
+	fresh := filepath.Join(dir, "fresh.yaml")
+	held := filepath.Join(dir, "held.yaml")
+	s.Require().NoError(os.WriteFile(held, []byte("somebody's rig"), 0o600))
+
 	s.run("preset_export", []deviceRow{
+		{
+			name: "a path nothing is at",
+			args: tools.Export{Slot: "01A", Out: fresh},
+			setup: func(c *mocks.MockClient) {
+				c.EXPECT().Export(gomock.Any(), sdk.Export{Slot: 0, OutputPath: fresh}).
+					Return(sdk.Written{Path: fresh}, nil)
+			},
+			want: "wrote " + fresh,
+		},
+		{
+			// No client call is expected, so reaching the device fails the
+			// row.
+			name: "a path a file is at, with writes off",
+			args: tools.Export{Slot: "01A", Out: held},
+			want: tools.ErrWouldOverwrite.Error() + ": " + held,
+			err:  true,
+		},
+		{
+			name: "a path a file is at, with writes on",
+			args: tools.Export{Slot: "01A", Out: held},
+			setup: func(c *mocks.MockClient) {
+				c.EXPECT().Export(gomock.Any(), sdk.Export{Slot: 0, OutputPath: held}).
+					Return(sdk.Written{Path: held}, nil)
+			},
+			want:        "wrote " + held,
+			allowWrites: true,
+		},
 		{
 			name: "a slot as a rig",
 			args: tools.Export{Slot: "01A", Out: "a.yaml"},

@@ -200,7 +200,7 @@ tonestack presets import --preset mike.hlx --slot 07A
 ```
 
 ```console
-  kept ~/.local/state/tonestack/presets/07A-20260910-041500.hlx
+  kept ~/.local/state/tonestack/presets/07A-s0-20260910-041500.129384756.hlx
 
   Mike Dirnt → 07A
 
@@ -210,6 +210,9 @@ tonestack presets import --preset mike.hlx --slot 07A
 A device has no undo, so whatever the slot held is read and saved first, and the
 output says where. Put it back with `presets import --preset` and that file.
 `--backup-dir` changes where they go.
+
+A slot with no blocks is kept as a `.bin` file instead. It holds the bytes the
+device sent, so nothing is lost, but `presets import` can't read it yet.
 
 **Through HX Edit.** `HX Edit → Import` and choose the `.hlx`.
 

@@ -23,6 +23,7 @@ package tools
 import (
 	"errors"
 	"fmt"
+	"os"
 
 	"github.com/retr0h/tonestack/pkg/sdk"
 )
@@ -36,7 +37,30 @@ var (
 	// catalog it was resolved against, a sign the corpus and catalog have
 	// drifted apart.
 	ErrNotInCatalog = errors.New("measured but not in the catalog")
+	// ErrWouldOverwrite is preset_build or preset_export pointed at a file
+	// that already exists, on a server started without --allow-writes.
+	ErrWouldOverwrite = errors.New(
+		"a file is already there, and replacing it needs the server started with --allow-writes")
 )
+
+// mayWrite refuses a path a file already sits at, unless the server was
+// started with writes allowed.
+//
+// An agent picks the path. One naming somebody's own preset would otherwise
+// replace it without anybody having agreed to that.
+func (h *handlers) mayWrite(
+	path string,
+) error {
+	if h.allowWrites {
+		return nil
+	}
+
+	if _, err := os.Lstat(path); err == nil {
+		return fmt.Errorf("%w: %s", ErrWouldOverwrite, path)
+	}
+
+	return nil
+}
 
 // notInCatalog wraps ErrNotInCatalog with the model id that could not be
 // found, so the agent sees which model and not just an opaque schema failure.

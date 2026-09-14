@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/retr0h/tonestack/pkg/sdk/internal/atomicfile"
 	"github.com/retr0h/tonestack/pkg/sdk/preset"
 	"github.com/retr0h/tonestack/pkg/sdk/result"
 	"github.com/retr0h/tonestack/pkg/sdk/rig"
@@ -79,11 +80,14 @@ func Compile(opts CompileOptions) (result.Built, error) {
 
 	var buf bytes.Buffer
 
-	// A document this package built encodes.
-	_ = preset.Write(&buf, doc)
-
-	if err := os.WriteFile(opts.OutputPath, buf.Bytes(), 0o600); err != nil {
+	// A compiler can leave something in the document that does not encode,
+	// and a preset file holding nothing is worse than no file.
+	if err := preset.Write(&buf, doc); err != nil {
 		return result.Built{}, fmt.Errorf("writing %s: %w", opts.OutputPath, err)
+	}
+
+	if err := atomicfile.Write(opts.OutputPath, buf.Bytes(), 0o600); err != nil {
+		return result.Built{}, err
 	}
 
 	return result.Built{

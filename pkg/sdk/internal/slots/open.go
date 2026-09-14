@@ -20,9 +20,12 @@
 
 // Package slots reads and edits the setlists a device holds.
 //
-// Everything here works on a file HX Edit wrote — a .hls setlist or a .hlb
-// backup. That is the whole device in one file, so listing, showing, copying
-// and swapping slots need no connection to the hardware.
+// It works two ways. On a file HX Edit wrote, a .hls setlist or a .hlb
+// backup, which is the whole device in one file, listing, showing, copying,
+// swapping, importing and exporting need no connection to the hardware, and
+// an edit goes to a new file. On an attached device the same commands go
+// through a session, and a slot about to be overwritten is read and kept on
+// disk first, because a device has no undo.
 package slots
 
 import (
@@ -30,6 +33,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/retr0h/tonestack/pkg/sdk/internal/atomicfile"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/setlist"
 )
 
@@ -52,18 +56,18 @@ func open(path string) (*setlist.Document, error) {
 
 // save writes a setlist or bundle to disk.
 //
-// It renders to memory first so a failure to encode cannot leave a truncated
-// backup where a good one used to be.
-func save(path string, doc *setlist.Document) error {
+// It renders to memory first and then puts the whole file in place at once,
+// so neither a failure to encode nor a write that stops partway can leave a
+// truncated setlist where a good one used to be.
+func save(
+	path string,
+	doc *setlist.Document,
+) error {
 	var buf bytes.Buffer
 
-	// A document that was read encodes again, and writing to a buffer cannot
-	// fail, so rendering has no failure to report.
-	_ = setlist.Write(&buf, doc)
-
-	if err := os.WriteFile(path, buf.Bytes(), 0o600); err != nil {
+	if err := setlist.Write(&buf, doc); err != nil {
 		return fmt.Errorf("writing %s: %w", path, err)
 	}
 
-	return nil
+	return atomicfile.Write(path, buf.Bytes(), 0o600)
 }

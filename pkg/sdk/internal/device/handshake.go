@@ -22,6 +22,7 @@ package device
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -33,7 +34,9 @@ import (
 // Once per session and never again. Answering a timeout by repeating this is
 // the single most reliable way to wedge a device: every failure amplifies
 // into a burst of them, and recovery needs the power supply pulled.
-func (s *session) handshake(ctx context.Context) error {
+func (s *session) handshake(
+	ctx context.Context,
+) error {
 	s.drain(ctx)
 
 	for _, spec := range channelSpecs {
@@ -55,7 +58,9 @@ func (s *session) handshake(ctx context.Context) error {
 				// The device answers the close before it will answer a new
 				// opening. Reopening without reading first leaves it talking
 				// about the channel that just went away.
-				s.receive(ctx, openReadWait)
+				if _, err := s.receive(ctx, openReadWait); err != nil {
+					return err
+				}
 
 				c.seq = 0
 				c.rxBytes = 0
@@ -72,7 +77,11 @@ func (s *session) handshake(ctx context.Context) error {
 }
 
 // openService performs the three frames that bring one service up.
-func (s *session) openService(ctx context.Context, c *channel, service uint16) error {
+func (s *session) openService(
+	ctx context.Context,
+	c *channel,
+	service uint16,
+) error {
 	if err := s.send(c, wire.MsgHello, helloTail); err != nil {
 		return err
 	}
@@ -82,8 +91,11 @@ func (s *session) openService(ctx context.Context, c *channel, service uint16) e
 	c.seq = firstSeq
 
 	// The device answers some openings and not others. A timeout here is not
-	// a failure; the first request is what proves the session is alive.
-	s.receive(ctx, openReadWait)
+	// a failure; the first request is what proves the session is alive. A
+	// read that fails outright is, and a handshake is not retried.
+	if _, err := s.receive(ctx, openReadWait); err != nil {
+		return err
+	}
 
 	body := wire.EncodeEnvelope(wire.Envelope{
 		Originator: wire.FromHost, Service: service,
@@ -94,7 +106,9 @@ func (s *session) openService(ctx context.Context, c *channel, service uint16) e
 		return err
 	}
 
-	s.receive(ctx, openReadWait)
+	if _, err := s.receive(ctx, openReadWait); err != nil {
+		return err
+	}
 
 	return s.send(c, wire.MsgAck, nil)
 }
@@ -135,28 +149,35 @@ func (s *session) Call(
 		return wire.Response{}, err
 	}
 
-	return s.awaitReply(ctx, c, txn, opcode)
+	return s.awaitReply(ctx, c, txn, opcode, replyBudget)
 }
 
-// awaitReply reads until the reply to one transaction arrives.
+// awaitReply reads until the reply to one transaction arrives, or budget runs
+// out.
+//
+// The budget is the caller's: a call is answered within the reply budget, and
+// a write, which answers once it has committed, is given the commit budget.
 func (s *session) awaitReply(
 	ctx context.Context,
 	c *channel,
 	txn, opcode uint64,
+	budget time.Duration,
 ) (wire.Response, error) {
-	deadline := time.Now().Add(replyBudget)
+	deadline := time.Now().Add(budget)
 
 	for time.Now().Before(deadline) {
-		// receive reports a failed read as the device having nothing to say,
-		// which is right for a timeout and wrong for a cancelled context: a
-		// read that returns instantly turns this into a spin, and the caller
-		// is told the device never answered rather than that they stopped
-		// waiting.
+		// Checked before reading as well as by receive, which only sees a
+		// cancelled context when the read fails. A read that returns at once
+		// with nothing turns this into a spin, and the caller is told the
+		// device never answered rather than that they stopped waiting.
 		if err := ctx.Err(); err != nil {
 			return wire.Response{}, err
 		}
 
-		got := s.receive(ctx, replyReadWait)
+		got, err := s.receive(ctx, replyReadWait)
+		if err != nil {
+			return wire.Response{}, err
+		}
 
 		for {
 			body, ok := message(c)
@@ -194,8 +215,14 @@ func (s *session) awaitReply(
 	}
 
 	return wire.Response{}, fmt.Errorf(
-		"no reply to opcode %d within %s", opcode, replyBudget)
+		"%w to opcode %d within %s", errNoReply, opcode, budget)
 }
+
+// errNoReply is a device that stayed silent for the whole of its budget.
+//
+// Told apart from a bus that failed, because a device busy switching presets
+// goes quiet too, and that is worth asking again.
+var errNoReply = errors.New("no reply")
 
 // Presets lists what the device holds.
 func (s *session) Presets(ctx context.Context, setlist int) ([]wire.Preset, error) {

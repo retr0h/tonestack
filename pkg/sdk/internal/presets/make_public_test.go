@@ -85,11 +85,14 @@ func (s *MakePublicTestSuite) TestMake() {
 			contains: []string{"Minotaur"},
 		},
 		{
-			// Statistics improve a preset; they are not required to produce
-			// one.
-			name:  "no statistics to be had",
-			id:    "test-player",
-			stats: filepath.Join("testdata", "no-such-stats.gz"),
+			// Statistics improve a preset and are not needed to produce one,
+			// but somebody who named a file asked for those. A preset built
+			// without them would be quietly more generic than the one asked
+			// for.
+			name:    "statistics named and not there",
+			id:      "test-player",
+			stats:   filepath.Join("testdata", "no-such-stats.gz"),
+			errText: "no-such-stats.gz",
 		},
 		{
 			name: "a recipe nobody has",

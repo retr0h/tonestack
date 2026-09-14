@@ -27,6 +27,7 @@ import (
 
 	"github.com/retr0h/tonestack/pkg/sdk/chain"
 	"github.com/retr0h/tonestack/pkg/sdk/corpus"
+	"github.com/retr0h/tonestack/pkg/sdk/internal/atomicfile"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/compile"
 	"github.com/retr0h/tonestack/pkg/sdk/preset"
 	"github.com/retr0h/tonestack/pkg/sdk/result"
@@ -69,9 +70,13 @@ func Make(opts MakeOptions) (result.Made, error) {
 	}
 
 	// Statistics are an improvement on the catalog's defaults, not a
-	// requirement. Without them a preset still loads, it is just more
-	// generic, so a failure to read them is not a failure to build.
-	stats, _ := openStats(opts.StatsPath)
+	// requirement, but somebody who named a file asked for those ones.
+	// Building without them would hand back a more generic preset than the
+	// one asked for, and say nothing about it.
+	stats, err := openStats(opts.StatsPath)
+	if err != nil {
+		return result.Made{}, err
+	}
 
 	spec, added, moved, err := opts.compiler().Resolve(rec, cat, stats)
 	if err != nil {
@@ -137,20 +142,20 @@ func build(deviceID int, spec chain.Chain) *preset.Document {
 
 // write puts the preset on disk.
 //
-// The document is rendered to memory first so there is one failure to report —
-// the write — rather than three, two of which no test can reach.
-func write(path string, doc *preset.Document) error {
+// The document is rendered to memory first and the whole file put in place at
+// once, so a document that will not encode or a write that stops partway
+// leaves no half a preset behind.
+func write(
+	path string,
+	doc *preset.Document,
+) error {
 	var buf bytes.Buffer
 
-	// Writing to a buffer cannot fail, and a document this package built
-	// always encodes.
-	_ = preset.Write(&buf, doc)
-
-	if err := os.WriteFile(path, buf.Bytes(), 0o600); err != nil {
+	if err := preset.Write(&buf, doc); err != nil {
 		return fmt.Errorf("writing %s: %w", path, err)
 	}
 
-	return nil
+	return atomicfile.Write(path, buf.Bytes(), 0o600)
 }
 
 // unfamiliar names the character terms nothing defines.

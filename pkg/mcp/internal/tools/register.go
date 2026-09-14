@@ -38,18 +38,23 @@ type handlers struct {
 	// device is taken by any tool that reaches the pedal, so two calls
 	// never claim the editor interface at once.
 	device chan struct{}
+	// allowWrites is whether the server was started with --allow-writes. It
+	// decides which tools are offered, and whether a file already on disk
+	// may be written over.
+	allowWrites bool
 }
 
 // Register adds tonestack's tools to a server.
 //
-// The tools that write to a pedal are added only when allowWrites is true. A
-// device has no undo, and whoever starts the server decides.
+// The tools that write to a pedal are added only when allowWrites is true, and
+// without it no tool writes over a file already on disk. A device has no undo,
+// nor does a file, and whoever starts the server decides.
 func Register(
 	s *gomcp.Server,
 	c Client,
 	allowWrites bool,
 ) {
-	h := &handlers{client: c, device: make(chan struct{}, 1)}
+	h := &handlers{client: c, device: make(chan struct{}, 1), allowWrites: allowWrites}
 
 	gomcp.AddTool(s, &gomcp.Tool{
 		Name:         "catalog_search",
@@ -83,7 +88,7 @@ func Register(
 	}, h.rigShow)
 	gomcp.AddTool(s, &gomcp.Tool{
 		Name:         "preset_build",
-		Description:  "Build a .hlx from a shipped rig or a rig file. Read what it added and what each character word moved before putting it on a pedal. Overwrites the file at out.",
+		Description:  "Build a .hlx from a shipped rig or a rig file. Read what it added and what each character word moved before putting it on a pedal. Refuses a file already at out unless the server was started with --allow-writes.",
 		Annotations:  &gomcp.ToolAnnotations{OpenWorldHint: new(false), DestructiveHint: new(true)},
 		OutputSchema: mustOutputSchema[Built](),
 	}, h.presetBuild)
@@ -107,7 +112,7 @@ func Register(
 	}, h.presetShow)
 	gomcp.AddTool(s, &gomcp.Tool{
 		Name:         "preset_export",
-		Description:  "Write one slot to a file: a rig by default, or the device's own .hlx with as=hlx. Overwrites the file at out.",
+		Description:  "Write one slot to a file: a rig by default, or the device's own .hlx with as=hlx. Refuses a file already at out unless the server was started with --allow-writes.",
 		Annotations:  &gomcp.ToolAnnotations{ReadOnlyHint: false, DestructiveHint: new(true)},
 		OutputSchema: mustOutputSchema[sdk.Written](),
 	}, h.presetExport)

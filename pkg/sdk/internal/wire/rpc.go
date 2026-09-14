@@ -219,30 +219,75 @@ func DecodeResponse(body []byte) (Response, error) {
 		return Response{}, fmt.Errorf("decoding response: expected a map, got %T", raw)
 	}
 
-	txn, _ := asUint(m[int8(keyTxn)])
-	status, _ := asUint(m[int8(keyStatus)])
+	txn, _ := asUint(field(m, keyTxn))
+	status, _ := asUint(field(m, keyStatus))
 
 	return Response{
 		Txn:    txn,
 		Status: Status(status),
-		Result: m[int8(keyResult)],
+		Result: field(m, keyResult),
 	}, nil
 }
 
-// Err returns the failure a response carries, if it is one.
-func (r Response) Err(opcode uint64) error {
-	if r.Status != StatusRefused {
-		return nil
-	}
-
-	code := int64(0)
-	if m, ok := r.Result.(map[any]any); ok {
-		if v, ok := asInt(m[int8(keyError)]); ok {
-			code = v
+// field reads the value under an integer key, whatever width the key was
+// written in.
+//
+// A decoder hands a key back as the Go type its encoding named: 102 written
+// as a fixint is an int8 and written as a uint16 is a uint16. Looking one up
+// as a single type misses the other, and a reply would read as empty.
+func field(
+	m map[any]any,
+	key uint64,
+) any {
+	for k, v := range m {
+		if n, ok := asUint(k); ok && n == key {
+			return v
 		}
 	}
 
-	return &RefusedError{Opcode: opcode, Code: code}
+	return nil
+}
+
+// ErrUnexpectedStatus reports a status that is not one a call completes with.
+var ErrUnexpectedStatus = errors.New("unexpected status")
+
+// UnexpectedStatusError carries the status nobody has seen a device send.
+type UnexpectedStatusError struct {
+	Opcode uint64
+	Status Status
+}
+
+func (e *UnexpectedStatusError) Error() string {
+	return fmt.Sprintf(
+		"unexpected status %d, which is not done, accepted or refused: opcode %d",
+		e.Status, e.Opcode)
+}
+
+func (*UnexpectedStatusError) Unwrap() error { return ErrUnexpectedStatus }
+
+// Err returns the failure a response carries, if it is one.
+//
+// Only done and accepted are successes. A status no capture has shown is an
+// error rather than a success, because reading it as done reports a write
+// that may not have happened.
+func (r Response) Err(
+	opcode uint64,
+) error {
+	switch r.Status {
+	case StatusDone, StatusAccepted:
+		return nil
+	case StatusRefused:
+		code := int64(0)
+		if m, ok := r.Result.(map[any]any); ok {
+			if v, ok := asInt(field(m, keyError)); ok {
+				code = v
+			}
+		}
+
+		return &RefusedError{Opcode: opcode, Code: code}
+	default:
+		return &UnexpectedStatusError{Opcode: opcode, Status: r.Status}
+	}
 }
 
 // Preset is one slot as the device reports it.

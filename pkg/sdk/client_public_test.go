@@ -27,29 +27,39 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/suite"
+	"go.uber.org/mock/gomock"
 
 	"github.com/retr0h/tonestack/pkg/sdk"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/device"
+	"github.com/retr0h/tonestack/pkg/sdk/internal/device/mocks"
 )
-
-// bus stands in for the one thing this library needs hardware for.
-type bus struct {
-	descs []device.Descriptor
-	err   error
-}
-
-func (b *bus) List(context.Context) ([]device.Descriptor, error) {
-	return b.descs, b.err
-}
-
-func (*bus) Close() error { return nil }
 
 type ClientPublicTestSuite struct {
 	suite.Suite
+
+	ctrl *gomock.Controller
+}
+
+func (s *ClientPublicTestSuite) SetupTest() {
+	s.ctrl = gomock.NewController(s.T())
+}
+
+// bus stands in for the one thing this library needs hardware for.
+func (s *ClientPublicTestSuite) bus(
+	descs []device.Descriptor,
+	err error,
+) *mocks.MockBus {
+	b := mocks.NewMockBus(s.ctrl)
+	b.EXPECT().List(gomock.Any()).Return(descs, err).AnyTimes()
+	b.EXPECT().Close().Return(nil).AnyTimes()
+
+	return b
 }
 
 // stand puts a bus in front of the Client and gives back what undoes it.
-func (s *ClientPublicTestSuite) stand(b *bus) func() {
+func (s *ClientPublicTestSuite) stand(
+	b *mocks.MockBus,
+) func() {
 	restore := *sdk.NewLister
 	*sdk.NewLister = func() sdk.Closer { return b }
 
@@ -86,14 +96,14 @@ func (s *ClientPublicTestSuite) TestDevices() {
 
 	tests := []struct {
 		name  string
-		bus   *bus
+		bus   *mocks.MockBus
 		want  int
 		first string
 		err   bool
 	}{
 		{
 			name:  "a device this project knows",
-			bus:   &bus{descs: []device.Descriptor{stomp}},
+			bus:   s.bus([]device.Descriptor{stomp}, nil),
 			want:  1,
 			first: "HX Stomp",
 		},
@@ -101,12 +111,12 @@ func (s *ClientPublicTestSuite) TestDevices() {
 			// A bus holds keyboards and webcams. Those are not an answer to
 			// what a preset can be written to.
 			name: "somebody else's hardware",
-			bus:  &bus{descs: []device.Descriptor{{Vendor: 0x05ac, Product: 0x1234}}},
+			bus:  s.bus([]device.Descriptor{{Vendor: 0x05ac, Product: 0x1234}}, nil),
 		},
-		{name: "nothing attached", bus: &bus{}},
+		{name: "nothing attached", bus: s.bus(nil, nil)},
 		{
 			name: "a bus that will not answer",
-			bus:  &bus{err: errors.New("bus unavailable")},
+			bus:  s.bus(nil, errors.New("bus unavailable")),
 			err:  true,
 		},
 	}
