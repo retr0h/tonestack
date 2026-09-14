@@ -1,11 +1,11 @@
 {
   "planPath": "docs/superpowers/plans/2026-09-13-an-mcp-server.md",
   "tasks": [
-    {"id": 1, "subject": "MCP Task 1: tools package with the offline tools", "status": "pending", "blockedBy": []},
-    {"id": 2, "subject": "MCP Task 2: tools that read the pedal, one call at a time", "status": "pending", "blockedBy": [1]},
-    {"id": 3, "subject": "MCP Task 3: tools that write the pedal, behind allowWrites", "status": "pending", "blockedBy": [2]},
-    {"id": 4, "subject": "MCP Task 4: pkg/mcp and TestTheMCPStandsAlone", "status": "pending", "blockedBy": [3]},
-    {"id": 5, "subject": "MCP Task 5: tonestack mcp, docs, gate and pull request", "status": "pending", "blockedBy": [4]}
+    {"id": 1, "subject": "MCP Task 1: tools package with the offline tools", "status": "completed", "blockedBy": []},
+    {"id": 2, "subject": "MCP Task 2: tools that read the pedal, one call at a time", "status": "completed", "blockedBy": [1]},
+    {"id": 3, "subject": "MCP Task 3: tools that write the pedal, behind allowWrites", "status": "completed", "blockedBy": [2]},
+    {"id": 4, "subject": "MCP Task 4: pkg/mcp and TestTheMCPStandsAlone", "status": "completed", "blockedBy": [3]},
+    {"id": 5, "subject": "MCP Task 5: tonestack mcp, docs, gate and pull request", "status": "in_progress", "blockedBy": [4]}
   ],
-  "lastUpdated": "2026-09-13"
+  "lastUpdated": "2026-09-14T04:00:00Z"
 }
