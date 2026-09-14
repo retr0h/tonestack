@@ -530,7 +530,10 @@ needs its power supply physically pulled.
    back without a physical unplug.
 2. **Always have a read posted.** The device sends notifications unasked. With
    nothing draining the IN endpoint its outgoing queue fills, at which point it
-   stops draining the incoming endpoint too and the next write times out.
+   stops draining the incoming endpoint too and the next write times out. A
+   session keeps this with one goroutine that reads from the claim until
+   `Close`, between operations, through the 750ms flash pause and while a switch
+   is polled. Everything else waits on what that goroutine routes.
 3. **Pace deferred work on the completion notification.** Racing commits is
    tolerated about a dozen times and then writes stop being accepted.
 4. **Handshake once per session.** Repeating it on an open channel wedges the

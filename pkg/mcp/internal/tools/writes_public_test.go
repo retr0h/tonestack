@@ -29,15 +29,18 @@ import (
 	"github.com/retr0h/tonestack/pkg/mcp/internal/tools"
 	"github.com/retr0h/tonestack/pkg/mcp/internal/tools/mocks"
 	"github.com/retr0h/tonestack/pkg/sdk"
+	"github.com/retr0h/tonestack/pkg/sdk/slot"
 )
 
 type WritesPublicTestSuite struct {
 	suite.Suite
+	ctrl   *gomock.Controller
 	client *mocks.MockClient
 }
 
 func (s *WritesPublicTestSuite) SetupSubTest() {
-	s.client = mocks.NewMockClient(gomock.NewController(s.T()))
+	s.ctrl = gomock.NewController(s.T())
+	s.client = mocks.NewMockClient(s.ctrl)
 }
 
 // run drives one tool through the table. Every row that succeeds is expected
@@ -49,9 +52,13 @@ func (s *WritesPublicTestSuite) run(
 ) {
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
+			pedal := mocks.NewMockSession(s.ctrl)
+
 			if tt.setup != nil {
-				tt.setup(s.client)
+				tt.setup(s.client, pedal)
 			}
+
+			held(s.client, pedal)
 
 			res := call(s.T(), connect(s.T(), s.client, true), tool, tt.args)
 
@@ -73,8 +80,8 @@ func (s *WritesPublicTestSuite) TestPresetImport() {
 		{
 			name: "a preset into a slot",
 			args: tools.Put{Preset: "mike.hlx", Slot: "01A"},
-			setup: func(c *mocks.MockClient) {
-				c.EXPECT().Import(gomock.Any(), sdk.Put{File: "mike.hlx", Slot: 0}).
+			setup: func(_ *mocks.MockClient, pedal *mocks.MockSession) {
+				pedal.EXPECT().Import(gomock.Any(), "mike.hlx", slot.Address{}).
 					Return(sdk.Change{Replaced: "Old Preset"}, nil)
 			},
 			want: "put mike.hlx into 01A",
@@ -85,13 +92,11 @@ func (s *WritesPublicTestSuite) TestPresetImport() {
 			err:  true,
 		},
 		{
-			name: "HX Edit holding the pedal",
-			args: tools.Put{Preset: "mike.hlx", Slot: "01A"},
-			setup: func(c *mocks.MockClient) {
-				c.EXPECT().Import(gomock.Any(), gomock.Any()).Return(sdk.Change{}, errHXEdit)
-			},
-			want: "quit HX Edit",
-			err:  true,
+			name:  "HX Edit holding the pedal",
+			args:  tools.Put{Preset: "mike.hlx", Slot: "01A"},
+			setup: hxEdit,
+			want:  "quit HX Edit",
+			err:   true,
 		},
 	})
 }
@@ -102,8 +107,8 @@ func (s *WritesPublicTestSuite) TestPresetsCopy() {
 		{
 			name: "one slot onto another",
 			args: tools.Move{From: "01A", To: "01B"},
-			setup: func(c *mocks.MockClient) {
-				c.EXPECT().Copy(gomock.Any(), sdk.Edit{FromSlot: 0, ToSlot: 1}).
+			setup: func(_ *mocks.MockClient, pedal *mocks.MockSession) {
+				pedal.EXPECT().Copy(gomock.Any(), slot.Address{}, slot.Address{Slot: 1}).
 					Return(sdk.Change{Replaced: "Old Preset"}, nil)
 			},
 			want: "copied 01A to 01B",
@@ -119,13 +124,11 @@ func (s *WritesPublicTestSuite) TestPresetsCopy() {
 			err:  true,
 		},
 		{
-			name: "HX Edit holding the pedal",
-			args: tools.Move{From: "01A", To: "01B"},
-			setup: func(c *mocks.MockClient) {
-				c.EXPECT().Copy(gomock.Any(), gomock.Any()).Return(sdk.Change{}, errHXEdit)
-			},
-			want: "quit HX Edit",
-			err:  true,
+			name:  "HX Edit holding the pedal",
+			args:  tools.Move{From: "01A", To: "01B"},
+			setup: hxEdit,
+			want:  "quit HX Edit",
+			err:   true,
 		},
 	})
 }
@@ -136,8 +139,8 @@ func (s *WritesPublicTestSuite) TestPresetsSwap() {
 		{
 			name: "two slots",
 			args: tools.Move{From: "01A", To: "01B"},
-			setup: func(c *mocks.MockClient) {
-				c.EXPECT().Swap(gomock.Any(), sdk.Edit{FromSlot: 0, ToSlot: 1}).
+			setup: func(_ *mocks.MockClient, pedal *mocks.MockSession) {
+				pedal.EXPECT().Swap(gomock.Any(), slot.Address{}, slot.Address{Slot: 1}).
 					Return(sdk.Change{Replaced: "Old Preset"}, nil)
 			},
 			want: "swapped 01A and 01B",
@@ -153,13 +156,11 @@ func (s *WritesPublicTestSuite) TestPresetsSwap() {
 			err:  true,
 		},
 		{
-			name: "HX Edit holding the pedal",
-			args: tools.Move{From: "01A", To: "01B"},
-			setup: func(c *mocks.MockClient) {
-				c.EXPECT().Swap(gomock.Any(), gomock.Any()).Return(sdk.Change{}, errHXEdit)
-			},
-			want: "quit HX Edit",
-			err:  true,
+			name:  "HX Edit holding the pedal",
+			args:  tools.Move{From: "01A", To: "01B"},
+			setup: hxEdit,
+			want:  "quit HX Edit",
+			err:   true,
 		},
 	})
 }

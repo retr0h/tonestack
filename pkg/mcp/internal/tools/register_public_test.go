@@ -23,8 +23,10 @@ package tools_test
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"slices"
 	"testing"
+	"time"
 
 	gomcp "github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/stretchr/testify/require"
@@ -46,7 +48,41 @@ func connect(
 	t.Helper()
 
 	server := gomcp.NewServer(&gomcp.Implementation{Name: "tonestack", Version: "test"}, nil)
-	tools.Register(server, c, allowWrites)
+	pedal := tools.Register(server, c, allowWrites)
+
+	// The pedal is let go when the test ends, as the server lets it go when it
+	// stops.
+	t.Cleanup(func() { _ = pedal.Close() })
+
+	return serve(t, server)
+}
+
+// connectIdle is connect with the pedal let go once idle has passed, and
+// hands back what holds it.
+func connectIdle(
+	t *testing.T,
+	c tools.Client,
+	allowWrites bool,
+	idle time.Duration,
+) (*gomcp.ClientSession, io.Closer) {
+	t.Helper()
+
+	server := gomcp.NewServer(&gomcp.Implementation{Name: "tonestack", Version: "test"}, nil)
+	pedal := tools.RegisterIdle(server, c, allowWrites, idle)
+
+	// A test that asserts on closing it has already closed it, and a second
+	// Close holds nothing.
+	t.Cleanup(func() { _ = pedal.Close() })
+
+	return serve(t, server), pedal
+}
+
+// serve puts a client session in front of server.
+func serve(
+	t *testing.T,
+	server *gomcp.Server,
+) *gomcp.ClientSession {
+	t.Helper()
 
 	serverEnd, clientEnd := gomcp.NewInMemoryTransports()
 	ctx := context.Background()

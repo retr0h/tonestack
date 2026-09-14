@@ -27,9 +27,10 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk/catalog"
 	"github.com/retr0h/tonestack/pkg/sdk/corpus"
 	"github.com/retr0h/tonestack/pkg/sdk/rig"
+	"github.com/retr0h/tonestack/pkg/sdk/slot"
 )
 
-// Client is what the tools call. *sdk.Client satisfies it.
+// Client is what the tools call. FromSDK makes one of an *sdk.Client.
 //
 // Declared here, where it is used, so a test can put a generated double in
 // front of the handlers without a pedal on the bus.
@@ -42,13 +43,21 @@ type Client interface {
 	Build(ctx context.Context, in sdk.Make) (sdk.Made, error)
 	Compile(ctx context.Context, in sdk.Compile) (sdk.Built, error)
 	Devices(ctx context.Context) (sdk.Attached, error)
-	Presets(ctx context.Context, in sdk.Where) (sdk.Listing, error)
-	Preset(ctx context.Context, in sdk.Read) (sdk.Reading, error)
-	Export(ctx context.Context, in sdk.Export) (sdk.Written, error)
-	Select(ctx context.Context, in sdk.Read) (sdk.Change, error)
-	Import(ctx context.Context, in sdk.Put) (sdk.Change, error)
-	Copy(ctx context.Context, in sdk.Edit) (sdk.Change, error)
-	Swap(ctx context.Context, in sdk.Edit) (sdk.Change, error)
+	// Open claims the pedal. The tools hold what it returns across calls.
+	Open(ctx context.Context) (Session, error)
+}
+
+// Session is what the device tools call while the pedal is held.
+// *sdk.Session satisfies it.
+type Session interface {
+	Presets(ctx context.Context, setlist int) (sdk.Listing, error)
+	Preset(ctx context.Context, at slot.Address) (sdk.Reading, error)
+	Export(ctx context.Context, at slot.Address, out string, as string) (sdk.Written, error)
+	Import(ctx context.Context, file string, at slot.Address) (sdk.Change, error)
+	Copy(ctx context.Context, from, to slot.Address) (sdk.Change, error)
+	Swap(ctx context.Context, a, b slot.Address) (sdk.Change, error)
+	Select(ctx context.Context, at slot.Address) (sdk.Change, error)
+	Close() error
 }
 
 // Search narrows catalog_search.

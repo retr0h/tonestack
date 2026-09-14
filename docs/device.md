@@ -56,6 +56,12 @@ pedal is left believing an editor is still attached: turn the dial and the
 footswitches stop changing with the preset, because the front panel waits for an
 editor to tell it what to show. Confirmed on hardware in both directions.
 
+A Go program that wants several operations opens one `Session` and closes it
+when done, which costs one handshake instead of one per call. The MCP server
+holds a Session across device tools and closes it 10 seconds after the last one,
+or when a call fails on the bus. The front panel is dead while the Session is
+held and comes back once it closes.
+
 ## Selecting a preset has to be waited for
 
 `presets select` loads a preset, which is what stepping on a footswitch does.

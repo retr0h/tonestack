@@ -27,6 +27,8 @@ package mcp
 
 import (
 	"context"
+	"errors"
+	"io"
 	"os"
 
 	gomcp "github.com/modelcontextprotocol/go-sdk/mcp"
@@ -59,6 +61,8 @@ type Options struct {
 // Server is tonestack's MCP server.
 type Server struct {
 	server *gomcp.Server
+	// pedal holds the pedal between device calls.
+	pedal io.Closer
 }
 
 // New builds a server whose tools call client.
@@ -75,9 +79,9 @@ func New(
 		&gomcp.Implementation{Name: "tonestack", Version: version},
 		&gomcp.ServerOptions{Instructions: instructions},
 	)
-	tools.Register(s, client, opts.AllowWrites)
+	pedal := tools.Register(s, tools.FromSDK(client), opts.AllowWrites)
 
-	return &Server{server: s}
+	return &Server{server: s, pedal: pedal}
 }
 
 // Run serves over stdin and stdout until ctx ends or the agent disconnects.
@@ -91,9 +95,14 @@ func (s *Server) Run(
 }
 
 // Serve serves over any transport until ctx ends or the agent disconnects.
+//
+// The pedal is let go when the agent is, so its front panel works again and
+// HX Edit can claim it.
 func (s *Server) Serve(
 	ctx context.Context,
 	t gomcp.Transport,
 ) error {
-	return s.server.Run(ctx, t)
+	err := s.server.Run(ctx, t)
+
+	return errors.Join(err, s.pedal.Close())
 }
