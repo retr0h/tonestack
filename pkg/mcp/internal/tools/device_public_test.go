@@ -57,7 +57,10 @@ type deviceRow struct {
 	check func(s *DevicePublicTestSuite, res *gomcp.CallToolResult)
 }
 
-func (s *DevicePublicTestSuite) run(tool string, tests []deviceRow) {
+func (s *DevicePublicTestSuite) run(
+	tool string,
+	tests []deviceRow,
+) {
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
 			if tt.setup != nil {

@@ -31,6 +31,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/retr0h/tonestack/pkg/mcp"
+	"github.com/retr0h/tonestack/pkg/mcp/internal/tools"
 	"github.com/retr0h/tonestack/pkg/sdk"
 )
 
@@ -109,6 +110,15 @@ func (s *MCPPublicTestSuite) TestServe() {
 					},
 				},
 				{
+					tool: "corpus_model",
+					args: map[string]string{"id": "HD2_AmpSVBeastBrt"},
+					check: func(res *gomcp.CallToolResult) {
+						var got tools.Model
+						s.decode(res, &got)
+						s.NotZero(got.Uses)
+					},
+				},
+				{
 					tool: "preset_build",
 					args: map[string]string{"recipe_id": "mike-dirnt", "out": fromRecipe},
 					check: func(res *gomcp.CallToolResult) {
@@ -176,14 +186,14 @@ func (s *MCPPublicTestSuite) TestRun() {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	done := make(chan struct{})
+	done := make(chan error, 1)
 	go func() {
-		_ = mcp.New(sdk.New(), mcp.Options{}).Run(ctx)
-		close(done)
+		done <- mcp.New(sdk.New(), mcp.Options{}).Run(ctx)
 	}()
 
 	select {
-	case <-done:
+	case err := <-done:
+		s.ErrorIs(err, context.Canceled)
 	case <-time.After(2 * time.Second):
 		s.Fail("Run did not return after its context ended")
 	}

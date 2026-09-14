@@ -70,7 +70,10 @@ func (h *handlers) corpusModel(
 	}
 
 	stats := measured.Stats.Models[measured.Model]
-	block, _ := measured.Catalog.Block(measured.Model)
+	block, found := measured.Catalog.Block(measured.Model)
+	if !found {
+		return nil, Model{}, notInCatalog(string(measured.Model))
+	}
 
 	out := Model{Block: block, Uses: stats.Uses, Params: stats.Params}
 

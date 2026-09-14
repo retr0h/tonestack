@@ -83,8 +83,8 @@ func Register(
 	}, h.rigShow)
 	gomcp.AddTool(s, &gomcp.Tool{
 		Name:         "preset_build",
-		Description:  "Build a .hlx from a shipped rig or a rig file. Read what it added and what each character word moved before putting it on a pedal.",
-		Annotations:  &gomcp.ToolAnnotations{OpenWorldHint: new(false)},
+		Description:  "Build a .hlx from a shipped rig or a rig file. Read what it added and what each character word moved before putting it on a pedal. Overwrites the file at out.",
+		Annotations:  &gomcp.ToolAnnotations{OpenWorldHint: new(false), DestructiveHint: new(true)},
 		OutputSchema: mustOutputSchema[Built](),
 	}, h.presetBuild)
 	gomcp.AddTool(s, &gomcp.Tool{
@@ -107,8 +107,8 @@ func Register(
 	}, h.presetShow)
 	gomcp.AddTool(s, &gomcp.Tool{
 		Name:         "preset_export",
-		Description:  "Write one slot to a file: a rig by default, or the device's own .hlx with as=hlx.",
-		Annotations:  &gomcp.ToolAnnotations{ReadOnlyHint: true},
+		Description:  "Write one slot to a file: a rig by default, or the device's own .hlx with as=hlx. Overwrites the file at out.",
+		Annotations:  &gomcp.ToolAnnotations{ReadOnlyHint: false, DestructiveHint: new(true)},
 		OutputSchema: mustOutputSchema[sdk.Written](),
 	}, h.presetExport)
 	gomcp.AddTool(s, &gomcp.Tool{

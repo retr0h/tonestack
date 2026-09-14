@@ -20,11 +20,24 @@
 
 package tools
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+)
 
 var (
 	// ErrNoSource is preset_build given nothing to build from.
 	ErrNoSource = errors.New("name a recipe_id or a rig_path to build from")
 	// ErrTwoSources is preset_build given both.
 	ErrTwoSources = errors.New("name a recipe_id or a rig_path, not both")
+	// ErrNotInCatalog is corpus_model's model measured but missing from the
+	// catalog it was resolved against, a sign the corpus and catalog have
+	// drifted apart.
+	ErrNotInCatalog = errors.New("measured but not in the catalog")
 )
+
+// notInCatalog wraps ErrNotInCatalog with the model id that could not be
+// found, so the agent sees which model and not just an opaque schema failure.
+func notInCatalog(id string) error {
+	return fmt.Errorf("%w: %s", ErrNotInCatalog, id)
+}

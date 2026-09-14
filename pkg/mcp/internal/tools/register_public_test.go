@@ -135,7 +135,7 @@ func (s *RegisterPublicTestSuite) TestRegister() {
 				"catalog_block": true, "catalog_search": true, "corpus_model": true,
 				"preset_build": false, "rig_show": true, "rigs_list": true,
 				"devices_list": true, "presets_list": true, "preset_show": true,
-				"preset_export": true, "preset_select": false,
+				"preset_export": false, "preset_select": false,
 			},
 		},
 		{
@@ -178,7 +178,11 @@ func (s *RegisterPublicTestSuite) TestRegister() {
 				}
 
 				switch tool.Name {
-				case "preset_import", "presets_copy", "presets_swap":
+				case "preset_import",
+					"presets_copy",
+					"presets_swap",
+					"preset_export",
+					"preset_build":
 					s.Require().NotNil(tool.Annotations.DestructiveHint, tool.Name)
 					s.True(*tool.Annotations.DestructiveHint, tool.Name)
 				}

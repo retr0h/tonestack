@@ -56,7 +56,10 @@ type row struct {
 	check func(s *OfflinePublicTestSuite, res *gomcp.CallToolResult)
 }
 
-func (s *OfflinePublicTestSuite) run(tool string, tests []row) {
+func (s *OfflinePublicTestSuite) run(
+	tool string,
+	tests []row,
+) {
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
 			if tt.setup != nil {
@@ -181,6 +184,24 @@ func (s *OfflinePublicTestSuite) TestCorpusModel() {
 					Return(sdk.Measured{}, errors.New("HD2_Nope was not measured"))
 			},
 			want: "was not measured",
+			err:  true,
+		},
+		{
+			// The corpus measured this model, but the catalog it was
+			// resolved against has since dropped it: corpus and catalog
+			// have drifted apart.
+			name: "a model the corpus measured but the catalog lacks",
+			args: tools.ID{ID: string(id)},
+			setup: func(c *mocks.MockClient) {
+				c.EXPECT().Measurements(sdk.Corpus{Model: string(id)}).Return(sdk.Measured{
+					Stats: &corpus.Stats{Models: map[catalog.ModelID]corpus.ModelStats{
+						id: {Uses: 26},
+					}},
+					Catalog: &catalog.Catalog{},
+					Model:   id,
+				}, nil)
+			},
+			want: tools.ErrNotInCatalog.Error(),
 			err:  true,
 		},
 	})

@@ -43,7 +43,10 @@ func (s *WritesPublicTestSuite) SetupSubTest() {
 // run drives one tool through the table. Every row that succeeds is expected
 // to answer an sdk.Change carrying the Replaced value the mock returned,
 // which is checked here rather than per row.
-func (s *WritesPublicTestSuite) run(tool string, tests []deviceRow) {
+func (s *WritesPublicTestSuite) run(
+	tool string,
+	tests []deviceRow,
+) {
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
 			if tt.setup != nil {
