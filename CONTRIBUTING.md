@@ -84,6 +84,8 @@ main.go              a single call into cmd
 cmd/                 cobra wiring: flags to a Client call to a renderer
 pkg/cli/             how results look: theme, tables, detail, help
 pkg/cli/internal/    the primitives every renderer shares. Invisible outside pkg/cli.
+pkg/mcp/             the MCP server an agent runs: New and Run
+pkg/mcp/internal/    one handler per tool. Invisible outside pkg/mcp.
 pkg/sdk/             the library. One directory, and the one that leaves.
 pkg/sdk/client.go    the Client every wrapper rallies around
 pkg/sdk/alias.go     the answer types, named here and declared in result
@@ -165,6 +167,7 @@ packages are the nouns it takes and hands back.
 | name a slot                               | `slot`                                    |
 | read what an operation answered           | `result`, or the same types through `sdk` |
 | render those answers the way the CLI does | `cli`                                     |
+| serve the operations to an agent over MCP | `mcp`                                     |
 
 How each operation is done lives in `pkg/sdk/internal/`, where nothing outside
 the library can reach it. That is what keeps this list short, and what lets the
@@ -187,8 +190,8 @@ device library that could not say which slot it meant would be missing the noun.
 
 The compiler keeps each `internal/` private to its owner. `main_test.go` keeps
 the owners from leaning on each other: nothing under `pkg/sdk` reaches anything
-in the module outside it, and the CLI reaches only `cmd`, `pkg/cli` and
-`pkg/sdk`.
+in the module outside it, the CLI reaches only `cmd`, `pkg/cli`, `pkg/mcp` and
+`pkg/sdk`, and the MCP server only `pkg/mcp` and `pkg/sdk`.
 
 ## How the system works
 

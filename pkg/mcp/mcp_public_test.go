@@ -121,8 +121,14 @@ func (s *MCPPublicTestSuite) TestServe() {
 				{
 					tool: "preset_build",
 					args: map[string]string{
-						"rig_path": filepath.Join("..", "..", "examples", "rigspec", "mike-dirnt.yaml"),
-						"out":      fromRig,
+						"rig_path": filepath.Join(
+							"..",
+							"..",
+							"examples",
+							"rigspec",
+							"mike-dirnt.yaml",
+						),
+						"out": fromRig,
 					},
 					check: func(res *gomcp.CallToolResult) {
 						var got built

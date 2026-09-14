@@ -32,8 +32,8 @@ testify/suite, go.uber.org/mock (mockgen via `go tool`).
   `{Name}PublicTestSuite`; an internal test is `*_test.go` with
   `{Name}TestSuite`. A test file is named for the production file it tests.
   testify/suite, table-driven, one suite method per function under test.
-- Every `.go` file starts with the MIT header copied from `cmd/devices.go`
-  lines 1-19.
+- Every `.go` file starts with the MIT header copied from `cmd/devices.go` lines
+  1-19.
 - Functions with parameters put one parameter per line, closing parenthesis and
   return types on their own line.
 - `types.go` holds only type declarations.
@@ -52,8 +52,9 @@ testify/suite, go.uber.org/mock (mockgen via `go tool`).
 
 - MCP is built like the CLI so it can be extracted to `tonestack-mcp`, with
   start, stop, and per-call cancel from the command's context.
-- Device writes are off by default and enabled with `tonestack mcp --allow-writes`
-  (decided on the user's behalf at their request, recorded in PR #104).
+- Device writes are off by default and enabled with
+  `tonestack mcp --allow-writes` (decided on the user's behalf at their request,
+  recorded in PR #104).
 - No Claude skill: the server's instructions and tool descriptions carry the
   guidance, and `docs/workflows.md` stays the one place the steps live.
 
@@ -62,15 +63,15 @@ testify/suite, go.uber.org/mock (mockgen via `go tool`).
 1. **The spec says tests stand in for the USB bus through the SDK's test
    options.** Those hooks (`sdk.NewLister`, `sdk.OpenDevice`) live in
    `pkg/sdk/export_test.go` and are invisible outside `pkg/sdk`. Handlers are
-   tested against a mockgen double of the `Client` interface instead, through
-   a real in-memory MCP session. No pedal is needed either way.
+   tested against a mockgen double of the `Client` interface instead, through a
+   real in-memory MCP session. No pedal is needed either way.
 2. **The spec says each tool returns the SDK's own result type.** Two of them
    would flood an agent: `sdk.Measured` carries the whole corpus and the whole
    catalog, and `sdk.Reading` carries the full `.hlx` document. `corpus_model`
    returns the one model's block and stats, and `preset_show` returns the name,
    the rig, and any non-preset answer. Every other tool returns the SDK type
-   unchanged. `preset_build` returns whichever of `sdk.Made` or `sdk.Built`
-   the source produced.
+   unchanged. `preset_build` returns whichever of `sdk.Made` or `sdk.Built` the
+   source produced.
 
 Verified before writing this plan: `mcp.AddTool` infers an output schema without
 panicking for every SDK result type used here (`Blocks`, `catalog.Block`,
@@ -103,14 +104,14 @@ panicking for every SDK result type used here (`Blocks`, `catalog.Block`,
 | `docs/workflows.md`                                 | "Use it from an agent" section                               |
 | `README.md`, `CONTRIBUTING.md`, the spec's `Status` | the feature row, package layout, status                      |
 
----
+______________________________________________________________________
 
 ### Task 1: The tools package, with the tools that never touch a pedal
 
 **Goal:** `tools.Register` adds `catalog_search`, `catalog_block`,
 `corpus_model`, `rigs_list`, `rig_show` and `preset_build` to an MCP server,
-each calling a `Client` interface and answering with structured content plus
-one line of text.
+each calling a `Client` interface and answering with structured content plus one
+line of text.
 
 **Files:**
 
@@ -128,20 +129,20 @@ one line of text.
 **Acceptance Criteria:**
 
 - [ ] `ListTools` on a session over `Register(server, client, false)` returns
-      exactly the six offline tool names in this task (device tools arrive in
-      Task 2).
+  exactly the six offline tool names in this task (device tools arrive in Task
+  2).
 - [ ] Every offline tool has `ReadOnlyHint: true` except `preset_build`, which
-      has `ReadOnlyHint: false`.
+  has `ReadOnlyHint: false`.
 - [ ] Each handler's success row asserts the text line and at least one
-      structured field; each error row asserts `IsError` and the client's
-      error text.
+  structured field; each error row asserts `IsError` and the client's error
+  text.
 - [ ] `preset_build` with neither source returns `ErrNoSource`'s text; with both
-      returns `ErrTwoSources`'s text.
+  returns `ErrTwoSources`'s text.
 - [ ] `go test ./pkg/mcp/...` passes, and coverage of `pkg/mcp/internal/tools`
-      is 100%.
+  is 100%.
 
-**Verify:**
-`go test -cover ./pkg/mcp/internal/tools/` → `ok ... coverage: 100.0% of statements`
+**Verify:** `go test -cover ./pkg/mcp/internal/tools/` →
+`ok ... coverage: 100.0% of statements`
 
 **Steps:**
 
@@ -930,10 +931,10 @@ lookup is built from an index instead, construct the catalog the way
 
 - [ ] **Step 8: Run the tests**
 
-Run: `go test -cover ./pkg/mcp/internal/tools/`
-Expected: `ok`, coverage 100.0%. If output validation rejects a nil slice or
-map in a zero result (the error text names the output schema), give the
-fixture a non-nil value in that row rather than changing the handler.
+Run: `go test -cover ./pkg/mcp/internal/tools/` Expected: `ok`, coverage 100.0%.
+If output validation rejects a nil slice or map in a zero result (the error text
+names the output schema), give the fixture a non-nil value in that row rather
+than changing the handler.
 
 - [ ] **Step 9: Commit**
 
@@ -942,7 +943,7 @@ git add go.mod go.sum pkg/mcp
 git commit -m "feat(mcp): tools that read the catalog and build presets"
 ```
 
----
+______________________________________________________________________
 
 ### Task 2: The tools that read the pedal
 
@@ -960,20 +961,20 @@ device claim at a time that gives up when the call's context ends.
 
 **Acceptance Criteria:**
 
-- [ ] `ListTools` without writes returns the six offline names plus the five
-      in this task.
+- [ ] `ListTools` without writes returns the six offline names plus the five in
+  this task.
 - [ ] `preset_select` has `ReadOnlyHint: false`, `DestructiveHint: false`,
-      `IdempotentHint: true`; the other four have `ReadOnlyHint: true`.
-- [ ] A slot label that does not parse is an `IsError` result, and the client
-      is never called (gomock fails on an unexpected call).
+  `IdempotentHint: true`; the other four have `ReadOnlyHint: true`.
+- [ ] A slot label that does not parse is an `IsError` result, and the client is
+  never called (gomock fails on an unexpected call).
 - [ ] Two concurrent `devices_list` calls never run inside the client at the
-      same time: the recorded peak is 1.
+  same time: the recorded peak is 1.
 - [ ] `claim` with the device held and a cancelled context returns an error
-      wrapping `context.Canceled`.
+  wrapping `context.Canceled`.
 - [ ] Coverage of `pkg/mcp/internal/tools` stays at 100%.
 
-**Verify:**
-`go test -race -cover ./pkg/mcp/internal/tools/` → `ok ... coverage: 100.0%`
+**Verify:** `go test -race -cover ./pkg/mcp/internal/tools/` →
+`ok ... coverage: 100.0%`
 
 **Steps:**
 
@@ -1276,10 +1277,10 @@ func TestDevicePublicTestSuite(t *testing.T) {
 }
 ```
 
-Check before running: `07A` is slot 18 only if labels count from `01A` = 0
-with three per bank. Confirm with `slot.Label(18)` in `pkg/sdk/slot/slot.go`
-and fix the expected number if it differs. Confirm `99Z`, `nope` and `43A`
-fail `slot.Value.Set`.
+Check before running: `07A` is slot 18 only if labels count from `01A` = 0 with
+three per bank. Confirm with `slot.Label(18)` in `pkg/sdk/slot/slot.go` and fix
+the expected number if it differs. Confirm `99Z`, `nope` and `43A` fail
+`slot.Value.Set`.
 
 Update `TestRegister` in `register_public_test.go`: add the five names to
 `offline` (rename the variable to `reads`), and add to `readOnly`:
@@ -1488,14 +1489,13 @@ gomcp.AddTool(s, &gomcp.Tool{
 }, h.presetSelect)
 ```
 
-`preset_export` writes a local file but nothing on the pedal or in the
-setlist, which is why it is marked read-only here; the spec's table says the
-same.
+`preset_export` writes a local file but nothing on the pedal or in the setlist,
+which is why it is marked read-only here; the spec's table says the same.
 
 - [ ] **Step 4: Run the tests**
 
-Run: `go test -race -cover ./pkg/mcp/internal/tools/`
-Expected: `ok`, coverage 100.0%.
+Run: `go test -race -cover ./pkg/mcp/internal/tools/` Expected: `ok`, coverage
+100.0%.
 
 - [ ] **Step 5: Commit**
 
@@ -1504,7 +1504,7 @@ git add pkg/mcp
 git commit -m "feat(mcp): tools that read the pedal, one call at a time"
 ```
 
----
+______________________________________________________________________
 
 ### Task 3: The tools that write to the pedal, behind `allowWrites`
 
@@ -1520,14 +1520,14 @@ when `allowWrites` is true, marked destructive, and share the device claim.
 
 **Acceptance Criteria:**
 
-- [ ] `ListTools` without writes has none of the three names; with writes it
-      has all 14 tools.
+- [ ] `ListTools` without writes has none of the three names; with writes it has
+  all 14 tools.
 - [ ] Each of the three has `DestructiveHint` set to `true`.
 - [ ] Bad `slot`, `from` or `to` labels are `IsError` with no client call.
 - [ ] Coverage of `pkg/mcp/internal/tools` stays at 100%.
 
-**Verify:**
-`go test -race -cover ./pkg/mcp/internal/tools/` → `ok ... coverage: 100.0%`
+**Verify:** `go test -race -cover ./pkg/mcp/internal/tools/` →
+`ok ... coverage: 100.0%`
 
 **Steps:**
 
@@ -1554,8 +1554,8 @@ case "preset_import", "presets_copy", "presets_swap":
 }
 ```
 
-Import `slices`. The `readOnly` map for the existing "without writes" row
-stays as Task 2 left it.
+Import `slices`. The `readOnly` map for the existing "without writes" row stays
+as Task 2 left it.
 
 `writes_public_test.go`:
 
@@ -1820,8 +1820,8 @@ func destructive() *gomcp.ToolAnnotations {
 
 - [ ] **Step 4: Run the tests**
 
-Run: `go test -race -cover ./pkg/mcp/internal/tools/`
-Expected: `ok`, coverage 100.0%.
+Run: `go test -race -cover ./pkg/mcp/internal/tools/` Expected: `ok`, coverage
+100.0%.
 
 - [ ] **Step 5: Commit**
 
@@ -1830,7 +1830,7 @@ git add pkg/mcp
 git commit -m "feat(mcp): tools that write the pedal, only when allowed"
 ```
 
----
+______________________________________________________________________
 
 ### Task 4: `pkg/mcp`, and holding it to `pkg/sdk`
 
@@ -1847,20 +1847,19 @@ instructions, `Run` serves it over stdio until its context ends, and
 **Acceptance Criteria:**
 
 - [ ] A client session over `Serve` with a real `sdk.New()` calls
-      `catalog_search` with `search: "SVT"` and gets at least one match from
-      the built-in catalog.
+  `catalog_search` with `search: "SVT"` and gets at least one match from the
+  built-in catalog.
 - [ ] The session's initialize result carries non-empty instructions naming
-      `catalog_search`.
+  `catalog_search`.
 - [ ] `Options{}` offers 11 tools; `Options{AllowWrites: true}` offers 14.
 - [ ] `Serve` returns an error wrapping `context.Canceled` after its context is
-      cancelled.
+  cancelled.
 - [ ] `Run` with a cancelled context returns within two seconds.
 - [ ] `TestTheMCPStandsAlone` passes, and `TestTheCLIStandsAlone` passes with
-      `cmd` allowed to reach `pkg/mcp`.
+  `cmd` allowed to reach `pkg/mcp`.
 
-**Verify:**
-`go test -cover ./pkg/mcp/ && go test -run 'TestMainTestSuite' .` → both `ok`,
-`pkg/mcp` coverage 100.0%
+**Verify:** `go test -cover ./pkg/mcp/ && go test -run 'TestMainTestSuite' .` →
+both `ok`, `pkg/mcp` coverage 100.0%
 
 **Steps:**
 
@@ -2077,8 +2076,8 @@ The CLI test's package list includes `./pkg/cli/...`, which never imports
 
 - [ ] **Step 4: Run the tests**
 
-Run: `go test -cover ./pkg/mcp/ && go test -run TestMainTestSuite .`
-Expected: both `ok`; `pkg/mcp` coverage 100.0%.
+Run: `go test -cover ./pkg/mcp/ && go test -run TestMainTestSuite .` Expected:
+both `ok`; `pkg/mcp` coverage 100.0%.
 
 - [ ] **Step 5: Commit**
 
@@ -2087,7 +2086,7 @@ git add pkg/mcp/mcp.go pkg/mcp/mcp_public_test.go main_test.go
 git commit -m "feat(mcp): a server that stands on the SDK alone"
 ```
 
----
+______________________________________________________________________
 
 ### Task 5: `tonestack mcp`, the docs, and the pull request
 
@@ -2109,13 +2108,13 @@ the gate passed.
 
 - [ ] `go run . mcp --help` shows `--allow-writes`.
 - [ ] Piping an `initialize` request into `go run . mcp` prints a JSON-RPC
-      response with `"name":"tonestack"` on stdout.
+  response with `"name":"tonestack"` on stdout.
 - [ ] `docs/commands.md` has a `tonestack mcp` section, written by `just ready`.
 - [ ] README Features has an MCP row; CONTRIBUTING's project structure, import
-      table and "Where the SDK ends" name `pkg/mcp`; workflows.md has "Use it
-      from an agent"; the spec's status reads `accepted, built`.
+  table and "Where the SDK ends" name `pkg/mcp`; workflows.md has "Use it from
+  an agent"; the spec's status reads `accepted, built`.
 - [ ] `mise exec -- just ready` and `mise exec -- just test` pass, total
-      coverage at or above 99%.
+  coverage at or above 99%.
 - [ ] A pull request is open against `main`.
 
 **Verify:** `mise exec -- just test` → exit 0 with coverage ≥ 99%
@@ -2197,8 +2196,8 @@ printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocol
 ```
 
 Expected: help lists `--allow-writes`; the second prints one JSON line with
-`"serverInfo":{"name":"tonestack","version":"dev"}` and exits when stdin
-closes, with status 0.
+`"serverInfo":{"name":"tonestack","version":"dev"}` and exits when stdin closes,
+with status 0.
 
 - [ ] **Step 5: Docs**
 
@@ -2237,13 +2236,13 @@ Quit HX Edit before asking for anything that reaches the pedal.
 - "What to import" table, after the `cli` row:
   `| serve the operations to an agent over MCP | `mcp` |`
 - "Where the SDK ends", last paragraph: change "and the CLI reaches only `cmd`,
-  `pkg/cli` and `pkg/sdk`." to "the CLI reaches only `cmd`, `pkg/cli`,
-  `pkg/mcp` and `pkg/sdk`, and the MCP server only `pkg/mcp` and `pkg/sdk`."
+  `pkg/cli` and `pkg/sdk`." to "the CLI reaches only `cmd`, `pkg/cli`, `pkg/mcp`
+  and `pkg/sdk`, and the MCP server only `pkg/mcp` and `pkg/sdk`."
 
 Spec: change `**Status:** proposed\` to `**Status:** accepted, built\`.
 
-Put each changed markdown file through the `unslop` skill, then let
-`just ready` format them.
+Put each changed markdown file through the `unslop` skill, then let `just ready`
+format them.
 
 - [ ] **Step 6: Gate**
 
@@ -2253,9 +2252,9 @@ mise exec -- just test
 ```
 
 Expected: both exit 0. `just ready` regenerates `docs/commands.md` with a
-`tonestack mcp` section. If coverage is under 99%, find the uncovered lines
-with `go tool cover -func` on the profile `just test` writes and add test rows;
-do not touch coverage configuration.
+`tonestack mcp` section. If coverage is under 99%, find the uncovered lines with
+`go tool cover -func` on the profile `just test` writes and add test rows; do
+not touch coverage configuration.
 
 - [ ] **Step 7: Commit and open the pull request**
 

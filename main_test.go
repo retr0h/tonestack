@@ -266,7 +266,8 @@ func (s *MainTestSuite) TestTheMCPStandsAlone() {
 		case strings.HasPrefix(dep, mod+"pkg/mcp"):
 		case strings.HasPrefix(dep, mod+"pkg/sdk"):
 		default:
-			s.Require().Fail("reaches too far", "pkg/mcp reaches %s, which a tonestack-mcp would not have", dep)
+			s.Require().
+				Fail("reaches too far", "pkg/mcp reaches %s, which a tonestack-mcp would not have", dep)
 		}
 	}
 }

@@ -105,8 +105,16 @@ func (s *WritesPublicTestSuite) TestPresetsCopy() {
 			},
 			want: "copied 01A to 01B",
 		},
-		{name: "a source that does not parse", args: tools.Move{From: "nope", To: "01B"}, err: true},
-		{name: "a destination that does not parse", args: tools.Move{From: "01A", To: "nope"}, err: true},
+		{
+			name: "a source that does not parse",
+			args: tools.Move{From: "nope", To: "01B"},
+			err:  true,
+		},
+		{
+			name: "a destination that does not parse",
+			args: tools.Move{From: "01A", To: "nope"},
+			err:  true,
+		},
 		{
 			name: "HX Edit holding the pedal",
 			args: tools.Move{From: "01A", To: "01B"},
@@ -131,8 +139,16 @@ func (s *WritesPublicTestSuite) TestPresetsSwap() {
 			},
 			want: "swapped 01A and 01B",
 		},
-		{name: "a source that does not parse", args: tools.Move{From: "nope", To: "01B"}, err: true},
-		{name: "a destination that does not parse", args: tools.Move{From: "01A", To: "nope"}, err: true},
+		{
+			name: "a source that does not parse",
+			args: tools.Move{From: "nope", To: "01B"},
+			err:  true,
+		},
+		{
+			name: "a destination that does not parse",
+			args: tools.Move{From: "01A", To: "nope"},
+			err:  true,
+		},
 		{
 			name: "HX Edit holding the pedal",
 			args: tools.Move{From: "01A", To: "01B"},

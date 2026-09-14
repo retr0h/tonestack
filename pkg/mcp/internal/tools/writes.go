@@ -56,7 +56,9 @@ func (h *handlers) presetImport(
 	}
 
 	change, err := onDevice(
-		ctx, h, func() (sdk.Change, error) { return h.client.Import(ctx, sdk.Put{File: in.Preset, Slot: n}) },
+		ctx,
+		h,
+		func() (sdk.Change, error) { return h.client.Import(ctx, sdk.Put{File: in.Preset, Slot: n}) },
 	)
 	if err != nil {
 		return nil, sdk.Change{}, err
@@ -76,7 +78,9 @@ func (h *handlers) presetsCopy(
 	}
 
 	change, err := onDevice(
-		ctx, h, func() (sdk.Change, error) { return h.client.Copy(ctx, sdk.Edit{FromSlot: from, ToSlot: to}) },
+		ctx,
+		h,
+		func() (sdk.Change, error) { return h.client.Copy(ctx, sdk.Edit{FromSlot: from, ToSlot: to}) },
 	)
 	if err != nil {
 		return nil, sdk.Change{}, err
@@ -96,7 +100,9 @@ func (h *handlers) presetsSwap(
 	}
 
 	change, err := onDevice(
-		ctx, h, func() (sdk.Change, error) { return h.client.Swap(ctx, sdk.Edit{FromSlot: from, ToSlot: to}) },
+		ctx,
+		h,
+		func() (sdk.Change, error) { return h.client.Swap(ctx, sdk.Edit{FromSlot: from, ToSlot: to}) },
 	)
 	if err != nil {
 		return nil, sdk.Change{}, err

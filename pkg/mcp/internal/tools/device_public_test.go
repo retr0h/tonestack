@@ -99,7 +99,9 @@ func (s *DevicePublicTestSuite) TestDevicesList() {
 			name: "a bus that will not answer",
 			args: tools.None{},
 			setup: func(c *mocks.MockClient) {
-				c.EXPECT().Devices(gomock.Any()).Return(sdk.Attached{}, errors.New("bus unavailable"))
+				c.EXPECT().
+					Devices(gomock.Any()).
+					Return(sdk.Attached{}, errors.New("bus unavailable"))
 			},
 			want: "bus unavailable",
 			err:  true,
@@ -234,7 +236,8 @@ func (s *DevicePublicTestSuite) TestPresetExport() {
 			name: "HX Edit holding the pedal",
 			args: tools.Export{Slot: "01A", Out: "a.hlx", As: "hlx"},
 			setup: func(c *mocks.MockClient) {
-				c.EXPECT().Export(gomock.Any(), sdk.Export{Slot: 0, OutputPath: "a.hlx", As: "hlx"}).
+				c.EXPECT().
+					Export(gomock.Any(), sdk.Export{Slot: 0, OutputPath: "a.hlx", As: "hlx"}).
 					Return(sdk.Written{}, errHXEdit)
 			},
 			want: "quit HX Edit",

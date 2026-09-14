@@ -26,6 +26,7 @@ tonestack <command> [flags]
 | [catalog](#tonestack-catalog) | Work with the device catalog |
 | [corpus](#tonestack-corpus) | Work with what real presets say about a device |
 | [devices](#tonestack-devices) | Work with attached Helix hardware |
+| [mcp](#tonestack-mcp) | Serve tonestack to an agent over MCP |
 | [presets](#tonestack-presets) | Build and inspect preset files |
 | [recipes](#tonestack-recipes) | Work with curated gear knowledge |
 
@@ -147,6 +148,26 @@ special privileges and cannot disturb a device in use by other software.
 ```text
 tonestack devices list
 ```
+
+## tonestack mcp
+
+Serve the catalog, the corpus, the shipped rigs, building presets and the
+attached pedal to an agent over the Model Context Protocol, on stdin and stdout.
+
+An agent starts this itself. For Claude Code:
+
+  claude mcp add tonestack -- tonestack mcp
+
+Tools that overwrite what a pedal holds (import, copy, swap) are offered only
+with --allow-writes. Each still saves what it replaces to a file first.
+
+```text
+tonestack mcp [flags]
+```
+
+| flag | takes | default | what it does |
+| --- | --- | --- | --- |
+| `--allow-writes` |  |  | offer the tools that overwrite slots on the pedal |
 
 ## tonestack presets
 

@@ -85,7 +85,12 @@ func (s *RegisterTestSuite) TestMustOutputSchema() {
 				Name:     "Ampeg SVT Brt",
 				Category: catalog.CategoryAmp,
 				Params: map[string]catalog.Param{
-					"Drive": {Key: "Drive", Type: catalog.ParamFloat, Max: 1, Default: catalog.Float(0.41)},
+					"Drive": {
+						Key:     "Drive",
+						Type:    catalog.ParamFloat,
+						Max:     1,
+						Default: catalog.Float(0.41),
+					},
 				},
 			},
 		},

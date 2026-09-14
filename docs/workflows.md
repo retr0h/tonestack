@@ -321,6 +321,21 @@ On `corpus show --model`, the **spread** is the useful column. A parameter
 everybody sets the same way is one this tool can be confident about; one nobody
 agrees on belongs to you.
 
+## Use it from an agent
+
+`tonestack mcp` gives an agent the same operations as tools, with typed results
+instead of text to parse. Claude Code starts it for you once it is added:
+
+```bash
+claude mcp add tonestack -- tonestack mcp
+```
+
+That offers everything except writing to a pedal. To let the agent import, copy
+and swap slots, add it with `tonestack mcp --allow-writes` instead. Each write
+still saves what it replaces to a file first. Selecting a slot works either way.
+
+Quit HX Edit before asking for anything that reaches the pedal.
+
 ## For agents
 
 Two rules beyond the workflows above.

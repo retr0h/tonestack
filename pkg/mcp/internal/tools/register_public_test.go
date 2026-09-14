@@ -141,8 +141,17 @@ func (s *RegisterPublicTestSuite) TestRegister() {
 		{
 			name:        "with writes",
 			allowWrites: true,
-			want:        append(slices.Clone(reads), "preset_import", "presets_copy", "presets_swap"),
-			readOnly:    map[string]bool{"preset_import": false, "presets_copy": false, "presets_swap": false},
+			want: append(
+				slices.Clone(reads),
+				"preset_import",
+				"presets_copy",
+				"presets_swap",
+			),
+			readOnly: map[string]bool{
+				"preset_import": false,
+				"presets_copy":  false,
+				"presets_swap":  false,
+			},
 		},
 	}
 
