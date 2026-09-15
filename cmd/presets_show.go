@@ -28,7 +28,10 @@ import (
 )
 
 var (
-	presetsShowOptions sdk.Read
+	presetsShowFile    string
+	presetsShowPreset  string
+	presetsShowSetlist int
+	presetsShowSlot    int
 	presetsShowClient  clientFlags
 )
 
@@ -62,20 +65,20 @@ func init() {
 
 	f := presetsShowCmd.Flags()
 	f.StringVar(
-		&presetsShowOptions.Path,
+		&presetsShowFile,
 		"file",
 		"",
 		"a .hls setlist or .hlb backup written by HX Edit",
 	)
-	f.StringVar(&presetsShowOptions.File, "preset", "", "a standalone .hlx preset file to read")
+	f.StringVar(&presetsShowPreset, "preset", "", "a standalone .hlx preset file to read")
 	f.IntVar(
-		&presetsShowOptions.Setlist,
+		&presetsShowSetlist,
 		"setlist",
 		0,
 		"which setlist, when the file is a backup holding several",
 	)
 	f.Var(
-		slot.NewValue(&presetsShowOptions.Slot),
+		slot.NewValue(&presetsShowSlot),
 		"slot",
 		"which slot — a label the pedal shows such as 31A, or a number from zero",
 	)
@@ -90,10 +93,23 @@ func init() {
 	presetsShowCmd.MarkFlagsOneRequired("preset", "slot")
 }
 
-// reading reads one preset, from the device or from a file.
+// reading reads one preset: a standalone file, a slot in a backup, or a slot
+// on the device.
 //
 // No file and no preset means the device itself, which is what somebody with
 // one plugged in almost always wants.
-func reading(cmd *cobra.Command) (sdk.Reading, error) {
-	return presetsShowClient.client().Preset(cmd.Context(), presetsShowOptions)
+func reading(
+	cmd *cobra.Command,
+) (sdk.Reading, error) {
+	client := presetsShowClient.client()
+	at := slot.Address{Setlist: presetsShowSetlist, Slot: presetsShowSlot}
+
+	switch {
+	case presetsShowPreset != "":
+		return client.PresetFile(cmd.Context(), presetsShowPreset)
+	case presetsShowFile != "":
+		return client.Setlist(presetsShowFile).Preset(cmd.Context(), at)
+	default:
+		return client.Preset(cmd.Context(), at)
+	}
 }

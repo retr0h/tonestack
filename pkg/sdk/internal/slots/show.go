@@ -21,6 +21,7 @@
 package slots
 
 import (
+	"context"
 	"fmt"
 	"os"
 
@@ -29,39 +30,58 @@ import (
 	slotpkg "github.com/retr0h/tonestack/pkg/sdk/slot"
 )
 
-// ShowOptions says which preset to show.
+// Show reads the rig one slot of a file describes.
 //
-// A preset comes from either a slot in a setlist or a standalone .hlx file.
-// Both read into the same rig, which is the point: what the device holds and
-// what this tool generates are the same kind of thing.
-type ShowOptions struct {
-	// Deps are the collaborators this command works through.
-	Deps
-
-	// Path is the .hls or .hlb file to read. Empty when showing a file.
-	Path string
-	// File is a standalone .hlx to read. Empty when showing a slot.
-	File string
-	// Setlist selects one setlist within a bundle.
-	Setlist int
-	// Slot selects a position within the setlist.
-	Slot int
-	// CatalogPath is the generated catalog for the target device.
-	CatalogPath string
-}
-
-// Show reads the rig a preset describes.
-//
-// A rig, not a rendering of one. RigSpec is what this project reads, writes
-// and exchanges, so it is what looking at a preset produces — and what comes
-// out here compiles back into the preset it came from, unchanged.
-func Show(opts ShowOptions) (result.Reading, error) {
-	doc, err := document(opts)
+// A rig, not a rendering of one. RigSpec is what this project reads, writes and
+// exchanges, so it is what looking at a preset produces, and what comes out
+// here compiles back into the preset it came from, unchanged.
+func (f *Flows) Show(
+	ctx context.Context,
+	path string,
+	at slotpkg.Address,
+) (result.Reading, error) {
+	bundle, err := open(ctx, path)
 	if err != nil {
 		return result.Reading{}, err
 	}
 
-	cat, err := opts.catalogs().Open(opts.CatalogPath)
+	data, err := bundle.Slot(at.Setlist, at.Slot)
+	if err != nil {
+		return result.Reading{}, err
+	}
+
+	return f.reading(ctx, &preset.Document{
+		Schema:  preset.Schema,
+		Version: preset.Version,
+		Data:    *data,
+	}, at.Slot)
+}
+
+// ShowFile reads the rig a standalone .hlx describes.
+//
+// The same rig a slot reads as, which is the point: what the device holds and
+// what this tool generates are the same kind of thing.
+func (f *Flows) ShowFile(
+	ctx context.Context,
+	file string,
+) (result.Reading, error) {
+	doc, err := readPreset(ctx, file)
+	if err != nil {
+		return result.Reading{}, err
+	}
+
+	// A file is one preset, so it is reported the way the first slot of a
+	// setlist would be.
+	return f.reading(ctx, doc, 0)
+}
+
+// reading lifts a preset into the rig it describes.
+func (f *Flows) reading(
+	ctx context.Context,
+	doc *preset.Document,
+	slot int,
+) (result.Reading, error) {
+	cat, err := f.catalog(ctx)
 	if err != nil {
 		return result.Reading{}, err
 	}
@@ -73,40 +93,24 @@ func Show(opts ShowOptions) (result.Reading, error) {
 		return result.Reading{Name: doc.Data.Meta.Name}, nil
 	}
 
-	spec, err := opts.compiler().Lift(doc, cat)
+	spec, err := f.compiler().Lift(doc, cat)
 	if err != nil {
 		return result.Reading{}, fmt.Errorf(
-			"reading slot %s: %w", slotpkg.Label(opts.Slot), err)
+			"reading slot %s: %w", slotpkg.Label(slot), err)
 	}
 
 	return result.Reading{Name: doc.Data.Meta.Name, Doc: doc, Rig: spec}, nil
 }
 
-// document resolves the options to the preset they name.
-func document(opts ShowOptions) (*preset.Document, error) {
-	if opts.File != "" {
-		return readFile(opts.File)
-	}
-
-	bundle, err := open(opts.Path)
-	if err != nil {
+// readPreset reads a standalone preset.
+func readPreset(
+	ctx context.Context,
+	path string,
+) (*preset.Document, error) {
+	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 
-	data, err := bundle.Slot(opts.Setlist, opts.Slot)
-	if err != nil {
-		return nil, err
-	}
-
-	return &preset.Document{
-		Schema:  preset.Schema,
-		Version: preset.Version,
-		Data:    *data,
-	}, nil
-}
-
-// readFile reads a standalone preset.
-func readFile(path string) (*preset.Document, error) {
 	f, err := os.Open(path) //nolint:gosec // the path is the user's own file
 	if err != nil {
 		return nil, fmt.Errorf("opening %s: %w", path, err)

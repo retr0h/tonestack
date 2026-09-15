@@ -38,15 +38,6 @@ var (
 	// ErrNoSuchRecipe reports a rig nobody has written.
 	ErrNoSuchRecipe = recipes.ErrNotFound
 
-	// ErrSelectNeedsDevice reports a Select whose Read named a file. A slot
-	// is only ever selected on the device that plays it; naming a file and
-	// quietly going to the pedal anyway would be wrong.
-	ErrSelectNeedsDevice = errors.New("a slot is selected on a device, not in a file")
-	// ErrEditSetlist reports a Copy or Swap whose Where.Setlist was set.
-	// Edit already has FromSetlist and ToSetlist for that, one per side of
-	// the move; Where.Setlist has no side to belong to and is never read.
-	ErrEditSetlist = errors.New("name the setlists with FromSetlist and ToSetlist")
-
 	// ErrClosed reports a Session method called after Close.
 	ErrClosed = errors.New("the session is closed")
 	// ErrBus reports a Session the bus ended: a read or a write the bus

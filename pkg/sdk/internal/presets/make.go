@@ -22,6 +22,7 @@ package presets
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os"
 
@@ -43,9 +44,6 @@ type MakeOptions struct {
 	RecipeID string
 	// RecipesDir is where recipes live.
 	RecipesDir string
-	// CatalogPath is the generated catalog for the target device. Empty
-	// means the one built into this binary.
-	CatalogPath string
 	// StatsPath is measured corpus statistics. Empty means the ones built
 	// into this binary.
 	StatsPath string
@@ -58,13 +56,20 @@ type MakeOptions struct {
 // Reporting the chain matters as much as writing the file. A generated preset
 // is a set of decisions, and a wrong amp should be visible before anyone plugs
 // in rather than after.
-func Make(opts MakeOptions) (result.Made, error) {
+func Make(
+	ctx context.Context,
+	opts MakeOptions,
+) (result.Made, error) {
+	if err := ctx.Err(); err != nil {
+		return result.Made{}, err
+	}
+
 	rec, err := opts.recipes().Find(opts.RecipesDir, opts.RecipeID)
 	if err != nil {
 		return result.Made{}, err
 	}
 
-	cat, err := opts.catalogs().Open(opts.CatalogPath)
+	cat, err := opts.catalog(ctx)
 	if err != nil {
 		return result.Made{}, err
 	}

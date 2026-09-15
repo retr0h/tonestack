@@ -21,6 +21,8 @@
 package cmd
 
 import (
+	"context"
+
 	"github.com/spf13/cobra"
 
 	"github.com/retr0h/tonestack/pkg/cli"
@@ -28,8 +30,9 @@ import (
 )
 
 var (
-	corpusShowOptions sdk.Corpus
-	corpusShowClient  clientFlags
+	corpusShowModel      string
+	corpusShowInstrument string
+	corpusShowClient     clientFlags
 )
 
 // corpusShowCmd represents the corpus show command.
@@ -46,8 +49,7 @@ The spread is the useful column. A parameter everybody sets the same way is one
 this tool can be confident about; one nobody agrees on belongs to the player.`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		measured, err := corpusShowClient.client().
-			Measurements(cmd.Context(), corpusShowOptions)
+		measured, err := measurements(cmd.Context(), corpusShowClient.client())
 		if err != nil {
 			return err
 		}
@@ -60,13 +62,28 @@ func init() {
 	corpusCmd.AddCommand(corpusShowCmd)
 
 	f := corpusShowCmd.Flags()
-	f.StringVar(&corpusShowOptions.Model, "model", "",
+	f.StringVar(&corpusShowModel, "model", "",
 		"show one model's parameter distributions, by identifier")
-	f.StringVar(&corpusShowOptions.Instrument, "instrument", "",
+	f.StringVar(&corpusShowInstrument, "instrument", "",
 		"limit the chain grammar to guitar or bass")
 	f.StringVar(&corpusShowClient.stats, "stats", "",
 		"measured statistics to use instead of the built-in ones")
 	f.StringVar(&corpusShowClient.catalog, "catalog", "",
 		"a generated catalog to use instead of the built-in one")
 	corpusShowCmd.MarkFlagsMutuallyExclusive("model", "instrument")
+}
+
+// measurements asks the one question the flags name.
+//
+// --model and --instrument cannot be given together, so a model named asks
+// about that model and anything else asks about chains.
+func measurements(
+	ctx context.Context,
+	client *sdk.Client,
+) (sdk.Measured, error) {
+	if corpusShowModel != "" {
+		return client.ModelMeasurements(ctx, corpusShowModel)
+	}
+
+	return client.ChainMeasurements(ctx, corpusShowInstrument)
 }

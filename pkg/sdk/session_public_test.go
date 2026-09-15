@@ -204,7 +204,7 @@ func (s *SessionPublicTestSuite) TestOpen() {
 			bus:  func() *mocks.MockOpener { return nil },
 			held: true,
 			call: func(c *sdk.Client, ctx context.Context) error {
-				_, err := c.Presets(ctx, sdk.Where{})
+				_, err := c.Presets(ctx, 0)
 
 				return err
 			},
@@ -399,11 +399,11 @@ func (s *SessionPublicTestSuite) TestPreset() {
 func (s *SessionPublicTestSuite) TestExport() {
 	tests := []struct {
 		name string
-		as   string
+		as   sdk.Format
 		file string
 	}{
-		{name: "as a rig", file: "one.yaml"},
-		{name: "as the device's own file", as: "hlx", file: "one.hlx"},
+		{name: "as a rig", as: sdk.FormatRig, file: "one.yaml"},
+		{name: "as the device's own file", as: sdk.FormatPreset, file: "one.hlx"},
 	}
 
 	for _, tt := range tests {
@@ -422,7 +422,7 @@ func (s *SessionPublicTestSuite) TestExport() {
 	}
 
 	s.Run("after Close", func() {
-		_, err := s.closed().Export(context.Background(), slot.Address{}, "one.yaml", "")
+		_, err := s.closed().Export(context.Background(), slot.Address{}, "one.yaml", sdk.FormatRig)
 		s.Require().ErrorIs(err, sdk.ErrClosed)
 	})
 }

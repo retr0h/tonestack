@@ -22,49 +22,62 @@ package slots
 
 import (
 	"bytes"
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
-
-	"github.com/retr0h/tonestack/pkg/sdk/rig"
 	"github.com/vmihailenco/msgpack/v5"
+	"go.uber.org/mock/gomock"
 
 	"github.com/retr0h/tonestack/pkg/sdk/catalog"
+	slotmocks "github.com/retr0h/tonestack/pkg/sdk/internal/slots/mocks"
+	"github.com/retr0h/tonestack/pkg/sdk/result"
+	"github.com/retr0h/tonestack/pkg/sdk/rig"
 )
+
+// catalogsAt hands over the catalog at path whenever it is asked, the built-in
+// one for an empty path.
+func catalogsAt(
+	t *testing.T,
+	path string,
+) Catalogs {
+	t.Helper()
+
+	c := slotmocks.NewMockCatalogs(gomock.NewController(t))
+	c.EXPECT().Catalog(gomock.Any()).DoAndReturn(
+		func(context.Context) (*catalog.Catalog, error) { return catalog.Open(path) },
+	).AnyTimes()
+
+	return c
+}
 
 // DeviceReadTestSuite reads what an HX Stomp actually answered.
 //
-// pkg/sdk/device/wire/testdata/preset.bin is one slot as the hardware handed it back.
-// Everything from the wire to a rig runs here, so the live path is covered by
-// a real answer rather than by a device being plugged in.
+// pkg/sdk/internal/wire/testdata/preset.bin is one slot as the hardware handed
+// it back. Everything from the wire to a rig runs here, so the live path is
+// covered by a real answer rather than by a device being plugged in.
 type DeviceReadTestSuite struct {
 	suite.Suite
-
-	cat *catalog.Catalog
-}
-
-func (s *DeviceReadTestSuite) SetupSuite() {
-	cat, err := catalog.Open("")
-	s.Require().NoError(err)
-
-	s.cat = cat
 }
 
 func (s *DeviceReadTestSuite) capture() []byte { return s.answerFrom("preset.bin") }
 
 // answerFrom returns one slot as the hardware sent it.
-func (s *DeviceReadTestSuite) answerFrom(name string) []byte {
-	raw, err := os.ReadFile(
-		filepath.Join("..", "wire", "testdata", name))
+func (s *DeviceReadTestSuite) answerFrom(
+	name string,
+) []byte {
+	raw, err := os.ReadFile(filepath.Join("..", "wire", "testdata", name))
 	s.Require().NoError(err)
 
 	return raw
 }
 
 // encode renders a document the way a device would.
-func (s *DeviceReadTestSuite) encode(doc map[int8]any) []byte {
+func (s *DeviceReadTestSuite) encode(
+	doc map[int8]any,
+) []byte {
 	var buf bytes.Buffer
 
 	enc := msgpack.NewEncoder(&buf)
@@ -76,7 +89,9 @@ func (s *DeviceReadTestSuite) encode(doc map[int8]any) []byte {
 }
 
 // block renders one chain entry naming the given model.
-func block(model int) map[int8]any {
+func block(
+	model int,
+) map[int8]any {
 	return map[int8]any{
 		19: 6,
 		20: map[int8]any{24: map[int8]any{25: model}, 10: true},
@@ -88,7 +103,7 @@ func (s *DeviceReadTestSuite) empty() []byte {
 	return s.encode(map[int8]any{0: map[int8]any{22: []any{}}})
 }
 
-// bare is a chain and nothing else — no snapshots, no switches.
+// bare is a chain and nothing else: no snapshots, no switches.
 func (s *DeviceReadTestSuite) bare() []byte {
 	return s.encode(map[int8]any{0: map[int8]any{22: []any{block(0)}}})
 }
@@ -98,15 +113,20 @@ func (s *DeviceReadTestSuite) unknownModel() []byte {
 	return s.encode(map[int8]any{0: map[int8]any{22: []any{block(99999)}}})
 }
 
-// TestDeviceReading turns what a device answered into a rig.
+// TestDeviceReading turns what a device answered into a reading.
 func (s *DeviceReadTestSuite) TestDeviceReading() {
 	tests := []struct {
 		name string
 		// which answer to read: the capture unless a case says otherwise.
-		answer string
-		opts   DeviceOptions
+		answer  string
+		slot    int
+		called  string
+		as      result.Format
+		catalog string
 		// the slot holds nothing, which is an answer rather than a failure.
 		empty bool
+		// the device's own file was asked for, so no rig is lifted.
+		fileOnly bool
 
 		contains []string
 		absent   []string
@@ -114,8 +134,9 @@ func (s *DeviceReadTestSuite) TestDeviceReading() {
 		errText  string
 	}{
 		{
-			name: "a slot the device holds",
-			opts: DeviceOptions{Slot: 79, Name: "BAS:SVT Nrm"},
+			name:   "a slot the device holds",
+			slot:   79,
+			called: "BAS:SVT Nrm",
 			contains: []string{
 				"schema: RigSpec",
 				"name: BAS:SVT Nrm",
@@ -158,7 +179,7 @@ func (s *DeviceReadTestSuite) TestDeviceReading() {
 			// come out.
 			name:   "an amp carrying its own cabinet",
 			answer: "switches.bin",
-			opts:   DeviceOptions{Slot: 24},
+			slot:   24,
 			contains: []string{
 				"dsp0.cab0",
 				"dsp0.cab1",
@@ -168,9 +189,14 @@ func (s *DeviceReadTestSuite) TestDeviceReading() {
 				"'@mic': 10",
 			},
 		},
+		{name: "a slot the device did not name", contains: []string{"slot 01A"}},
 		{
-			name:     "a slot the device did not name",
-			contains: []string{"slot 01A"},
+			// Only the document is wanted, so the rig is work nobody asked
+			// for.
+			name:     "the device's own file",
+			as:       result.FormatPreset,
+			called:   "Chunky Monkey",
+			fileOnly: true,
 		},
 		{
 			// A slot holding nothing is not a rig: it names no gear, and a
@@ -179,7 +205,7 @@ func (s *DeviceReadTestSuite) TestDeviceReading() {
 			// failed".
 			name:   "a slot holding nothing",
 			answer: "empty",
-			opts:   DeviceOptions{Slot: 4},
+			slot:   4,
 			empty:  true,
 		},
 		{
@@ -188,34 +214,20 @@ func (s *DeviceReadTestSuite) TestDeviceReading() {
 			contains: []string{"schema: RigSpec"},
 			absent:   []string{"snapshots:", "footswitches:"},
 		},
+		{name: "an answer that is not a preset", answer: "nonsense", slot: 3, errText: "slot 02A"},
 		{
-			name:    "an answer that is not a preset",
-			answer:  "nonsense",
-			opts:    DeviceOptions{Slot: 3},
-			errText: "slot 02A",
+			name:    "a catalog it cannot open",
+			catalog: filepath.Join("testdata", "nope.json"),
+			err:     true,
 		},
-		{
-			name: "a catalog it cannot open",
-			opts: DeviceOptions{
-				Slot: 0, CatalogPath: filepath.Join("testdata", "nope.json"),
-			},
-			err: true,
-		},
-		{
-			name:   "a model the catalog cannot name",
-			answer: "unknown",
-			err:    true,
-		},
+		{name: "a model the catalog cannot name", answer: "unknown", err: true},
 		{
 			// A catalog whose model table names an empty model produces a
 			// chain with no gear in it, which is not a rig. Saying so beats
 			// writing a document that claims to be one.
-			name:   "a chain that is not a rig",
-			answer: "bare",
-			opts: DeviceOptions{
-				Slot:        0,
-				CatalogPath: filepath.Join("testdata", "unnamed.catalog.json"),
-			},
+			name:    "a chain that is not a rig",
+			answer:  "bare",
+			catalog: filepath.Join("testdata", "unnamed.catalog.json"),
 			errText: "slot 01A",
 		},
 	}
@@ -239,13 +251,15 @@ func (s *DeviceReadTestSuite) TestDeviceReading() {
 				answer = s.answerFrom(tt.answer)
 			}
 
-			read, err := deviceReading(answer, tt.opts)
+			f := &Flows{Catalogs: catalogsAt(s.T(), tt.catalog)}
+
+			read, err := f.deviceReading(context.Background(), answer, tt.slot, tt.called, tt.as)
 
 			if tt.err || tt.errText != "" {
 				s.Require().Error(err)
 
 				if tt.errText != "" {
-					s.Require().Contains(err.Error(), tt.errText)
+					s.Require().ErrorContains(err, tt.errText)
 				}
 
 				return
@@ -260,6 +274,14 @@ func (s *DeviceReadTestSuite) TestDeviceReading() {
 			}
 
 			s.Require().False(read.Empty())
+
+			if tt.fileOnly {
+				s.Require().Equal(tt.called, read.Name)
+				s.Require().NotNil(read.Doc)
+				s.Require().Empty(read.Rig.Chain, "no rig was lifted")
+
+				return
+			}
 
 			// The name and the rig together, because a slot the device did
 			// not name is answered by the first and everything else by the
@@ -289,7 +311,9 @@ func (s *DeviceReadTestSuite) TestARigReadOffTheDeviceRebuildsItsRouting() {
 	rigPath := filepath.Join(dir, "rig.yaml")
 	out := filepath.Join(dir, "out.hlx")
 
-	read, err := deviceReading(s.capture(), DeviceOptions{Slot: 0})
+	f := &Flows{}
+
+	read, err := f.deviceReading(context.Background(), s.capture(), 0, "", result.FormatRig)
 	s.Require().NoError(err)
 
 	var buf bytes.Buffer
@@ -297,7 +321,7 @@ func (s *DeviceReadTestSuite) TestARigReadOffTheDeviceRebuildsItsRouting() {
 	s.Require().NoError(rig.Write(&buf, read.Rig))
 	s.Require().NoError(os.WriteFile(rigPath, buf.Bytes(), 0o600))
 
-	_, err = Compile(CompileOptions{RigPath: rigPath, OutputPath: out})
+	_, err = f.Compile(context.Background(), rigPath, "", out)
 	s.Require().NoError(err)
 
 	built, err := os.ReadFile(out) //nolint:gosec // a path this test chose

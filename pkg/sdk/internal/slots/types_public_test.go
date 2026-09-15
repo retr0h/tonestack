@@ -37,14 +37,17 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk/internal/slots"
 	slotmocks "github.com/retr0h/tonestack/pkg/sdk/internal/slots/mocks"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/wire"
+	"github.com/retr0h/tonestack/pkg/sdk/result"
 	"github.com/retr0h/tonestack/pkg/sdk/rig"
+	slotpkg "github.com/retr0h/tonestack/pkg/sdk/slot"
 )
 
 // TypesPublicTestSuite covers standing something else in for a collaborator.
 //
-// Every other suite here leaves Deps zero and gets the real thing, which is
-// what the commands do in earnest. These drive the other half: a command
-// given a double uses it, and the failure it reports is the double's.
+// Every other suite here leaves the collaborators on Flows nil and gets the
+// real thing, which is what the Client does in earnest. These drive the other
+// half: a flow given a double uses it, and the failure it reports is the
+// double's.
 type TypesPublicTestSuite struct {
 	suite.Suite
 
@@ -55,86 +58,88 @@ func (s *TypesPublicTestSuite) SetupTest() { s.ctrl = gomock.NewController(s.T()
 
 func (s *TypesPublicTestSuite) TearDownTest() { s.ctrl.Finish() }
 
-// preset returns a standalone .hlx a command can read.
+// preset returns a standalone .hlx a flow can read.
 func (s *TypesPublicTestSuite) preset() string {
 	return filepath.Join("..", "compile", "testdata", "preset0.hlx")
 }
 
-// TestCatalogs covers a command opening its catalog through a double.
+// builtIn is a double handing over the catalog in this binary.
+func (s *TypesPublicTestSuite) builtIn() *slotmocks.MockCatalogs {
+	built, err := catalog.BuiltIn()
+	s.Require().NoError(err)
+
+	cat := slotmocks.NewMockCatalogs(s.ctrl)
+	cat.EXPECT().Catalog(gomock.Any()).Return(built, nil)
+
+	return cat
+}
+
+// TestCatalogs covers a flow reaching its catalog through a double.
 func (s *TypesPublicTestSuite) TestCatalogs() {
 	want := errors.New("no catalog here")
 
 	cat := slotmocks.NewMockCatalogs(s.ctrl)
-	cat.EXPECT().Open("somewhere.json").Return(nil, want)
+	cat.EXPECT().Catalog(gomock.Any()).Return(nil, want)
 
-	_, err := slots.Show(slots.ShowOptions{
-		Deps:        slots.Deps{Catalogs: cat},
-		File:        s.preset(),
-		CatalogPath: "somewhere.json",
-	})
+	_, err := (&slots.Flows{Catalogs: cat}).ShowFile(context.Background(), s.preset())
 
 	s.Require().ErrorIs(err, want)
 }
 
-// TestCompiler covers a command reading a preset into a rig through a double.
+// TestCompiler covers a flow reading a preset into a rig through a double.
 func (s *TypesPublicTestSuite) TestCompiler() {
-	want := errors.New("cannot lift that")
+	tests := []struct {
+		name string
+		// what the lift answers.
+		lifted rig.Spec
+		err    error
+		call   func(*slots.Flows, string) error
+		says   string
+	}{
+		{
+			name: "a lift that fails",
+			err:  errors.New("cannot lift that"),
+			call: func(f *slots.Flows, _ string) error {
+				_, err := f.ShowFile(context.Background(), s.preset())
 
-	built, err := catalog.BuiltIn()
-	s.Require().NoError(err)
+				return err
+			},
+			says: "cannot lift that",
+		},
+		{
+			// A rig is validated on the way out, so an export that could not
+			// write one has to say so rather than leave an empty file where
+			// somebody expects a preset. A rig with no chain in it is one
+			// lifting a real preset never produces and the contract refuses.
+			name: "a lift that produced something the contract refuses",
+			call: func(f *slots.Flows, out string) error {
+				_, err := f.Export(context.Background(),
+					fixture("setlist.hls"), slotpkg.Address{}, out, result.FormatRig)
 
-	cat := slotmocks.NewMockCatalogs(s.ctrl)
-	cat.EXPECT().Open(gomock.Any()).Return(built, nil)
+				return err
+			},
+			says: "writing the rig",
+		},
+	}
 
-	comp := slotmocks.NewMockCompiler(s.ctrl)
-	comp.EXPECT().Lift(gomock.Any(), gomock.Any()).
-		Return(rig.Spec{}, want)
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			comp := slotmocks.NewMockCompiler(s.ctrl)
+			comp.EXPECT().Lift(gomock.Any(), gomock.Any()).Return(tt.lifted, tt.err)
 
-	_, err = slots.Show(slots.ShowOptions{
-		Deps: slots.Deps{Catalogs: cat, Compiler: comp},
-		File: s.preset(),
-	})
+			out := filepath.Join(s.T().TempDir(), "rig.yaml")
 
-	s.Require().ErrorIs(err, want)
-}
+			err := tt.call(&slots.Flows{Catalogs: s.builtIn(), Compiler: comp}, out)
 
-// TestExportOnARigThatDoesNotValidate covers a lift that produced something
-// the contract refuses.
-//
-// A rig is validated on the way out, so an export that could not write one has
-// to say so rather than leave an empty file where somebody expects a preset.
-func (s *TypesPublicTestSuite) TestExportOnARigThatDoesNotValidate() {
-	built, err := catalog.BuiltIn()
-	s.Require().NoError(err)
-
-	cat := slotmocks.NewMockCatalogs(s.ctrl)
-	cat.EXPECT().Open(gomock.Any()).Return(built, nil)
-
-	// A rig with no chain in it, which lifting a real preset never produces
-	// and the contract does not accept.
-	comp := slotmocks.NewMockCompiler(s.ctrl)
-	comp.EXPECT().Lift(gomock.Any(), gomock.Any()).
-		Return(rig.Spec{}, nil)
-
-	out := filepath.Join(s.T().TempDir(), "rig.yaml")
-
-	_, err = slots.Export(slots.ExportOptions{
-		Deps:       slots.Deps{Catalogs: cat, Compiler: comp},
-		Path:       fixture("setlist.hls"),
-		OutputPath: out,
-	})
-
-	s.Require().ErrorContains(err, "writing the rig")
-	s.Require().NoFileExists(out)
+			s.Require().ErrorContains(err, tt.says)
+			s.Require().NoFileExists(out)
+		})
+	}
 }
 
 // TestTranslator covers a listing reading each slot's chain through a double.
 func (s *TypesPublicTestSuite) TestTranslator() {
-	built, err := catalog.BuiltIn()
-	s.Require().NoError(err)
-
-	raw, err := os.ReadFile(
-		filepath.Join("..", "wire", "testdata", "preset.bin"))
+	raw, err := os.ReadFile(filepath.Join("..", "wire", "testdata", "preset.bin"))
 	s.Require().NoError(err)
 
 	dev := mocks.NewMockEditor(s.ctrl)
@@ -143,19 +148,13 @@ func (s *TypesPublicTestSuite) TestTranslator() {
 		Return([]wire.Preset{{Slot: 0, Name: "Chunky Monkey"}}, nil)
 	dev.EXPECT().ReadPreset(gomock.Any(), 0, 0).Return(raw, nil)
 
-	cat := slotmocks.NewMockCatalogs(s.ctrl)
-	cat.EXPECT().Open(gomock.Any()).Return(built, nil)
-
 	// The slot really holds six blocks. The double says it holds none, so a
 	// listing that shows it empty can only have asked the double.
 	tr := slotmocks.NewMockTranslator(s.ctrl)
 	tr.EXPECT().Chain("", gomock.Any(), gomock.Any()).Return(chain.Chain{}, nil)
 
-	listing, err := slots.ListWith(context.Background(), dev,
-		slots.DeviceOptions{
-			All:  true,
-			Deps: slots.Deps{Catalogs: cat, Translator: tr},
-		})
+	listing, err := (&slots.Flows{Catalogs: s.builtIn(), Translator: tr}).
+		ListWith(context.Background(), dev, 0)
 	s.Require().NoError(err)
 
 	s.Require().Len(listing.Slots, 1)

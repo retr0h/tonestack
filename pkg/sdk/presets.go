@@ -23,37 +23,8 @@ package sdk
 import (
 	"context"
 
-	"github.com/retr0h/tonestack/pkg/sdk/internal/slots"
 	"github.com/retr0h/tonestack/pkg/sdk/slot"
 )
-
-// Where a setlist is read from.
-//
-// Every operation below takes one of these. An empty Path means the attached
-// device, which is what somebody with one plugged in almost always wants; a
-// path reads a backup instead and needs no hardware. Deciding that here rather
-// than in each caller is what stops a terminal, a service and a TUI each
-// inventing their own answer.
-type Where struct {
-	// Path is a .hls setlist or .hlb backup. Empty means the device.
-	Path string
-	// Setlist selects one setlist within a bundle.
-	Setlist int
-}
-
-// OnDevice says whether this addresses the hardware rather than a file.
-func (w Where) OnDevice() bool { return w.Path == "" }
-
-// deps are the collaborators every flow is handed: the Client's own catalog,
-// and where a device's answers are captured.
-func (c *Client) deps(
-	ctx context.Context,
-) slots.Deps {
-	return slots.Deps{
-		Catalogs: catalogs{client: c, ctx: ctx},
-		Capture:  c.opts.capture,
-	}
-}
 
 // once opens a Session, makes one call on it and closes it.
 //
@@ -80,268 +51,129 @@ func once[T any](
 	return call(s)
 }
 
-// Presets reports what a setlist holds, slot by slot.
+// Presets reports what a setlist on the attached device holds, slot by slot.
+//
+// Each of the Client's device methods opens a Session, makes one call on it
+// and closes it, so each costs a claim and a handshake. A caller making several
+// opens a Session instead. For a .hls or .hlb on disk, see Setlist.
 func (c *Client) Presets(
 	ctx context.Context,
-	in Where,
+	setlist int,
 ) (Listing, error) {
-	if in.OnDevice() {
-		return once(ctx, c, func(s *Session) (Listing, error) {
-			return s.Presets(ctx, in.Setlist)
-		})
-	}
-
-	return slots.List(slots.ListOptions{
-		Deps:        c.deps(ctx),
-		Path:        in.Path,
-		Setlist:     in.Setlist,
-		CatalogPath: c.opts.catalog,
+	return once(ctx, c, func(s *Session) (Listing, error) {
+		return s.Presets(ctx, setlist)
 	})
 }
 
-// Preset reads one slot as the rig it describes.
+// Preset reads one slot on the attached device as the rig it describes.
 //
 // A rig, not a rendering of one. What comes out compiles back into the preset
 // it came from, unchanged.
 func (c *Client) Preset(
 	ctx context.Context,
-	in Read,
+	at slot.Address,
 ) (Reading, error) {
-	// A standalone .hlx is neither a device nor a setlist, so it is asked
-	// for by name and answered before either.
-	if in.File != "" || !in.OnDevice() {
-		return slots.Show(slots.ShowOptions{
-			Deps:        c.deps(ctx),
-			Path:        in.Path,
-			File:        in.File,
-			Setlist:     in.Setlist,
-			Slot:        in.Slot,
-			CatalogPath: c.opts.catalog,
-		})
-	}
-
 	return once(ctx, c, func(s *Session) (Reading, error) {
-		return s.Preset(ctx, in.address())
+		return s.Preset(ctx, at)
 	})
 }
 
-// address is the slot a Read names on a device.
-func (r Read) address() slot.Address {
-	return slot.Address{Setlist: r.Setlist, Slot: r.Slot}
-}
-
-// Read addresses one preset.
-type Read struct {
-	Where
-
-	// File is a standalone .hlx to read instead of a slot.
-	File string
-	// Slot is the position within the setlist, from zero.
-	Slot int
-}
-
-// Export writes one slot out to a file.
-type Export struct {
-	Where
-
-	// Slot is the position to write out, from zero.
-	Slot int
-	// OutputPath is where the result goes.
-	OutputPath string
-	// As is the format. Empty writes a rig, which is what reads on other
-	// hardware; "hlx" writes the device's own file, a faithful copy.
-	As string
-}
-
-// Export writes one slot out.
+// Export writes one slot on the attached device out to a file, as a rig or as
+// the device's own file.
 func (c *Client) Export(
 	ctx context.Context,
-	in Export,
+	at slot.Address,
+	out string,
+	as Format,
 ) (Written, error) {
-	if in.OnDevice() {
-		return once(ctx, c, func(s *Session) (Written, error) {
-			return s.Export(ctx, slot.Address{Setlist: in.Setlist, Slot: in.Slot},
-				in.OutputPath, in.As)
-		})
-	}
-
-	return slots.Export(slots.ExportOptions{
-		Deps:        c.deps(ctx),
-		Path:        in.Path,
-		Setlist:     in.Setlist,
-		Slot:        in.Slot,
-		OutputPath:  in.OutputPath,
-		As:          slots.Format(in.As),
-		CatalogPath: c.opts.catalog,
+	return once(ctx, c, func(s *Session) (Written, error) {
+		return s.Export(ctx, at, out, as)
 	})
 }
 
-// Put addresses a preset going into a slot.
-type Put struct {
-	Where
-
-	// File is the .hlx to put there.
-	File string
-	// Slot is where it goes, from zero.
-	Slot int
-	// OutputPath is where the edited setlist is written. Ignored for a
-	// device, which is written in place.
-	OutputPath string
-}
-
-// Import puts a preset file into a slot.
+// Import puts a preset file into a slot on the attached device.
 //
 // Whatever the slot held is gone. A device has no undo, so what was there is
-// read and kept first, in the directory WithBackupDir named; a file is left
-// alone and the result goes somewhere new.
+// read and kept first, in the directory WithBackupDir named.
 func (c *Client) Import(
 	ctx context.Context,
-	in Put,
+	file string,
+	at slot.Address,
 ) (Change, error) {
-	if in.OnDevice() {
-		return once(ctx, c, func(s *Session) (Change, error) {
-			return s.Import(ctx, in.File, slot.Address{Setlist: in.Setlist, Slot: in.Slot})
-		})
-	}
-
-	return slots.Import(slots.ImportOptions{
-		BackupDir:   c.opts.backupDir,
-		Deps:        c.deps(ctx),
-		Path:        in.Path,
-		File:        in.File,
-		Setlist:     in.Setlist,
-		Slot:        in.Slot,
-		OutputPath:  in.OutputPath,
-		CatalogPath: c.opts.catalog,
+	return once(ctx, c, func(s *Session) (Change, error) {
+		return s.Import(ctx, file, at)
 	})
 }
 
-// Edit addresses two slots.
-type Edit struct {
-	Where
-
-	// From and To address the source and the destination, from zero. Each
-	// may name its own setlist within a bundle.
-	FromSetlist int
-	FromSlot    int
-	ToSetlist   int
-	ToSlot      int
-	// OutputPath is where the edited setlist is written. Ignored for a
-	// device, which is written in place.
-	OutputPath string
-}
-
-// editOptions is what the flow takes for one edit.
-func (c *Client) editOptions(
-	ctx context.Context,
-	e Edit,
-) slots.EditOptions {
-	return slots.EditOptions{
-		Deps:        c.deps(ctx),
-		Path:        e.Path,
-		FromSetlist: e.FromSetlist,
-		FromSlot:    e.FromSlot,
-		ToSetlist:   e.ToSetlist,
-		ToSlot:      e.ToSlot,
-		OutputPath:  e.OutputPath,
-		BackupDir:   c.opts.backupDir,
-		CatalogPath: c.opts.catalog,
-	}
-}
-
-// Copy puts what one slot holds into another.
+// Copy puts what one slot on the attached device holds into another.
 //
 // The preset moves exactly as it was written. Nothing is decoded and nothing
 // is rebuilt, which is what makes this the safest thing to write: a device
 // seeks through a preset by a table of byte offsets, and the surest way to
 // keep those right is to change nothing.
-//
-// Edit already has FromSetlist and ToSetlist, one per side of the move.
-// Where.Setlist has no side to belong to, so setting it is refused with
-// ErrEditSetlist rather than silently read as neither.
 func (c *Client) Copy(
 	ctx context.Context,
-	in Edit,
+	from, to slot.Address,
 ) (Change, error) {
-	if in.Setlist != 0 {
-		return Change{}, ErrEditSetlist
-	}
-
-	if in.OnDevice() {
-		return once(ctx, c, func(s *Session) (Change, error) {
-			return s.Copy(ctx, in.from(), in.to())
-		})
-	}
-
-	return slots.Copy(c.editOptions(ctx, in))
+	return once(ctx, c, func(s *Session) (Change, error) {
+		return s.Copy(ctx, from, to)
+	})
 }
 
-// Swap exchanges what two slots hold.
+// Swap exchanges what two slots on the attached device hold.
 //
 // This is what moving a preset means: a slot cannot be left blank without
 // writing an empty preset, and an empty preset carries routing that differs
 // by device and firmware. Swapping invents nothing.
-//
-// Where.Setlist is refused the same way Copy refuses it; see ErrEditSetlist.
 func (c *Client) Swap(
 	ctx context.Context,
-	in Edit,
+	a, b slot.Address,
 ) (Change, error) {
-	if in.Setlist != 0 {
-		return Change{}, ErrEditSetlist
-	}
-
-	if in.OnDevice() {
-		return once(ctx, c, func(s *Session) (Change, error) {
-			return s.Swap(ctx, in.from(), in.to())
-		})
-	}
-
-	return slots.Swap(c.editOptions(ctx, in))
+	return once(ctx, c, func(s *Session) (Change, error) {
+		return s.Swap(ctx, a, b)
+	})
 }
 
-// from is the slot an Edit moves from, on a device.
-func (e Edit) from() slot.Address {
-	return slot.Address{Setlist: e.FromSetlist, Slot: e.FromSlot}
-}
-
-// to is the slot an Edit moves to, on a device.
-func (e Edit) to() slot.Address {
-	return slot.Address{Setlist: e.ToSetlist, Slot: e.ToSlot}
-}
-
-// Select makes one preset the active one on an attached device.
+// Select makes one preset the active one on the attached device.
 //
 // The device loads it and starts making that sound. Nothing is written: the
 // preset goes into the edit buffer and the slot it came from is untouched, so
 // this is the one device operation that changes what you hear without
 // changing what the device holds.
-//
-// A slot is only ever selected on the device that plays it. Where.Path or
-// Read.File naming a file is refused with ErrSelectNeedsDevice rather than
-// quietly going to the pedal anyway.
 func (c *Client) Select(
 	ctx context.Context,
-	in Read,
+	at slot.Address,
 ) (Change, error) {
-	if in.Path != "" || in.File != "" {
-		return Change{}, ErrSelectNeedsDevice
-	}
-
 	return once(ctx, c, func(s *Session) (Change, error) {
-		return s.Select(ctx, in.address())
+		return s.Select(ctx, at)
 	})
 }
 
-// Compile says what rig to build and where to put it.
+// PresetFile reads a standalone .hlx as the rig it describes.
+//
+// The same rig a slot on a device or in a setlist reads as, which is the
+// point: what the device holds and what this tool generates are the same kind
+// of thing.
+func (c *Client) PresetFile(
+	ctx context.Context,
+	path string,
+) (Reading, error) {
+	return c.flows.ShowFile(ctx, path)
+}
+
+// Compile says what rig to build, what to build it into, and where the preset
+// goes.
+//
+// A struct rather than three arguments, because three paths of one type are
+// too easy to pass in the wrong order.
 type Compile struct {
-	// RigPath is the rig to build.
-	RigPath string
-	// OutputPath is where the preset is written.
-	OutputPath string
-	// TemplatePath is a preset to write the chain into. Empty uses an
-	// untouched one the device itself wrote.
-	TemplatePath string
+	// Rig is the rig file to build.
+	Rig string
+	// Template is a preset to write the chain into. Empty uses an untouched
+	// one the device itself wrote.
+	Template string
+	// Out is where the preset is written.
+	Out string
 }
 
 // Compile builds a preset from a rig on disk.
@@ -349,15 +181,5 @@ func (c *Client) Compile(
 	ctx context.Context,
 	in Compile,
 ) (Built, error) {
-	if err := ctx.Err(); err != nil {
-		return Built{}, err
-	}
-
-	return slots.Compile(slots.CompileOptions{
-		Deps:         c.deps(ctx),
-		RigPath:      in.RigPath,
-		OutputPath:   in.OutputPath,
-		TemplatePath: in.TemplatePath,
-		CatalogPath:  c.opts.catalog,
-	})
+	return c.flows.Compile(ctx, in.Rig, in.Template, in.Out)
 }

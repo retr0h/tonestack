@@ -63,10 +63,10 @@ func init() {
 	presetsCmd.AddCommand(presetsCompileCmd)
 
 	f := presetsCompileCmd.Flags()
-	f.StringVar(&presetsCompileOptions.RigPath, "rig", "", "the rig to compile")
-	f.StringVar(&presetsCompileOptions.OutputPath, "out", "",
+	f.StringVar(&presetsCompileOptions.Rig, "rig", "", "the rig to compile")
+	f.StringVar(&presetsCompileOptions.Out, "out", "",
 		"where to write the preset")
-	f.StringVar(&presetsCompileOptions.TemplatePath, "template", "",
+	f.StringVar(&presetsCompileOptions.Template, "template", "",
 		"a preset to write the chain into, instead of an untouched one")
 	f.StringVar(&presetsCompileClient.catalog, "catalog", "",
 		"a generated catalog to use instead of the built-in one")

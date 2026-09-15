@@ -24,11 +24,13 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/retr0h/tonestack/pkg/cli"
-	"github.com/retr0h/tonestack/pkg/sdk"
 	"github.com/retr0h/tonestack/pkg/sdk/slot"
 )
 
-var presetsSelectOptions sdk.Read
+var (
+	presetsSelectSetlist int
+	presetsSelectSlot    int
+)
 
 // presetsSelectCmd represents the presets select command.
 var presetsSelectCmd = &cobra.Command{
@@ -42,7 +44,8 @@ is the one device command that changes what you hear without changing what the
 device holds.`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		change, err := newClient().Select(cmd.Context(), presetsSelectOptions)
+		change, err := newClient().Select(cmd.Context(),
+			slot.Address{Setlist: presetsSelectSetlist, Slot: presetsSelectSlot})
 		if err != nil {
 			return err
 		}
@@ -55,9 +58,9 @@ func init() {
 	presetsCmd.AddCommand(presetsSelectCmd)
 
 	f := presetsSelectCmd.Flags()
-	f.IntVar(&presetsSelectOptions.Setlist, "setlist", 0, "which setlist to load from")
+	f.IntVar(&presetsSelectSetlist, "setlist", 0, "which setlist to load from")
 	f.Var(
-		slot.NewValue(&presetsSelectOptions.Slot),
+		slot.NewValue(&presetsSelectSlot),
 		"slot",
 		"which slot — a label the pedal shows such as 31A, or a number from zero",
 	)

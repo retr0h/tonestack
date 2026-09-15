@@ -21,68 +21,63 @@
 package slots
 
 import (
+	"context"
+
 	"github.com/retr0h/tonestack/pkg/sdk/internal/setlist"
 	"github.com/retr0h/tonestack/pkg/sdk/result"
+	slotpkg "github.com/retr0h/tonestack/pkg/sdk/slot"
 )
 
-// EditOptions says which two slots to act on and where to put the result.
+// Copy overwrites one slot of a file with another and writes the result.
 //
 // The result always goes to a new file. These files are device backups, and
 // overwriting one by default would make a mistyped slot number destroy the
 // only copy of what the hardware holds.
-type EditOptions struct {
-	// Deps are the collaborators this command works through.
-	Deps
-
-	// Path is the .hls or .hlb file to read.
-	Path string
-	// FromSetlist and FromSlot address the source.
-	FromSetlist int
-	FromSlot    int
-	// ToSetlist and ToSlot address the destination.
-	ToSetlist int
-	ToSlot    int
-	// OutputPath is where the edited file is written.
-	OutputPath string
-	// BackupDir is where a device slot's old contents are kept. Empty uses
-	// the state directory.
-	BackupDir string
-	// CatalogPath is the generated catalog, needed to read a slot before
-	// replacing it.
-	CatalogPath string
+func (*Flows) Copy(
+	ctx context.Context,
+	path string,
+	from, to slotpkg.Address,
+	out string,
+) (result.Change, error) {
+	return edit(ctx, path, from, to, out, result.Copied,
+		func(d *setlist.Document, from, to setlist.Address) error {
+			return d.Copy(from, to)
+		})
 }
 
-// Copy overwrites one slot with another and writes the result.
-func Copy(opts EditOptions) (result.Change, error) {
-	return edit(opts, result.Copied, func(d *setlist.Document, from, to setlist.Address) error {
-		return d.Copy(from, to)
-	})
-}
-
-// Swap exchanges two slots and writes the result.
+// Swap exchanges two slots of a file and writes the result.
 //
 // This is what moving a preset means: a slot cannot be left blank without
 // writing an empty preset, and an empty preset carries routing that differs
 // by device and firmware. Swapping invents nothing.
-func Swap(opts EditOptions) (result.Change, error) {
-	return edit(opts, result.Swapped, func(d *setlist.Document, a, b setlist.Address) error {
-		return d.Swap(a, b)
-	})
+func (*Flows) Swap(
+	ctx context.Context,
+	path string,
+	a, b slotpkg.Address,
+	out string,
+) (result.Change, error) {
+	return edit(ctx, path, a, b, out, result.Swapped,
+		func(d *setlist.Document, a, b setlist.Address) error {
+			return d.Swap(a, b)
+		})
 }
 
 // edit applies an operation to two slots and answers with what moved.
 func edit(
-	opts EditOptions,
+	ctx context.Context,
+	path string,
+	src, dst slotpkg.Address,
+	out string,
 	action result.Action,
 	apply func(*setlist.Document, setlist.Address, setlist.Address) error,
 ) (result.Change, error) {
-	doc, err := open(opts.Path)
+	doc, err := open(ctx, path)
 	if err != nil {
 		return result.Change{}, err
 	}
 
-	from := setlist.Address{Setlist: opts.FromSetlist, Slot: opts.FromSlot}
-	to := setlist.Address{Setlist: opts.ToSetlist, Slot: opts.ToSlot}
+	from := setlist.Address{Setlist: src.Setlist, Slot: src.Slot}
+	to := setlist.Address{Setlist: dst.Setlist, Slot: dst.Slot}
 
 	// Read the names before the edit, so the answer says what was there
 	// rather than what is there now.
@@ -100,7 +95,7 @@ func edit(
 	// fail to find them.
 	_ = apply(doc, from, to)
 
-	if err := save(opts.OutputPath, doc); err != nil {
+	if err := save(out, doc); err != nil {
 		return result.Change{}, err
 	}
 
@@ -109,12 +104,15 @@ func edit(
 		From:     &result.At{Slot: from.Slot, Name: fromName},
 		To:       result.At{Slot: to.Slot, Name: toName},
 		Replaced: toName,
-		Path:     opts.OutputPath,
+		Path:     out,
 	}, nil
 }
 
 // name reads the name of a slot.
-func name(doc *setlist.Document, at setlist.Address) (string, error) {
+func name(
+	doc *setlist.Document,
+	at setlist.Address,
+) (string, error) {
 	d, err := doc.Slot(at.Setlist, at.Slot)
 	if err != nil {
 		return "", err

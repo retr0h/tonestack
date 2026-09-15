@@ -32,6 +32,7 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk/internal/device/mocks"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/slots"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/wire"
+	slotpkg "github.com/retr0h/tonestack/pkg/sdk/slot"
 )
 
 // SelectDevicePublicTestSuite covers loading a preset on a device.
@@ -127,8 +128,8 @@ func (s *SelectDevicePublicTestSuite) TestSelectWith() {
 					Return(errors.New("still switching"))
 			}
 
-			change, err := slots.SelectWith(
-				context.Background(), dev, slots.DeviceOptions{Slot: 4})
+			change, err := (&slots.Flows{}).SelectWith(
+				context.Background(), dev, slotpkg.Address{Slot: 4})
 
 			if tt.errText != "" {
 				s.Require().ErrorContains(err, tt.errText)

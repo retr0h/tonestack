@@ -21,6 +21,8 @@
 package cmd
 
 import (
+	"context"
+
 	"github.com/spf13/cobra"
 
 	"github.com/retr0h/tonestack/pkg/cli"
@@ -29,6 +31,8 @@ import (
 
 var (
 	recipesNewOptions sdk.NewRecipe
+	recipesNewFrom    string
+	recipesNewKind    string
 	recipesNewCatalog string
 )
 
@@ -63,8 +67,9 @@ it wrote.`,
 			dir = own
 		}
 
-		made, err := newClient(sdk.WithRecipes(dir), sdk.WithCatalog(recipesNewCatalog)).
-			Scaffold(cmd.Context(), recipesNewOptions)
+		client := newClient(sdk.WithRecipes(dir), sdk.WithCatalog(recipesNewCatalog))
+
+		made, err := scaffolded(cmd.Context(), client)
 		if err != nil {
 			return cli.Hint(err)
 		}
@@ -91,9 +96,9 @@ func init() {
 		"real-world pedal, in signal order; repeat for more")
 	f.StringVar(&recipesNewCatalog, "catalog", "",
 		"a generated catalog to check against instead of the built-in one")
-	f.StringVar(&recipesNewOptions.From, "from", "",
+	f.StringVar(&recipesNewFrom, "from", "",
 		"copy an existing recipe by identifier, rather than naming gear")
-	f.StringVar(&recipesNewOptions.Kind, "kind", "",
+	f.StringVar(&recipesNewKind, "kind", "",
 		"what the copy is attributed to: artist, band, song, genre or sound")
 	// Fails only for a flag that does not exist, and these are defined above.
 	_ = recipesNewCmd.MarkFlagRequired("id")
@@ -104,4 +109,31 @@ func init() {
 	recipesNewCmd.MarkFlagsMutuallyExclusive("from", "cab")
 	recipesNewCmd.MarkFlagsMutuallyExclusive("from", "pedal")
 	recipesNewCmd.MarkFlagsMutuallyExclusive("from", "band")
+}
+
+// scaffolded writes the recipe the flags describe: a copy with --from, or one
+// naming gear without it.
+func scaffolded(
+	ctx context.Context,
+	client *sdk.Client,
+) (sdk.Scaffolded, error) {
+	if recipesNewFrom == "" {
+		return client.Scaffold(ctx, recipesNewOptions)
+	}
+
+	made, err := client.Extend(ctx, sdk.ExtendRecipe{
+		From: recipesNewFrom,
+		ID:   recipesNewOptions.ID,
+		Name: recipesNewOptions.Name,
+		Kind: recipesNewKind,
+	})
+	if err != nil {
+		return sdk.Scaffolded{}, err
+	}
+
+	// A copy reads no instrument, but this report has always shown the
+	// --instrument flag beside one. Kept, so the command says what it said.
+	made.Instrument = recipesNewOptions.Instrument
+
+	return made, nil
 }

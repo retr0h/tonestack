@@ -74,7 +74,7 @@ func keptError(
 }
 
 // applier performs one edit against a session and says what it did.
-type applier func(context.Context, device.Editor, EditOptions) (edited, error)
+type applier func(context.Context, device.Editor, slotpkg.Address, slotpkg.Address) (edited, error)
 
 // edited is what an edit found and kept on the way past.
 type edited struct {
@@ -91,65 +91,66 @@ type edited struct {
 // device seeks through a preset by a table of byte offsets, and the surest way
 // to keep those right is to change nothing.
 //
-// The destination is overwritten. There is no undo on a device.
-func CopyWith(
+// The destination is overwritten and kept first. There is no undo on a device.
+func (f *Flows) CopyWith(
 	ctx context.Context,
 	s device.Editor,
-	opts EditOptions,
+	from, to slotpkg.Address,
 ) (result.Change, error) {
-	return editWith(ctx, s, opts, result.Copied, copyOne)
+	return editWith(ctx, s, from, to, result.Copied, f.copyOne)
 }
 
-// SwapWith exchanges what two slots hold, on the given session.
-func SwapWith(
+// SwapWith exchanges what two slots hold, on the given session. Both are kept
+// first.
+func (f *Flows) SwapWith(
 	ctx context.Context,
 	s device.Editor,
-	opts EditOptions,
+	a, b slotpkg.Address,
 ) (result.Change, error) {
-	return editWith(ctx, s, opts, result.Swapped, swapTwo)
+	return editWith(ctx, s, a, b, result.Swapped, f.swapTwo)
 }
 
 // editWith performs one edit against the given session.
 func editWith(
 	ctx context.Context,
 	s device.Editor,
-	opts EditOptions,
+	from, to slotpkg.Address,
 	action result.Action,
 	apply applier,
 ) (result.Change, error) {
 	// Before anything is read or kept: moving a slot onto itself changes
 	// nothing, and is almost certainly not what was meant.
-	if opts.FromSetlist == opts.ToSetlist && opts.FromSlot == opts.ToSlot {
+	if from == to {
 		return result.Change{}, fmt.Errorf("%w: %s",
-			ErrSameSlot, slotpkg.Label(opts.FromSlot))
+			ErrSameSlot, slotpkg.Label(from.Slot))
 	}
 
-	did, err := apply(ctx, s, opts)
+	did, err := apply(ctx, s, from, to)
 	if err != nil {
 		return result.Change{}, err
 	}
 
 	return result.Change{
 		Action:   action,
-		From:     &result.At{Slot: opts.FromSlot, Name: did.from},
-		To:       result.At{Slot: opts.ToSlot, Name: did.to},
+		From:     &result.At{Slot: from.Slot, Name: did.from},
+		To:       result.At{Slot: to.Slot, Name: did.to},
 		Replaced: did.to,
 		Kept:     did.kept,
 	}, nil
 }
 
 // copyOne writes what the source holds into the destination.
-func copyOne(
+func (f *Flows) copyOne(
 	ctx context.Context,
 	s device.Editor,
-	opts EditOptions,
+	from, to slotpkg.Address,
 ) (edited, error) {
-	from, to, err := names(ctx, s, opts)
+	fromName, toName, err := names(ctx, s, from, to)
 	if err != nil {
 		return edited{}, err
 	}
 
-	body, err := slotBytes(ctx, s, opts.FromSetlist, opts.FromSlot)
+	body, err := slotBytes(ctx, s, from)
 	if err != nil {
 		return edited{}, err
 	}
@@ -164,8 +165,7 @@ func copyOne(
 
 	// The destination is about to stop being what it was, and unlike the
 	// source nobody has read it yet.
-	kept, err := replacing(ctx, s, opts.Deps, opts.CatalogPath, opts.BackupDir,
-		opts.ToSetlist, opts.ToSlot, to)
+	kept, err := f.replacing(ctx, s, to, toName)
 	if err != nil {
 		return edited{}, err
 	}
@@ -173,13 +173,12 @@ func copyOne(
 	// Named, because the destination takes the source's name along with its
 	// contents. Writing without one would leave the slot called whatever it
 	// was, which is not what copying a preset means.
-	if err := w.WriteNamedPreset(
-		ctx, opts.ToSetlist, opts.ToSlot, from, body); err != nil {
+	if err := w.WriteNamedPreset(ctx, to.Setlist, to.Slot, fromName, body); err != nil {
 		return edited{}, keptError(fmt.Errorf("writing slot %s: %w",
-			slotpkg.Label(opts.ToSlot), err), kept)
+			slotpkg.Label(to.Slot), err), kept)
 	}
 
-	return edited{from: from, to: to, kept: kept}, nil
+	return edited{from: fromName, to: toName, kept: kept}, nil
 }
 
 // swapTwo exchanges what two slots hold.
@@ -187,22 +186,22 @@ func copyOne(
 // Both are read before either is written. A device that fails halfway through
 // would otherwise leave one slot holding a copy of the other and the original
 // gone.
-func swapTwo(
+func (f *Flows) swapTwo(
 	ctx context.Context,
 	s device.Editor,
-	opts EditOptions,
+	from, to slotpkg.Address,
 ) (edited, error) {
-	from, to, err := names(ctx, s, opts)
+	fromName, toName, err := names(ctx, s, from, to)
 	if err != nil {
 		return edited{}, err
 	}
 
-	source, err := slotBytes(ctx, s, opts.FromSetlist, opts.FromSlot)
+	source, err := slotBytes(ctx, s, from)
 	if err != nil {
 		return edited{}, err
 	}
 
-	destination, err := slotBytes(ctx, s, opts.ToSetlist, opts.ToSlot)
+	destination, err := slotBytes(ctx, s, to)
 	if err != nil {
 		return edited{}, err
 	}
@@ -214,45 +213,44 @@ func swapTwo(
 
 	// Both of them, because a swap replaces both. No extra reads: a swap has
 	// already read what it is about to move.
-	kept, err := keep(opts.Deps, opts.CatalogPath, opts.BackupDir,
-		at{body: destination, setlist: opts.ToSetlist, slot: opts.ToSlot, name: to},
-		at{body: source, setlist: opts.FromSetlist, slot: opts.FromSlot, name: from})
+	kept, err := f.keep(ctx,
+		held{body: destination, at: to, name: toName},
+		held{body: source, at: from, name: fromName})
 	if err != nil {
 		return edited{}, err
 	}
 
-	if err := w.WriteNamedPreset(
-		ctx, opts.ToSetlist, opts.ToSlot, from, source); err != nil {
+	if err := w.WriteNamedPreset(ctx, to.Setlist, to.Slot, fromName, source); err != nil {
 		return edited{}, keptError(fmt.Errorf("writing slot %s: %w",
-			slotpkg.Label(opts.ToSlot), err), kept)
+			slotpkg.Label(to.Slot), err), kept)
 	}
 
 	// One slot is written, so the swap finishes whoever stops waiting.
 	// Stopping here would leave both slots holding the source, and what the
 	// destination held only in a backup.
 	if err := w.WriteNamedPreset(context.WithoutCancel(ctx),
-		opts.FromSetlist, opts.FromSlot, to, destination); err != nil {
+		from.Setlist, from.Slot, toName, destination); err != nil {
 		return edited{}, keptError(fmt.Errorf("writing slot %s: %w",
-			slotpkg.Label(opts.FromSlot), err), kept)
+			slotpkg.Label(from.Slot), err), kept)
 	}
 
-	return edited{from: from, to: to, kept: kept}, nil
+	return edited{from: fromName, to: toName, kept: kept}, nil
 }
 
 // slotBytes reads one slot as the bytes the device holds.
 func slotBytes(
 	ctx context.Context,
 	s device.Editor,
-	setlist, slot int,
+	at slotpkg.Address,
 ) ([]byte, error) {
-	body, err := s.ReadPreset(ctx, setlist, slot)
+	body, err := s.ReadPreset(ctx, at.Setlist, at.Slot)
 	if err != nil {
-		return nil, fmt.Errorf("reading slot %s: %w", slotpkg.Label(slot), err)
+		return nil, fmt.Errorf("reading slot %s: %w", slotpkg.Label(at.Slot), err)
 	}
 
 	if body == nil {
 		return nil, fmt.Errorf("slot %s did not answer with a preset",
-			slotpkg.Label(slot))
+			slotpkg.Label(at.Slot))
 	}
 
 	return body, nil
@@ -266,23 +264,23 @@ func slotBytes(
 func names(
 	ctx context.Context,
 	s device.Editor,
-	opts EditOptions,
+	from, to slotpkg.Address,
 ) (string, string, error) {
-	from, err := s.Presets(ctx, opts.FromSetlist)
+	inFrom, err := s.Presets(ctx, from.Setlist)
 	if err != nil {
 		return "", "", fmt.Errorf("listing presets: %w", err)
 	}
 
-	to := from
+	inTo := inFrom
 
-	if opts.ToSetlist != opts.FromSetlist {
-		to, err = s.Presets(ctx, opts.ToSetlist)
+	if to.Setlist != from.Setlist {
+		inTo, err = s.Presets(ctx, to.Setlist)
 		if err != nil {
 			return "", "", fmt.Errorf("listing presets: %w", err)
 		}
 	}
 
-	return nameOf(from, opts.FromSlot), nameOf(to, opts.ToSlot), nil
+	return nameOf(inFrom, from.Slot), nameOf(inTo, to.Slot), nil
 }
 
 // writerFor asks whether this session can write.
@@ -290,7 +288,9 @@ func names(
 // Reading and writing are separate abilities because writing is the half that
 // can destroy somebody's work. A session that only reads says so here rather
 // than partway through an edit.
-func writerFor(s device.Editor) (device.Writer, error) {
+func writerFor(
+	s device.Editor,
+) (device.Writer, error) {
 	w, ok := s.(device.Writer)
 	if !ok {
 		return nil, fmt.Errorf("this session cannot write to a device")

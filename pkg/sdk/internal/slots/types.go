@@ -21,6 +21,7 @@
 package slots
 
 import (
+	"context"
 	"io"
 
 	"github.com/retr0h/tonestack/pkg/sdk/catalog"
@@ -32,10 +33,11 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk/rig"
 )
 
-// Catalogs opens the catalog a command reads model names out of.
+// Catalogs hands over the catalog model names are read out of. The sdk Client
+// satisfies it, and keeps the catalog it opened.
 type Catalogs interface {
-	// Open reads the catalog at path, or the built-in one when path is empty.
-	Open(path string) (*catalog.Catalog, error)
+	// Catalog returns the catalog, opening it on first use.
+	Catalog(ctx context.Context) (*catalog.Catalog, error)
 }
 
 // Compiler moves between a preset and a rig.
@@ -69,47 +71,54 @@ type Translator interface {
 	Snapshots(got wire.DevicePreset) *[]rig.Snapshot
 }
 
-// Deps are the collaborators a command works through.
+// Flows are the operations on a slot, and what they were configured with.
 //
-// Embedded in every options struct, and every field optional: a zero value
-// reaches the real thing, so a caller names only what it wants to stand
-// something else in for. This is the shape net/http gives a Client, whose
-// nil Transport means the default one.
+// Built once by whoever owns the configuration, which is the sdk Client. Each
+// flow is a method taking only what differs between two calls: an address and,
+// where there is one, a path. Nothing a call could set is left for a flow to
+// ignore, because a flow that does not read a setting is not handed it.
 //
-// It is what lets a command be tested without a catalog on disk, which is the
-// same argument the result.Editor parameter on ShowWith and its siblings already
-// makes for the device.
-type Deps struct {
-	// Catalogs opens catalogs. Nil reads them from disk.
+// Every collaborator is optional: a nil one reaches the real thing, so a test
+// names only what it stands something else in for. This is the shape net/http
+// gives a Client, whose nil Transport means the default one.
+type Flows struct {
+	// Catalogs hands over the catalog. Nil reads the one built into this
+	// binary.
 	Catalogs Catalogs
 	// Compiler moves between a preset and a rig. Nil uses pkg/compile.
 	Compiler Compiler
 	// Translator reads what a device says. Nil uses pkg/editor.
 	Translator Translator
+	// BackupDir is where a device slot's old contents are kept before a
+	// write. Empty uses the state directory.
+	BackupDir string
 	// Capture receives each device answer a read gets, verbatim. Nil keeps
 	// nothing.
 	Capture io.Writer
 }
 
-func (d Deps) catalogs() Catalogs {
-	if d.Catalogs != nil {
-		return d.Catalogs
+// catalog is the catalog these flows name gear against.
+func (f *Flows) catalog(
+	ctx context.Context,
+) (*catalog.Catalog, error) {
+	if f.Catalogs != nil {
+		return f.Catalogs.Catalog(ctx)
 	}
 
-	return catalog.Files{}
+	return catalog.BuiltIn()
 }
 
-func (d Deps) compiler() Compiler {
-	if d.Compiler != nil {
-		return d.Compiler
+func (f *Flows) compiler() Compiler {
+	if f.Compiler != nil {
+		return f.Compiler
 	}
 
 	return compile.New()
 }
 
-func (d Deps) translator() Translator {
-	if d.Translator != nil {
-		return d.Translator
+func (f *Flows) translator() Translator {
+	if f.Translator != nil {
+		return f.Translator
 	}
 
 	return editor.New()

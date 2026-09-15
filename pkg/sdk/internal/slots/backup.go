@@ -31,6 +31,7 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk/internal/atomicfile"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/device"
 	"github.com/retr0h/tonestack/pkg/sdk/preset"
+	"github.com/retr0h/tonestack/pkg/sdk/result"
 	slotpkg "github.com/retr0h/tonestack/pkg/sdk/slot"
 )
 
@@ -39,7 +40,9 @@ import (
 // Under the state directory rather than beside whatever the caller is doing,
 // because these are written without being asked for and littering somebody's
 // working directory with files they did not request is its own kind of rude.
-func backupDir(named string) (string, error) {
+func backupDir(
+	named string,
+) (string, error) {
 	if named != "" {
 		return named, nil
 	}
@@ -56,6 +59,14 @@ func backupDir(named string) (string, error) {
 	return filepath.Join(home, ".local", "state", "tonestack", "presets"), nil
 }
 
+// held is one slot's contents, where they came out of, and what the device
+// calls them.
+type held struct {
+	body []byte
+	at   slotpkg.Address
+	name string
+}
+
 // backup writes what a slot holds to a file, before something replaces it.
 //
 // A device has no undo. Every write here lands on somebody's own preset, and
@@ -69,17 +80,16 @@ func backupDir(named string) (string, error) {
 // there being nothing there, so it is kept as the bytes the device sent. The
 // exception is one still called what the device names a slot nobody has
 // touched: nothing in that is anybody's.
-func backup(
-	body []byte,
-	opts DeviceOptions,
-	dir string,
+func (f *Flows) backup(
+	ctx context.Context,
+	h held,
 ) (string, error) {
 	// Nothing to keep. A slot the device answered nothing for holds nothing.
-	if len(body) == 0 {
+	if len(h.body) == 0 {
 		return "", nil
 	}
 
-	data, ext, err := keeping(body, opts)
+	data, ext, err := f.keeping(ctx, h)
 	if err != nil {
 		return "", err
 	}
@@ -89,7 +99,7 @@ func backup(
 		return "", nil
 	}
 
-	dir, err = backupDir(dir)
+	dir, err := backupDir(f.BackupDir)
 	if err != nil {
 		return "", err
 	}
@@ -102,7 +112,7 @@ func backup(
 	// backup of the same slot does not land on the first. Should two ever
 	// share a name, the second fails rather than replacing the first.
 	path := filepath.Join(dir, fmt.Sprintf("%s-s%d-%s%s",
-		slotpkg.Label(opts.Slot), opts.Setlist,
+		slotpkg.Label(h.at.Slot), h.at.Setlist,
 		time.Now().UTC().Format("20060102-150405.000000000"), ext))
 
 	if err := atomicfile.WriteNew(path, data, 0o600); err != nil {
@@ -117,34 +127,32 @@ func backup(
 // A preset file where the slot reads as one, so it can be put back with an
 // import. The device's own bytes where it does not, so nothing it held is lost
 // to a reader that does not understand it yet.
-func keeping(
-	body []byte,
-	opts DeviceOptions,
+func (f *Flows) keeping(
+	ctx context.Context,
+	h held,
 ) ([]byte, string, error) {
-	opts.As = FormatPreset
-
-	read, err := deviceReading(body, opts)
+	read, err := f.deviceReading(ctx, h.body, h.at.Slot, h.name, result.FormatPreset)
 	if err != nil {
 		return nil, "", fmt.Errorf("reading slot %s before replacing it: %w",
-			slotpkg.Label(opts.Slot), err)
+			slotpkg.Label(h.at.Slot), err)
 	}
 
 	// No blocks and the name it shipped with: a blank slot nobody has used.
 	// A slot with no blocks that somebody renamed, or that no listing
 	// named, might still hold something of theirs.
-	if read.Empty() && opts.Name == untouched {
+	if read.Empty() && h.name == untouched {
 		return nil, "", nil
 	}
 
 	if read.Empty() {
-		return body, ".bin", nil
+		return h.body, ".bin", nil
 	}
 
 	var buf bytes.Buffer
 
 	if err := preset.Write(&buf, read.Doc); err != nil {
 		return nil, "", fmt.Errorf("keeping slot %s: %w",
-			slotpkg.Label(opts.Slot), err)
+			slotpkg.Label(h.at.Slot), err)
 	}
 
 	return buf.Bytes(), ".hlx", nil
@@ -156,44 +164,32 @@ func keeping(
 // failure. Reading the destination of a write is how a backup is taken, and
 // writing into an empty slot has to keep working: there is nothing there to
 // lose, which is a reason to carry on rather than a reason to stop.
-func holds(ctx context.Context, s device.Editor, setlist, slot int) ([]byte, error) {
-	body, err := s.ReadPreset(ctx, setlist, slot)
+func holds(
+	ctx context.Context,
+	s device.Editor,
+	at slotpkg.Address,
+) ([]byte, error) {
+	body, err := s.ReadPreset(ctx, at.Setlist, at.Slot)
 	if err != nil {
 		return nil, fmt.Errorf("reading slot %s before replacing it: %w",
-			slotpkg.Label(slot), err)
+			slotpkg.Label(at.Slot), err)
 	}
 
 	return body, nil
-}
-
-// at is one slot's contents, where they came out of, and what the device
-// calls them.
-type at struct {
-	body    []byte
-	setlist int
-	slot    int
-	name    string
 }
 
 // keep backs up every slot an edit is about to replace.
 //
 // Several, because a swap replaces two, and a loop rather than a call each so
 // that there is one place a backup can fail rather than one per slot.
-func keep(
-	deps Deps,
-	catalogPath, dir string,
-	all ...at,
+func (f *Flows) keep(
+	ctx context.Context,
+	all ...held,
 ) ([]string, error) {
 	out := []string(nil)
 
 	for _, one := range all {
-		path, err := backup(one.body, DeviceOptions{
-			Deps:        deps,
-			Setlist:     one.setlist,
-			Slot:        one.slot,
-			Name:        one.name,
-			CatalogPath: catalogPath,
-		}, dir)
+		path, err := f.backup(ctx, one)
 		if err != nil {
 			return nil, err
 		}
@@ -215,19 +211,16 @@ func keep(
 // The read and the keeping together, because a caller that did one without
 // the other would be either reading for nothing or replacing something it
 // never looked at.
-func replacing(
+func (f *Flows) replacing(
 	ctx context.Context,
 	s device.Editor,
-	deps Deps,
-	catalogPath, dir string,
-	setlist, slot int,
+	at slotpkg.Address,
 	name string,
 ) ([]string, error) {
-	body, err := holds(ctx, s, setlist, slot)
+	body, err := holds(ctx, s, at)
 	if err != nil {
 		return nil, err
 	}
 
-	return keep(deps, catalogPath, dir,
-		at{body: body, setlist: setlist, slot: slot, name: name})
+	return f.keep(ctx, held{body: body, at: at, name: name})
 }

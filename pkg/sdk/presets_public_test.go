@@ -35,29 +35,34 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk/internal/device"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/device/mocks"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/wire"
+	"github.com/retr0h/tonestack/pkg/sdk/slot"
 )
 
-// PresetsPublicTestSuite covers the operations a wrapper reaches through the
-// Client, on both ends: a file, and the device it stands in for.
+// PresetsPublicTestSuite covers the Client's one-shot device methods, a
+// standalone preset, and compiling a rig.
 type PresetsPublicTestSuite struct {
 	suite.Suite
 
 	ctrl *gomock.Controller
 }
 
-func (s *PresetsPublicTestSuite) SetupTest() {
+func (s *PresetsPublicTestSuite) SetupSubTest() {
 	s.ctrl = gomock.NewController(s.T())
 }
 
-func fixture(name string) string { return filepath.Join("testdata", name) }
+func fixture(
+	name string,
+) string {
+	return filepath.Join("testdata", name)
+}
 
-// client is a Client naming gear against the catalog fixture, over a bus that
-// finds nothing, which is what every device path does on a machine with
+// absent is a Client naming gear against the catalog fixture, over a bus that
+// finds nothing, which is what every device method meets on a machine with
 // nothing plugged in.
 //
 // Enough to cover the branch. What happens once a session is open belongs to
 // the flow's own tests, which have a scripted device to hand.
-func (s *PresetsPublicTestSuite) client() *sdk.Client {
+func (s *PresetsPublicTestSuite) absent() *sdk.Client {
 	b := mocks.NewMockOpener(s.ctrl)
 	b.EXPECT().Open(gomock.Any()).Return(nil, errors.New("no device found")).AnyTimes()
 
@@ -90,62 +95,34 @@ func (s *PresetsPublicTestSuite) attachedTo() *sdk.Client {
 	return sdk.New(sdk.WithDevices(bus), sdk.WithBackupDir(s.T().TempDir()))
 }
 
-// refusing is a Client whose bus fails the test if a call reaches for a device
-// at all, which is what an input refused before it is opened must never do.
-func (s *PresetsPublicTestSuite) refusing() *sdk.Client {
-	// No expectations: gomock fails the test on any call.
-	return sdk.New(sdk.WithDevices(mocks.NewMockOpener(s.ctrl)))
-}
-
-// where addresses the setlist fixture.
-func (s *PresetsPublicTestSuite) where() sdk.Where {
-	return sdk.Where{Path: fixture("setlist.hls")}
-}
-
-// TestOnDevice covers telling the two ends apart.
-func (s *PresetsPublicTestSuite) TestOnDevice() {
+// TestPresets covers listing a setlist on the device.
+func (s *PresetsPublicTestSuite) TestPresets() {
 	tests := []struct {
-		name string
-		in   sdk.Where
-		want bool
+		name   string
+		client func() *sdk.Client
+		slots  int
+		says   string
 	}{
-		{
-			// No path means the attached device, which is what somebody
-			// with one plugged in almost always wants.
-			name: "nothing said about where",
-			want: true,
-		},
-		{name: "a backup on disk", in: sdk.Where{Path: "setlist.hls"}},
+		{name: "a device that is not there", client: s.absent, says: "no device found"},
+		{name: "a device, in a Session of its own", client: s.attachedTo, slots: 2},
 	}
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			s.Require().Equal(tt.want, tt.in.OnDevice())
+			got, err := tt.client().Presets(context.Background(), 0)
+
+			if tt.says != "" {
+				s.Require().ErrorContains(err, tt.says)
+
+				return
+			}
+
+			s.Require().NoError(err)
+			s.Require().Len(got.Slots, tt.slots)
 		})
 	}
-}
 
-// TestPresets covers reading what a setlist holds.
-func (s *PresetsPublicTestSuite) TestPresets() {
-	s.Run("out of a backup", func() {
-		got, err := s.client().Presets(context.Background(), s.where())
-
-		s.Require().NoError(err)
-		s.Require().NotEmpty(got.Slots)
-	})
-
-	s.Run("off a device that is not there", func() {
-		_, err := s.client().Presets(context.Background(), sdk.Where{})
-		s.Require().ErrorContains(err, "no device found")
-	})
-
-	s.Run("off a device, in a Session of its own", func() {
-		got, err := s.attachedTo().Presets(context.Background(), sdk.Where{})
-		s.Require().NoError(err)
-		s.Require().Len(got.Slots, 2)
-	})
-
-	s.Run("off a device, when the flow panics", func() {
+	s.Run("a device, when the flow panics", func() {
 		dev := &attached{
 			MockEditor:   mocks.NewMockEditor(s.ctrl),
 			MockWriter:   mocks.NewMockWriter(s.ctrl),
@@ -163,7 +140,7 @@ func (s *PresetsPublicTestSuite) TestPresets() {
 		client := sdk.New(sdk.WithDevices(bus))
 
 		s.Require().Panics(func() {
-			_, _ = client.Presets(context.Background(), sdk.Where{})
+			_, _ = client.Presets(context.Background(), 0)
 		})
 
 		// The pedal was let go on the way up, so the Client opens it again
@@ -177,29 +154,73 @@ func (s *PresetsPublicTestSuite) TestPresets() {
 	})
 }
 
-// TestPreset covers reading one slot as a rig.
+// TestPreset covers reading one slot on the device as a rig.
 func (s *PresetsPublicTestSuite) TestPreset() {
 	tests := []struct {
 		name   string
-		in     sdk.Read
-		device bool
+		client func() *sdk.Client
+		named  string
+		says   string
 	}{
-		{name: "a slot in a backup", in: sdk.Read{Where: s.where()}},
-		{
-			// A standalone preset is neither a device nor a setlist, so it
-			// is asked for by name and answered before either.
-			name: "a preset in a file of its own",
-			in:   sdk.Read{File: fixture("preset.hlx")},
-		},
-		{name: "off a device that is not there", device: true},
+		{name: "a device that is not there", client: s.absent, says: "no device found"},
+		{name: "a device, in a Session of its own", client: s.attachedTo, named: "Longview"},
 	}
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			got, err := s.client().Preset(context.Background(), tt.in)
+			got, err := tt.client().Preset(context.Background(), slot.Address{Slot: 1})
 
-			if tt.device {
-				s.Require().ErrorContains(err, "no device found")
+			if tt.says != "" {
+				s.Require().ErrorContains(err, tt.says)
+
+				return
+			}
+
+			s.Require().NoError(err)
+			s.Require().Equal(tt.named, got.Name)
+			s.Require().False(got.Empty())
+		})
+	}
+}
+
+// TestPresetFile covers reading a standalone .hlx.
+func (s *PresetsPublicTestSuite) TestPresetFile() {
+	tests := []struct {
+		name string
+		ctx  context.Context
+		path string
+		says string
+	}{
+		{
+			// A standalone preset is neither a device nor a setlist, so it
+			// needs no hardware and no address.
+			name: "a preset in a file of its own",
+			path: fixture("preset.hlx"),
+		},
+		{name: "a preset that is not there", path: fixture("nope.hlx"), says: "opening"},
+		{
+			name: "a caller who stopped waiting",
+			ctx:  cancelled(),
+			path: fixture("preset.hlx"),
+			says: context.Canceled.Error(),
+		},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			ctx := tt.ctx
+			if ctx == nil {
+				ctx = context.Background()
+			}
+
+			// No expectations on the bus: reading a file must not reach it.
+			client := sdk.New(sdk.WithCatalog(fixture("catalog.json")),
+				sdk.WithDevices(mocks.NewMockOpener(s.ctrl)))
+
+			got, err := client.PresetFile(ctx, tt.path)
+
+			if tt.says != "" {
+				s.Require().ErrorContains(err, tt.says)
 
 				return
 			}
@@ -210,168 +231,280 @@ func (s *PresetsPublicTestSuite) TestPreset() {
 	}
 }
 
-// TestExport covers writing one slot out.
+// TestExport covers writing one slot on the device out to a file.
 func (s *PresetsPublicTestSuite) TestExport() {
-	s.Run("out of a backup", func() {
-		out := filepath.Join(s.T().TempDir(), "one.yaml")
-
-		got, err := s.client().Export(context.Background(), sdk.Export{
-			Where: s.where(), OutputPath: out,
-		})
-
-		s.Require().NoError(err)
-		s.Require().Equal(out, got.Path)
-	})
-
-	s.Run("off a device that is not there", func() {
-		_, err := s.client().Export(context.Background(), sdk.Export{
-			OutputPath: filepath.Join(s.T().TempDir(), "one.yaml"),
-		})
-		s.Require().ErrorContains(err, "no device found")
-	})
-
-	s.Run("off a device, in a Session of its own", func() {
-		out := filepath.Join(s.T().TempDir(), "one.yaml")
-
-		got, err := s.attachedTo().Export(context.Background(), sdk.Export{OutputPath: out})
-		s.Require().NoError(err)
-		s.Require().Equal(out, got.Path)
-	})
-}
-
-// TestImport covers putting a preset file into a slot.
-func (s *PresetsPublicTestSuite) TestImport() {
-	s.Run("into a backup", func() {
-		out := filepath.Join(s.T().TempDir(), "out.hls")
-
-		got, err := s.client().Import(context.Background(), sdk.Put{
-			Where: s.where(), File: fixture("preset.hlx"),
-			Slot: 1, OutputPath: out,
-		})
-
-		s.Require().NoError(err)
-		s.Require().Equal(sdk.Imported, got.Action)
-	})
-
-	s.Run("onto a device that is not there", func() {
-		_, err := s.client().Import(context.Background(), sdk.Put{
-			File: fixture("preset.hlx"),
-		})
-		s.Require().ErrorContains(err, "no device found")
-	})
-
-	s.Run("onto a device, in a Session of its own", func() {
-		got, err := s.attachedTo().Import(context.Background(), sdk.Put{
-			File: filepath.Join("internal", "compile", "testdata", "preset0.hlx"),
-			Slot: 1,
-		})
-		s.Require().NoError(err)
-		s.Require().Equal(sdk.Imported, got.Action)
-	})
-}
-
-// TestCopyAndSwap covers the two edits that move a preset between slots.
-func (s *PresetsPublicTestSuite) TestCopyAndSwap() {
 	tests := []struct {
-		name string
-		call func(*sdk.Client, sdk.Edit) (sdk.Change, error)
-		want sdk.Action
+		name   string
+		client func() *sdk.Client
+		as     sdk.Format
+		file   string
+		says   string
 	}{
 		{
-			name: "copy",
-			call: func(c *sdk.Client, in sdk.Edit) (sdk.Change, error) {
-				return c.Copy(context.Background(), in)
-			},
-			want: sdk.Copied,
+			name:   "a device that is not there",
+			client: s.absent,
+			file:   "one.yaml",
+			says:   "no device found",
 		},
 		{
-			name: "swap",
-			call: func(c *sdk.Client, in sdk.Edit) (sdk.Change, error) {
-				return c.Swap(context.Background(), in)
-			},
-			want: sdk.Swapped,
-		},
-	}
-
-	for _, tt := range tests {
-		s.Run(tt.name+" in a backup", func() {
-			got, err := tt.call(s.client(), sdk.Edit{
-				Where:      s.where(),
-				ToSlot:     1,
-				OutputPath: filepath.Join(s.T().TempDir(), "out.hls"),
-			})
-
-			s.Require().NoError(err)
-			s.Require().Equal(tt.want, got.Action)
-		})
-
-		s.Run(tt.name+" on a device that is not there", func() {
-			_, err := tt.call(s.client(), sdk.Edit{ToSlot: 1})
-			s.Require().ErrorContains(err, "no device found")
-		})
-
-		s.Run(tt.name+" on a device, in a Session of its own", func() {
-			got, err := tt.call(s.attachedTo(), sdk.Edit{ToSlot: 1})
-			s.Require().NoError(err)
-			s.Require().Equal(tt.want, got.Action)
-		})
-
-		s.Run(tt.name+" names a setlist on Where", func() {
-			// Edit already has FromSetlist and ToSetlist, one per side of
-			// the move. Where.Setlist has no side to belong to and would
-			// otherwise be silently ignored.
-			_, err := tt.call(s.refusing(), sdk.Edit{Where: sdk.Where{Setlist: 2}, ToSlot: 1})
-			s.Require().ErrorIs(err, sdk.ErrEditSetlist)
-		})
-	}
-}
-
-// TestSelect covers loading a preset, which writes nothing.
-func (s *PresetsPublicTestSuite) TestSelect() {
-	s.Run("off a device that is not there", func() {
-		_, err := s.client().Select(context.Background(), sdk.Read{Slot: 4})
-		s.Require().ErrorContains(err, "no device found")
-	})
-
-	s.Run("on a device, in a Session of its own", func() {
-		got, err := s.attachedTo().Select(context.Background(), sdk.Read{Slot: 1})
-		s.Require().NoError(err)
-		s.Require().Equal(sdk.Selected, got.Action)
-	})
-
-	// A slot is only ever selected on the device that plays it. Naming a
-	// file either way must be refused before a device is even sought.
-	tests := []struct {
-		name string
-		in   sdk.Read
-	}{
-		{
-			name: "Where names a file",
-			in:   sdk.Read{Where: sdk.Where{Path: fixture("setlist.hls")}, Slot: 4},
+			name:   "a rig, in a Session of its own",
+			client: s.attachedTo,
+			as:     sdk.FormatRig,
+			file:   "one.yaml",
 		},
 		{
-			name: "File names a standalone preset",
-			in:   sdk.Read{File: fixture("preset.hlx"), Slot: 4},
+			name:   "the device's own file, in a Session of its own",
+			client: s.attachedTo,
+			as:     sdk.FormatPreset,
+			file:   "one.hlx",
 		},
 	}
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			_, err := s.refusing().Select(context.Background(), tt.in)
-			s.Require().ErrorIs(err, sdk.ErrSelectNeedsDevice)
+			out := filepath.Join(s.T().TempDir(), tt.file)
+
+			got, err := tt.client().Export(context.Background(), slot.Address{}, out, tt.as)
+
+			if tt.says != "" {
+				s.Require().ErrorContains(err, tt.says)
+
+				return
+			}
+
+			s.Require().NoError(err)
+			s.Require().Equal(out, got.Path)
+			s.Require().FileExists(out)
 		})
 	}
 }
 
-// TestCompile covers building a preset from a rig on disk.
-func (s *PresetsPublicTestSuite) TestCompile() {
+// TestImport covers putting a preset file into a slot on the device.
+func (s *PresetsPublicTestSuite) TestImport() {
 	tests := []struct {
-		name string
-		ctx  context.Context
-		rig  string
+		name   string
+		client func() *sdk.Client
+		says   string
 	}{
-		{name: "a rig that is not there", rig: fixture("nope.yaml")},
-		{name: "a caller who stopped waiting", ctx: cancelled(), rig: fixture("nope.yaml")},
+		{name: "a device that is not there", client: s.absent, says: "no device found"},
+		{name: "a device, in a Session of its own", client: s.attachedTo},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			got, err := tt.client().Import(context.Background(),
+				filepath.Join("internal", "compile", "testdata", "preset0.hlx"),
+				slot.Address{Slot: 1})
+
+			if tt.says != "" {
+				s.Require().ErrorContains(err, tt.says)
+
+				return
+			}
+
+			s.Require().NoError(err)
+			s.Require().Equal(sdk.Imported, got.Action)
+		})
+	}
+}
+
+// TestCopyAndSwap covers the two edits that move a preset between slots on
+// the device.
+func (s *PresetsPublicTestSuite) TestCopyAndSwap() {
+	tests := []struct {
+		name   string
+		client func() *sdk.Client
+		call   func(*sdk.Client, slot.Address, slot.Address) (sdk.Change, error)
+		want   sdk.Action
+		says   string
+	}{
+		{
+			name:   "copy on a device that is not there",
+			client: s.absent,
+			call:   copyOn,
+			says:   "no device found",
+		},
+		{
+			name:   "copy on a device, in a Session of its own",
+			client: s.attachedTo,
+			call:   copyOn,
+			want:   sdk.Copied,
+		},
+		{
+			name:   "swap on a device that is not there",
+			client: s.absent,
+			call:   swapOn,
+			says:   "no device found",
+		},
+		{
+			name:   "swap on a device, in a Session of its own",
+			client: s.attachedTo,
+			call:   swapOn,
+			want:   sdk.Swapped,
+		},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			got, err := tt.call(tt.client(), slot.Address{}, slot.Address{Slot: 1})
+
+			if tt.says != "" {
+				s.Require().ErrorContains(err, tt.says)
+
+				return
+			}
+
+			s.Require().NoError(err)
+			s.Require().Equal(tt.want, got.Action)
+		})
+	}
+}
+
+// copyOn copies one slot on the device over another.
+func copyOn(
+	c *sdk.Client,
+	from, to slot.Address,
+) (sdk.Change, error) {
+	return c.Copy(context.Background(), from, to)
+}
+
+// swapOn exchanges two slots on the device.
+func swapOn(
+	c *sdk.Client,
+	a, b slot.Address,
+) (sdk.Change, error) {
+	return c.Swap(context.Background(), a, b)
+}
+
+// TestSelect covers loading a preset, which writes nothing.
+func (s *PresetsPublicTestSuite) TestSelect() {
+	tests := []struct {
+		name   string
+		client func() *sdk.Client
+		says   string
+	}{
+		{name: "a device that is not there", client: s.absent, says: "no device found"},
+		{name: "a device, in a Session of its own", client: s.attachedTo},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			got, err := tt.client().Select(context.Background(), slot.Address{Slot: 1})
+
+			if tt.says != "" {
+				s.Require().ErrorContains(err, tt.says)
+
+				return
+			}
+
+			s.Require().NoError(err)
+			s.Require().Equal(sdk.Selected, got.Action)
+		})
+	}
+}
+
+// rigFile writes a rig somebody typed, about subject, and returns its path.
+func (s *PresetsPublicTestSuite) rigFile(
+	dir string,
+	subject string,
+) string {
+	path := filepath.Join(dir, subject+".yaml")
+
+	s.Require().NoError(os.WriteFile(path, []byte(`schema: RigSpec
+version: 2
+id: typed
+subject: { kind: sound, name: `+subject+` }
+instrument: bass
+chain:
+  - { role: amp, gear: Ampeg SVT }
+`), 0o600))
+
+	return path
+}
+
+// compiled is what a compile answered and the preset it wrote.
+type compiled struct {
+	built sdk.Built
+	body  string
+}
+
+// TestCompile covers building a preset from a rig on disk.
+//
+// Compile is the one input struct left, so each of its fields has a row of its
+// own that changes that field alone and shows the result changing with it. A
+// field no path reads would leave its row identical to the baseline.
+func (s *PresetsPublicTestSuite) TestCompile() {
+	dir := s.T().TempDir()
+	typed := s.rigFile(dir, "Typed")
+	other := s.rigFile(dir, "Other")
+
+	compile := func(ctx context.Context, in sdk.Compile) (compiled, error) {
+		built, err := sdk.New().Compile(ctx, in)
+		if err != nil {
+			return compiled{}, err
+		}
+
+		body, err := os.ReadFile(in.Out) //nolint:gosec // a path this test chose
+		s.Require().NoError(err)
+
+		return compiled{built: built, body: string(body)}, nil
+	}
+
+	base, err := compile(context.Background(), sdk.Compile{
+		Rig: typed,
+		Out: filepath.Join(dir, "base.hlx"),
+	})
+	s.Require().NoError(err)
+
+	tests := []struct {
+		name  string
+		ctx   context.Context
+		in    sdk.Compile
+		check func(got compiled)
+		says  string
+	}{
+		{
+			name: "Rig decides what is built",
+			in:   sdk.Compile{Rig: other, Out: filepath.Join(dir, "rig.hlx")},
+			check: func(got compiled) {
+				s.Require().Equal("Other", got.built.Name)
+				s.Require().NotEqual(base.built.Name, got.built.Name)
+			},
+		},
+		{
+			// A template's routing and controllers are kept around a rig
+			// nobody lifted, so the file differs while the rig does not.
+			name: "Template decides what the chain is written into",
+			in: sdk.Compile{
+				Rig:      typed,
+				Template: fixture("preset.hlx"),
+				Out:      filepath.Join(dir, "template.hlx"),
+			},
+			check: func(got compiled) {
+				s.Require().Equal(base.built.Name, got.built.Name)
+				s.Require().NotEqual(base.body, got.body)
+			},
+		},
+		{
+			name: "Out decides where the preset goes",
+			in:   sdk.Compile{Rig: typed, Out: filepath.Join(dir, "elsewhere.hlx")},
+			check: func(got compiled) {
+				s.Require().Equal(filepath.Join(dir, "elsewhere.hlx"), got.built.Path)
+				s.Require().NotEqual(base.built.Path, got.built.Path)
+				s.Require().Equal(base.body, got.body, "and nothing about what is in it")
+			},
+		},
+		{
+			name: "a rig that is not there",
+			in:   sdk.Compile{Rig: fixture("nope.yaml"), Out: filepath.Join(dir, "nope.hlx")},
+			says: "opening",
+		},
+		{
+			name: "a caller who stopped waiting",
+			ctx:  cancelled(),
+			in:   sdk.Compile{Rig: typed, Out: filepath.Join(dir, "cancelled.hlx")},
+			says: context.Canceled.Error(),
+		},
 	}
 
 	for _, tt := range tests {
@@ -381,12 +514,17 @@ func (s *PresetsPublicTestSuite) TestCompile() {
 				ctx = context.Background()
 			}
 
-			_, err := s.client().Compile(ctx, sdk.Compile{
-				RigPath:    tt.rig,
-				OutputPath: filepath.Join(s.T().TempDir(), "out.hlx"),
-			})
+			got, err := compile(ctx, tt.in)
 
-			s.Require().Error(err)
+			if tt.says != "" {
+				s.Require().ErrorContains(err, tt.says)
+				s.Require().NoFileExists(tt.in.Out)
+
+				return
+			}
+
+			s.Require().NoError(err)
+			tt.check(got)
 		})
 	}
 }

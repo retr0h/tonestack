@@ -82,6 +82,18 @@ type (
 
 	// Measured is what the corpus recorded, and what was asked of it.
 	Measured = result.Measured
+
+	// Format is what an export is written as. The zero value writes a rig.
+	Format = result.Format
+)
+
+// The formats an export can take.
+const (
+	// FormatRig is a RigSpec, the default: gear a person recognises, and
+	// portable to other hardware.
+	FormatRig = result.FormatRig
+	// FormatPreset is the device's own file, a faithful copy.
+	FormatPreset = result.FormatPreset
 )
 
 // What a write did, named so a caller can match on it.

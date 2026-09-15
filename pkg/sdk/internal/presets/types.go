@@ -21,6 +21,8 @@
 package presets
 
 import (
+	"context"
+
 	"github.com/retr0h/tonestack/pkg/sdk/catalog"
 	"github.com/retr0h/tonestack/pkg/sdk/chain"
 	"github.com/retr0h/tonestack/pkg/sdk/corpus"
@@ -29,10 +31,11 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk/rig"
 )
 
-// Catalogs opens the catalog a rig is built against.
+// Catalogs hands over the catalog a rig is built against. The sdk Client
+// satisfies it, and keeps the catalog it opened.
 type Catalogs interface {
-	// Open reads the catalog at path, or the built-in one when path is empty.
-	Open(path string) (*catalog.Catalog, error)
+	// Catalog returns the catalog, opening it on first use.
+	Catalog(ctx context.Context) (*catalog.Catalog, error)
 }
 
 // Recipes finds the curated rig a build starts from.
@@ -59,7 +62,8 @@ type Compiler interface {
 // Every field optional: a zero value reaches the real thing, so a caller
 // names only what it wants to stand something else in for.
 type Deps struct {
-	// Catalogs opens catalogs. Nil reads them from disk.
+	// Catalogs hands over the catalog. Nil reads the one built into this
+	// binary.
 	Catalogs Catalogs
 	// Recipes finds curated rigs. Nil reads the ones in the binary.
 	Recipes Recipes
@@ -67,12 +71,14 @@ type Deps struct {
 	Compiler Compiler
 }
 
-func (d Deps) catalogs() Catalogs {
+func (d Deps) catalog(
+	ctx context.Context,
+) (*catalog.Catalog, error) {
 	if d.Catalogs != nil {
-		return d.Catalogs
+		return d.Catalogs.Catalog(ctx)
 	}
 
-	return catalog.Files{}
+	return catalog.BuiltIn()
 }
 
 func (d Deps) recipes() Recipes {

@@ -55,57 +55,39 @@ func (s *CorpusViewPublicTestSuite) catalogs(
 	return c
 }
 
-func (s *CorpusViewPublicTestSuite) opts() corpusview.Options {
-	return corpusview.Options{
-		StatsPath: filepath.Join("testdata", "stats.json.gz"),
-		Catalogs:  s.catalogs(filepath.Join("testdata", "catalog.json")),
+// stats is the statistics at path, or this suite's fixture.
+func stats(
+	path string,
+) string {
+	if path == "" {
+		return filepath.Join("testdata", "stats.json.gz")
 	}
+
+	return path
 }
 
-// TestShow reads what the corpus measured.
+// TestModel covers what players did with one model.
 //
 // What it says about the measurements is the renderer's; this covers which
-// question was asked and what had to be opened to answer it.
-func (s *CorpusViewPublicTestSuite) TestShow() {
+// model was asked about and what had to be opened to answer it.
+func (s *CorpusViewPublicTestSuite) TestModel() {
 	tests := []struct {
-		name       string
-		model      string
-		instrument string
+		name  string
+		model string
 		// files to read instead of this suite's own.
 		stats   string
 		catalog string
-		// the statistics this binary ships, rather than a fixture.
-		builtIn bool
-
-		// a model was asked about, so the catalog comes with the answer.
-		aboutOne bool
-		err      error
-		errText  string
+		err     error
+		errText string
 	}{
-		{
-			name:     "one model's distributions",
-			model:    "HD2_AmpSVBeastNrm",
-			aboutOne: true,
-		},
+		{name: "one model's distributions", model: "HD2_AmpSVBeastNrm"},
 		{
 			// The corpus measures whatever presets contained; a catalog for
 			// one device will not carry all of it. Answering with the
 			// identifier beats pretending the model does not exist.
-			name:     "a measured model the catalog never heard of",
-			stats:    filepath.Join("testdata", "bands.json.gz"),
-			model:    "HD2_GhostModel",
-			aboutOne: true,
-		},
-		{
-			name: "the grammar of a chain",
-		},
-		{
-			name:       "the grammar of one instrument",
-			instrument: "guitar",
-		},
-		{
-			name:    "the statistics this binary ships",
-			builtIn: true,
+			name:  "a measured model the catalog never heard of",
+			stats: filepath.Join("testdata", "bands.json.gz"),
+			model: "HD2_GhostModel",
 		},
 		{
 			// Refused by the operation rather than drawn as a table with
@@ -116,18 +98,24 @@ func (s *CorpusViewPublicTestSuite) TestShow() {
 			errText: "no preset in the corpus uses",
 		},
 		{
+			// Not read as a question about chains instead: that is a
+			// different question, asked of a different function.
+			name: "no model at all",
+			err:  corpusview.ErrNotMeasured,
+		},
+		{
 			name:    "a statistics file that is not there",
+			model:   "HD2_AmpSVBeastNrm",
 			stats:   filepath.Join("testdata", "no.gz"),
 			errText: "opening",
 		},
 		{
 			name:    "a statistics file that is not gzip",
+			model:   "HD2_AmpSVBeastNrm",
 			stats:   filepath.Join("testdata", "notgzip.json.gz"),
 			errText: "decoding",
 		},
 		{
-			// Only a model needs one, so this is the one shape where a
-			// missing catalog is a failure.
 			name:    "a catalog that is not there",
 			model:   "HD2_AmpSVBeastNrm",
 			catalog: filepath.Join("testdata", "no.json"),
@@ -137,23 +125,15 @@ func (s *CorpusViewPublicTestSuite) TestShow() {
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			o := s.opts()
-			if tt.builtIn {
-				o = corpusview.Options{}
-			}
-
-			o.Model = tt.model
-			o.Instrument = tt.instrument
-
-			if tt.stats != "" {
-				o.StatsPath = tt.stats
-			}
-
+			cat := filepath.Join("testdata", "catalog.json")
 			if tt.catalog != "" {
-				o.Catalogs = s.catalogs(tt.catalog)
+				cat = tt.catalog
 			}
 
-			measured, err := corpusview.Show(context.Background(), o)
+			measured, err := corpusview.Model(context.Background(), corpusview.Options{
+				StatsPath: stats(tt.stats),
+				Catalogs:  s.catalogs(cat),
+			}, tt.model)
 
 			if tt.err != nil || tt.errText != "" {
 				s.Require().Error(err)
@@ -163,7 +143,7 @@ func (s *CorpusViewPublicTestSuite) TestShow() {
 				}
 
 				if tt.errText != "" {
-					s.Require().Contains(err.Error(), tt.errText)
+					s.Require().ErrorContains(err, tt.errText)
 				}
 
 				return
@@ -171,16 +151,63 @@ func (s *CorpusViewPublicTestSuite) TestShow() {
 
 			s.Require().NoError(err)
 			s.Require().NotNil(measured.Stats)
-			s.Require().Equal(tt.aboutOne, measured.AboutOne())
-			s.Require().Equal(tt.instrument, measured.Instrument)
+			s.Require().True(measured.AboutOne())
+			s.Require().Equal(tt.model, string(measured.Model))
+			s.Require().NotNil(measured.Catalog)
+			s.Require().Empty(measured.Instrument)
+		})
+	}
+}
 
-			if tt.aboutOne {
-				s.Require().Equal(tt.model, string(measured.Model))
-				s.Require().NotNil(measured.Catalog)
+// TestChains covers what chains tend to hold.
+func (s *CorpusViewPublicTestSuite) TestChains() {
+	tests := []struct {
+		name       string
+		instrument string
+		stats      string
+		// the statistics this binary ships, rather than a fixture.
+		builtIn bool
+		errText string
+	}{
+		{name: "the grammar of every chain"},
+		{name: "the grammar of one instrument", instrument: "guitar"},
+		{name: "the statistics this binary ships", builtIn: true},
+		{
+			name:    "a statistics file that is not there",
+			stats:   filepath.Join("testdata", "no.gz"),
+			errText: "opening",
+		},
+		{
+			name:    "a statistics file that is not gzip",
+			stats:   filepath.Join("testdata", "notgzip.json.gz"),
+			errText: "decoding",
+		},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			// No expectation on the catalog: the grammar of a chain is block
+			// kinds, so reaching for a catalog fails the row.
+			o := corpusview.Options{
+				StatsPath: stats(tt.stats),
+				Catalogs:  mocks.NewMockCatalogs(s.ctrl),
+			}
+			if tt.builtIn {
+				o.StatsPath = ""
+			}
+
+			measured, err := corpusview.Chains(o, tt.instrument)
+
+			if tt.errText != "" {
+				s.Require().ErrorContains(err, tt.errText)
 
 				return
 			}
 
+			s.Require().NoError(err)
+			s.Require().NotNil(measured.Stats)
+			s.Require().False(measured.AboutOne())
+			s.Require().Equal(tt.instrument, measured.Instrument)
 			s.Require().Nil(measured.Catalog)
 		})
 	}

@@ -176,7 +176,7 @@ func (s *OfflinePublicTestSuite) TestCorpusModel() {
 			args: tools.ID{ID: string(id)},
 			setup: func(c *mocks.MockClient) {
 				c.EXPECT().
-					Measurements(gomock.Any(), sdk.Corpus{Model: string(id)}).
+					ModelMeasurements(gomock.Any(), string(id)).
 					Return(sdk.Measured{
 						Stats: &corpus.Stats{Models: map[catalog.ModelID]corpus.ModelStats{
 							id: {
@@ -202,7 +202,7 @@ func (s *OfflinePublicTestSuite) TestCorpusModel() {
 			name: "a model nobody measured",
 			args: tools.ID{ID: "HD2_Nope"},
 			setup: func(c *mocks.MockClient) {
-				c.EXPECT().Measurements(gomock.Any(), sdk.Corpus{Model: "HD2_Nope"}).
+				c.EXPECT().ModelMeasurements(gomock.Any(), "HD2_Nope").
 					Return(sdk.Measured{}, errors.New("HD2_Nope was not measured"))
 			},
 			want: "was not measured",
@@ -216,7 +216,7 @@ func (s *OfflinePublicTestSuite) TestCorpusModel() {
 			args: tools.ID{ID: string(id)},
 			setup: func(c *mocks.MockClient) {
 				c.EXPECT().
-					Measurements(gomock.Any(), sdk.Corpus{Model: string(id)}).
+					ModelMeasurements(gomock.Any(), string(id)).
 					Return(sdk.Measured{
 						Stats: &corpus.Stats{Models: map[catalog.ModelID]corpus.ModelStats{
 							id: {Uses: 26},
@@ -304,7 +304,7 @@ func (s *OfflinePublicTestSuite) TestPresetBuild() {
 			name: "a path nothing is at",
 			args: tools.Build{RecipeID: "mike-dirnt", Out: fresh},
 			setup: func(c *mocks.MockClient) {
-				c.EXPECT().Build(gomock.Any(), sdk.Make{RecipeID: "mike-dirnt", OutputPath: fresh}).
+				c.EXPECT().Build(gomock.Any(), "mike-dirnt", fresh).
 					Return(sdk.Made{}, nil)
 			},
 			want: "wrote " + fresh,
@@ -320,7 +320,7 @@ func (s *OfflinePublicTestSuite) TestPresetBuild() {
 			name: "a path a file is at, with writes on",
 			args: tools.Build{RecipeID: "mike-dirnt", Out: held},
 			setup: func(c *mocks.MockClient) {
-				c.EXPECT().Build(gomock.Any(), sdk.Make{RecipeID: "mike-dirnt", OutputPath: held}).
+				c.EXPECT().Build(gomock.Any(), "mike-dirnt", held).
 					Return(sdk.Made{}, nil)
 			},
 			want:        "wrote " + held,
@@ -331,7 +331,7 @@ func (s *OfflinePublicTestSuite) TestPresetBuild() {
 			args: tools.Build{RecipeID: "mike-dirnt", Out: "mike.hlx"},
 			setup: func(c *mocks.MockClient) {
 				c.EXPECT().
-					Build(gomock.Any(), sdk.Make{RecipeID: "mike-dirnt", OutputPath: "mike.hlx"}).
+					Build(gomock.Any(), "mike-dirnt", "mike.hlx").
 					Return(sdk.Made{}, nil)
 			},
 			want: "wrote mike.hlx from rig mike-dirnt",
@@ -347,7 +347,7 @@ func (s *OfflinePublicTestSuite) TestPresetBuild() {
 			args: tools.Build{RigPath: "mine.yaml", Out: "mine.hlx"},
 			setup: func(c *mocks.MockClient) {
 				c.EXPECT().
-					Compile(gomock.Any(), sdk.Compile{RigPath: "mine.yaml", OutputPath: "mine.hlx"}).
+					Compile(gomock.Any(), sdk.Compile{Rig: "mine.yaml", Out: "mine.hlx"}).
 					Return(sdk.Built{}, nil)
 			},
 			want: "wrote mine.hlx from mine.yaml",
@@ -362,7 +362,7 @@ func (s *OfflinePublicTestSuite) TestPresetBuild() {
 			args: tools.Build{RecipeID: "mike-dirnt", Out: "mike.hlx"},
 			setup: func(c *mocks.MockClient) {
 				c.EXPECT().
-					Build(gomock.Any(), gomock.Any()).
+					Build(gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(sdk.Made{}, errors.New("over budget"))
 			},
 			want: "over budget",
@@ -373,7 +373,7 @@ func (s *OfflinePublicTestSuite) TestPresetBuild() {
 			args: tools.Build{RecipeID: "nobody", Out: "nobody.hlx"},
 			setup: func(c *mocks.MockClient) {
 				c.EXPECT().
-					Build(gomock.Any(), gomock.Any()).
+					Build(gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(sdk.Made{}, fmt.Errorf("%w %q", sdk.ErrNoSuchRecipe, "nobody"))
 			},
 			want: "call rigs_list",

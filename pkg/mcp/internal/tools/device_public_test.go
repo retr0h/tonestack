@@ -273,7 +273,7 @@ func (s *DevicePublicTestSuite) TestPresetExport() {
 			name: "a path nothing is at",
 			args: tools.Export{Slot: "01A", Out: fresh},
 			setup: func(_ *mocks.MockClient, pedal *mocks.MockSession) {
-				pedal.EXPECT().Export(gomock.Any(), slot.Address{}, fresh, "").
+				pedal.EXPECT().Export(gomock.Any(), slot.Address{}, fresh, sdk.FormatRig).
 					Return(sdk.Written{Path: fresh}, nil)
 			},
 			want: "wrote " + fresh,
@@ -290,7 +290,7 @@ func (s *DevicePublicTestSuite) TestPresetExport() {
 			name: "a path a file is at, with writes on",
 			args: tools.Export{Slot: "01A", Out: taken},
 			setup: func(_ *mocks.MockClient, pedal *mocks.MockSession) {
-				pedal.EXPECT().Export(gomock.Any(), slot.Address{}, taken, "").
+				pedal.EXPECT().Export(gomock.Any(), slot.Address{}, taken, sdk.FormatRig).
 					Return(sdk.Written{Path: taken}, nil)
 			},
 			want:        "wrote " + taken,
@@ -300,7 +300,7 @@ func (s *DevicePublicTestSuite) TestPresetExport() {
 			name: "a slot as a rig",
 			args: tools.Export{Slot: "01A", Out: "a.yaml"},
 			setup: func(_ *mocks.MockClient, pedal *mocks.MockSession) {
-				pedal.EXPECT().Export(gomock.Any(), slot.Address{}, "a.yaml", "").
+				pedal.EXPECT().Export(gomock.Any(), slot.Address{}, "a.yaml", sdk.FormatRig).
 					Return(sdk.Written{Path: "a.yaml"}, nil)
 			},
 			want: "wrote a.yaml from 01A",
@@ -314,10 +314,19 @@ func (s *DevicePublicTestSuite) TestPresetExport() {
 			name: "the device's own file",
 			args: tools.Export{Slot: "01A", Out: "a.hlx", As: "hlx"},
 			setup: func(_ *mocks.MockClient, pedal *mocks.MockSession) {
-				pedal.EXPECT().Export(gomock.Any(), slot.Address{}, "a.hlx", "hlx").
+				pedal.EXPECT().Export(gomock.Any(), slot.Address{}, "a.hlx", sdk.FormatPreset).
 					Return(sdk.Written{Path: "a.hlx"}, nil)
 			},
 			want: "wrote a.hlx from 01A",
+		},
+		{
+			// Refused before the pedal is claimed, rather than written as a
+			// rig nobody asked for. No Session call is expected, so reaching
+			// the device fails the row.
+			name: "a format that does not exist",
+			args: tools.Export{Slot: "01A", Out: "a.yaml", As: "yaml"},
+			want: "unknown format",
+			err:  true,
 		},
 		{
 			// "nope" fails to parse: its trailing letter, E, is past the

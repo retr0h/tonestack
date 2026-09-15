@@ -64,7 +64,7 @@ func (h *handlers) corpusModel(
 	_ *gomcp.CallToolRequest,
 	in ID,
 ) (*gomcp.CallToolResult, Model, error) {
-	measured, err := h.client.Measurements(ctx, sdk.Corpus{Model: in.ID})
+	measured, err := h.client.ModelMeasurements(ctx, in.ID)
 	if err != nil {
 		return nil, Model{}, err
 	}
@@ -124,14 +124,14 @@ func (h *handlers) presetBuild(
 
 	switch {
 	case in.RecipeID != "":
-		made, err := h.client.Build(ctx, sdk.Make{RecipeID: in.RecipeID, OutputPath: in.Out})
+		made, err := h.client.Build(ctx, in.RecipeID, in.Out)
 		if err != nil {
 			return nil, Built{}, remedy(err)
 		}
 
 		return said("wrote %s from rig %s", in.Out, in.RecipeID), Built{FromRecipe: &made}, nil
 	default:
-		built, err := h.client.Compile(ctx, sdk.Compile{RigPath: in.RigPath, OutputPath: in.Out})
+		built, err := h.client.Compile(ctx, sdk.Compile{Rig: in.RigPath, Out: in.Out})
 		if err != nil {
 			return nil, Built{}, err
 		}

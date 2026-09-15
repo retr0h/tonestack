@@ -75,18 +75,18 @@ func (mr *MockClientMockRecorder) Blocks(ctx, f any) *gomock.Call {
 }
 
 // Build mocks base method.
-func (m *MockClient) Build(ctx context.Context, in sdk.Make) (sdk.Made, error) {
+func (m *MockClient) Build(ctx context.Context, recipeID, out string) (sdk.Made, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Build", ctx, in)
+	ret := m.ctrl.Call(m, "Build", ctx, recipeID, out)
 	ret0, _ := ret[0].(sdk.Made)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Build indicates an expected call of Build.
-func (mr *MockClientMockRecorder) Build(ctx, in any) *gomock.Call {
+func (mr *MockClientMockRecorder) Build(ctx, recipeID, out any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Build", reflect.TypeOf((*MockClient)(nil).Build), ctx, in)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Build", reflect.TypeOf((*MockClient)(nil).Build), ctx, recipeID, out)
 }
 
 // Compile mocks base method.
@@ -119,19 +119,19 @@ func (mr *MockClientMockRecorder) Devices(ctx any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Devices", reflect.TypeOf((*MockClient)(nil).Devices), ctx)
 }
 
-// Measurements mocks base method.
-func (m *MockClient) Measurements(ctx context.Context, in sdk.Corpus) (sdk.Measured, error) {
+// ModelMeasurements mocks base method.
+func (m *MockClient) ModelMeasurements(ctx context.Context, model string) (sdk.Measured, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Measurements", ctx, in)
+	ret := m.ctrl.Call(m, "ModelMeasurements", ctx, model)
 	ret0, _ := ret[0].(sdk.Measured)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// Measurements indicates an expected call of Measurements.
-func (mr *MockClientMockRecorder) Measurements(ctx, in any) *gomock.Call {
+// ModelMeasurements indicates an expected call of ModelMeasurements.
+func (mr *MockClientMockRecorder) ModelMeasurements(ctx, model any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Measurements", reflect.TypeOf((*MockClient)(nil).Measurements), ctx, in)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ModelMeasurements", reflect.TypeOf((*MockClient)(nil).ModelMeasurements), ctx, model)
 }
 
 // Open mocks base method.
@@ -233,7 +233,7 @@ func (mr *MockSessionMockRecorder) Copy(ctx, from, to any) *gomock.Call {
 }
 
 // Export mocks base method.
-func (m *MockSession) Export(ctx context.Context, at slot.Address, out, as string) (sdk.Written, error) {
+func (m *MockSession) Export(ctx context.Context, at slot.Address, out string, as sdk.Format) (sdk.Written, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Export", ctx, at, out, as)
 	ret0, _ := ret[0].(sdk.Written)
