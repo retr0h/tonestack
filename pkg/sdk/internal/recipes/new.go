@@ -34,6 +34,7 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk/catalog"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/atomicfile"
 	"github.com/retr0h/tonestack/pkg/sdk/result"
+	"github.com/retr0h/tonestack/pkg/sdk/rig"
 )
 
 // Sentinels callers match with errors.Is.
@@ -146,7 +147,7 @@ func New(
 		return result.Scaffolded{}, ErrNoDir
 	}
 
-	body, instrument, err := scaffoldFor(ctx, opts)
+	body, made, err := scaffoldFor(ctx, opts)
 	if err != nil {
 		return result.Scaffolded{}, err
 	}
@@ -169,15 +170,10 @@ func New(
 		return result.Scaffolded{}, err
 	}
 
-	return result.Scaffolded{
-		ID:         opts.ID,
-		Name:       opts.Name,
-		Instrument: instrument,
-		Amp:        opts.Amp,
-		Cab:        opts.Cab,
-		Pedals:     opts.Pedals,
-		Path:       path,
-	}, nil
+	made.ID = opts.ID
+	made.Path = path
+
+	return made, nil
 }
 
 // checkGear refuses a recipe naming gear the device has no model for.
@@ -273,16 +269,18 @@ func near(
 // Scaffolding from flags checks every name against the catalog, which is the
 // only moment a typo is cheap to fix.
 //
-// The instrument is the one the new rig is played on: the copied rig's for a
-// copy, which names none of its own, and the one asked for otherwise.
+// Beside the text it answers with what that text says, less the identifier and
+// the path New decides. A copy names nothing of its own but what renamed it,
+// so its name, instrument and amp are the copied rig's, and its name is the
+// one asked for only when one was. A rig from gear says what it was asked to.
 func scaffoldFor(
 	ctx context.Context,
 	opts NewOptions,
-) (string, string, error) {
+) (string, result.Scaffolded, error) {
 	if opts.From != "" {
 		parent, err := findFile(Source{Dir: opts.Base, User: opts.Dir}, opts.From)
 		if err != nil {
-			return "", "", err
+			return "", result.Scaffolded{}, err
 		}
 
 		// The rig's own identifier, not whatever was typed. An alias belongs
@@ -290,17 +288,34 @@ func scaffoldFor(
 		// the alias would leave a link that never resolves.
 		body := scaffold(string(parent.raw), parent.spec.ID, opts)
 
-		return body, string(parent.spec.Instrument), nil
+		// scaffold rewrites the subject's name only when one was asked for,
+		// and copies the chain as it stands.
+		name := parent.spec.Subject.Name
+		if opts.Name != "" {
+			name = opts.Name
+		}
+
+		return body, result.Scaffolded{
+			Name:       name,
+			Instrument: string(parent.spec.Instrument),
+			Amp:        rig.GearName(parent.spec, rig.RoleAmp),
+		}, nil
 	}
 
 	cat, err := opts.Catalogs.Catalog(ctx)
 	if err != nil {
-		return "", "", err
+		return "", result.Scaffolded{}, err
 	}
 
 	if err := checkGear(cat, opts); err != nil {
-		return "", "", err
+		return "", result.Scaffolded{}, err
 	}
 
-	return render(opts), opts.Instrument, nil
+	return render(opts), result.Scaffolded{
+		Name:       opts.Name,
+		Instrument: opts.Instrument,
+		Amp:        opts.Amp,
+		Cab:        opts.Cab,
+		Pedals:     opts.Pedals,
+	}, nil
 }

@@ -133,8 +133,9 @@ func scaffolded(
 		return client.Scaffold(ctx, recipesNewOptions)
 	}
 
-	// The report names the copied rig's instrument, which the copy is played
-	// on, rather than the --instrument flag, which a copy does not read.
+	// The report names what the copy holds: the copied rig's instrument and
+	// amp rather than the --instrument and --amp flags, which a copy does not
+	// read, and the copied rig's name unless --name gave another.
 	return client.Extend(ctx, sdk.ExtendRecipe{
 		From: recipesNewFrom,
 		ID:   recipesNewOptions.ID,

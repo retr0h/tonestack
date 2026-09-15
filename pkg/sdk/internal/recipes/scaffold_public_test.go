@@ -93,13 +93,21 @@ func (s *ScaffoldPublicTestSuite) TestNewFrom() {
 		errText    string
 		// instrument is what the report says the copy is played on.
 		instrument string
+		// named and amp are what the report says the copy is called and
+		// which amplifier it holds.
+		named string
+		amp   string
 		// base is the directory beneath, or empty for the rigs that ship.
 		base string
 	}{
 		{
+			// Nobody named the copy, so it keeps the parent's name, and the
+			// chain comes across whole, so it holds the parent's amp.
 			name:       "a copy of a rig in the same directory",
 			from:       "parent",
 			instrument: "bass",
+			named:      "Parent Player",
+			amp:        "Ampeg SVT",
 			want: []string{
 				"id: copy\nextends: parent",
 				// The citation comes across, which is the point and the
@@ -115,11 +123,13 @@ func (s *ScaffoldPublicTestSuite) TestNewFrom() {
 			},
 		},
 		{
-			name: "a copy that is one song rather than a player",
-			from: "parent",
-			kind: "song",
-			who:  "One Song",
-			want: []string{"kind: song", "name: One Song"},
+			name:  "a copy that is one song rather than a player",
+			from:  "parent",
+			kind:  "song",
+			who:   "One Song",
+			named: "One Song",
+			amp:   "Ampeg SVT",
+			want:  []string{"kind: song", "name: One Song"},
 			// The band survives, because the song is still by them.
 			absent: []string{"kind: artist", "name: Parent Player"},
 		},
@@ -214,6 +224,14 @@ func (s *ScaffoldPublicTestSuite) TestNewFrom() {
 
 			if tt.instrument != "" {
 				s.Require().Equal(tt.instrument, got.Instrument)
+			}
+
+			if tt.named != "" {
+				s.Require().Equal(tt.named, got.Name)
+			}
+
+			if tt.amp != "" {
+				s.Require().Equal(tt.amp, got.Amp)
 			}
 
 			body, err := os.ReadFile(filepath.Join(dir, "artists", "copy.yaml"))

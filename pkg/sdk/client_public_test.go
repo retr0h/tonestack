@@ -1084,6 +1084,12 @@ func (s *ClientPublicTestSuite) TestExtend() {
 				s.Require().Contains(got.body, "extends: flea")
 				s.Require().Contains(base.body, "extends: mike-dirnt")
 				s.Require().NotEqual(base.body, got.body)
+				// The report names what the copy holds, which is the rig
+				// it copied: its name and its amp.
+				s.Require().Equal("Flea", got.got.Name)
+				s.Require().Equal("Gallien-Krueger 2001RB", got.got.Amp)
+				s.Require().Equal("Mike Dirnt", base.got.Name)
+				s.Require().Equal("Ampeg SVT", base.got.Amp)
 			},
 		},
 		{
@@ -1102,6 +1108,7 @@ func (s *ClientPublicTestSuite) TestExtend() {
 			check: func(got extended) {
 				s.Require().Contains(got.body, "  name: Somebody Else")
 				s.Require().Contains(base.body, "  name: Mike Dirnt")
+				s.Require().Equal("Somebody Else", got.got.Name)
 			},
 		},
 		{
