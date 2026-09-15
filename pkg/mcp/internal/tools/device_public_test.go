@@ -267,13 +267,18 @@ func (s *DevicePublicTestSuite) TestPresetExport() {
 	fresh := filepath.Join(dir, "fresh.yaml")
 	taken := filepath.Join(dir, "held.yaml")
 	s.Require().NoError(os.WriteFile(taken, []byte("somebody's rig"), 0o600))
+	racy := filepath.Join(dir, "racy.yaml")
+	// A setlist whose first slot holds a preset, so a real export has
+	// something to write.
+	setlist := filepath.Join("..", "..", "..", "sdk", "testdata", "setlist.hls")
 
 	s.run("preset_export", []deviceRow{
 		{
 			name: "a path nothing is at",
 			args: tools.Export{Slot: "01A", Out: fresh},
 			setup: func(_ *mocks.MockClient, pedal *mocks.MockSession) {
-				pedal.EXPECT().Export(gomock.Any(), slot.Address{}, fresh, sdk.FormatRig).
+				pedal.EXPECT().
+					Export(gomock.Any(), slot.Address{}, fresh, sdk.FormatRig, sdk.KeepExisting).
 					Return(sdk.Written{Path: fresh}, nil)
 			},
 			want: "wrote " + fresh,
@@ -290,17 +295,49 @@ func (s *DevicePublicTestSuite) TestPresetExport() {
 			name: "a path a file is at, with writes on",
 			args: tools.Export{Slot: "01A", Out: taken},
 			setup: func(_ *mocks.MockClient, pedal *mocks.MockSession) {
-				pedal.EXPECT().Export(gomock.Any(), slot.Address{}, taken, sdk.FormatRig).
+				pedal.EXPECT().
+					Export(gomock.Any(), slot.Address{}, taken, sdk.FormatRig, sdk.ReplaceExisting).
 					Return(sdk.Written{Path: taken}, nil)
 			},
 			want:        "wrote " + taken,
 			allowWrites: true,
 		},
 		{
+			// Nothing is at the path when the tool decides, and somebody's
+			// rig is by the time the file is written. The hook lands it
+			// there and then exports for real, through the write a device
+			// export shares with a setlist's, so what refuses it can only be
+			// the write itself.
+			name: "a file that appears between the decision and the write, with writes off",
+			args: tools.Export{Slot: "01A", Out: racy},
+			setup: func(_ *mocks.MockClient, pedal *mocks.MockSession) {
+				pedal.EXPECT().
+					Export(gomock.Any(), slot.Address{}, racy, sdk.FormatRig, sdk.KeepExisting).
+					DoAndReturn(func(
+						ctx context.Context, at slot.Address, out string, as sdk.Format,
+						existing sdk.Existing,
+					) (sdk.Written, error) {
+						if err := os.WriteFile(out, []byte("somebody's rig"), 0o600); err != nil {
+							return sdk.Written{}, err
+						}
+
+						return sdk.New().Setlist(setlist).Export(ctx, at, out, as, existing)
+					})
+			},
+			want: tools.ErrWouldOverwrite.Error() + ": " + racy,
+			err:  true,
+			check: func(s *DevicePublicTestSuite, _ *gomcp.CallToolResult) {
+				got, err := os.ReadFile(racy) //nolint:gosec // a path this test chose
+				s.Require().NoError(err)
+				s.Require().Equal("somebody's rig", string(got))
+			},
+		},
+		{
 			name: "a slot as a rig",
 			args: tools.Export{Slot: "01A", Out: "a.yaml"},
 			setup: func(_ *mocks.MockClient, pedal *mocks.MockSession) {
-				pedal.EXPECT().Export(gomock.Any(), slot.Address{}, "a.yaml", sdk.FormatRig).
+				pedal.EXPECT().
+					Export(gomock.Any(), slot.Address{}, "a.yaml", sdk.FormatRig, sdk.KeepExisting).
 					Return(sdk.Written{Path: "a.yaml"}, nil)
 			},
 			want: "wrote a.yaml from 01A",
@@ -314,7 +351,8 @@ func (s *DevicePublicTestSuite) TestPresetExport() {
 			name: "the device's own file",
 			args: tools.Export{Slot: "01A", Out: "a.hlx", As: "hlx"},
 			setup: func(_ *mocks.MockClient, pedal *mocks.MockSession) {
-				pedal.EXPECT().Export(gomock.Any(), slot.Address{}, "a.hlx", sdk.FormatPreset).
+				pedal.EXPECT().
+					Export(gomock.Any(), slot.Address{}, "a.hlx", sdk.FormatPreset, sdk.KeepExisting).
 					Return(sdk.Written{Path: "a.hlx"}, nil)
 			},
 			want: "wrote a.hlx from 01A",

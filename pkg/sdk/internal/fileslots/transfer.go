@@ -44,6 +44,7 @@ func (f *Flows) Export(
 	at slotpkg.Address,
 	out string,
 	as result.Format,
+	existing result.Existing,
 ) (result.Written, error) {
 	if err := Known(as); err != nil {
 		return result.Written{}, err
@@ -83,7 +84,7 @@ func (f *Flows) Export(
 		read.Rig = spec
 	}
 
-	return Write(read, at.Slot, out, as)
+	return Write(read, at.Slot, out, as, existing)
 }
 
 // Known refuses a format that is neither a rig nor the device's own file, the
@@ -108,11 +109,13 @@ func Known(
 //
 // A reading asked for as the device's own file carries a document. One that
 // does not is an empty slot, and the caller refuses it before it gets here.
+// existing says what happens to a file already at out.
 func Write(
 	read result.Reading,
 	slot int,
 	out string,
 	as result.Format,
+	existing result.Existing,
 ) (result.Written, error) {
 	var buf bytes.Buffer
 
@@ -120,11 +123,30 @@ func Write(
 		return result.Written{}, err
 	}
 
-	if err := atomicfile.Write(out, buf.Bytes(), 0o600); err != nil {
+	if err := Save(out, buf.Bytes(), existing); err != nil {
 		return result.Written{}, err
 	}
 
 	return result.Written{Slot: slot, Name: read.Name, Path: out}, nil
+}
+
+// Save puts data at path whole, doing what existing says about a file already
+// there.
+//
+// ReplaceExisting puts it in that file's place. KeepExisting creates it only
+// where nothing is, and the creation is the check: a file that appeared after
+// the caller looked is refused with an error matching fs.ErrExist all the
+// same. Every file an export or a build names is written through here.
+func Save(
+	path string,
+	data []byte,
+	existing result.Existing,
+) error {
+	if existing == result.KeepExisting {
+		return atomicfile.WriteNew(path, data, 0o600)
+	}
+
+	return atomicfile.Write(path, data, 0o600)
 }
 
 // render encodes a reading in the format that was asked for.

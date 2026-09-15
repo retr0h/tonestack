@@ -124,9 +124,9 @@ func (h *handlers) presetExport(
 		return nil, sdk.Written{}, err
 	}
 
-	// Before the device is claimed, as every refusal here is: neither a
-	// format that does not exist nor a file already at out should cost a USB
-	// session.
+	// Before the device is claimed: neither a format that does not exist nor
+	// a file already at out should cost a USB session. The write refuses a
+	// file that appears after this look, too.
 	as, err := formatOf(in.As)
 	if err != nil {
 		return nil, sdk.Written{}, err
@@ -137,10 +137,10 @@ func (h *handlers) presetExport(
 	}
 
 	written, err := onPedal(ctx, h.pedal, func(s Session) (sdk.Written, error) {
-		return s.Export(ctx, slot.Address{Slot: n}, in.Out, as)
+		return s.Export(ctx, slot.Address{Slot: n}, in.Out, as, h.existing())
 	})
 	if err != nil {
-		return nil, sdk.Written{}, err
+		return nil, sdk.Written{}, h.refused(in.Out, err)
 	}
 
 	return said("wrote %s from %s", written.Path, in.Slot), written, nil

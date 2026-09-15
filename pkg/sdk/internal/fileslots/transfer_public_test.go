@@ -23,6 +23,7 @@ package fileslots_test
 import (
 	"context"
 	"encoding/json"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"testing"
@@ -53,7 +54,30 @@ func (s *TransferPublicTestSuite) TestWrite() {
 		// what the written file must say.
 		contains string
 		errText  string
+		// a file somebody already has at out, and what the write does about it.
+		taken    bool
+		existing result.Existing
+		is       error
 	}{
+		{
+			name:     "over a file, replaced",
+			read:     result.Reading{Name: "Blank", Doc: blank},
+			as:       result.FormatPreset,
+			out:      "one.hlx",
+			contains: `"schema"`,
+			taken:    true,
+		},
+		{
+			// The write refuses it: the file is what the caller finds, not
+			// something a look beforehand decided.
+			name:     "over a file, kept",
+			read:     result.Reading{Name: "Blank", Doc: blank},
+			as:       result.FormatPreset,
+			out:      "one.hlx",
+			taken:    true,
+			existing: result.KeepExisting,
+			is:       fs.ErrExist,
+		},
 		{
 			name:     "the device's own file",
 			read:     result.Reading{Name: "Blank", Doc: blank},
@@ -84,7 +108,21 @@ func (s *TransferPublicTestSuite) TestWrite() {
 		s.Run(tt.name, func() {
 			out := filepath.Join(s.T().TempDir(), tt.out)
 
-			written, err := fileslots.Write(tt.read, 4, out, tt.as)
+			if tt.taken {
+				s.Require().NoError(os.WriteFile(out, []byte("somebody's preset"), 0o600))
+			}
+
+			written, err := fileslots.Write(tt.read, 4, out, tt.as, tt.existing)
+
+			if tt.is != nil {
+				s.Require().ErrorIs(err, tt.is)
+
+				raw, readErr := os.ReadFile(out) //nolint:gosec // a path this test chose
+				s.Require().NoError(readErr)
+				s.Require().Equal("somebody's preset", string(raw))
+
+				return
+			}
 
 			if tt.errText != "" {
 				s.Require().ErrorContains(err, tt.errText)

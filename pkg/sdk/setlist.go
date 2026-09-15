@@ -67,13 +67,16 @@ func (f *Setlist) Preset(
 
 // Export writes one slot out to a file of its own, as a rig or as the
 // device's own file.
+//
+// existing says what happens to a file already at out, as it does for Build.
 func (f *Setlist) Export(
 	ctx context.Context,
 	at slot.Address,
 	out string,
 	as Format,
+	existing Existing,
 ) (Written, error) {
-	return f.flows.Export(ctx, f.path, at, out, as)
+	return f.flows.Export(ctx, f.path, at, out, as, existing)
 }
 
 // Import puts a preset file into a slot, and writes the edited setlist to out.

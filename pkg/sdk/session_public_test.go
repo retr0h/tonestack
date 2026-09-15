@@ -24,6 +24,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sync/atomic"
@@ -401,20 +402,70 @@ func (s *SessionPublicTestSuite) TestExport() {
 		name string
 		as   sdk.Format
 		file string
+		// a file somebody already has at the path.
+		taken bool
+		// a file somebody puts at the path while the device is being read,
+		// after any look a caller made and before the write.
+		appears  bool
+		existing sdk.Existing
+		is       error
 	}{
+		{
+			// The race the MCP tool closes, on the device path: the write
+			// itself refuses the file.
+			name:     "a file that appears while the slot is read, kept",
+			as:       sdk.FormatRig,
+			file:     "one.yaml",
+			appears:  true,
+			existing: sdk.KeepExisting,
+			is:       fs.ErrExist,
+		},
 		{name: "as a rig", as: sdk.FormatRig, file: "one.yaml"},
 		{name: "as the device's own file", as: sdk.FormatPreset, file: "one.hlx"},
+		{name: "over a file, replaced", as: sdk.FormatRig, file: "one.yaml", taken: true},
+		{
+			// Refused by the write, after the device was read: whatever
+			// appeared at out while it was, is kept.
+			name:     "over a file, kept",
+			as:       sdk.FormatRig,
+			file:     "one.yaml",
+			taken:    true,
+			existing: sdk.KeepExisting,
+			is:       fs.ErrExist,
+		},
 	}
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			dev := s.device()
-			dev.MockEditor.EXPECT().Presets(gomock.Any(), 0).Return(listing(), nil)
-			dev.MockEditor.EXPECT().ReadPreset(gomock.Any(), 0, 0).Return(s.body(), nil)
-
 			out := filepath.Join(s.T().TempDir(), tt.file)
 
-			got, err := s.open(dev).Export(context.Background(), slot.Address{}, out, tt.as)
+			dev := s.device()
+			dev.MockEditor.EXPECT().Presets(gomock.Any(), 0).Return(listing(), nil)
+			dev.MockEditor.EXPECT().ReadPreset(gomock.Any(), 0, 0).
+				Do(func(context.Context, int, int) {
+					if tt.appears {
+						s.Require().NoError(os.WriteFile(out, []byte("somebody's rig"), 0o600))
+					}
+				}).
+				Return(s.body(), nil)
+
+			if tt.taken {
+				s.Require().NoError(os.WriteFile(out, []byte("somebody's rig"), 0o600))
+			}
+
+			got, err := s.open(dev).
+				Export(context.Background(), slot.Address{}, out, tt.as, tt.existing)
+
+			if tt.is != nil {
+				s.Require().ErrorIs(err, tt.is)
+
+				body, readErr := os.ReadFile(out) //nolint:gosec // a path this test chose
+				s.Require().NoError(readErr)
+				s.Require().Equal("somebody's rig", string(body))
+
+				return
+			}
+
 			s.Require().NoError(err)
 			s.Require().Equal(out, got.Path)
 			s.Require().FileExists(out)
@@ -422,7 +473,8 @@ func (s *SessionPublicTestSuite) TestExport() {
 	}
 
 	s.Run("after Close", func() {
-		_, err := s.closed().Export(context.Background(), slot.Address{}, "one.yaml", sdk.FormatRig)
+		_, err := s.closed().Export(context.Background(), slot.Address{}, "one.yaml", sdk.FormatRig,
+			sdk.ReplaceExisting)
 		s.Require().ErrorIs(err, sdk.ErrClosed)
 	})
 }

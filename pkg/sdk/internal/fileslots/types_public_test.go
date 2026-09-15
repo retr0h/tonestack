@@ -134,7 +134,8 @@ func (s *TypesPublicTestSuite) TestCompiler() {
 			name: "a lift that produced something the contract refuses",
 			call: func(f *fileslots.Flows, out string) error {
 				_, err := f.Export(context.Background(),
-					fixture("setlist.hls"), slotpkg.Address{}, out, result.FormatRig)
+					fixture("setlist.hls"), slotpkg.Address{}, out, result.FormatRig,
+					result.ReplaceExisting)
 
 				return err
 			},

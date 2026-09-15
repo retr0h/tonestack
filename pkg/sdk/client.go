@@ -489,10 +489,15 @@ func (c *Client) Extend(
 // Reporting what it chose matters as much as writing the file. A generated
 // preset is a set of decisions, and a wrong amp should be visible before
 // anybody plugs in rather than after.
+//
+// existing says what happens to a file already at out: ReplaceExisting puts
+// the preset in its place, and KeepExisting refuses it with an error matching
+// fs.ErrExist.
 func (c *Client) Build(
 	ctx context.Context,
 	recipeID string,
 	out string,
+	existing Existing,
 ) (Made, error) {
 	return presets.Make(ctx, presets.MakeOptions{
 		Deps:       presets.Deps{Catalogs: c},
@@ -500,5 +505,6 @@ func (c *Client) Build(
 		Rigs:       c.rigs(),
 		StatsPath:  c.opts.stats,
 		OutputPath: out,
+		Existing:   existing,
 	})
 }

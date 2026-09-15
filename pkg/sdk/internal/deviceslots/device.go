@@ -57,6 +57,7 @@ func (f *Flows) Export(
 	at slotpkg.Address,
 	out string,
 	as result.Format,
+	existing result.Existing,
 ) (result.Written, error) {
 	// Before the device is asked anything.
 	if err := fileslots.Known(as); err != nil {
@@ -74,7 +75,7 @@ func (f *Flows) Export(
 		return result.Written{}, fmt.Errorf("%w: %s", ErrEmptySlot, slotpkg.Label(at.Slot))
 	}
 
-	return fileslots.Write(read, at.Slot, out, as)
+	return fileslots.Write(read, at.Slot, out, as, existing)
 }
 
 // read reads one slot off the given session in the format asked for.

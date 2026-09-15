@@ -25,6 +25,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"testing"
@@ -318,7 +319,7 @@ func (s *ClientPublicTestSuite) TestWithUserRecipes() {
 			listed, listErr := client.Recipes(ctx)
 			shown, showErr := client.Recipe(ctx, tt.id)
 			out := filepath.Join(s.T().TempDir(), "out.hlx")
-			_, buildErr := client.Build(ctx, tt.id, out)
+			_, buildErr := client.Build(ctx, tt.id, out, sdk.ReplaceExisting)
 
 			if tt.listErr != "" {
 				s.Require().ErrorContains(listErr, tt.listErr)
@@ -1183,11 +1184,28 @@ func (s *ClientPublicTestSuite) TestBuild() {
 		name string
 		ctx  context.Context
 		id   string
-		err  bool
+		// a file somebody already has at the path.
+		taken    bool
+		existing sdk.Existing
+		err      bool
+		is       error
 	}{
 		{name: "a rig that ships", id: "mike-dirnt"},
 		{name: "one nobody wrote", id: "nobody-at-all", err: true},
 		{name: "a caller who stopped waiting", ctx: cancelled(), id: "mike-dirnt", err: true},
+		{
+			name:  "a file already there, replaced",
+			id:    "mike-dirnt",
+			taken: true,
+		},
+		{
+			// The write refuses it, so nothing has to look first.
+			name:     "a file already there, kept",
+			id:       "mike-dirnt",
+			taken:    true,
+			existing: sdk.KeepExisting,
+			is:       fs.ErrExist,
+		},
 	}
 
 	for _, tt := range tests {
@@ -1199,7 +1217,21 @@ func (s *ClientPublicTestSuite) TestBuild() {
 
 			out := filepath.Join(s.T().TempDir(), "out.hlx")
 
-			got, err := sdk.New().Build(ctx, tt.id, out)
+			if tt.taken {
+				s.Require().NoError(os.WriteFile(out, []byte("somebody's preset"), 0o600))
+			}
+
+			got, err := sdk.New().Build(ctx, tt.id, out, tt.existing)
+
+			if tt.is != nil {
+				s.Require().ErrorIs(err, tt.is)
+
+				body, readErr := os.ReadFile(out) //nolint:gosec // a path this test chose
+				s.Require().NoError(readErr)
+				s.Require().Equal("somebody's preset", string(body))
+
+				return
+			}
 
 			if tt.err {
 				s.Require().Error(err)

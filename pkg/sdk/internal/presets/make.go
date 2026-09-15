@@ -28,8 +28,8 @@ import (
 
 	"github.com/retr0h/tonestack/pkg/sdk/chain"
 	"github.com/retr0h/tonestack/pkg/sdk/corpus"
-	"github.com/retr0h/tonestack/pkg/sdk/internal/atomicfile"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/compile"
+	"github.com/retr0h/tonestack/pkg/sdk/internal/fileslots"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/recipes"
 	"github.com/retr0h/tonestack/pkg/sdk/preset"
 	"github.com/retr0h/tonestack/pkg/sdk/result"
@@ -50,6 +50,9 @@ type MakeOptions struct {
 	StatsPath string
 	// OutputPath is where the preset is written.
 	OutputPath string
+	// Existing is what happens to a file already at OutputPath. The zero
+	// value replaces it.
+	Existing result.Existing
 }
 
 // Make builds a preset from a recipe and writes it, reporting what it chose.
@@ -99,7 +102,7 @@ func Make(
 
 	doc := build(cat.DeviceID, spec)
 
-	if err := write(opts.OutputPath, doc); err != nil {
+	if err := write(opts.OutputPath, doc, opts.Existing); err != nil {
 		return result.Made{}, err
 	}
 
@@ -156,10 +159,12 @@ func build(
 //
 // The document is rendered to memory first and the whole file put in place at
 // once, so a document that will not encode or a write that stops partway
-// leaves no half a preset behind.
+// leaves no half a preset behind. existing says what happens to a file already
+// at path.
 func write(
 	path string,
 	doc *preset.Document,
+	existing result.Existing,
 ) error {
 	var buf bytes.Buffer
 
@@ -167,7 +172,7 @@ func write(
 		return fmt.Errorf("writing %s: %w", path, err)
 	}
 
-	return atomicfile.Write(path, buf.Bytes(), 0o600)
+	return fileslots.Save(path, buf.Bytes(), existing)
 }
 
 // unfamiliar names the character terms nothing defines.

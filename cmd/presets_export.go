@@ -108,9 +108,10 @@ func exported(
 	if presetsExportFile == "" {
 		pedal.claim()
 
-		return client.Export(cmd.Context(), at, presetsExportOut, presetsExportAs)
+		return client.Export(cmd.Context(), at, presetsExportOut, presetsExportAs,
+			sdk.ReplaceExisting)
 	}
 
 	return client.Setlist(presetsExportFile).
-		Export(cmd.Context(), at, presetsExportOut, presetsExportAs)
+		Export(cmd.Context(), at, presetsExportOut, presetsExportAs, sdk.ReplaceExisting)
 }

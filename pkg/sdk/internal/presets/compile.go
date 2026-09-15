@@ -26,7 +26,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/retr0h/tonestack/pkg/sdk/internal/atomicfile"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/fileslots"
 	"github.com/retr0h/tonestack/pkg/sdk/preset"
 	"github.com/retr0h/tonestack/pkg/sdk/result"
@@ -46,6 +45,9 @@ type CompileOptions struct {
 	TemplatePath string
 	// OutputPath is where the preset is written.
 	OutputPath string
+	// Existing is what happens to a file already at OutputPath. The zero
+	// value replaces it.
+	Existing result.Existing
 }
 
 // Compile turns a rig into a preset a device will load.
@@ -89,7 +91,7 @@ func Compile(
 		return result.Built{}, fmt.Errorf("writing %s: %w", opts.OutputPath, err)
 	}
 
-	if err := atomicfile.Write(opts.OutputPath, buf.Bytes(), 0o600); err != nil {
+	if err := fileslots.Save(opts.OutputPath, buf.Bytes(), opts.Existing); err != nil {
 		return result.Built{}, err
 	}
 
