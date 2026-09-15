@@ -54,7 +54,11 @@ func (s *CommanddocPublicTestSuite) tree() *cobra.Command {
 
 	hidden := &cobra.Command{Use: "ghost", Short: "nobody sees this", Hidden: true, Run: run}
 
-	group.AddCommand(build, hidden)
+	// Inherits --where from its group and has no flags of its own.
+	list := &cobra.Command{Use: "list", Short: "list them", Run: run}
+
+	group.PersistentFlags().String("where", "", "where they are")
+	group.AddCommand(build, hidden, list)
 	root.AddCommand(group)
 
 	return root
@@ -70,6 +74,16 @@ func (s *CommanddocPublicTestSuite) TestRender() {
 		{
 			name:     "every command gets a heading of its full path",
 			contains: []string{"## tool\n", "## tool thing\n", "## tool thing make\n"},
+		},
+		{
+			name:     "a command's usage says [flags] where it has flags of its own",
+			contains: []string{"tool thing make [flags]\n"},
+		},
+		{
+			// Rendering merges a group's persistent flags into the commands
+			// beneath it, which once added [flags] here on a second render.
+			name:     "a command with only inherited flags takes none in its usage",
+			contains: []string{"```text\ntool thing list\n```"},
 		},
 		{
 			name: "a group names its usage and links each command it holds",
@@ -101,19 +115,29 @@ func (s *CommanddocPublicTestSuite) TestRender() {
 		},
 	}
 
-	page := string(commanddoc.Render(s.tree()))
+	// The same tree twice: a page must not depend on what reading the tree
+	// the first time left behind in it.
+	tree := s.tree()
+	first := string(commanddoc.Render(tree))
+	second := string(commanddoc.Render(tree))
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			for _, want := range tt.contains {
-				s.Require().Contains(page, want)
-			}
+			for _, page := range []string{first, second} {
+				for _, want := range tt.contains {
+					s.Require().Contains(page, want)
+				}
 
-			for _, not := range tt.absent {
-				s.Require().NotContains(page, not)
+				for _, not := range tt.absent {
+					s.Require().NotContains(page, not)
+				}
 			}
 		})
 	}
+
+	s.Run("the same tree renders the same page every time", func() {
+		s.Require().Equal(first, second)
+	})
 }
 
 // TestTheShippedPageIsCurrent keeps the committed page honest.
