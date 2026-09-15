@@ -62,13 +62,20 @@ type Path = path
 var (
 	DecodeDocument = decodeDocument
 	EncodeLike     = encodeLike
-	Flag           = flag
 	Locate         = locate
 	Place          = place
-	ReadEnvelope   = readEnvelope
 )
 
 const (
 	GridSize     = gridSize
 	MsgKeepAlive = msgKeepAlive
 )
+
+// Flag returns an argument carrying a boolean. Nothing in the package sends
+// one; the encoding tests build one to cover every kind an argument can be.
+func Flag(
+	key int,
+	v bool,
+) Arg {
+	return Arg{Key: key, Flag: v, Kind: ArgFlag}
+}

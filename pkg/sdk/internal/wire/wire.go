@@ -41,7 +41,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"io"
 )
 
 // EnvelopeSize is the fixed prefix on every envelope.
@@ -145,30 +144,4 @@ func DecodeEnvelope(
 		Service:    binary.LittleEndian.Uint16(raw[2:4]),
 		Body:       raw[EnvelopeSize:end],
 	}, raw[end:], nil
-}
-
-// readEnvelope decodes one envelope from a stream.
-func readEnvelope(
-	r io.Reader,
-) (Envelope, error) {
-	head := make([]byte, EnvelopeSize)
-	if _, err := io.ReadFull(r, head); err != nil {
-		return Envelope{}, fmt.Errorf("reading frame header: %w", err)
-	}
-
-	n := binary.LittleEndian.Uint32(head[4:8])
-	if n > maxBody {
-		return Envelope{}, &BodyTooLargeError{Length: n}
-	}
-
-	body := make([]byte, n)
-	if _, err := io.ReadFull(r, body); err != nil {
-		return Envelope{}, fmt.Errorf("reading frame body: %w", err)
-	}
-
-	return Envelope{
-		Originator: Originator(binary.LittleEndian.Uint16(head[0:2])),
-		Service:    binary.LittleEndian.Uint16(head[2:4]),
-		Body:       body,
-	}, nil
 }

@@ -516,7 +516,7 @@ func (s *HandshakePublicTestSuite) TestReadPreset() {
 	}
 }
 
-func TestHandshakeTestSuite(
+func TestHandshakePublicTestSuite(
 	t *testing.T,
 ) {
 	suite.Run(t, new(HandshakePublicTestSuite))

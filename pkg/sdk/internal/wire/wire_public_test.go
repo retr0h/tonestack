@@ -21,9 +21,7 @@
 package wire_test
 
 import (
-	"bytes"
 	"encoding/hex"
-	"io"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
@@ -93,6 +91,8 @@ func (s *WirePublicTestSuite) TestDecodeEnvelope() {
 		frames []wire.Envelope
 		raw    []byte
 		err    error
+		// errText is a part of the message a person reads.
+		errText string
 	}{
 		{
 			name: "a frame from the host",
@@ -121,9 +121,10 @@ func (s *WirePublicTestSuite) TestDecodeEnvelope() {
 			err:  wire.ErrShortFrame,
 		},
 		{
-			name: "a length no real frame carries",
-			raw:  []byte{1, 0, 5, 0, 0xff, 0xff, 0xff, 0xff},
-			err:  wire.ErrBodyTooLarge,
+			name:    "a length no real frame carries",
+			raw:     []byte{1, 0, 5, 0, 0xff, 0xff, 0xff, 0xff},
+			err:     wire.ErrBodyTooLarge,
+			errText: "too large",
 		},
 	}
 
@@ -133,6 +134,7 @@ func (s *WirePublicTestSuite) TestDecodeEnvelope() {
 				_, _, err := wire.DecodeEnvelope(tt.raw)
 
 				s.Require().ErrorIs(err, tt.err)
+				s.Require().Contains(err.Error(), tt.errText)
 
 				return
 			}
@@ -152,73 +154,6 @@ func (s *WirePublicTestSuite) TestDecodeEnvelope() {
 			}
 
 			s.Require().Empty(raw)
-		})
-	}
-}
-
-// TestReadEnvelope takes one frame at a time from a stream.
-func (s *WirePublicTestSuite) TestReadEnvelope() {
-	tests := []struct {
-		name    string
-		frames  []wire.Envelope
-		raw     []byte
-		err     error
-		errText string
-	}{
-		{
-			name: "two frames one after the other",
-			frames: []wire.Envelope{
-				{Originator: wire.FromDevice, Service: 5, Body: []byte("a")},
-				{Originator: wire.FromDevice, Body: []byte("b")},
-			},
-		},
-		{
-			name:    "a truncated header",
-			raw:     []byte{1, 0, 5},
-			err:     io.ErrUnexpectedEOF,
-			errText: "header",
-		},
-		{
-			name:    "a body that never arrives",
-			raw:     []byte{1, 0, 5, 0, 0x10, 0, 0, 0},
-			err:     io.EOF,
-			errText: "body",
-		},
-		{
-			name:    "a length no real frame carries",
-			raw:     []byte{1, 0, 5, 0, 0xff, 0xff, 0xff, 0xff},
-			err:     wire.ErrBodyTooLarge,
-			errText: "too large",
-		},
-	}
-
-	for _, tt := range tests {
-		s.Run(tt.name, func() {
-			if tt.err != nil {
-				_, err := wire.ReadEnvelope(bytes.NewReader(tt.raw))
-
-				s.Require().ErrorIs(err, tt.err)
-				s.Require().Contains(err.Error(), tt.errText)
-
-				return
-			}
-
-			var raw []byte
-			for _, env := range tt.frames {
-				raw = append(raw, wire.EncodeEnvelope(env)...)
-			}
-
-			stream := bytes.NewReader(raw)
-
-			for _, want := range tt.frames {
-				got, err := wire.ReadEnvelope(stream)
-
-				s.Require().NoError(err)
-				s.Require().Equal(want, got)
-			}
-
-			_, err := wire.ReadEnvelope(stream)
-			s.Require().ErrorIs(err, io.EOF)
 		})
 	}
 }

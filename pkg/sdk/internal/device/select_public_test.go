@@ -357,7 +357,7 @@ func (s *SelectPublicTestSuite) TestReadCurrent() {
 	}
 }
 
-func TestSelectTestSuite(
+func TestSelectPublicTestSuite(
 	t *testing.T,
 ) {
 	suite.Run(t, new(SelectPublicTestSuite))
