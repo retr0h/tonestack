@@ -35,10 +35,10 @@ import (
 // preset is loaded into the edit buffer and the slot it came from is
 // untouched, so this is the one device operation that changes what you hear
 // without changing what the device holds.
-func SelectWith(
+func (*Flows) SelectWith(
 	ctx context.Context,
 	s device.Editor,
-	opts DeviceOptions,
+	at slotpkg.Address,
 ) (result.Change, error) {
 	sel, ok := s.(device.Selector)
 	if !ok {
@@ -47,19 +47,19 @@ func SelectWith(
 
 	// Read before selecting, so the name is the one being switched to rather
 	// than whatever the device answers with mid-switch.
-	found, err := s.Presets(ctx, opts.Setlist)
+	found, err := s.Presets(ctx, at.Setlist)
 	if err != nil {
 		return result.Change{}, fmt.Errorf(
-			"listing setlist %d: %w", opts.Setlist, err)
+			"listing setlist %d: %w", at.Setlist, err)
 	}
 
-	if err := sel.SelectPreset(ctx, opts.Setlist, opts.Slot); err != nil {
+	if err := sel.SelectPreset(ctx, at.Setlist, at.Slot); err != nil {
 		return result.Change{}, fmt.Errorf(
-			"selecting slot %s: %w", slotpkg.Label(opts.Slot), err)
+			"selecting slot %s: %w", slotpkg.Label(at.Slot), err)
 	}
 
 	return result.Change{
 		Action: result.Selected,
-		To:     result.At{Slot: opts.Slot, Name: nameOf(found, opts.Slot)},
+		To:     result.At{Slot: at.Slot, Name: nameOf(found, at.Slot)},
 	}, nil
 }

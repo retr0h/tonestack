@@ -37,18 +37,19 @@ import (
 // everything a chain does not describe is what the device expects to find
 // there. See wire.Blank.
 //
-// The destination is overwritten. There is no undo on a device.
-func ImportWith(
+// The destination is overwritten and kept first. There is no undo on a device.
+func (f *Flows) ImportWith(
 	ctx context.Context,
 	s device.Editor,
-	opts ImportOptions,
+	file string,
+	at slotpkg.Address,
 ) (result.Change, error) {
-	doc, err := readPreset(opts.File)
+	doc, err := readPreset(ctx, file)
 	if err != nil {
 		return result.Change{}, err
 	}
 
-	body, err := documentFor(opts.Deps, doc, opts.CatalogPath)
+	body, err := f.documentFor(ctx, doc)
 	if err != nil {
 		return result.Change{}, err
 	}
@@ -63,45 +64,42 @@ func ImportWith(
 
 	// What the device calls the slot, so the copy kept of it carries that
 	// name. The preset read back for one slot does not say.
-	found, err := s.Presets(ctx, opts.Setlist)
+	found, err := s.Presets(ctx, at.Setlist)
 	if err != nil {
 		return result.Change{}, fmt.Errorf("listing presets: %w", err)
 	}
 
 	// What the slot holds now, before it stops holding it.
-	kept, err := replacing(ctx, s, opts.Deps, opts.CatalogPath, opts.BackupDir,
-		opts.Setlist, opts.Slot, nameOf(found, opts.Slot))
+	kept, err := f.replacing(ctx, s, at, nameOf(found, at.Slot))
 	if err != nil {
 		return result.Change{}, err
 	}
 
 	name := doc.Data.Meta.Name
 
-	if err := writer.WriteNamedPreset(
-		ctx, opts.Setlist, opts.Slot, name, body); err != nil {
+	if err := writer.WriteNamedPreset(ctx, at.Setlist, at.Slot, name, body); err != nil {
 		return result.Change{}, keptError(fmt.Errorf(
-			"writing slot %s: %w", slotpkg.Label(opts.Slot), err), kept)
+			"writing slot %s: %w", slotpkg.Label(at.Slot), err), kept)
 	}
 
 	return result.Change{
 		Action: result.Imported,
-		To:     result.At{Slot: opts.Slot, Name: name},
+		To:     result.At{Slot: at.Slot, Name: name},
 		Kept:   kept,
 	}, nil
 }
 
 // documentFor builds what a device holds out of what a file describes.
-func documentFor(
-	deps Deps,
+func (f *Flows) documentFor(
+	ctx context.Context,
 	doc *preset.Document,
-	catalogPath string,
 ) ([]byte, error) {
-	cat, err := deps.catalogs().Open(catalogPath)
+	cat, err := f.catalog(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	blocks, err := deps.translator().Placements(doc, cat)
+	blocks, err := f.translator().Placements(doc, cat)
 	if err != nil {
 		return nil, err
 	}

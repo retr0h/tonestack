@@ -22,6 +22,7 @@ package sdk
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"sync"
 
@@ -32,6 +33,7 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk/internal/device"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/presets"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/recipes"
+	"github.com/retr0h/tonestack/pkg/sdk/internal/slots"
 )
 
 // Client is what a wrapper holds.
@@ -45,9 +47,16 @@ import (
 // Client works with no hardware attached. That is what lets a service compile
 // rigs on a machine that has never seen a Helix.
 //
-// A Client is safe for concurrent use.
+// A Client is safe for concurrent use. Build one with New. The zero Client
+// reads files and the built-in catalog, but has no bus to reach a device
+// through.
 type Client struct {
 	opts options
+
+	// flows are the slot operations, configured from opts once, on first use,
+	// so a Client that did not come from New still has them.
+	flowsOnce sync.Once
+	flows     *slots.Flows
 
 	// mu guards cat, the catalog opened on first use.
 	mu  sync.Mutex
@@ -99,8 +108,8 @@ func WithStats(
 
 // WithRecipes reads rigs from a directory instead of the ones that ship.
 //
-// Scaffold writes there too, and needs it: a new rig is not written into
-// wherever the program happened to run.
+// Scaffold and Extend write there too, and need it: a new rig is not written
+// into wherever the program happened to run.
 func WithRecipes(
 	dir string,
 ) Option {
@@ -156,6 +165,21 @@ func New(
 	return &Client{opts: o, claim: make(chan struct{}, 1)}
 }
 
+// operations are the slot flows, built the first time anything asks.
+func (c *Client) operations() *slots.Flows {
+	c.flowsOnce.Do(func() {
+		// The flows read the catalog through the Client, so they share the
+		// one it opens and keeps.
+		c.flows = &slots.Flows{
+			Catalogs:  c,
+			BackupDir: c.opts.backupDir,
+			Capture:   c.opts.capture,
+		}
+	})
+
+	return c.flows
+}
+
 // Catalog is the catalog this Client names gear against.
 //
 // Opened on first use and kept, so a renderer reads the same catalog the
@@ -185,25 +209,6 @@ func (c *Client) Catalog(
 	return cat, nil
 }
 
-// catalogs hands a flow the Client's own catalog.
-//
-// The flows ask for a catalog by path. The Client already knows which one it
-// was given, so the path is ignored and every call reads the one opened once.
-//
-// It holds ctx because slots.Catalogs and presets.Catalogs take none; chunk
-// 49.6 replaces both with a catalog field on the flows, and this goes with them.
-type catalogs struct {
-	client *Client
-	ctx    context.Context
-}
-
-// Open returns the Client's catalog.
-func (k catalogs) Open(
-	_ string,
-) (*catalog.Catalog, error) {
-	return k.client.Catalog(k.ctx)
-}
-
 // Devices reports the hardware attached to this machine.
 //
 // Recognised hardware only: a bus holds keyboards and webcams, and a list of
@@ -214,11 +219,11 @@ func (c *Client) Devices(
 	return attached.ListWith(ctx, c.opts.devices)
 }
 
-// Filter narrows what Blocks reports.
+// Filter narrows what Blocks reports. All three narrow together.
 type Filter struct {
-	// Category keeps only blocks of one kind — amp, cab, drive.
+	// Category keeps only blocks of one kind: amp, cab, drive.
 	Category string
-	// Subcategory keeps only blocks Line 6 tags this way — Guitar, Bass.
+	// Subcategory keeps only blocks Line 6 tags this way: Guitar, Bass.
 	Subcategory string
 	// Search keeps only blocks whose name or real-world gear mentions this.
 	Search string
@@ -250,33 +255,40 @@ func (c *Client) Block(
 	return catalogview.Show(cat, id)
 }
 
-// Corpus says what to read out of the measurements.
-type Corpus struct {
-	// Model asks for one model's parameter distributions.
-	Model string
-	// Instrument asks what chains for one instrument tend to hold.
-	Instrument string
+// corpus is what every question of the measurements reads.
+func (c *Client) corpus() corpusview.Options {
+	return corpusview.Options{StatsPath: c.opts.stats, Catalogs: c}
 }
 
-// Measurements reports what the corpus recorded.
+// ModelMeasurements reports what players did with one model: how they set
+// each parameter across every measured preset that used it.
 //
-// Two questions come out of the same measurements: what players did with one
-// model, and what chains of a kind are shaped like. Naming a Model asks the
-// first; leaving it empty asks the second.
-func (c *Client) Measurements(
+// A model the corpus never saw, including an empty one, is refused rather than
+// answered with nothing.
+func (c *Client) ModelMeasurements(
 	ctx context.Context,
-	in Corpus,
+	model string,
 ) (Measured, error) {
 	if err := ctx.Err(); err != nil {
 		return Measured{}, err
 	}
 
-	return corpusview.Show(ctx, corpusview.Options{
-		StatsPath:  c.opts.stats,
-		Catalogs:   c,
-		Model:      in.Model,
-		Instrument: in.Instrument,
-	})
+	return corpusview.Model(ctx, c.corpus(), model)
+}
+
+// ChainMeasurements reports what chains tend to hold: which kinds of block,
+// and which side of the amp they sit on.
+//
+// instrument narrows that to guitar or bass. Empty asks about every chain.
+func (c *Client) ChainMeasurements(
+	ctx context.Context,
+	instrument string,
+) (Measured, error) {
+	if err := ctx.Err(); err != nil {
+		return Measured{}, err
+	}
+
+	return corpusview.Chains(c.corpus(), instrument)
 }
 
 // Recipes reads every rig this Client was given.
@@ -302,7 +314,7 @@ func (c *Client) Recipe(
 	return recipes.Show(c.opts.recipes, id)
 }
 
-// NewRecipe describes the rig to scaffold.
+// NewRecipe describes a rig to scaffold from the gear it names.
 type NewRecipe struct {
 	// ID is the identifier, and the filename stem.
 	ID string
@@ -319,13 +331,6 @@ type NewRecipe struct {
 	Cab string
 	// Pedals are real-world pedals, in signal order.
 	Pedals []string
-	// From is a rig to copy, by identifier. The copy is a whole rig and
-	// records where it came from in `extends`; nothing merges the two.
-	From string
-	// Kind is what the new rig is attributed to: artist, band, song, genre
-	// or sound. Only read when copying, since a scaffold from nothing is an
-	// artist.
-	Kind string
 }
 
 // Scaffold writes a rig, after checking the gear it names exists.
@@ -354,38 +359,72 @@ func (c *Client) Scaffold(
 		Cab:        in.Cab,
 		Pedals:     in.Pedals,
 		Catalogs:   c,
-		From:       in.From,
-		Kind:       in.Kind,
 	})
 }
 
-// Make says which rig to build and where to put it.
-type Make struct {
-	// RecipeID names the curated knowledge to build from.
-	RecipeID string
-	// OutputPath is where the preset is written.
-	OutputPath string
+// ExtendRecipe describes a rig to start as a copy of another.
+type ExtendRecipe struct {
+	// From is the rig to copy, by identifier or alias. Required.
+	From string
+	// ID is the new rig's identifier, and its filename stem.
+	ID string
+	// Name is the player or style the copy is about. Empty keeps the name
+	// the copied rig has.
+	Name string
+	// Kind is what the copy is attributed to: artist, band, song, genre or
+	// sound. Empty keeps the copied rig's.
+	Kind string
 }
 
-// Build compiles a rig into a preset and writes it.
+// Extend writes a new rig as a copy of one that exists.
+//
+// The copy is a whole rig, comments and citations included, and records the
+// rig it came from in `extends`. Nothing merges the two: editing the copy does
+// not touch the original. No gear is checked, because the rig it copies
+// already resolved when it was written.
+//
+// The rig is written into the directory WithRecipes named, the same as
+// Scaffold.
+func (c *Client) Extend(
+	ctx context.Context,
+	in ExtendRecipe,
+) (Scaffolded, error) {
+	if err := ctx.Err(); err != nil {
+		return Scaffolded{}, err
+	}
+
+	// Without a rig to copy this would scaffold one from no gear at all,
+	// which is a different operation with a different check.
+	if in.From == "" {
+		return Scaffolded{}, fmt.Errorf("%w: name the rig to copy", ErrNoSuchRecipe)
+	}
+
+	return recipes.New(ctx, recipes.NewOptions{
+		Dir:      c.opts.recipes,
+		From:     in.From,
+		ID:       in.ID,
+		Name:     in.Name,
+		Kind:     in.Kind,
+		Catalogs: c,
+	})
+}
+
+// Build compiles a shipped or configured rig into a preset, and writes it to
+// out.
 //
 // Reporting what it chose matters as much as writing the file. A generated
 // preset is a set of decisions, and a wrong amp should be visible before
 // anybody plugs in rather than after.
 func (c *Client) Build(
 	ctx context.Context,
-	in Make,
+	recipeID string,
+	out string,
 ) (Made, error) {
-	if err := ctx.Err(); err != nil {
-		return Made{}, err
-	}
-
-	return presets.Make(presets.MakeOptions{
-		Deps:        presets.Deps{Catalogs: catalogs{client: c, ctx: ctx}},
-		RecipeID:    in.RecipeID,
-		RecipesDir:  c.opts.recipes,
-		CatalogPath: c.opts.catalog,
-		StatsPath:   c.opts.stats,
-		OutputPath:  in.OutputPath,
+	return presets.Make(ctx, presets.MakeOptions{
+		Deps:       presets.Deps{Catalogs: c},
+		RecipeID:   recipeID,
+		RecipesDir: c.opts.recipes,
+		StatsPath:  c.opts.stats,
+		OutputPath: out,
 	})
 }

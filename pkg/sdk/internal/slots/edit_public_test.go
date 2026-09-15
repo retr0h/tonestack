@@ -21,6 +21,7 @@
 package slots_test
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -30,14 +31,19 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk/internal/setlist"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/slots"
 	"github.com/retr0h/tonestack/pkg/sdk/result"
+	slotpkg "github.com/retr0h/tonestack/pkg/sdk/slot"
 )
 
+// EditPublicTestSuite covers the operations that write a file: copying,
+// swapping, exporting and importing.
 type EditPublicTestSuite struct {
 	suite.Suite
 }
 
 // reread loads a setlist this suite just wrote.
-func (s *EditPublicTestSuite) reread(path string) *setlist.Document {
+func (s *EditPublicTestSuite) reread(
+	path string,
+) *setlist.Document {
 	f, err := os.Open(path) //nolint:gosec // a path this test chose
 	s.Require().NoError(err)
 
@@ -49,45 +55,83 @@ func (s *EditPublicTestSuite) reread(path string) *setlist.Document {
 	return doc
 }
 
-func (s *EditPublicTestSuite) opts(out string) slots.EditOptions {
-	return slots.EditOptions{
-		Path: fixture("setlist.hls"), FromSlot: 0, ToSlot: 1, OutputPath: out,
+// background is ctx, or a context nobody has stopped waiting on.
+func background(
+	ctx context.Context,
+) context.Context {
+	if ctx == nil {
+		return context.Background()
 	}
+
+	return ctx
 }
 
-// TestCopy writes one slot over another.
+// formatFor is as, or a rig for a row that says nothing about the format. An
+// export refuses the zero Format, so a row has to ask for one.
+func formatFor(
+	as result.Format,
+) result.Format {
+	if as == "" {
+		return result.FormatRig
+	}
+
+	return as
+}
+
+// TestCopy covers writing one slot of a file over another.
 func (s *EditPublicTestSuite) TestCopy() {
 	tests := []struct {
-		name string
-		path string
-		from int
-		to   int
+		name     string
+		ctx      context.Context
+		path     string
+		from, to slotpkg.Address
 		// where to write, under this case's own directory.
 		out string
-		// what the two slots must hold afterwards.
+		// what the first slots must hold afterwards.
 		want     []string
 		contains []string
 		errText  string
 	}{
 		{
 			name:     "a copy, which leaves the source alone",
-			to:       1,
+			to:       slotpkg.Address{Slot: 1},
 			want:     []string{"First", "First"},
 			contains: []string{"copied", "01A", "01B"},
 		},
 		{
 			name:    "a file that is not there",
 			path:    fixture("nope.hls"),
-			to:      1,
+			to:      slotpkg.Address{Slot: 1},
 			errText: "opening",
 		},
-		{name: "a source that is not there", from: 99, to: 1, errText: "no such slot"},
-		{name: "a destination that is not there", to: 99, errText: "no such slot"},
+		{
+			name:    "a source that is not there",
+			from:    slotpkg.Address{Slot: 99},
+			to:      slotpkg.Address{Slot: 1},
+			errText: "no such slot",
+		},
+		{
+			name:    "a destination that is not there",
+			to:      slotpkg.Address{Slot: 99},
+			errText: "no such slot",
+		},
+		{
+			// The destination's setlist is read, not only its slot.
+			name:    "a destination in a setlist the file does not hold",
+			to:      slotpkg.Address{Setlist: 3, Slot: 1},
+			errText: "no such slot",
+		},
 		{
 			name:    "a destination directory that is not there",
-			to:      1,
+			to:      slotpkg.Address{Slot: 1},
 			out:     filepath.Join("no", "out.hls"),
 			errText: "writing",
+		},
+		{
+			name:    "a caller who stopped waiting",
+			ctx:     cancelled(),
+			to:      slotpkg.Address{Slot: 1},
+			errText: context.Canceled.Error(),
 		},
 	}
 
@@ -100,26 +144,22 @@ func (s *EditPublicTestSuite) TestCopy() {
 				out = filepath.Join(dir, tt.out)
 			}
 
-			o := s.opts(out)
-			o.FromSlot, o.ToSlot = tt.from, tt.to
-
+			path := fixture("setlist.hls")
 			if tt.path != "" {
-				o.Path = tt.path
+				path = tt.path
 			}
 
-			change, err := slots.Copy(o)
+			change, err := (&slots.Flows{}).Copy(background(tt.ctx), path, tt.from, tt.to, out)
 
 			if tt.errText != "" {
-				s.Require().Error(err)
-
-				if tt.errText != "" {
-					s.Require().Contains(err.Error(), tt.errText)
-				}
+				s.Require().ErrorContains(err, tt.errText)
+				s.Require().NoFileExists(out)
 
 				return
 			}
 
 			s.Require().NoError(err)
+			s.Require().Equal(out, change.Path)
 
 			doc := s.reread(out)
 			for i, want := range tt.want {
@@ -133,26 +173,78 @@ func (s *EditPublicTestSuite) TestCopy() {
 	}
 }
 
-// TestSwap exchanges two slots.
+// TestSwap covers exchanging two slots of a file.
 func (s *EditPublicTestSuite) TestSwap() {
-	out := filepath.Join(s.T().TempDir(), "out.hls")
+	tests := []struct {
+		name    string
+		ctx     context.Context
+		path    string
+		a, b    slotpkg.Address
+		want    []string
+		errText string
+	}{
+		{
+			name: "two slots, each holding what the other did",
+			b:    slotpkg.Address{Slot: 1},
+			want: []string{"Second", "First"},
+		},
+		{
+			name:    "a file that is not there",
+			path:    fixture("nope.hls"),
+			b:       slotpkg.Address{Slot: 1},
+			errText: "opening",
+		},
+		{
+			// The first slot's setlist is read, not only its slot.
+			name:    "a first slot in a setlist the file does not hold",
+			a:       slotpkg.Address{Setlist: 2},
+			b:       slotpkg.Address{Slot: 1},
+			errText: "no such slot",
+		},
+		{
+			name:    "a caller who stopped waiting",
+			ctx:     cancelled(),
+			b:       slotpkg.Address{Slot: 1},
+			errText: context.Canceled.Error(),
+		},
+	}
 
-	change, err := slots.Swap(s.opts(out))
-	s.Require().NoError(err)
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			out := filepath.Join(s.T().TempDir(), "out.hls")
 
-	doc := s.reread(out)
-	s.Require().Equal("Second", doc.Setlists[0].Slots[0].Meta.Name)
-	s.Require().Equal("First", doc.Setlists[0].Slots[1].Meta.Name)
-	s.Require().Equal(result.Swapped, change.Action)
+			path := fixture("setlist.hls")
+			if tt.path != "" {
+				path = tt.path
+			}
+
+			change, err := (&slots.Flows{}).Swap(background(tt.ctx), path, tt.a, tt.b, out)
+
+			if tt.errText != "" {
+				s.Require().ErrorContains(err, tt.errText)
+
+				return
+			}
+
+			s.Require().NoError(err)
+			s.Require().Equal(result.Swapped, change.Action)
+
+			doc := s.reread(out)
+			for i, want := range tt.want {
+				s.Require().Equal(want, doc.Setlists[0].Slots[i].Meta.Name)
+			}
+		})
+	}
 }
 
-// TestExport writes one slot to a file of its own.
+// TestExport covers writing one slot of a file to a file of its own.
 func (s *EditPublicTestSuite) TestExport() {
 	tests := []struct {
 		name    string
+		ctx     context.Context
 		path    string
-		slot    int
-		as      slots.Format
+		at      slotpkg.Address
+		as      result.Format
 		catalog string
 		out     string
 
@@ -182,25 +274,38 @@ func (s *EditPublicTestSuite) TestExport() {
 		},
 		{
 			name:  "the device's own file, when asked for",
-			as:    slots.FormatPreset,
+			as:    result.FormatPreset,
 			out:   "one.hlx",
 			shows: []string{"First", "Ampeg SVT"},
 			named: "First",
 		},
 		{
-			name:    "a file that is not there",
+			// The setlist half of the address is read too.
+			name:  "a slot in the second setlist of a bundle",
+			path:  fixture("bundle.hlb"),
+			at:    slotpkg.Address{Setlist: 1},
+			as:    result.FormatPreset,
+			out:   "only.hlx",
+			named: "Only",
+		},
+		{name: "a file that is not there", path: fixture("nope.hls"), errText: "opening"},
+		{
+			// Refused before the file is opened, with the error a flag gives,
+			// rather than written as a rig nobody asked for.
+			name:    "a format that is neither a rig nor the device's own file",
 			path:    fixture("nope.hls"),
-			errText: "opening",
+			as:      result.Format("yaml"),
+			errText: result.ErrUnknownFormat.Error(),
 		},
 		{
 			name:    "a slot that is not there",
-			slot:    99,
-			as:      slots.FormatPreset,
+			at:      slotpkg.Address{Slot: 99},
+			as:      result.FormatPreset,
 			errText: "no such slot",
 		},
 		{
 			name:    "a destination directory that is not there",
-			as:      slots.FormatPreset,
+			as:      result.FormatPreset,
 			out:     filepath.Join("no", "x.hlx"),
 			errText: "writing",
 		},
@@ -212,10 +317,15 @@ func (s *EditPublicTestSuite) TestExport() {
 		},
 		{
 			name:    "a slot holding nothing, which is not a rig",
-			slot:    2,
+			at:      slotpkg.Address{Slot: 2},
 			catalog: catalogPath(),
 			out:     "x.yaml",
 			errText: "chain minimum number of items is 1",
+		},
+		{
+			name:    "a caller who stopped waiting",
+			ctx:     cancelled(),
+			errText: context.Canceled.Error(),
 		},
 	}
 
@@ -228,27 +338,22 @@ func (s *EditPublicTestSuite) TestExport() {
 				out = filepath.Join(dir, tt.out)
 			}
 
-			o := slots.ExportOptions{
-				Path: fixture("setlist.hls"), Slot: tt.slot, OutputPath: out,
-				As: tt.as, CatalogPath: tt.catalog,
-			}
+			path := fixture("setlist.hls")
 			if tt.path != "" {
-				o.Path = tt.path
+				path = tt.path
 			}
 
-			written, err := slots.Export(o)
+			written, err := flows(s.T(), tt.catalog).
+				Export(background(tt.ctx), path, tt.at, out, formatFor(tt.as))
 
 			if tt.errText != "" {
-				s.Require().Error(err)
-
-				if tt.errText != "" {
-					s.Require().Contains(err.Error(), tt.errText)
-				}
+				s.Require().ErrorContains(err, tt.errText)
 
 				return
 			}
 
 			s.Require().NoError(err)
+			s.Require().Equal(out, written.Path)
 
 			if tt.wrote != nil {
 				raw, err := os.ReadFile(out) //nolint:gosec // a path this test chose
@@ -260,9 +365,7 @@ func (s *EditPublicTestSuite) TestExport() {
 			}
 
 			if tt.shows != nil {
-				read, err := slots.Show(slots.ShowOptions{
-					File: out, CatalogPath: catalogPath(),
-				})
+				read, err := flows(s.T(), catalogPath()).ShowFile(context.Background(), out)
 				s.Require().NoError(err)
 
 				for _, want := range tt.shows {
@@ -277,13 +380,14 @@ func (s *EditPublicTestSuite) TestExport() {
 	}
 }
 
-// TestImport puts a preset file into a slot.
+// TestImport covers putting a preset file into one slot of a file.
 func (s *EditPublicTestSuite) TestImport() {
 	tests := []struct {
 		name string
+		ctx  context.Context
 		path string
 		file string
-		slot int
+		at   slotpkg.Address
 		out  string
 		// export slot 0 first and import that, rather than a fixture.
 		exported bool
@@ -298,36 +402,39 @@ func (s *EditPublicTestSuite) TestImport() {
 		{
 			name:     "a preset this setlist itself wrote",
 			exported: true,
-			slot:     1,
+			at:       slotpkg.Address{Slot: 1},
 			want:     "First",
 			contains: []string{"Second"},
 		},
 		{
 			name:     "a preset from another device",
 			file:     fixture("otherdevice.hlx"),
-			slot:     1,
+			at:       slotpkg.Address{Slot: 1},
 			mismatch: true,
 		},
-		{
-			name:    "a setlist that is not there",
-			path:    fixture("nope.hls"),
-			errText: "opening",
-		},
-		{
-			name:    "a preset that is not there",
-			file:    fixture("nope.hlx"),
-			errText: "opening",
-		},
+		{name: "a setlist that is not there", path: fixture("nope.hls"), errText: "opening"},
+		{name: "a preset that is not there", file: fixture("nope.hlx"), errText: "opening"},
 		{
 			name:    "a file that is not a preset",
 			file:    fixture("notapreset.hlx"),
 			errText: "not a preset",
 		},
-		{name: "a slot that is not there", slot: 99, errText: "no such slot"},
+		{name: "a slot that is not there", at: slotpkg.Address{Slot: 99}, errText: "no such slot"},
+		{
+			// The setlist half of the address is read too.
+			name:    "a setlist the file does not hold",
+			at:      slotpkg.Address{Setlist: 5},
+			errText: "no such slot",
+		},
 		{
 			name:    "a destination directory that is not there",
 			out:     filepath.Join("no", "o.hls"),
 			errText: "writing",
+		},
+		{
+			name:    "a caller who stopped waiting",
+			ctx:     cancelled(),
+			errText: context.Canceled.Error(),
 		},
 	}
 
@@ -347,29 +454,20 @@ func (s *EditPublicTestSuite) TestImport() {
 
 			if tt.exported {
 				file = filepath.Join(dir, "one.hlx")
-				_, err := slots.Export(slots.ExportOptions{
-					Path: fixture("setlist.hls"), Slot: 0, OutputPath: file,
-					As: slots.FormatPreset,
-				})
+				_, err := (&slots.Flows{}).Export(context.Background(),
+					fixture("setlist.hls"), slotpkg.Address{}, file, result.FormatPreset)
 				s.Require().NoError(err)
 			}
 
-			o := slots.ImportOptions{
-				Path: fixture("setlist.hls"), File: file,
-				Slot: tt.slot, OutputPath: out,
-			}
+			path := fixture("setlist.hls")
 			if tt.path != "" {
-				o.Path = tt.path
+				path = tt.path
 			}
 
-			change, err := slots.Import(o)
+			change, err := (&slots.Flows{}).Import(background(tt.ctx), path, file, tt.at, out)
 
 			if tt.errText != "" {
-				s.Require().Error(err)
-
-				if tt.errText != "" {
-					s.Require().Contains(err.Error(), tt.errText)
-				}
+				s.Require().ErrorContains(err, tt.errText)
 
 				return
 			}
@@ -378,8 +476,8 @@ func (s *EditPublicTestSuite) TestImport() {
 			s.Require().Equal(tt.mismatch, change.Mismatch)
 
 			if tt.want != "" {
-				s.Require().Equal(
-					tt.want, s.reread(out).Setlists[0].Slots[tt.slot].Meta.Name)
+				s.Require().Equal(tt.want,
+					s.reread(out).Setlists[tt.at.Setlist].Slots[tt.at.Slot].Meta.Name)
 			}
 
 			for _, want := range tt.contains {

@@ -119,7 +119,7 @@ func (s *Session) unlock() { <-s.op }
 func operation[T any](
 	ctx context.Context,
 	s *Session,
-	call func() (T, error),
+	call func(*slots.Flows) (T, error),
 ) (T, error) {
 	if err := s.lock(ctx); err != nil {
 		var zero T
@@ -129,7 +129,7 @@ func operation[T any](
 
 	defer s.unlock()
 
-	return call()
+	return call(s.client.operations())
 }
 
 // Presets reports what a setlist on the device holds, slot by slot.
@@ -137,12 +137,8 @@ func (s *Session) Presets(
 	ctx context.Context,
 	setlist int,
 ) (Listing, error) {
-	return operation(ctx, s, func() (Listing, error) {
-		return slots.ListWith(ctx, s.editor, slots.DeviceOptions{
-			Deps:        s.client.deps(ctx),
-			Setlist:     setlist,
-			CatalogPath: s.client.opts.catalog,
-		})
+	return operation(ctx, s, func(f *slots.Flows) (Listing, error) {
+		return f.ListWith(ctx, s.editor, setlist)
 	})
 }
 
@@ -154,13 +150,8 @@ func (s *Session) Preset(
 	ctx context.Context,
 	at slot.Address,
 ) (Reading, error) {
-	return operation(ctx, s, func() (Reading, error) {
-		read, err := slots.ShowWith(ctx, s.editor, slots.DeviceOptions{
-			Deps:        s.client.deps(ctx),
-			Setlist:     at.Setlist,
-			Slot:        at.Slot,
-			CatalogPath: s.client.opts.catalog,
-		})
+	return operation(ctx, s, func(f *slots.Flows) (Reading, error) {
+		read, err := f.ShowWith(ctx, s.editor, at)
 
 		// Somebody who asked to look at a slot is answered that it holds
 		// nothing. Somebody exporting one gets the error, because there is no
@@ -175,23 +166,18 @@ func (s *Session) Preset(
 
 // Export writes one slot out to a file.
 //
-// as is the format. Empty writes a rig, which is what reads on other hardware;
-// "hlx" writes the device's own file, a faithful copy.
+// as is the format: FormatRig writes a rig, which is what reads on other
+// hardware, and FormatPreset writes the device's own file, a faithful copy.
+// Any other Format, the zero one included, is refused with ErrUnknownFormat
+// before the device is asked anything.
 func (s *Session) Export(
 	ctx context.Context,
 	at slot.Address,
 	out string,
-	as string,
+	as Format,
 ) (Written, error) {
-	return operation(ctx, s, func() (Written, error) {
-		return slots.ExportWith(ctx, s.editor, slots.ExportOptions{
-			Deps:        s.client.deps(ctx),
-			Setlist:     at.Setlist,
-			Slot:        at.Slot,
-			OutputPath:  out,
-			As:          slots.Format(as),
-			CatalogPath: s.client.opts.catalog,
-		})
+	return operation(ctx, s, func(f *slots.Flows) (Written, error) {
+		return f.ExportWith(ctx, s.editor, at, out, as)
 	})
 }
 
@@ -204,15 +190,8 @@ func (s *Session) Import(
 	file string,
 	at slot.Address,
 ) (Change, error) {
-	return operation(ctx, s, func() (Change, error) {
-		return slots.ImportWith(ctx, s.editor, slots.ImportOptions{
-			BackupDir:   s.client.opts.backupDir,
-			Deps:        s.client.deps(ctx),
-			File:        file,
-			Setlist:     at.Setlist,
-			Slot:        at.Slot,
-			CatalogPath: s.client.opts.catalog,
-		})
+	return operation(ctx, s, func(f *slots.Flows) (Change, error) {
+		return f.ImportWith(ctx, s.editor, file, at)
 	})
 }
 
@@ -224,8 +203,8 @@ func (s *Session) Copy(
 	ctx context.Context,
 	from, to slot.Address,
 ) (Change, error) {
-	return operation(ctx, s, func() (Change, error) {
-		return slots.CopyWith(ctx, s.editor, s.edit(ctx, from, to))
+	return operation(ctx, s, func(f *slots.Flows) (Change, error) {
+		return f.CopyWith(ctx, s.editor, from, to)
 	})
 }
 
@@ -236,25 +215,9 @@ func (s *Session) Swap(
 	ctx context.Context,
 	a, b slot.Address,
 ) (Change, error) {
-	return operation(ctx, s, func() (Change, error) {
-		return slots.SwapWith(ctx, s.editor, s.edit(ctx, a, b))
+	return operation(ctx, s, func(f *slots.Flows) (Change, error) {
+		return f.SwapWith(ctx, s.editor, a, b)
 	})
-}
-
-// edit is what the flows take for a move between two slots.
-func (s *Session) edit(
-	ctx context.Context,
-	from, to slot.Address,
-) slots.EditOptions {
-	return slots.EditOptions{
-		Deps:        s.client.deps(ctx),
-		FromSetlist: from.Setlist,
-		FromSlot:    from.Slot,
-		ToSetlist:   to.Setlist,
-		ToSlot:      to.Slot,
-		BackupDir:   s.client.opts.backupDir,
-		CatalogPath: s.client.opts.catalog,
-	}
 }
 
 // Select makes one preset the active one, and waits for the device to say it
@@ -266,12 +229,8 @@ func (s *Session) Select(
 	ctx context.Context,
 	at slot.Address,
 ) (Change, error) {
-	return operation(ctx, s, func() (Change, error) {
-		return slots.SelectWith(ctx, s.editor, slots.DeviceOptions{
-			Deps:    s.client.deps(ctx),
-			Setlist: at.Setlist,
-			Slot:    at.Slot,
-		})
+	return operation(ctx, s, func(f *slots.Flows) (Change, error) {
+		return f.SelectWith(ctx, s.editor, at)
 	})
 }
 

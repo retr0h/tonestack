@@ -21,41 +21,36 @@
 package slots
 
 import (
+	"context"
+
 	"github.com/retr0h/tonestack/pkg/sdk/internal/setlist"
 	"github.com/retr0h/tonestack/pkg/sdk/result"
 )
 
-// ListOptions says which setlist to list.
-type ListOptions struct {
-	// Deps are the collaborators this command works through.
-	Deps
-
-	// Path is the .hls or .hlb file to read.
-	Path string
-	// Setlist selects one setlist within a bundle.
-	Setlist int
-	// CatalogPath is the generated catalog, used to summarise each chain.
-	CatalogPath string
-	// All includes slots holding no blocks.
-	All bool
-}
-
-// List prints every slot in a setlist.
+// List answers with every slot in one setlist of a file.
 //
-// Empty slots are hidden by default. A device-written setlist always holds
-// 128 of them and most are untouched, so listing them all buries the ones
-// somebody actually made.
-func List(opts ListOptions) (result.Listing, error) {
-	doc, err := open(opts.Path)
+// Every slot, including the ones holding nothing. Which to show is the
+// renderer's decision: a device-written setlist always holds 128 slots and most
+// are untouched, and whether to bury the ones somebody made is a matter of how
+// the answer is drawn.
+//
+// A catalog is not read. A listing says which blocks a slot holds, and naming
+// them is the renderer's job.
+func (*Flows) List(
+	ctx context.Context,
+	path string,
+	at int,
+) (result.Listing, error) {
+	doc, err := open(ctx, path)
 	if err != nil {
 		return result.Listing{}, err
 	}
 
-	if opts.Setlist < 0 || opts.Setlist >= len(doc.Setlists) {
-		return result.Listing{}, &setlist.NoSuchSlotError{Setlist: opts.Setlist}
+	if at < 0 || at >= len(doc.Setlists) {
+		return result.Listing{}, &setlist.NoSuchSlotError{Setlist: at}
 	}
 
-	sl := doc.Setlists[opts.Setlist]
+	sl := doc.Setlists[at]
 	held := make([]result.Held, 0, len(sl.Slots))
 
 	for i := range sl.Slots {

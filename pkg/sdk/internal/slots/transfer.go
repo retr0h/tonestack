@@ -22,8 +22,8 @@ package slots
 
 import (
 	"bytes"
+	"context"
 	"fmt"
-	"os"
 
 	"github.com/retr0h/tonestack/pkg/sdk/internal/atomicfile"
 	"github.com/retr0h/tonestack/pkg/sdk/preset"
@@ -32,73 +32,50 @@ import (
 	slotpkg "github.com/retr0h/tonestack/pkg/sdk/slot"
 )
 
-// Format is what an export is written as.
-type Format string
-
-// The formats an export can take.
-const (
-	// FormatRig is a RigSpec: this project's own format, and the default.
-	// Gear a person recognises, portable to other devices, and the thing
-	// every other command speaks.
-	FormatRig Format = "rigspec"
-	// FormatPreset is the device's own file. A faithful copy, carrying the
-	// routing and snapshots a rig models but a person never chooses.
-	FormatPreset Format = "hlx"
-)
-
-// ExportOptions says which slot to write out as a preset file.
-type ExportOptions struct {
-	// Deps are the collaborators this command works through.
-	Deps
-
-	// Path is the .hls or .hlb file to read.
-	Path string
-	// Setlist and Slot address the preset.
-	Setlist int
-	Slot    int
-	// OutputPath is where the result is written.
-	OutputPath string
-	// As is the format. Empty means a rig.
-	As Format
-	// CatalogPath is a catalog to name gear against. Empty means the one
-	// built into this binary.
-	CatalogPath string
-}
-
-// Export reads one slot out to a file.
+// Export writes one slot of a file out to a file of its own.
 //
 // A rig by default, because that is the format this project speaks and the
 // one that reads on other hardware. The device's own file is available for a
 // faithful copy, which is a different thing: it carries the routing and
 // snapshots a rig models but nobody chooses.
-func Export(opts ExportOptions) (result.Written, error) {
-	doc, err := open(opts.Path)
+func (f *Flows) Export(
+	ctx context.Context,
+	path string,
+	at slotpkg.Address,
+	out string,
+	as result.Format,
+) (result.Written, error) {
+	if err := known(as); err != nil {
+		return result.Written{}, err
+	}
+
+	doc, err := open(ctx, path)
 	if err != nil {
 		return result.Written{}, err
 	}
 
-	data, err := doc.Slot(opts.Setlist, opts.Slot)
+	data, err := doc.Slot(at.Setlist, at.Slot)
 	if err != nil {
 		return result.Written{}, err
 	}
 
-	out := &preset.Document{
+	held := &preset.Document{
 		Schema:  preset.Schema,
 		Version: preset.Version,
 		Data:    *data,
 	}
 
-	read := result.Reading{Name: data.Meta.Name, Doc: out}
+	read := result.Reading{Name: data.Meta.Name, Doc: held}
 
 	// Only the device's own file was asked for, so the lift is work nobody
 	// wants.
-	if opts.As != FormatPreset {
-		cat, err := opts.catalogs().Open(opts.CatalogPath)
+	if as != result.FormatPreset {
+		cat, err := f.catalog(ctx)
 		if err != nil {
 			return result.Written{}, err
 		}
 
-		spec, err := opts.compiler().Lift(out, cat)
+		spec, err := f.compiler().Lift(held, cat)
 		if err != nil {
 			return result.Written{}, err
 		}
@@ -106,7 +83,20 @@ func Export(opts ExportOptions) (result.Written, error) {
 		read.Rig = spec
 	}
 
-	return write(read, opts)
+	return write(read, at.Slot, out, as)
+}
+
+// known refuses a format that is neither a rig nor the device's own file, the
+// zero Format included.
+//
+// The same check and the same error a flag gives when it is handed a format by
+// name, so a library caller cannot get a rig by misspelling hlx either.
+func known(
+	as result.Format,
+) error {
+	probe := result.FormatRig
+
+	return probe.Set(string(as))
 }
 
 // write puts a reading on disk in the format that was asked for.
@@ -116,23 +106,21 @@ func Export(opts ExportOptions) (result.Written, error) {
 // depended on which end it came from would be saying otherwise.
 func write(
 	read result.Reading,
-	opts ExportOptions,
+	slot int,
+	out string,
+	as result.Format,
 ) (result.Written, error) {
 	var buf bytes.Buffer
 
-	if err := render(&buf, read, opts); err != nil {
+	if err := render(&buf, read, slot, out, as); err != nil {
 		return result.Written{}, err
 	}
 
-	if err := atomicfile.Write(opts.OutputPath, buf.Bytes(), 0o600); err != nil {
+	if err := atomicfile.Write(out, buf.Bytes(), 0o600); err != nil {
 		return result.Written{}, err
 	}
 
-	return result.Written{
-		Slot: opts.Slot,
-		Name: read.Name,
-		Path: opts.OutputPath,
-	}, nil
+	return result.Written{Slot: slot, Name: read.Name, Path: out}, nil
 }
 
 // render encodes a reading in the format that was asked for.
@@ -142,9 +130,11 @@ func write(
 func render(
 	buf *bytes.Buffer,
 	read result.Reading,
-	opts ExportOptions,
+	slot int,
+	out string,
+	as result.Format,
 ) error {
-	if opts.As != FormatPreset {
+	if as != result.FormatPreset {
 		if err := rig.Write(buf, read.Rig); err != nil {
 			return fmt.Errorf("writing the rig: %w", err)
 		}
@@ -153,54 +143,37 @@ func render(
 	}
 
 	if read.Doc == nil {
-		return fmt.Errorf("%w: %s", ErrEmptySlot, slotpkg.Label(opts.Slot))
+		return fmt.Errorf("%w: %s", ErrEmptySlot, slotpkg.Label(slot))
 	}
 
 	if err := preset.Write(buf, read.Doc); err != nil {
-		return fmt.Errorf("writing %s: %w", opts.OutputPath, err)
+		return fmt.Errorf("writing %s: %w", out, err)
 	}
 
 	return nil
 }
 
-// ImportOptions says which preset file to put in which slot.
-type ImportOptions struct {
-	// BackupDir is where the destination slot's old contents are kept.
-	// Empty uses the state directory.
-	BackupDir string
-
-	// Deps are the collaborators this command works through.
-	Deps
-
-	// Path is the .hls or .hlb file to read.
-	Path string
-	// File is the .hlx to read.
-	File string
-	// Setlist and Slot address where it goes.
-	Setlist int
-	Slot    int
-	// OutputPath is where the edited setlist is written.
-	OutputPath string
-	// CatalogPath is a catalog to resolve models against, when the preset is
-	// going to a device. Empty means the one built into this binary.
-	CatalogPath string
-}
-
-// Import puts a standalone preset into a slot.
+// Import puts a standalone preset into one slot of a file.
 //
 // Whatever the slot held is gone, which is why the result goes to a new file.
-func Import(opts ImportOptions) (result.Change, error) {
-	doc, err := open(opts.Path)
+func (*Flows) Import(
+	ctx context.Context,
+	path string,
+	file string,
+	at slotpkg.Address,
+	out string,
+) (result.Change, error) {
+	doc, err := open(ctx, path)
 	if err != nil {
 		return result.Change{}, err
 	}
 
-	src, err := readPreset(opts.File)
+	src, err := readPreset(ctx, file)
 	if err != nil {
 		return result.Change{}, err
 	}
 
-	dst, err := doc.Slot(opts.Setlist, opts.Slot)
+	dst, err := doc.Slot(at.Setlist, at.Slot)
 	if err != nil {
 		return result.Change{}, err
 	}
@@ -210,33 +183,15 @@ func Import(opts ImportOptions) (result.Change, error) {
 
 	*dst = src.Data
 
-	if err := save(opts.OutputPath, doc); err != nil {
+	if err := save(out, doc); err != nil {
 		return result.Change{}, err
 	}
 
 	return result.Change{
 		Action:   result.Imported,
-		To:       result.At{Slot: opts.Slot, Name: src.Data.Meta.Name},
+		To:       result.At{Slot: at.Slot, Name: src.Data.Meta.Name},
 		Replaced: replaced,
 		Mismatch: mismatch,
-		Path:     opts.OutputPath,
+		Path:     out,
 	}, nil
-}
-
-// readPreset reads a standalone preset file.
-func readPreset(path string) (*preset.Document, error) {
-	f, err := os.Open(path) //nolint:gosec // the path is the user's own file
-	if err != nil {
-		return nil, fmt.Errorf("opening %s: %w", path, err)
-	}
-
-	// Opened read-only, so Close has nothing to report the read did not.
-	defer func() { _ = f.Close() }()
-
-	doc, err := preset.Read(f)
-	if err != nil {
-		return nil, fmt.Errorf("reading %s: %w", path, err)
-	}
-
-	return doc, nil
 }

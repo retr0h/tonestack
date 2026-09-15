@@ -23,13 +23,18 @@
 // It works two ways. On a file HX Edit wrote, a .hls setlist or a .hlb
 // backup, which is the whole device in one file, listing, showing, copying,
 // swapping, importing and exporting need no connection to the hardware, and
-// an edit goes to a new file. On an attached device the same commands go
+// an edit goes to a new file. On an attached device the same operations go
 // through a session, and a slot about to be overwritten is read and kept on
 // disk first, because a device has no undo.
+//
+// Every operation is a method on Flows, which holds what the caller was
+// configured with. The file operations take a path and the device ones a
+// session, and each takes only the addresses and paths that one call needs.
 package slots
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os"
 
@@ -38,7 +43,16 @@ import (
 )
 
 // open reads a setlist or bundle from disk.
-func open(path string) (*setlist.Document, error) {
+//
+// A caller who has stopped waiting is answered before the file is touched.
+func open(
+	ctx context.Context,
+	path string,
+) (*setlist.Document, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
 	f, err := os.Open(path) //nolint:gosec // the path is the user's own file
 	if err != nil {
 		return nil, fmt.Errorf("opening %s: %w", path, err)

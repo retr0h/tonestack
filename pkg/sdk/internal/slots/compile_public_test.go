@@ -22,6 +22,7 @@ package slots_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -31,10 +32,11 @@ import (
 	"go.uber.org/mock/gomock"
 
 	catalogpkg "github.com/retr0h/tonestack/pkg/sdk/catalog"
-	"github.com/retr0h/tonestack/pkg/sdk/internal/slots"
 	slotmocks "github.com/retr0h/tonestack/pkg/sdk/internal/slots/mocks"
 	"github.com/retr0h/tonestack/pkg/sdk/preset"
+	"github.com/retr0h/tonestack/pkg/sdk/result"
 	"github.com/retr0h/tonestack/pkg/sdk/rig"
+	slotpkg "github.com/retr0h/tonestack/pkg/sdk/slot"
 )
 
 type CompilePublicTestSuite struct {
@@ -43,7 +45,9 @@ type CompilePublicTestSuite struct {
 
 // handWritten returns a rig nobody lifted from a preset: gear and nothing
 // else, which is what somebody typing one produces.
-func (s *CompilePublicTestSuite) handWritten(dir string) string {
+func (s *CompilePublicTestSuite) handWritten(
+	dir string,
+) string {
 	out := filepath.Join(dir, "typed.yaml")
 
 	s.Require().NoError(os.WriteFile(out, []byte(`schema: RigSpec
@@ -59,20 +63,22 @@ chain:
 }
 
 // exported writes a slot out as a rig and returns where it went.
-func (s *CompilePublicTestSuite) exported(dir string) string {
+func (s *CompilePublicTestSuite) exported(
+	dir string,
+) string {
 	out := filepath.Join(dir, "rig.yaml")
 
-	_, err := slots.Export(slots.ExportOptions{
-		Path: fixture("setlist.hls"), Slot: 0, OutputPath: out,
-		CatalogPath: catalogPath(),
-	})
+	_, err := flows(s.T(), catalogPath()).Export(context.Background(),
+		fixture("setlist.hls"), slotpkg.Address{}, out, result.FormatRig)
 	s.Require().NoError(err)
 
 	return out
 }
 
 // unknownGear writes a valid rig naming gear no catalog carries.
-func (s *CompilePublicTestSuite) unknownGear(dir string) string {
+func (s *CompilePublicTestSuite) unknownGear(
+	dir string,
+) string {
 	path := filepath.Join(dir, "unknown.yaml")
 	s.Require().NoError(os.WriteFile(path, []byte(
 		"schema: RigSpec\nid: unknown\nsubject: {kind: sound, name: Unknown}\n"+
@@ -83,7 +89,9 @@ func (s *CompilePublicTestSuite) unknownGear(dir string) string {
 }
 
 // emptyChain writes a rig with no chain, which the contract refuses.
-func (s *CompilePublicTestSuite) emptyChain(dir string) string {
+func (s *CompilePublicTestSuite) emptyChain(
+	dir string,
+) string {
 	path := filepath.Join(dir, "bad.yaml")
 	s.Require().NoError(os.WriteFile(path, []byte(
 		"schema: RigSpec\nid: x\nsubject: {kind: artist, name: X}\n"+
@@ -92,10 +100,11 @@ func (s *CompilePublicTestSuite) emptyChain(dir string) string {
 	return path
 }
 
-// TestCompile turns a rig into a preset.
+// TestCompile covers turning a rig into a preset.
 func (s *CompilePublicTestSuite) TestCompile() {
 	tests := []struct {
 		name string
+		ctx  context.Context
 		// which rig to build: one exported from a slot unless a case says
 		// otherwise.
 		rig string
@@ -126,7 +135,7 @@ func (s *CompilePublicTestSuite) TestCompile() {
 		{
 			// A device expects inputs, outputs, a split and a join around a
 			// chain. 98.6% of real presets carry them, and one assembled from
-			// nothing carries none — so a compiled preset is written into an
+			// nothing carries none, so a compiled preset is written into an
 			// untouched one.
 			name:     "a rig somebody typed",
 			rig:      "hand-written",
@@ -149,16 +158,8 @@ func (s *CompilePublicTestSuite) TestCompile() {
 			// kept.
 			contains: []string{"controller"},
 		},
-		{
-			name:    "a rig that is not there",
-			rig:     fixture("nope.yaml"),
-			errText: "opening",
-		},
-		{
-			name:    "a file that is not a rig",
-			rig:     fixture("setlist.hls"),
-			errText: "not a valid rig",
-		},
+		{name: "a rig that is not there", rig: fixture("nope.yaml"), errText: "opening"},
+		{name: "a file that is not a rig", rig: fixture("setlist.hls"), errText: "not a valid rig"},
 		{
 			name:    "a rig that does not meet its own contract",
 			rig:     "empty chain",
@@ -170,21 +171,13 @@ func (s *CompilePublicTestSuite) TestCompile() {
 			rig:     "unknown gear",
 			errText: "emulates \"Nonesuch 900\"",
 		},
-		{
-			name:     "a template that is not there",
-			template: fixture("nope.hlx"),
-			errText:  "opening",
-		},
+		{name: "a template that is not there", template: fixture("nope.hlx"), errText: "opening"},
 		{
 			name:     "a template that is not a preset",
 			template: fixture("notapreset.hlx"),
 			errText:  "reading",
 		},
-		{
-			name:    "a catalog that is not there",
-			catalog: fixture("nope.json"),
-			errText: "catalog",
-		},
+		{name: "a catalog that is not there", catalog: fixture("nope.json"), errText: "catalog"},
 		{
 			// Reported, rather than a file holding nothing where a preset
 			// was meant to be.
@@ -196,6 +189,11 @@ func (s *CompilePublicTestSuite) TestCompile() {
 			name:    "a destination directory that is not there",
 			out:     filepath.Join("no", "out.hlx"),
 			errText: "writing",
+		},
+		{
+			name:    "a caller who stopped waiting",
+			ctx:     cancelled(),
+			errText: context.Canceled.Error(),
 		},
 	}
 
@@ -228,10 +226,7 @@ func (s *CompilePublicTestSuite) TestCompile() {
 				catalog = tt.catalog
 			}
 
-			opts := slots.CompileOptions{
-				RigPath: rigPath, OutputPath: out, CatalogPath: catalog,
-				TemplatePath: tt.template,
-			}
+			f := flows(s.T(), catalog)
 
 			if tt.unencodable {
 				compiler := slotmocks.NewMockCompiler(gomock.NewController(s.T()))
@@ -243,35 +238,32 @@ func (s *CompilePublicTestSuite) TestCompile() {
 						return nil
 					})
 
-				opts.Compiler = compiler
+				f.Compiler = compiler
 			}
 
-			built, err := slots.Compile(opts)
-
-			if tt.unencodable {
-				s.Require().NoFileExists(out)
-			}
+			built, err := f.Compile(background(tt.ctx), rigPath, tt.template, out)
 
 			if tt.err != nil || tt.errText != "" {
 				s.Require().Error(err)
+				s.Require().NoFileExists(out)
 
 				if tt.err != nil {
 					s.Require().ErrorIs(err, tt.err)
 				}
 
 				if tt.errText != "" {
-					s.Require().Contains(err.Error(), tt.errText)
+					s.Require().ErrorContains(err, tt.errText)
 				}
 
 				return
 			}
 
 			s.Require().NoError(err)
+			s.Require().Equal(out, built.Path)
+			s.Require().NotEmpty(built.Name)
 
 			if tt.blocks != 0 {
 				s.Require().Equal(tt.blocks, built.Blocks)
-				s.Require().Equal(out, built.Path)
-				s.Require().NotEmpty(built.Name)
 			}
 
 			raw, err := os.ReadFile(out) //nolint:gosec // a path this test chose

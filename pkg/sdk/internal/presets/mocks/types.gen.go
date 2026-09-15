@@ -10,6 +10,7 @@
 package mocks
 
 import (
+	context "context"
 	reflect "reflect"
 
 	catalog "github.com/retr0h/tonestack/pkg/sdk/catalog"
@@ -44,19 +45,19 @@ func (m *MockCatalogs) EXPECT() *MockCatalogsMockRecorder {
 	return m.recorder
 }
 
-// Open mocks base method.
-func (m *MockCatalogs) Open(path string) (*catalog.Catalog, error) {
+// Catalog mocks base method.
+func (m *MockCatalogs) Catalog(ctx context.Context) (*catalog.Catalog, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Open", path)
+	ret := m.ctrl.Call(m, "Catalog", ctx)
 	ret0, _ := ret[0].(*catalog.Catalog)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// Open indicates an expected call of Open.
-func (mr *MockCatalogsMockRecorder) Open(path any) *gomock.Call {
+// Catalog indicates an expected call of Catalog.
+func (mr *MockCatalogsMockRecorder) Catalog(ctx any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Open", reflect.TypeOf((*MockCatalogs)(nil).Open), path)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Catalog", reflect.TypeOf((*MockCatalogs)(nil).Catalog), ctx)
 }
 
 // MockRecipes is a mock of Recipes interface.

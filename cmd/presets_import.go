@@ -28,7 +28,11 @@ import (
 )
 
 var (
-	presetsImportOptions sdk.Put
+	presetsImportFile    string
+	presetsImportPreset  string
+	presetsImportSetlist int
+	presetsImportSlot    int
+	presetsImportOut     string
 	presetsImportClient  clientFlags
 )
 
@@ -63,24 +67,24 @@ func init() {
 
 	f := presetsImportCmd.Flags()
 	f.StringVar(
-		&presetsImportOptions.Path,
+		&presetsImportFile,
 		"file",
 		"",
 		"a .hls setlist or .hlb backup written by HX Edit",
 	)
-	f.StringVar(&presetsImportOptions.File, "preset", "", "the .hlx preset to place")
+	f.StringVar(&presetsImportPreset, "preset", "", "the .hlx preset to place")
 	f.IntVar(
-		&presetsImportOptions.Setlist,
+		&presetsImportSetlist,
 		"setlist",
 		0,
 		"which setlist, when the file is a backup holding several",
 	)
 	f.Var(
-		slot.NewValue(&presetsImportOptions.Slot),
+		slot.NewValue(&presetsImportSlot),
 		"slot",
 		"which slot — a label the pedal shows such as 31A, or a number from zero",
 	)
-	f.StringVar(&presetsImportOptions.OutputPath, "out", "", "where to write the edited setlist")
+	f.StringVar(&presetsImportOut, "out", "", "where to write the edited setlist")
 	f.StringVar(&presetsImportClient.backupDir, "backup-dir", "",
 		"where to keep what a device slot held; the state directory by default")
 	f.StringVar(&presetsImportClient.catalog, "catalog", "",
@@ -99,6 +103,16 @@ func init() {
 //
 // No file means the device itself, which is what somebody with one plugged in
 // almost always wants.
-func imported(cmd *cobra.Command) (sdk.Change, error) {
-	return presetsImportClient.client().Import(cmd.Context(), presetsImportOptions)
+func imported(
+	cmd *cobra.Command,
+) (sdk.Change, error) {
+	client := presetsImportClient.client()
+	at := slot.Address{Setlist: presetsImportSetlist, Slot: presetsImportSlot}
+
+	if presetsImportFile == "" {
+		return client.Import(cmd.Context(), presetsImportPreset, at)
+	}
+
+	return client.Setlist(presetsImportFile).
+		Import(cmd.Context(), presetsImportPreset, at, presetsImportOut)
 }

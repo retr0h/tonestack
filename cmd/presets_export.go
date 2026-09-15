@@ -28,9 +28,17 @@ import (
 )
 
 var (
-	presetsExportOptions sdk.Export
+	presetsExportFile    string
+	presetsExportSetlist int
+	presetsExportSlot    int
+	presetsExportOut     string
 	presetsExportClient  clientFlags
 )
+
+// presetsExportAs is the format asked for. A rig unless --as says otherwise,
+// and checked while the flags are parsed, so a misspelled format is refused
+// before any device is opened.
+var presetsExportAs = sdk.FormatRig
 
 // presetsExportCmd represents the presets export command.
 var presetsExportCmd = &cobra.Command{
@@ -62,25 +70,24 @@ func init() {
 
 	f := presetsExportCmd.Flags()
 	f.StringVar(
-		&presetsExportOptions.Path,
+		&presetsExportFile,
 		"file",
 		"",
 		"a .hls setlist or .hlb backup written by HX Edit",
 	)
 	f.IntVar(
-		&presetsExportOptions.Setlist,
+		&presetsExportSetlist,
 		"setlist",
 		0,
 		"which setlist, when the file is a backup holding several",
 	)
 	f.Var(
-		slot.NewValue(&presetsExportOptions.Slot),
+		slot.NewValue(&presetsExportSlot),
 		"slot",
 		"which slot — a label the pedal shows such as 31A, or a number from zero",
 	)
-	f.StringVar(&presetsExportOptions.OutputPath, "out", "", "where to write it")
-	f.StringVar((*string)(&presetsExportOptions.As), "as", "rigspec",
-		"rigspec for a rig, hlx for the device's own file")
+	f.StringVar(&presetsExportOut, "out", "", "where to write it")
+	f.Var(&presetsExportAs, "as", "rigspec for a rig, hlx for the device's own file")
 	f.StringVar(&presetsExportClient.catalog, "catalog", "",
 		"a generated catalog to use instead of the built-in one")
 	// Fails only for a flag that does not exist, and these are defined above.
@@ -92,6 +99,16 @@ func init() {
 //
 // No file means the device itself, which is what somebody with one plugged in
 // almost always wants.
-func exported(cmd *cobra.Command) (sdk.Written, error) {
-	return presetsExportClient.client().Export(cmd.Context(), presetsExportOptions)
+func exported(
+	cmd *cobra.Command,
+) (sdk.Written, error) {
+	client := presetsExportClient.client()
+	at := slot.Address{Setlist: presetsExportSetlist, Slot: presetsExportSlot}
+
+	if presetsExportFile == "" {
+		return client.Export(cmd.Context(), at, presetsExportOut, presetsExportAs)
+	}
+
+	return client.Setlist(presetsExportFile).
+		Export(cmd.Context(), at, presetsExportOut, presetsExportAs)
 }

@@ -22,6 +22,7 @@ package slots
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os"
 
@@ -31,42 +32,34 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk/rig"
 )
 
-// CompileOptions says which rig to turn into a preset.
-type CompileOptions struct {
-	// Deps are the collaborators this command works through.
-	Deps
-
-	// RigPath is the rig to read.
-	RigPath string
-	// OutputPath is where the preset is written.
-	OutputPath string
-	// TemplatePath is a preset to write the chain into. Empty uses an
-	// untouched one the device itself wrote.
-	TemplatePath string
-	// CatalogPath is a catalog to resolve gear against. Empty means the one
-	// built into this binary.
-	CatalogPath string
-}
-
 // Compile turns a rig into a preset a device will load.
+//
+// The three paths are the rig to read, a preset to write the chain into, and
+// where the result goes, in that order. An empty template uses an untouched
+// preset the device itself wrote.
 //
 // The chain is written into a preset rather than assembled from nothing. A
 // device expects inputs, outputs, a split and a join around a chain, and
 // 98.6% of real presets carry them; one built without them is unlike anything
-// the hardware has written. Passing --template uses a specific preset as that
-// base, which is what makes a rig lifted off a device rebuild exactly.
-func Compile(opts CompileOptions) (result.Built, error) {
-	spec, err := readRig(opts.RigPath)
+// the hardware has written. A template is what makes a rig lifted off a device
+// rebuild exactly.
+func (f *Flows) Compile(
+	ctx context.Context,
+	rigPath string,
+	templatePath string,
+	out string,
+) (result.Built, error) {
+	spec, err := readRig(ctx, rigPath)
 	if err != nil {
 		return result.Built{}, err
 	}
 
-	cat, err := opts.catalogs().Open(opts.CatalogPath)
+	cat, err := f.catalog(ctx)
 	if err != nil {
 		return result.Built{}, err
 	}
 
-	doc, err := template(opts.TemplatePath)
+	doc, err := template(ctx, templatePath)
 	if err != nil {
 		return result.Built{}, err
 	}
@@ -74,7 +67,7 @@ func Compile(opts CompileOptions) (result.Built, error) {
 	doc.Data.Device = cat.DeviceID
 	doc.Data.Meta.Name = spec.Subject.Name
 
-	if err := opts.compiler().Lower(doc, spec, cat); err != nil {
+	if err := f.compiler().Lower(doc, spec, cat); err != nil {
 		return result.Built{}, err
 	}
 
@@ -83,22 +76,29 @@ func Compile(opts CompileOptions) (result.Built, error) {
 	// A compiler can leave something in the document that does not encode,
 	// and a preset file holding nothing is worse than no file.
 	if err := preset.Write(&buf, doc); err != nil {
-		return result.Built{}, fmt.Errorf("writing %s: %w", opts.OutputPath, err)
+		return result.Built{}, fmt.Errorf("writing %s: %w", out, err)
 	}
 
-	if err := atomicfile.Write(opts.OutputPath, buf.Bytes(), 0o600); err != nil {
+	if err := atomicfile.Write(out, buf.Bytes(), 0o600); err != nil {
 		return result.Built{}, err
 	}
 
 	return result.Built{
 		Name:   spec.Subject.Name,
 		Blocks: len(spec.Chain),
-		Path:   opts.OutputPath,
+		Path:   out,
 	}, nil
 }
 
 // readRig loads a rig from disk.
-func readRig(path string) (rig.Spec, error) {
+func readRig(
+	ctx context.Context,
+	path string,
+) (rig.Spec, error) {
+	if err := ctx.Err(); err != nil {
+		return rig.Spec{}, err
+	}
+
 	f, err := os.Open(path) //nolint:gosec // the path is the user's own file
 	if err != nil {
 		return rig.Spec{}, fmt.Errorf("opening %s: %w", path, err)
@@ -111,23 +111,13 @@ func readRig(path string) (rig.Spec, error) {
 }
 
 // template returns the preset a chain is written into.
-func template(path string) (*preset.Document, error) {
+func template(
+	ctx context.Context,
+	path string,
+) (*preset.Document, error) {
 	if path == "" {
 		return preset.Blank()
 	}
 
-	f, err := os.Open(path) //nolint:gosec // the path is the user's own file
-	if err != nil {
-		return nil, fmt.Errorf("opening %s: %w", path, err)
-	}
-
-	// Opened read-only, so Close has nothing to report the read did not.
-	defer func() { _ = f.Close() }()
-
-	doc, err := preset.Read(f)
-	if err != nil {
-		return nil, fmt.Errorf("reading %s: %w", path, err)
-	}
-
-	return doc, nil
+	return readPreset(ctx, path)
 }

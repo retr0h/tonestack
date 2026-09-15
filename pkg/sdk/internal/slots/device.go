@@ -33,59 +33,74 @@ import (
 	slotpkg "github.com/retr0h/tonestack/pkg/sdk/slot"
 )
 
-// DeviceOptions says which setlist to read off an attached device.
-type DeviceOptions struct {
-	// Deps are the collaborators this command works through.
-	Deps
-
-	// Setlist selects one of the device's setlists, from zero.
-	Setlist int
-	// All includes slots holding nothing.
-	All bool
-	// Slot selects a position within the setlist, for reading one preset.
-	Slot int
-	// Name is what the device calls the preset, when it is already known.
-	Name string
-	// As is the format a read is written in. Empty means a rig.
-	As Format
-	// CatalogPath is the generated catalog for the target device.
-	CatalogPath string
-}
-
-// ShowWith reads one slot off the given session.
+// ShowWith reads one slot off the given session, as a rig.
 //
 // Read-only: the device hands back the preset and goes on playing whatever it
 // was. Nothing is selected, loaded or written. Taking the session makes
 // reading a device testable without one attached.
-func ShowWith(
+func (f *Flows) ShowWith(
 	ctx context.Context,
 	s device.Editor,
-	opts DeviceOptions,
+	at slotpkg.Address,
 ) (result.Reading, error) {
-	// The name comes from the listing rather than the preset: what the device
-	// hands back for one slot does not carry it.
-	if opts.Name == "" {
-		if found, err := s.Presets(ctx, opts.Setlist); err == nil {
-			opts.Name = nameOf(found, opts.Slot)
-		}
+	return f.read(ctx, s, at, result.FormatRig)
+}
+
+// ExportWith writes one slot off the given session to a file.
+//
+// The same rig ShowWith reads, which is the point: a slot read off the
+// hardware and one read out of a backup are the same document.
+func (f *Flows) ExportWith(
+	ctx context.Context,
+	s device.Editor,
+	at slotpkg.Address,
+	out string,
+	as result.Format,
+) (result.Written, error) {
+	// Before the device is asked anything.
+	if err := known(as); err != nil {
+		return result.Written{}, err
 	}
 
-	body, err := s.ReadPreset(ctx, opts.Setlist, opts.Slot)
+	read, err := f.read(ctx, s, at, as)
+	if err != nil {
+		return result.Written{}, err
+	}
+
+	return write(read, at.Slot, out, as)
+}
+
+// read reads one slot off the given session in the format asked for.
+func (f *Flows) read(
+	ctx context.Context,
+	s device.Editor,
+	at slotpkg.Address,
+	as result.Format,
+) (result.Reading, error) {
+	// The name comes from the listing rather than the preset: what the device
+	// hands back for one slot does not carry it. A listing that fails costs
+	// only the name, and the slot is named by where it sits instead.
+	name := ""
+	if found, err := s.Presets(ctx, at.Setlist); err == nil {
+		name = nameOf(found, at.Slot)
+	}
+
+	body, err := s.ReadPreset(ctx, at.Setlist, at.Slot)
 
 	// A device that answered with something else is not a failure to report
 	// as one: what arrived is worth keeping and reporting, because it is how
 	// a protocol change becomes visible.
 	var answer *device.NotAPresetError
 	if errors.As(err, &answer) {
-		if err := dump(opts.Capture, answer.Result); err != nil {
+		if err := dump(f.Capture, answer.Result); err != nil {
 			return result.Reading{}, err
 		}
 
 		return result.Reading{
-			Name: opts.Name,
+			Name: name,
 			Answer: &result.Answer{
 				Model: s.Model().Name,
-				Slot:  opts.Slot,
+				Slot:  at.Slot,
 				Shape: answer.Shape(),
 			},
 		}, nil
@@ -93,10 +108,10 @@ func ShowWith(
 
 	if err != nil {
 		return result.Reading{}, fmt.Errorf(
-			"reading slot %s: %w", slotpkg.Label(opts.Slot), err)
+			"reading slot %s: %w", slotpkg.Label(at.Slot), err)
 	}
 
-	if err := dump(opts.Capture, body); err != nil {
+	if err := dump(f.Capture, body); err != nil {
 		return result.Reading{}, err
 	}
 
@@ -105,10 +120,10 @@ func ShowWith(
 	// difference to put a pedal back the way it was found.
 	if body == nil {
 		return result.Reading{}, fmt.Errorf(
-			"%w: %s", ErrEmptySlot, slotpkg.Label(opts.Slot))
+			"%w: %s", ErrEmptySlot, slotpkg.Label(at.Slot))
 	}
 
-	return deviceReading(body, opts)
+	return f.deviceReading(ctx, body, at.Slot, name, as)
 }
 
 // ErrEmptySlot is returned for a slot holding no preset.
@@ -120,9 +135,12 @@ var ErrEmptySlot = errors.New("the slot holds no preset")
 // nameOf finds what a listing calls one slot.
 //
 // Searched rather than indexed. A device answers with every slot in order, so
-// the two are the same today — and a listing that ever skipped an empty slot
+// the two are the same today, and a listing that ever skipped an empty slot
 // would silently name every preset after it wrongly.
-func nameOf(found []wire.Preset, slot int) string {
+func nameOf(
+	found []wire.Preset,
+	slot int,
+) string {
 	for _, p := range found {
 		if p.Slot == slot {
 			return p.Name
@@ -132,44 +150,21 @@ func nameOf(found []wire.Preset, slot int) string {
 	return ""
 }
 
-// ExportWith writes one slot off the given session to a file.
-//
-// The same rig `presets show` prints, which is the point: a slot read off the
-// hardware and one read out of a backup are the same document.
-func ExportWith(
-	ctx context.Context,
-	s device.Editor,
-	opts ExportOptions,
-) (result.Written, error) {
-	read, err := ShowWith(ctx, s, DeviceOptions{
-		Deps:        opts.Deps,
-		Setlist:     opts.Setlist,
-		Slot:        opts.Slot,
-		As:          opts.As,
-		CatalogPath: opts.CatalogPath,
-	})
-	if err != nil {
-		return result.Written{}, err
-	}
-
-	return write(read, opts)
-}
-
-// ListWith returns what the given session holds.
+// ListWith answers with what one setlist on the given session holds.
 //
 // Read-only: it asks the device to describe a setlist and nothing more.
 // Nothing is selected, loaded or written.
-func ListWith(
+func (f *Flows) ListWith(
 	ctx context.Context,
 	s device.Editor,
-	opts DeviceOptions,
+	setlist int,
 ) (result.Listing, error) {
-	presets, err := s.Presets(ctx, opts.Setlist)
+	presets, err := s.Presets(ctx, setlist)
 	if err != nil {
 		return result.Listing{}, fmt.Errorf("listing presets: %w", err)
 	}
 
-	cat, err := opts.catalogs().Open(opts.CatalogPath)
+	cat, err := f.catalog(ctx)
 	if err != nil {
 		return result.Listing{}, err
 	}
@@ -183,7 +178,7 @@ func ListWith(
 		// anything is in it. An untouched one keeps the name it shipped
 		// with, and only reading it says which.
 		if p.Name != untouched {
-			blocks, err := chainAt(ctx, opts.Deps, s, cat, opts.Setlist, p.Slot)
+			blocks, err := f.chainAt(ctx, s, cat, slotpkg.Address{Setlist: setlist, Slot: p.Slot})
 			if err != nil {
 				return result.Listing{}, err
 			}
@@ -205,14 +200,13 @@ const untouched = "New Preset"
 // A slot that will not decode is reported as holding nothing rather than
 // failing the listing around it: one unreadable preset should not hide the
 // hundred that read.
-func chainAt(
+func (f *Flows) chainAt(
 	ctx context.Context,
-	deps Deps,
 	s device.Editor,
 	cat *catalog.Catalog,
-	setlist, slot int,
+	at slotpkg.Address,
 ) ([]chain.Block, error) {
-	body, err := s.ReadPreset(ctx, setlist, slot)
+	body, err := s.ReadPreset(ctx, at.Setlist, at.Slot)
 
 	// An answer that is not a preset is skipped the way an undecodable one
 	// is: this is a listing, and one slot nobody can read should not hide the
@@ -222,7 +216,7 @@ func chainAt(
 	}
 
 	if err != nil {
-		return nil, fmt.Errorf("reading slot %s: %w", slotpkg.Label(slot), err)
+		return nil, fmt.Errorf("reading slot %s: %w", slotpkg.Label(at.Slot), err)
 	}
 
 	if body == nil {
@@ -234,7 +228,7 @@ func chainAt(
 		return nil, nil
 	}
 
-	c, err := deps.translator().Chain("", preset, cat)
+	c, err := f.translator().Chain("", preset, cat)
 	if err != nil {
 		return nil, nil
 	}

@@ -20,6 +20,8 @@
 package cmd
 
 import (
+	"context"
+
 	"github.com/spf13/cobra"
 
 	"github.com/retr0h/tonestack/pkg/cli"
@@ -27,7 +29,8 @@ import (
 )
 
 var (
-	presetsListOptions sdk.Where
+	presetsListFile    string
+	presetsListSetlist int
 	presetsListClient  clientFlags
 )
 
@@ -58,9 +61,7 @@ there.`,
 		// does.
 		client := presetsListClient.client()
 
-		// No file means the device itself, which is what somebody with one
-		// plugged in almost always wants.
-		listing, err := client.Presets(cmd.Context(), presetsListOptions)
+		listing, err := listed(cmd.Context(), client)
 		if err != nil {
 			return err
 		}
@@ -79,13 +80,13 @@ func init() {
 
 	f := presetsListCmd.Flags()
 	f.StringVar(
-		&presetsListOptions.Path,
+		&presetsListFile,
 		"file",
 		"",
 		"a .hls setlist or .hlb backup written by HX Edit",
 	)
 	f.IntVar(
-		&presetsListOptions.Setlist,
+		&presetsListSetlist,
 		"setlist",
 		0,
 		"which setlist, when the file is a backup holding several",
@@ -93,4 +94,19 @@ func init() {
 	f.StringVar(&presetsListClient.catalog, "catalog", "",
 		"a generated catalog to use instead of the built-in one")
 	f.BoolVar(&presetsListAll, "all", false, "include empty slots")
+}
+
+// listed reads what a setlist holds, from the device or from a file.
+//
+// No file means the device itself, which is what somebody with one plugged in
+// almost always wants.
+func listed(
+	ctx context.Context,
+	client *sdk.Client,
+) (sdk.Listing, error) {
+	if presetsListFile == "" {
+		return client.Presets(ctx, presetsListSetlist)
+	}
+
+	return client.Setlist(presetsListFile).Presets(ctx, presetsListSetlist)
 }

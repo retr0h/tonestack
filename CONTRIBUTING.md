@@ -181,6 +181,15 @@ The Client's device methods each claim the pedal, handshake and let it go. For
 several operations in a row, `Client.Open` returns a `Session` that holds one
 claim until `Close`. A Client has one Session open at a time.
 
+A `.hls` setlist or `.hlb` backup on disk is addressed through
+`Client.Setlist(path)`, which lists, reads, exports, imports, copies and swaps
+with no hardware. Its edits take an `out` path, because they always write a new
+file; a Session's edits take none, because they write the device and keep a
+backup. A standalone `.hlx` is read with `Client.PresetFile`. A slot is a
+`slot.Address` everywhere, and an export's format is a `Format`. The only input
+structs are `Filter`, `Compile`, `NewRecipe` and `ExtendRecipe`, and every field
+of each is read.
+
 How each operation is done lives in `pkg/sdk/internal/`, where nothing outside
 the library can reach it. That is what keeps this list short, and what lets the
 implementation change without breaking a caller.
@@ -403,10 +412,12 @@ A caller then declares what it needs. `internal/slots` wants `Lift` and `Lower`;
 `internal/presets` wants `Resolve` and `Fit`. Two interfaces, four methods
 between them, over one struct that has all four.
 
-The collaborators live in a `Deps` struct embedded in the command's options, and
-every field is optional: a zero value reaches the real thing. A caller names
-only what it wants to stand something else in for, which is what `net/http` does
-with a nil `Transport`.
+In `internal/presets` the collaborators live in a `Deps` struct embedded in the
+options. In `internal/slots` they are fields of `Flows`, the struct the Client
+builds once and whose methods are the operations, so a call passes only
+addresses and paths. Either way every field is optional: a zero value reaches
+the real thing. A caller names only what it wants to stand something else in
+for, which is what `net/http` does with a nil `Transport`.
 
 `pkg/sdk` looks like the exception and is not one. `sdk.Open` returns the
 `Editor` interface because the concrete type behind it is unexported and

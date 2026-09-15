@@ -28,7 +28,7 @@ import (
 )
 
 var (
-	presetsCopyOptions sdk.Edit
+	presetsCopyOptions twoSlots
 	presetsCopyClient  clientFlags
 )
 
@@ -59,21 +59,41 @@ func init() {
 	editFlags(presetsCopyCmd, &presetsCopyOptions, &presetsCopyClient)
 }
 
+// twoSlots are the flags every two-slot edit shares.
+type twoSlots struct {
+	file        string
+	fromSetlist int
+	from        int
+	toSetlist   int
+	to          int
+	out         string
+}
+
+// source is the slot an edit reads.
+func (t *twoSlots) source() slot.Address {
+	return slot.Address{Setlist: t.fromSetlist, Slot: t.from}
+}
+
+// destination is the slot an edit writes.
+func (t *twoSlots) destination() slot.Address {
+	return slot.Address{Setlist: t.toSetlist, Slot: t.to}
+}
+
 // editFlags declares the flags every two-slot edit shares.
 func editFlags(
 	c *cobra.Command,
-	o *sdk.Edit,
+	o *twoSlots,
 	k *clientFlags,
 ) {
 	f := c.Flags()
-	f.StringVar(&o.Path, "file", "", "a .hls setlist or .hlb backup written by HX Edit")
-	f.IntVar(&o.FromSetlist, "from-setlist", 0, "which setlist the source is in")
-	f.Var(slot.NewValue(&o.FromSlot), "from",
+	f.StringVar(&o.file, "file", "", "a .hls setlist or .hlb backup written by HX Edit")
+	f.IntVar(&o.fromSetlist, "from-setlist", 0, "which setlist the source is in")
+	f.Var(slot.NewValue(&o.from), "from",
 		"slot to read — a label such as 31A, or a number from zero")
-	f.IntVar(&o.ToSetlist, "to-setlist", 0, "which setlist the destination is in")
-	f.Var(slot.NewValue(&o.ToSlot), "to",
+	f.IntVar(&o.toSetlist, "to-setlist", 0, "which setlist the destination is in")
+	f.Var(slot.NewValue(&o.to), "to",
 		"slot to write — a label such as 31A, or a number from zero")
-	f.StringVar(&o.OutputPath, "out", "", "where to write the edited setlist")
+	f.StringVar(&o.out, "out", "", "where to write the edited setlist")
 	f.StringVar(&k.catalog, "catalog", "",
 		"a generated catalog to use instead of the built-in one")
 	f.StringVar(&k.backupDir, "backup-dir", "",
@@ -91,6 +111,14 @@ func editFlags(
 //
 // No file means the device itself, which is what somebody with one plugged in
 // almost always wants.
-func copied(cmd *cobra.Command) (sdk.Change, error) {
-	return presetsCopyClient.client().Copy(cmd.Context(), presetsCopyOptions)
+func copied(
+	cmd *cobra.Command,
+) (sdk.Change, error) {
+	o, client := &presetsCopyOptions, presetsCopyClient.client()
+
+	if o.file == "" {
+		return client.Copy(cmd.Context(), o.source(), o.destination())
+	}
+
+	return client.Setlist(o.file).Copy(cmd.Context(), o.source(), o.destination(), o.out)
 }

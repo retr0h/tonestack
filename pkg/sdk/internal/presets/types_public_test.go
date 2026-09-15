@@ -21,6 +21,7 @@
 package presets_test
 
 import (
+	"context"
 	"errors"
 	"path/filepath"
 	"testing"
@@ -66,7 +67,7 @@ func (s *TypesPublicTestSuite) TestRecipes() {
 	rec := presetmocks.NewMockRecipes(s.ctrl)
 	rec.EXPECT().Find(gomock.Any(), "mike-dirnt").Return(rig.Spec{}, want)
 
-	_, err := presets.Make(s.options(presets.Deps{Recipes: rec}))
+	_, err := presets.Make(context.Background(), s.options(presets.Deps{Recipes: rec}))
 
 	s.Require().ErrorIs(err, want)
 }
@@ -76,9 +77,9 @@ func (s *TypesPublicTestSuite) TestCatalogs() {
 	want := errors.New("no catalog here")
 
 	cat := presetmocks.NewMockCatalogs(s.ctrl)
-	cat.EXPECT().Open(gomock.Any()).Return(nil, want)
+	cat.EXPECT().Catalog(gomock.Any()).Return(nil, want)
 
-	_, err := presets.Make(s.options(presets.Deps{Catalogs: cat}))
+	_, err := presets.Make(context.Background(), s.options(presets.Deps{Catalogs: cat}))
 
 	s.Require().ErrorIs(err, want)
 }
@@ -91,7 +92,7 @@ func (s *TypesPublicTestSuite) TestCompiler() {
 	comp.EXPECT().Resolve(gomock.Any(), gomock.Any(), gomock.Any()).
 		Return(chain.Chain{}, nil, nil, want)
 
-	_, err := presets.Make(s.options(presets.Deps{Compiler: comp}))
+	_, err := presets.Make(context.Background(), s.options(presets.Deps{Compiler: comp}))
 
 	s.Require().ErrorIs(err, want)
 }

@@ -21,15 +21,19 @@
 package presets_test
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
+	"go.uber.org/mock/gomock"
 
+	"github.com/retr0h/tonestack/pkg/sdk/catalog"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/compile"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/presets"
+	presetmocks "github.com/retr0h/tonestack/pkg/sdk/internal/presets/mocks"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/recipes"
 	"github.com/retr0h/tonestack/pkg/sdk/preset"
 	"github.com/retr0h/tonestack/pkg/sdk/result"
@@ -39,12 +43,27 @@ type MakePublicTestSuite struct {
 	suite.Suite
 }
 
-func (s *MakePublicTestSuite) opts(id, out string) presets.MakeOptions {
+// catalogs hands over the catalog at path, however often it is asked.
+func (s *MakePublicTestSuite) catalogs(
+	path string,
+) *presetmocks.MockCatalogs {
+	c := presetmocks.NewMockCatalogs(gomock.NewController(s.T()))
+	c.EXPECT().Catalog(gomock.Any()).DoAndReturn(
+		func(context.Context) (*catalog.Catalog, error) { return catalog.Open(path) },
+	).AnyTimes()
+
+	return c
+}
+
+func (s *MakePublicTestSuite) opts(
+	id string,
+	out string,
+) presets.MakeOptions {
 	return presets.MakeOptions{
-		RecipeID:    id,
-		RecipesDir:  filepath.Join("testdata", "recipes"),
-		CatalogPath: filepath.Join("testdata", "catalog.json"),
-		OutputPath:  out,
+		Deps:       presets.Deps{Catalogs: s.catalogs(filepath.Join("testdata", "catalog.json"))},
+		RecipeID:   id,
+		RecipesDir: filepath.Join("testdata", "recipes"),
+		OutputPath: out,
 	}
 }
 
@@ -52,6 +71,7 @@ func (s *MakePublicTestSuite) opts(id, out string) presets.MakeOptions {
 func (s *MakePublicTestSuite) TestMake() {
 	tests := []struct {
 		name     string
+		ctx      context.Context
 		id       string
 		stats    string
 		catalog  string
@@ -123,6 +143,12 @@ func (s *MakePublicTestSuite) TestMake() {
 			out:     filepath.Join("no", "such", "dir.hlx"),
 			errText: "writing",
 		},
+		{
+			name:    "a caller who stopped waiting",
+			ctx:     cancelledContext(),
+			id:      "test-player",
+			errText: context.Canceled.Error(),
+		},
 	}
 
 	for _, tt := range tests {
@@ -140,10 +166,15 @@ func (s *MakePublicTestSuite) TestMake() {
 			}
 
 			if tt.catalog != "" {
-				o.CatalogPath = tt.catalog
+				o.Catalogs = s.catalogs(tt.catalog)
 			}
 
-			made, err := presets.Make(o)
+			ctx := tt.ctx
+			if ctx == nil {
+				ctx = context.Background()
+			}
+
+			made, err := presets.Make(ctx, o)
 
 			if tt.err != nil || tt.errText != "" {
 				s.Require().Error(err)
@@ -199,6 +230,14 @@ func (s *MakePublicTestSuite) TestMake() {
 			}())
 		})
 	}
+}
+
+// cancelledContext is a context whose caller has already stopped waiting.
+func cancelledContext() context.Context {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	return ctx
 }
 
 // built flattens what a build reported, so a test can assert on the facts of

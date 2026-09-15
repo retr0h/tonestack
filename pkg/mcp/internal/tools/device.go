@@ -41,6 +41,27 @@ func slotOf(
 	return n, nil
 }
 
+// formatOf reads the format preset_export was asked for.
+//
+// Empty is a rig, which is what the tool's schema says leaving it out means.
+// Any other name that is not a format is refused, rather than written as a rig
+// the agent did not ask for.
+func formatOf(
+	name string,
+) (sdk.Format, error) {
+	as := sdk.FormatRig
+
+	if name == "" {
+		return as, nil
+	}
+
+	if err := as.Set(name); err != nil {
+		return "", err
+	}
+
+	return as, nil
+}
+
 func (h *handlers) devicesList(
 	ctx context.Context,
 	_ *gomcp.CallToolRequest,
@@ -103,13 +124,20 @@ func (h *handlers) presetExport(
 		return nil, sdk.Written{}, err
 	}
 
-	// Before the device is claimed: a refusal should not cost a USB session.
+	// Before the device is claimed, as every refusal here is: neither a
+	// format that does not exist nor a file already at out should cost a USB
+	// session.
+	as, err := formatOf(in.As)
+	if err != nil {
+		return nil, sdk.Written{}, err
+	}
+
 	if err := h.mayWrite(in.Out); err != nil {
 		return nil, sdk.Written{}, err
 	}
 
 	written, err := onPedal(ctx, h.pedal, func(s Session) (sdk.Written, error) {
-		return s.Export(ctx, slot.Address{Slot: n}, in.Out, in.As)
+		return s.Export(ctx, slot.Address{Slot: n}, in.Out, as)
 	})
 	if err != nil {
 		return nil, sdk.Written{}, err

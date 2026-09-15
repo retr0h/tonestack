@@ -47,36 +47,30 @@ func (e *NotMeasuredError) Error() string {
 
 func (*NotMeasuredError) Unwrap() error { return ErrNotMeasured }
 
-// Options says what to show.
+// Options is what every question of the corpus reads.
 type Options struct {
 	// StatsPath is measured statistics to read instead of the built-in ones.
 	StatsPath string
-	// Catalogs hands over the catalog. Asked only when a Model is.
+	// Catalogs hands over the catalog. Asked only about a model.
 	Catalogs Catalogs
-	// Model shows one model's parameter distributions.
-	Model string
-	// Instrument shows what chains for one instrument tend to hold.
-	Instrument string
 }
 
-// Show reads what the corpus says.
+// Model reads what players did with one model.
 //
-// The measurements and, when one model was asked about, the catalog beside
-// them: what players chose means little without what Line 6 chose.
-func Show(
+// The measurements and the catalog beside them: what players chose means
+// little without what Line 6 chose. A model nobody names is one nobody
+// measured, and is refused the same way.
+func Model(
 	ctx context.Context,
 	opts Options,
+	model string,
 ) (result.Measured, error) {
 	stats, err := open(opts.StatsPath)
 	if err != nil {
 		return result.Measured{}, err
 	}
 
-	if opts.Model == "" {
-		return result.Measured{Stats: stats, Instrument: opts.Instrument}, nil
-	}
-
-	id := catalog.ModelID(opts.Model)
+	id := catalog.ModelID(model)
 
 	// Asked here rather than while drawing, so a model nobody measured is an
 	// error from the operation and not a table with nothing in it.
@@ -90,6 +84,23 @@ func Show(
 	}
 
 	return result.Measured{Stats: stats, Catalog: cat, Model: id}, nil
+}
+
+// Chains reads what chains tend to hold, for one instrument or, with none
+// named, for every one.
+//
+// No catalog is read: the grammar of a chain is block kinds, and those need no
+// names.
+func Chains(
+	opts Options,
+	instrument string,
+) (result.Measured, error) {
+	stats, err := open(opts.StatsPath)
+	if err != nil {
+		return result.Measured{}, err
+	}
+
+	return result.Measured{Stats: stats, Instrument: instrument}, nil
 }
 
 // open reads statistics, falling back to the ones in this binary.

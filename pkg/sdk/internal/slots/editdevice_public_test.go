@@ -35,6 +35,7 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk/internal/device/mocks"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/slots"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/wire"
+	slotpkg "github.com/retr0h/tonestack/pkg/sdk/slot"
 )
 
 // EditDevicePublicTestSuite covers moving a preset between slots on a device.
@@ -361,11 +362,10 @@ func (s *EditDevicePublicTestSuite) TestCopyWith() {
 				s.expectWrite(toSetlist, toSlot, "Chunky Monkey", tt.write == "landed")
 			}
 
-			change, err := slots.CopyWith(context.Background(), dev,
-				slots.EditOptions{
-					FromSlot: 0, ToSetlist: toSetlist, ToSlot: toSlot,
-					BackupDir: s.backupDir(tt.badBackup),
-				})
+			f := &slots.Flows{BackupDir: s.backupDir(tt.badBackup)}
+
+			change, err := f.CopyWith(context.Background(), dev,
+				slotpkg.Address{}, slotpkg.Address{Setlist: toSetlist, Slot: toSlot})
 
 			if tt.errText != "" {
 				s.Require().Error(err)
@@ -586,11 +586,10 @@ func (s *EditDevicePublicTestSuite) TestSwapWith() {
 				}
 			}
 
-			change, err := slots.SwapWith(ctx, dev,
-				slots.EditOptions{
-					FromSlot: 0, ToSetlist: toSetlist, ToSlot: toSlot,
-					BackupDir: s.backupDir(tt.badBackup),
-				})
+			f := &slots.Flows{BackupDir: s.backupDir(tt.badBackup)}
+
+			change, err := f.SwapWith(ctx, dev,
+				slotpkg.Address{}, slotpkg.Address{Setlist: toSetlist, Slot: toSlot})
 
 			if tt.errText != "" {
 				s.Require().Error(err)

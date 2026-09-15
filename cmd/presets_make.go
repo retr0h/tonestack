@@ -23,12 +23,12 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/retr0h/tonestack/pkg/cli"
-	"github.com/retr0h/tonestack/pkg/sdk"
 )
 
 var (
-	presetsMakeOptions sdk.Make
-	presetsMakeClient  clientFlags
+	presetsMakeID     string
+	presetsMakeOut    string
+	presetsMakeClient clientFlags
 )
 
 // presetsMakeCmd represents the presets make command.
@@ -42,22 +42,18 @@ parameter is set to what Line 6 states as its default — a recipe's character
 words then move the controls they name.`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		dir, id, err := recipeFor(
-			cmd.Context(), presetsMakeClient.recipes, presetsMakeOptions.RecipeID)
+		dir, id, err := recipeFor(cmd.Context(), presetsMakeClient.recipes, presetsMakeID)
 		if err != nil {
 			return cli.Hint(err)
 		}
 
-		// Copies, so the flags keep what was typed rather than what it
+		// A copy, so the flags keep what was typed rather than what it
 		// resolved to.
 		flags := presetsMakeClient
 		flags.recipes = dir
 		client := flags.client()
 
-		opts := presetsMakeOptions
-		opts.RecipeID = id
-
-		made, err := client.Build(cmd.Context(), opts)
+		made, err := client.Build(cmd.Context(), id, presetsMakeOut)
 		if err != nil {
 			return cli.Hint(err)
 		}
@@ -75,7 +71,7 @@ func init() {
 	presetsCmd.AddCommand(presetsMakeCmd)
 
 	f := presetsMakeCmd.Flags()
-	f.StringVar(&presetsMakeOptions.RecipeID, "id", "", "recipe to build from")
+	f.StringVar(&presetsMakeID, "id", "", "recipe to build from")
 	f.StringVar(
 		&presetsMakeClient.recipes,
 		"recipes",
@@ -86,7 +82,7 @@ func init() {
 		"a generated catalog to use instead of the built-in one")
 	f.StringVar(&presetsMakeClient.stats, "stats", "",
 		"measured corpus statistics to use instead of the built-in ones")
-	f.StringVar(&presetsMakeOptions.OutputPath, "out", "", "where to write the preset")
+	f.StringVar(&presetsMakeOut, "out", "", "where to write the preset")
 	// Fails only for a flag that does not exist, and these are defined above.
 	_ = presetsMakeCmd.MarkFlagRequired("id")
 	_ = presetsMakeCmd.MarkFlagRequired("out")

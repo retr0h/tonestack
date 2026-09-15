@@ -37,6 +37,7 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk/internal/device/mocks"
 	slotmocks "github.com/retr0h/tonestack/pkg/sdk/internal/slots/mocks"
 	"github.com/retr0h/tonestack/pkg/sdk/preset"
+	slotpkg "github.com/retr0h/tonestack/pkg/sdk/slot"
 )
 
 // BackupTestSuite covers keeping what a slot held before replacing it.
@@ -56,8 +57,7 @@ func (s *BackupTestSuite) TearDownTest() { s.ctrl.Finish() }
 
 // answer returns one slot as an HX Stomp sent it.
 func (s *BackupTestSuite) answer() []byte {
-	raw, err := os.ReadFile(
-		filepath.Join("..", "wire", "testdata", "preset.bin"))
+	raw, err := os.ReadFile(filepath.Join("..", "wire", "testdata", "preset.bin"))
 	s.Require().NoError(err)
 
 	return raw
@@ -151,11 +151,7 @@ func (s *BackupTestSuite) TestBackup() {
 		raw     bool
 		errText string
 	}{
-		{
-			name: "a slot holding a preset",
-			body: s.answer,
-			kept: true,
-		},
+		{name: "a slot holding a preset", body: s.answer, kept: true},
 		{
 			// Somebody looking for a lost tone looks for its name.
 			name:  "a slot the device has a name for",
@@ -236,7 +232,7 @@ func (s *BackupTestSuite) TestBackup() {
 				})
 			}
 
-			opts := DeviceOptions{Setlist: 2, Slot: 7, Name: tt.named}
+			f := &Flows{BackupDir: dir}
 
 			if tt.unencodable {
 				translator := slotmocks.NewMockTranslator(s.ctrl)
@@ -244,10 +240,14 @@ func (s *BackupTestSuite) TestBackup() {
 					Document(gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(&preset.Document{Meta: json.RawMessage("{")}, false, nil)
 
-				opts.Translator = translator
+				f.Translator = translator
 			}
 
-			path, err := backup(tt.body(), opts, dir)
+			path, err := f.backup(context.Background(), held{
+				body: tt.body(),
+				at:   slotpkg.Address{Setlist: 2, Slot: 7},
+				name: tt.named,
+			})
 
 			if tt.errText != "" {
 				s.Require().ErrorContains(err, tt.errText)
@@ -282,12 +282,10 @@ func (s *BackupTestSuite) TestBackup() {
 
 			// The claim worth holding: what came out is a preset this tool
 			// can read, which is what putting it back needs.
-			f, err := os.Open(path) //nolint:gosec // a path this test chose
+			raw, err := os.ReadFile(path) //nolint:gosec // a path this test chose
 			s.Require().NoError(err)
 
-			defer func() { s.Require().NoError(f.Close()) }()
-
-			doc, err := preset.Read(f)
+			doc, err := preset.Read(bytes.NewReader(raw))
 			s.Require().NoError(err)
 			s.Require().NotEmpty(doc.Data.Meta.Name)
 
@@ -302,12 +300,19 @@ func (s *BackupTestSuite) TestBackup() {
 func (s *BackupTestSuite) TestHolds() {
 	tests := []struct {
 		name    string
+		at      slotpkg.Address
 		body    []byte
 		err     error
 		errText string
 	}{
 		{name: "a slot with a preset in it", body: []byte{1, 2, 3}},
 		{name: "a slot with nothing in it"},
+		{
+			// Both halves of the address reach the device.
+			name: "a slot in another setlist",
+			at:   slotpkg.Address{Setlist: 1, Slot: 5},
+			body: []byte{4},
+		},
 		{
 			name:    "a device that will not say",
 			err:     errors.New("boom"),
@@ -318,9 +323,9 @@ func (s *BackupTestSuite) TestHolds() {
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
 			dev := mocks.NewMockEditor(s.ctrl)
-			dev.EXPECT().ReadPreset(gomock.Any(), 0, 0).Return(tt.body, tt.err)
+			dev.EXPECT().ReadPreset(gomock.Any(), tt.at.Setlist, tt.at.Slot).Return(tt.body, tt.err)
 
-			got, err := holds(context.Background(), dev, 0, 0)
+			got, err := holds(context.Background(), dev, tt.at)
 
 			if tt.errText != "" {
 				s.Require().ErrorContains(err, tt.errText)
@@ -339,7 +344,7 @@ func (s *BackupTestSuite) TestKeep() {
 	tests := []struct {
 		name    string
 		catalog string
-		all     []at
+		all     []held
 		// the extension of each file kept, in order. Empty means nothing is
 		// kept.
 		kept []string
@@ -349,21 +354,23 @@ func (s *BackupTestSuite) TestKeep() {
 		named string
 		fails bool
 	}{
-		{
-			name: "a slot holding nothing",
-			all:  []at{{slot: 3}},
-		},
+		{name: "a slot holding nothing", all: []held{{at: slotpkg.Address{Slot: 3}}}},
 		{
 			// Two, because a swap replaces two.
 			name: "two slots",
-			all:  []at{{body: s.answer(), slot: 3}, {body: s.answer(), slot: 0}},
+			all: []held{
+				{body: s.answer(), at: slotpkg.Address{Slot: 3}},
+				{body: s.answer()},
+			},
 			kept: []string{".hlx", ".hlx"},
 		},
 		{
 			// The setlist and the name come along, so a backup says which
 			// preset it was and where it lived.
-			name:  "a named slot in another setlist",
-			all:   []at{{body: s.answer(), setlist: 1, slot: 3, name: "Black Rusty"}},
+			name: "a named slot in another setlist",
+			all: []held{{
+				body: s.answer(), at: slotpkg.Address{Setlist: 1, Slot: 3}, name: "Black Rusty",
+			}},
 			kept:  []string{".hlx"},
 			base:  "02A-s1-",
 			named: "Black Rusty",
@@ -372,44 +379,46 @@ func (s *BackupTestSuite) TestKeep() {
 			// Named to the second, the second backup would have been
 			// written over the first.
 			name: "the same slot of the same setlist twice within a second",
-			all:  []at{{body: s.answer(), slot: 0}, {body: s.answer(), slot: 0}},
+			all:  []held{{body: s.answer()}, {body: s.answer()}},
 			kept: []string{".hlx", ".hlx"},
 		},
 		{
 			// A chain is somebody's, whatever the slot is still called.
 			name: "blocks in a slot still called what it shipped as",
-			all:  []at{{body: s.answer(), name: untouched}},
+			all:  []held{{body: s.answer(), name: untouched}},
 			kept: []string{".hlx"},
 		},
 		{
 			// A blank slot nobody has used. Keeping it would fill the
 			// backup directory with copies of nothing.
 			name: "no blocks in a slot still called what it shipped as",
-			all:  []at{{body: s.emptied(), name: untouched}},
+			all:  []held{{body: s.emptied(), name: untouched}},
 		},
 		{
 			// Somebody renamed it, so whatever is in it may be theirs.
 			name: "no blocks in a slot somebody renamed",
-			all:  []at{{body: s.emptied(), name: "Riff Ideas"}},
+			all:  []held{{body: s.emptied(), name: "Riff Ideas"}},
 			kept: []string{".bin"},
 		},
 		{
 			// Nothing said what it is called, so nothing says it is blank.
 			name: "no blocks in a slot no listing named",
-			all:  []at{{body: s.emptied()}},
+			all:  []held{{body: s.emptied()}},
 			kept: []string{".bin"},
 		},
 		{
 			name:    "a catalog it cannot read",
 			catalog: filepath.Join("testdata", "nope.json"),
-			all:     []at{{body: s.answer(), slot: 3}},
+			all:     []held{{body: s.answer(), at: slotpkg.Address{Slot: 3}}},
 			fails:   true,
 		},
 	}
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			got, err := keep(Deps{}, tt.catalog, s.T().TempDir(), tt.all...)
+			f := &Flows{Catalogs: catalogsAt(s.T(), tt.catalog), BackupDir: s.T().TempDir()}
+
+			got, err := f.keep(context.Background(), tt.all...)
 
 			if tt.fails {
 				s.Require().Error(err)
@@ -482,8 +491,8 @@ func (s *BackupTestSuite) TestReplacing() {
 			dev := mocks.NewMockEditor(s.ctrl)
 			dev.EXPECT().ReadPreset(gomock.Any(), 0, 3).Return(tt.body, tt.err)
 
-			got, err := replacing(
-				context.Background(), dev, Deps{}, "", dir, 0, 3, "Black Rusty")
+			got, err := (&Flows{BackupDir: dir}).replacing(
+				context.Background(), dev, slotpkg.Address{Slot: 3}, "Black Rusty")
 
 			if tt.errText != "" {
 				s.Require().ErrorContains(err, tt.errText)

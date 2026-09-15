@@ -35,9 +35,9 @@ import (
 
 	"github.com/retr0h/tonestack/pkg/sdk/internal/device"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/device/mocks"
-	"github.com/retr0h/tonestack/pkg/sdk/internal/slots"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/wire"
 	"github.com/retr0h/tonestack/pkg/sdk/preset"
+	slotpkg "github.com/retr0h/tonestack/pkg/sdk/slot"
 )
 
 // ImportDevicePublicTestSuite covers putting a preset file on a device.
@@ -283,10 +283,10 @@ func (s *ImportDevicePublicTestSuite) TestImportWith() {
 				}
 			}
 
-			change, err := slots.ImportWith(s.T().Context(), dev, slots.ImportOptions{
-				File: file, Slot: 7, CatalogPath: tt.catalog,
-				BackupDir: s.T().TempDir(),
-			})
+			f := flows(s.T(), tt.catalog)
+			f.BackupDir = s.T().TempDir()
+
+			change, err := f.ImportWith(s.T().Context(), dev, file, slotpkg.Address{Slot: 7})
 
 			if tt.errText != "" {
 				s.Require().Error(err)

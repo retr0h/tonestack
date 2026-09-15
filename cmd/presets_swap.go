@@ -27,7 +27,7 @@ import (
 )
 
 var (
-	presetsSwapOptions sdk.Edit
+	presetsSwapOptions twoSlots
 	presetsSwapClient  clientFlags
 )
 
@@ -63,6 +63,14 @@ func init() {
 //
 // No file means the device itself, which is what somebody with one plugged in
 // almost always wants.
-func swapped(cmd *cobra.Command) (sdk.Change, error) {
-	return presetsSwapClient.client().Swap(cmd.Context(), presetsSwapOptions)
+func swapped(
+	cmd *cobra.Command,
+) (sdk.Change, error) {
+	o, client := &presetsSwapOptions, presetsSwapClient.client()
+
+	if o.file == "" {
+		return client.Swap(cmd.Context(), o.source(), o.destination())
+	}
+
+	return client.Setlist(o.file).Swap(cmd.Context(), o.source(), o.destination(), o.out)
 }
