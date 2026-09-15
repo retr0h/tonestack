@@ -271,7 +271,7 @@ func near(
 //
 // Beside the text it answers with what that text says, less the identifier and
 // the path New decides. A copy names nothing of its own but what renamed it,
-// so its name, instrument and amp are the copied rig's, and its name is the
+// so its name, instrument and gear are the copied rig's, and its name is the
 // one asked for only when one was. A rig from gear says what it was asked to.
 func scaffoldFor(
 	ctx context.Context,
@@ -286,7 +286,10 @@ func scaffoldFor(
 		// The rig's own identifier, not whatever was typed. An alias belongs
 		// to the parent and `extends` is matched against an id, so recording
 		// the alias would leave a link that never resolves.
-		body := scaffold(string(parent.raw), parent.spec.ID, opts)
+		body, err := scaffold(string(parent.raw), parent.spec.ID, opts)
+		if err != nil {
+			return "", result.Scaffolded{}, err
+		}
 
 		// scaffold rewrites the subject's name only when one was asked for,
 		// and copies the chain as it stands.
@@ -299,6 +302,8 @@ func scaffoldFor(
 			Name:       name,
 			Instrument: string(parent.spec.Instrument),
 			Amp:        rig.GearName(parent.spec, rig.RoleAmp),
+			Cab:        rig.GearName(parent.spec, rig.RoleCab),
+			Pedals:     pedals(parent.spec),
 		}, nil
 	}
 
@@ -318,4 +323,22 @@ func scaffoldFor(
 		Cab:        opts.Cab,
 		Pedals:     opts.Pedals,
 	}, nil
+}
+
+// pedals is everything in a chain other than its amps and cabinets, in the
+// order the signal meets it.
+func pedals(
+	spec rig.Spec,
+) []string {
+	var out []string
+
+	for _, e := range spec.Chain {
+		if e.Role == rig.RoleAmp || e.Role == rig.RoleCab {
+			continue
+		}
+
+		out = append(out, e.Gear)
+	}
+
+	return out
 }
