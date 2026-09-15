@@ -314,6 +314,8 @@ func (s *AtomicfilePublicTestSuite) TestWriteNew() {
 	}
 }
 
-func TestAtomicfilePublicTestSuite(t *testing.T) {
+func TestAtomicfilePublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(AtomicfilePublicTestSuite))
 }

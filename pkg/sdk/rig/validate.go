@@ -59,7 +59,9 @@ func (e *InvalidError) Error() string {
 func (*InvalidError) Unwrap() error { return ErrInvalid }
 
 // Validate reports whether a rig meets the contract in the schema.
-func Validate(s Spec) error {
+func Validate(
+	s Spec,
+) error {
 	// Through JSON, because that is the shape a schema describes. The tags on
 	// the generated types map one to the other, and they came from the same
 	// document as the rules.
@@ -89,7 +91,9 @@ var contract = sync.OnceValues(func() (*openapi3.Schema, error) {
 })
 
 // load reads the contract out of an OpenAPI document.
-func load(raw []byte) (*openapi3.Schema, error) {
+func load(
+	raw []byte,
+) (*openapi3.Schema, error) {
 	doc, err := openapi3.NewLoader().LoadFromData(raw)
 	if err != nil {
 		return nil, fmt.Errorf("reading the %s schema: %w", schemaName, err)
@@ -109,7 +113,9 @@ func load(raw []byte) (*openapi3.Schema, error) {
 // same rules a second time in Go is how the two drift: a constraint added to
 // the schema would be a type nothing enforced, and one removed would be a
 // check nothing had asked for.
-func against(document any) error {
+func against(
+	document any,
+) error {
 	schema, err := contract()
 	if err != nil {
 		return err
@@ -125,7 +131,9 @@ func against(document any) error {
 // invalid turns a schema failure into one that names the field.
 //
 // A rig is hand-written, so the field is the useful half of the message.
-func invalid(err error) error {
+func invalid(
+	err error,
+) error {
 	var schemaErr *openapi3.SchemaError
 	if !errors.As(err, &schemaErr) {
 		return &InvalidError{Field: schemaName, Reason: err.Error()}
@@ -142,7 +150,9 @@ func invalid(err error) error {
 // A schema points at a value with a JSON pointer, where every step is a name
 // — `chain.0.role`. Somebody looking at their own YAML sees a list, so the
 // steps that are positions are written as ones: `chain[0].role`.
-func fieldOf(err *openapi3.SchemaError) string {
+func fieldOf(
+	err *openapi3.SchemaError,
+) string {
 	path := err.JSONPointer()
 	if len(path) == 0 {
 		return schemaName
@@ -168,7 +178,9 @@ func fieldOf(err *openapi3.SchemaError) string {
 }
 
 // reasonOf says what was wrong with it, without repeating the field.
-func reasonOf(err *openapi3.SchemaError) string {
+func reasonOf(
+	err *openapi3.SchemaError,
+) string {
 	if err.Reason != "" {
 		return err.Reason
 	}

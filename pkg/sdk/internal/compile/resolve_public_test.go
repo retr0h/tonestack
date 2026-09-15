@@ -44,7 +44,9 @@ func (s *ResolvePublicTestSuite) SetupSuite() {
 
 // loadCatalog reads the fixture catalog every suite in this package builds
 // against.
-func loadCatalog(s *suite.Suite) *catalog.Catalog {
+func loadCatalog(
+	s *suite.Suite,
+) *catalog.Catalog {
 	f, err := os.Open(filepath.Join("testdata", "catalog.json"))
 	s.Require().NoError(err)
 
@@ -65,7 +67,11 @@ func loadCatalog(s *suite.Suite) *catalog.Catalog {
 // They carry the `other` role rather than a guess, because these fixtures do
 // not say what the pedals are and stating a role they do not have would test
 // the wrong thing.
-func recipe(amp string, cab string, pedals ...string) rig.Spec {
+func recipe(
+	amp string,
+	cab string,
+	pedals ...string,
+) rig.Spec {
 	spec := rig.Spec{
 		Schema:     rig.SchemaName,
 		ID:         "test",
@@ -96,7 +102,9 @@ func recipe(amp string, cab string, pedals ...string) rig.Spec {
 // value, and TestResolveIsDeterministic is what guards that it stays put.
 // substituting names gear this catalog has no model for, and says what to put
 // there instead.
-func substituting(gear, instead string) rig.Spec {
+func substituting(
+	gear, instead string,
+) rig.Spec {
 	spec := recipe("Ampeg SVT", "")
 	spec.Chain[len(spec.Chain)-1] = rig.ChainEntry{
 		Role: rig.RoleAmp,
@@ -531,7 +539,9 @@ func (s *ResolvePublicTestSuite) TestNoSuchGearError() {
 }
 
 // models names what a chain resolved to, in order.
-func models(c chain.Chain) []catalog.ModelID {
+func models(
+	c chain.Chain,
+) []catalog.ModelID {
 	out := make([]catalog.ModelID, 0, len(c.Blocks))
 	for _, b := range c.Blocks {
 		out = append(out, b.Model)
@@ -540,16 +550,22 @@ func models(c chain.Chain) []catalog.ModelID {
 	return out
 }
 
-func TestResolvePublicTestSuite(t *testing.T) {
+func TestResolvePublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(ResolvePublicTestSuite))
 }
 
 // twoChips is a device with somewhere to put overflow.
-func twoChips(ceiling float64) chain.Limits {
+func twoChips(
+	ceiling float64,
+) chain.Limits {
 	return chain.Limits{MaxBlocks: 8, Paths: 2, ChipCeiling: ceiling}
 }
 
 // oneChip is a device with a single signal path, like the HX Stomp.
-func oneChip(ceiling float64) chain.Limits {
+func oneChip(
+	ceiling float64,
+) chain.Limits {
 	return chain.Limits{MaxBlocks: 8, Paths: 1, ChipCeiling: ceiling}
 }

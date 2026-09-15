@@ -64,6 +64,8 @@ func (s *StalePublicTestSuite) TestTheCatalogMatchesTheInstalledRelease() {
 		installed, built.Source)
 }
 
-func TestStalePublicTestSuite(t *testing.T) {
+func TestStalePublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(StalePublicTestSuite))
 }

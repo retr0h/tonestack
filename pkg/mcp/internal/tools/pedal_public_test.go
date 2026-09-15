@@ -269,6 +269,8 @@ func (s *PedalPublicTestSuite) TestClose() {
 	}
 }
 
-func TestPedalPublicTestSuite(t *testing.T) {
+func TestPedalPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(PedalPublicTestSuite))
 }

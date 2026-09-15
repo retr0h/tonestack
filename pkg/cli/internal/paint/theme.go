@@ -65,7 +65,9 @@ type Theme struct {
 // fg is shorthand for lipgloss.NewStyle().Foreground(...) so theme
 // definitions stay scannable. Hex strings render as 24-bit truecolor when
 // the terminal supports it.
-func fg(c string) lipgloss.Style {
+func fg(
+	c string,
+) lipgloss.Style {
 	return lipgloss.NewStyle().Foreground(lipgloss.Color(c))
 }
 
@@ -106,7 +108,9 @@ const themeEnv = "TONESTACK_THEME"
 //
 // An unknown name leaves the default in place rather than failing: a typo in
 // a shell profile should not stop the tool running.
-func applyEnv(name string) {
+func applyEnv(
+	name string,
+) {
 	if t, ok := lookupTheme(name); ok {
 		active = t
 	}
@@ -114,7 +118,9 @@ func applyEnv(name string) {
 
 // SetTheme replaces the active theme. Returns false if name is unknown —
 // callers can fall back to the default and warn.
-func SetTheme(name string) bool {
+func SetTheme(
+	name string,
+) bool {
 	t, ok := lookupTheme(name)
 	if !ok {
 		return false
@@ -145,7 +151,9 @@ func ThemeNames() []string {
 }
 
 // lookupTheme finds a theme by name, case-insensitively.
-func lookupTheme(name string) (*Theme, bool) {
+func lookupTheme(
+	name string,
+) (*Theme, bool) {
 	if name == "" {
 		return nil, false
 	}
@@ -163,7 +171,9 @@ func lookupTheme(name string) (*Theme, bool) {
 // rendererFor returns a lipgloss renderer bound to w, so callers writing to
 // non-stdout sinks — os.Stderr, a buffer in tests — get accurate NO_COLOR
 // and TTY behavior.
-func rendererFor(w io.Writer) *lipgloss.Renderer {
+func rendererFor(
+	w io.Writer,
+) *lipgloss.Renderer {
 	if f, ok := w.(*os.File); ok {
 		return lipgloss.NewRenderer(f)
 	}
@@ -172,32 +182,67 @@ func rendererFor(w io.Writer) *lipgloss.Renderer {
 }
 
 // render paints s in st, for the sink w.
-func render(w io.Writer, st lipgloss.Style, s string) string {
+func render(
+	w io.Writer,
+	st lipgloss.Style,
+	s string,
+) string {
 	return st.Renderer(rendererFor(w)).Render(s)
 }
 
 // Mute returns s rendered as secondary text per the active theme.
-func Mute(w io.Writer, s string) string { return render(w, active.Mute, s) }
+func Mute(
+	w io.Writer,
+	s string,
+) string {
+	return render(w, active.Mute, s)
+}
 
 // Accent returns s rendered as the brand accent color.
-func Accent(w io.Writer, s string) string { return render(w, active.Accent, s) }
+func Accent(
+	w io.Writer,
+	s string,
+) string {
+	return render(w, active.Accent, s)
+}
 
 // OK returns s in the success color.
-func OK(w io.Writer, s string) string { return render(w, active.OK, s) }
+func OK(
+	w io.Writer,
+	s string,
+) string {
+	return render(w, active.OK, s)
+}
 
 // Err returns s in the error color.
-func Err(w io.Writer, s string) string { return render(w, active.Err, s) }
+func Err(
+	w io.Writer,
+	s string,
+) string {
+	return render(w, active.Err, s)
+}
 
 // Info returns s in the warm-toned info color.
-func Info(w io.Writer, s string) string { return render(w, active.Info, s) }
+func Info(
+	w io.Writer,
+	s string,
+) string {
+	return render(w, active.Info, s)
+}
 
 // Title renders the name of the thing being shown.
-func Title(w io.Writer, s string) string {
+func Title(
+	w io.Writer,
+	s string,
+) string {
 	return render(w, active.Accent.Bold(true), s)
 }
 
 // Heading renders a column or section heading.
-func Heading(w io.Writer, s string) string {
+func Heading(
+	w io.Writer,
+	s string,
+) string {
 	return render(w, active.Accent.Bold(true), strings.ToUpper(s))
 }
 
@@ -208,7 +253,9 @@ func Heading(w io.Writer, s string) string {
 // The E carries a middle bar (██▄) rather than the usual █▄▄, which is
 // identical to C in this alphabet and would leave TONESTACK reading with two
 // of them.
-func Banner(w io.Writer) string {
+func Banner(
+	w io.Writer,
+) string {
 	const top = "▀█▀ █▀█ █▄░█ █▀▀ █▀ ▀█▀ ▄▀█ █▀▀ █▄▀"
 	const bot = "░█░ █▄█ █░▀█ ██▄ ▄█ ░█░ █▀█ █▄▄ █░█"
 
@@ -218,12 +265,18 @@ func Banner(w io.Writer) string {
 
 // Success renders a leading check in the OK color followed by msg. Falls
 // back to a bracketed word when lipgloss decides not to color.
-func Success(w io.Writer, msg string) string {
+func Success(
+	w io.Writer,
+	msg string,
+) string {
 	return marked(OK(w, "✓"), "[ok]", msg)
 }
 
 // Failure mirrors Success for error one-liners.
-func Failure(w io.Writer, msg string) string {
+func Failure(
+	w io.Writer,
+	msg string,
+) string {
 	return marked(Err(w, "✗"), "[err]", msg)
 }
 
@@ -231,7 +284,9 @@ func Failure(w io.Writer, msg string) string {
 //
 // Cobra prints an error itself and takes a prefix rather than a finished line,
 // so the mark has to be available without a message behind it.
-func FailurePrefix(w io.Writer) string {
+func FailurePrefix(
+	w io.Writer,
+) string {
 	return mark(Err(w, "✗"), "[err]")
 }
 
@@ -239,7 +294,9 @@ func FailurePrefix(w io.Writer) string {
 //
 // An uncoloured ✓ is just a character in the text with nothing to say it
 // means success, so a bracketed word carries the meaning instead.
-func mark(symbol, fallback string) string {
+func mark(
+	symbol, fallback string,
+) string {
 	if !strings.ContainsRune(symbol, 0x1b) {
 		return fallback
 	}
@@ -248,7 +305,9 @@ func mark(symbol, fallback string) string {
 }
 
 // marked prefixes a message with that mark.
-func marked(symbol, fallback, msg string) string {
+func marked(
+	symbol, fallback, msg string,
+) string {
 	return mark(symbol, fallback) + " " + msg
 }
 
@@ -257,7 +316,11 @@ func marked(symbol, fallback, msg string) string {
 // A footswitch's colour is stored as a single packed number, which tells
 // somebody nothing. Painting the number in the colour it names turns it into
 // what it actually is: the light under that switch.
-func Swatch(w io.Writer, rgb int, s string) string {
+func Swatch(
+	w io.Writer,
+	rgb int,
+	s string,
+) string {
 	if rgb < 0 || rgb > 0xFFFFFF {
 		return s
 	}
@@ -275,7 +338,9 @@ func Swatch(w io.Writer, rgb int, s string) string {
 // 0x4400ff. The dim one is a few points off black on a terminal, so showing
 // it as stored would show nothing at all. The number printed beside it is
 // still what the device holds.
-func brighten(rgb int) int {
+func brighten(
+	rgb int,
+) int {
 	r, g, b := rgb>>16&0xFF, rgb>>8&0xFF, rgb&0xFF
 
 	peak := max(r, max(g, b))
@@ -287,4 +352,8 @@ func brighten(rgb int) int {
 }
 
 // scale raises one channel so the brightest reaches full.
-func scale(v, peak int) int { return v * 0xFF / peak }
+func scale(
+	v, peak int,
+) int {
+	return v * 0xFF / peak
+}

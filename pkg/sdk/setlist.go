@@ -23,7 +23,7 @@ package sdk
 import (
 	"context"
 
-	"github.com/retr0h/tonestack/pkg/sdk/internal/slots"
+	"github.com/retr0h/tonestack/pkg/sdk/internal/fileslots"
 	"github.com/retr0h/tonestack/pkg/sdk/slot"
 )
 
@@ -37,7 +37,7 @@ import (
 // A Setlist is a name for a file and nothing more. Nothing is read until a
 // method is called, and each call reads the file again.
 type Setlist struct {
-	flows *slots.Flows
+	flows *fileslots.Flows
 	path  string
 }
 
@@ -45,7 +45,7 @@ type Setlist struct {
 func (c *Client) Setlist(
 	path string,
 ) *Setlist {
-	return &Setlist{flows: c.operations(), path: path}
+	return &Setlist{flows: c.fileOperations(), path: path}
 }
 
 // Presets reports what one setlist in the file holds, slot by slot. A .hls

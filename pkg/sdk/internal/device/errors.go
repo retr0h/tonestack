@@ -112,7 +112,9 @@ func (*NotAPresetError) Unwrap() error { return ErrNotAPreset }
 // error. Anything else that is not a document is a failure, and saying so
 // here — where the wire format is known — keeps a protocol change from
 // reading as an empty slot at every call site.
-func document(result any) ([]byte, error) {
+func document(
+	result any,
+) ([]byte, error) {
 	if result == nil {
 		return nil, nil
 	}

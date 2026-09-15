@@ -242,7 +242,9 @@ func cancelledContext() context.Context {
 
 // built flattens what a build reported, so a test can assert on the facts of
 // it without also asserting on how a terminal paints them.
-func built(m result.Made) string {
+func built(
+	m result.Made,
+) string {
 	parts := make([]string, 0, 2+2*len(m.Added)+len(m.Unfamiliar))
 	parts = append(parts, m.Chain.Name, m.Path)
 
@@ -257,6 +259,8 @@ func built(m result.Made) string {
 	return strings.Join(parts, " ")
 }
 
-func TestMakePublicTestSuite(t *testing.T) {
+func TestMakePublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(MakePublicTestSuite))
 }

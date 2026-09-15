@@ -131,6 +131,8 @@ func (s *ListPublicTestSuite) TestListWith() {
 	}
 }
 
-func TestListPublicTestSuite(t *testing.T) {
+func TestListPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(ListPublicTestSuite))
 }

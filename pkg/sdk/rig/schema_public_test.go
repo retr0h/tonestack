@@ -173,6 +173,8 @@ func (s *SchemaPublicTestSuite) TestInvalid() {
 	}
 }
 
-func TestSchemaTestSuite(t *testing.T) {
+func TestSchemaTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(SchemaPublicTestSuite))
 }

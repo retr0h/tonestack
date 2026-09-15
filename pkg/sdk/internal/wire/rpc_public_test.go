@@ -37,7 +37,9 @@ type RPCPublicTestSuite struct {
 }
 
 // hex decodes a fixture, ignoring the spaces used to group it.
-func (s *RPCPublicTestSuite) hex(in string) []byte {
+func (s *RPCPublicTestSuite) hex(
+	in string,
+) []byte {
 	clean := make([]byte, 0, len(in))
 
 	for i := range len(in) {
@@ -406,6 +408,8 @@ func (s *RPCPublicTestSuite) TestLabel() {
 	}
 }
 
-func TestRPCPublicTestSuite(t *testing.T) {
+func TestRPCPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(RPCPublicTestSuite))
 }

@@ -60,6 +60,8 @@ func (s *LEDPublicTestSuite) TestAColourThisCatalogDoesNotKnow() {
 	}
 }
 
-func TestLEDPublicTestSuite(t *testing.T) {
+func TestLEDPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(LEDPublicTestSuite))
 }

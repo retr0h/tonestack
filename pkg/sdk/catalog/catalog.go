@@ -21,7 +21,9 @@
 package catalog
 
 // Block returns the block for id and whether the catalog holds one.
-func (c *Catalog) Block(id ModelID) (Block, bool) {
+func (c *Catalog) Block(
+	id ModelID,
+) (Block, bool) {
 	b, ok := c.Blocks[id]
 
 	return b, ok

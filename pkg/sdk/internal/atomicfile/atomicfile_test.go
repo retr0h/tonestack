@@ -185,6 +185,8 @@ func (s *AtomicfileTestSuite) TestUnsynced() {
 	}
 }
 
-func TestAtomicfileTestSuite(t *testing.T) {
+func TestAtomicfileTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(AtomicfileTestSuite))
 }

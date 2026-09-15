@@ -98,16 +98,36 @@ const (
 )
 
 // Number returns an argument carrying a count or an index.
-func Number(key int, v uint64) Arg { return Arg{Key: key, Value: v} }
+func Number(
+	key int,
+	v uint64,
+) Arg {
+	return Arg{Key: key, Value: v}
+}
 
 // Text returns an argument carrying a string.
-func Text(key int, v string) Arg { return Arg{Key: key, Text: v, Kind: ArgText} }
+func Text(
+	key int,
+	v string,
+) Arg {
+	return Arg{Key: key, Text: v, Kind: ArgText}
+}
 
 // Blob returns an argument carrying bytes.
-func Blob(key int, v []byte) Arg { return Arg{Key: key, Blob: v, Kind: ArgBlob} }
+func Blob(
+	key int,
+	v []byte,
+) Arg {
+	return Arg{Key: key, Blob: v, Kind: ArgBlob}
+}
 
 // flag returns an argument carrying a boolean.
-func flag(key int, v bool) Arg { return Arg{Key: key, Flag: v, Kind: ArgFlag} }
+func flag(
+	key int,
+	v bool,
+) Arg {
+	return Arg{Key: key, Flag: v, Kind: ArgFlag}
+}
 
 // Request is a call to make.
 type Request struct {
@@ -147,7 +167,9 @@ func (*RefusedError) Unwrap() error { return ErrRefused }
 // accept.
 //
 // Keys are written in the order HX Edit writes them, for the same reason.
-func EncodeRequest(r Request) []byte {
+func EncodeRequest(
+	r Request,
+) []byte {
 	var buf bytes.Buffer
 
 	// Every write below goes into that buffer, which cannot fail, so none of
@@ -173,7 +195,10 @@ func EncodeRequest(r Request) []byte {
 }
 
 // encodeArg writes one argument in the form the device expects.
-func encodeArg(enc *msgpack.Encoder, a Arg) {
+func encodeArg(
+	enc *msgpack.Encoder,
+	a Arg,
+) {
 	switch a.Kind {
 	case ArgText:
 		// A device terminates its strings, and reads a name that is not
@@ -204,7 +229,9 @@ func encodeArg(enc *msgpack.Encoder, a Arg) {
 // Only the first value in the body is the reply. Real replies carry an opaque
 // tail after it on roughly every other fresh session, and decoding greedily
 // turns that into an error where there is none.
-func DecodeResponse(body []byte) (Response, error) {
+func DecodeResponse(
+	body []byte,
+) (Response, error) {
 	dec := msgpack.NewDecoder(bytes.NewReader(body))
 	dec.SetMapDecoder(func(d *msgpack.Decoder) (any, error) {
 		return d.DecodeUntypedMap()
@@ -324,7 +351,9 @@ const (
 // index a preset had before it was last reordered on the pedal, and no
 // command accepts it as an address — passing one through as a slot number is
 // how a device gets sent somewhere that does not exist.
-func DecodePresetList(result any) ([]Preset, error) {
+func DecodePresetList(
+	result any,
+) ([]Preset, error) {
 	rows, ok := result.([]any)
 	if !ok {
 		return nil, fmt.Errorf("listing presets: expected an array, got %T", result)
@@ -348,7 +377,9 @@ func DecodePresetList(result any) ([]Preset, error) {
 //
 // An entry is a map of exactly one pair, so the detail sits one level in
 // whatever the key turns out to be.
-func presetName(row any) (string, error) {
+func presetName(
+	row any,
+) (string, error) {
 	entry, ok := row.(map[any]any)
 	if !ok {
 		return "", fmt.Errorf("expected a map, got %T", row)

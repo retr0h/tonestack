@@ -52,7 +52,9 @@ type Refreshed struct {
 // committed file alone unless Line 6 changed something. Building the same
 // inputs twice gives the same bytes, which is what makes comparing them
 // honest.
-func Refresh(opts Options) (Refreshed, error) {
+func Refresh(
+	opts Options,
+) (Refreshed, error) {
 	if missing := absent(opts); missing != "" {
 		return Refreshed{Path: opts.OutputPath, Skipped: missing}, nil
 	}
@@ -97,7 +99,9 @@ func Refresh(opts Options) (Refreshed, error) {
 }
 
 // absent names the first input a catalog needs that this machine lacks.
-func absent(opts Options) string {
+func absent(
+	opts Options,
+) string {
 	// A pattern with no metacharacters beyond the star cannot be malformed.
 	models, _ := filepath.Glob(filepath.Join(opts.ResourcesDir, "*.models"))
 	if len(models) == 0 {

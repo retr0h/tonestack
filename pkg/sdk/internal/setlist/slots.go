@@ -30,7 +30,9 @@ import (
 // Copy overwrites one slot with another.
 //
 // Whatever the destination held is gone. The source is untouched.
-func (d *Document) Copy(from, to Address) error {
+func (d *Document) Copy(
+	from, to Address,
+) error {
 	src, err := d.Slot(from.Setlist, from.Slot)
 	if err != nil {
 		return err
@@ -66,7 +68,9 @@ func (d *Document) Copy(from, to Address) error {
 // mean writing an empty preset, and an empty preset is not empty: it carries
 // the inputs, outputs, split and join a device expects, which differ by model
 // and by firmware. Swapping invents nothing and can be undone by repeating it.
-func (d *Document) Swap(a, b Address) error {
+func (d *Document) Swap(
+	a, b Address,
+) error {
 	x, err := d.Slot(a.Setlist, a.Slot)
 	if err != nil {
 		return err
@@ -83,7 +87,10 @@ func (d *Document) Swap(a, b Address) error {
 }
 
 // Rename sets the name a player sees for a slot.
-func (d *Document) Rename(at Address, name string) error {
+func (d *Document) Rename(
+	at Address,
+	name string,
+) error {
 	s, err := d.Slot(at.Setlist, at.Slot)
 	if err != nil {
 		return err
@@ -114,7 +121,9 @@ func (s Setlist) Name() string {
 //
 // Empty slots keep whatever the device named them, so the result is as long
 // as the setlist and positions line up with what the hardware shows.
-func (d *Document) Names(setlist int) ([]string, error) {
+func (d *Document) Names(
+	setlist int,
+) ([]string, error) {
 	if setlist < 0 || setlist >= len(d.Setlists) {
 		return nil, &NoSuchSlotError{Setlist: setlist, Have: 0}
 	}

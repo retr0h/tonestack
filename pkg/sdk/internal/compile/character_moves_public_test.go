@@ -44,7 +44,10 @@ func (s *CharacterMovesPublicTestSuite) SetupTest() {
 }
 
 // described returns a rig that says how it should sound.
-func described(amp string, terms ...string) rig.Spec {
+func described(
+	amp string,
+	terms ...string,
+) rig.Spec {
 	spec := recipe(amp, "")
 
 	got := make([]rig.CharacterTerm, 0, len(terms))
@@ -174,6 +177,8 @@ func (s *CharacterMovesPublicTestSuite) TestTwoWordsForOneAxisMoveNothing() {
 		s.paramOf(plain, "Drive"), s.paramOf(got, "Drive"), 1e-9)
 }
 
-func TestCharacterMovesPublicTestSuite(t *testing.T) {
+func TestCharacterMovesPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(CharacterMovesPublicTestSuite))
 }

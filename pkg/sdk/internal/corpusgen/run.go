@@ -33,7 +33,9 @@ const defaultMinSamples = 5
 
 // compress gzips the statistics, which are repetitive JSON and embedded in
 // the binary.
-func compress(raw []byte) []byte {
+func compress(
+	raw []byte,
+) []byte {
 	var buf bytes.Buffer
 
 	// Compressing into a buffer cannot fail.

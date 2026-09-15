@@ -43,7 +43,9 @@ const versionKey = "CFBundleShortVersionString"
 // that is not an application bundle, and refusing to build a catalog over a
 // version string would be pedantry. The catalog records what was found, and
 // an empty result reads as "source unknown" wherever it is shown.
-func appVersion(resourcesDir string) string {
+func appVersion(
+	resourcesDir string,
+) string {
 	// Resources sits beside Info.plist inside Contents.
 	f, err := os.Open(
 		filepath.Join(resourcesDir, "..", "Info.plist"),
@@ -69,7 +71,10 @@ func appVersion(resourcesDir string) string {
 // nested pairs, so the value wanted is the first <string> after the matching
 // <key>. Decoding the whole document into a struct is not possible for the
 // same reason.
-func plistString(r io.Reader, key string) (string, error) {
+func plistString(
+	r io.Reader,
+	key string,
+) (string, error) {
 	dec := xml.NewDecoder(r)
 
 	var (

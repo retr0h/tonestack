@@ -238,6 +238,8 @@ func (s *ParamValuePublicTestSuite) TestString() {
 	}
 }
 
-func TestParamValuePublicTestSuite(t *testing.T) {
+func TestParamValuePublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(ParamValuePublicTestSuite))
 }

@@ -140,6 +140,8 @@ func (s *RegisterTestSuite) TestMustOutputSchema() {
 	}
 }
 
-func TestRegisterTestSuite(t *testing.T) {
+func TestRegisterTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(RegisterTestSuite))
 }

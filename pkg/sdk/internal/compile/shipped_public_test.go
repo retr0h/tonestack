@@ -127,6 +127,8 @@ func (s *ShippedPublicTestSuite) TestEveryExampleUsesTheVocabulary() {
 	}
 }
 
-func TestShippedPublicTestSuite(t *testing.T) {
+func TestShippedPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(ShippedPublicTestSuite))
 }

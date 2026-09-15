@@ -28,12 +28,14 @@ import (
 
 	"github.com/retr0h/tonestack/pkg/sdk/catalog"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/attached"
+	"github.com/retr0h/tonestack/pkg/sdk/internal/backup"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/catalogview"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/corpusview"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/device"
+	"github.com/retr0h/tonestack/pkg/sdk/internal/deviceslots"
+	"github.com/retr0h/tonestack/pkg/sdk/internal/fileslots"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/presets"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/recipes"
-	"github.com/retr0h/tonestack/pkg/sdk/internal/slots"
 )
 
 // Client is what a wrapper holds.
@@ -53,10 +55,12 @@ import (
 type Client struct {
 	opts options
 
-	// flows are the slot operations, configured from opts once, on first use,
-	// so a Client that did not come from New still has them.
-	flowsOnce sync.Once
-	flows     *slots.Flows
+	// fileFlows and deviceFlows are the slot operations, configured from opts
+	// once, on first use, so a Client that did not come from New still has
+	// them.
+	flowsOnce   sync.Once
+	fileFlows   *fileslots.Flows
+	deviceFlows *deviceslots.Flows
 
 	// mu guards cat, the catalog opened on first use.
 	mu  sync.Mutex
@@ -165,19 +169,31 @@ func New(
 	return &Client{opts: o, claim: make(chan struct{}, 1)}
 }
 
-// operations are the slot flows, built the first time anything asks.
-func (c *Client) operations() *slots.Flows {
+// buildFlows builds the slot flows the first time anything asks.
+func (c *Client) buildFlows() {
 	c.flowsOnce.Do(func() {
 		// The flows read the catalog through the Client, so they share the
 		// one it opens and keeps.
-		c.flows = &slots.Flows{
-			Catalogs:  c,
-			BackupDir: c.opts.backupDir,
-			Capture:   c.opts.capture,
-		}
-	})
+		c.fileFlows = &fileslots.Flows{Catalogs: c}
 
-	return c.flows
+		devices := &deviceslots.Flows{Catalogs: c, Capture: c.opts.capture}
+		devices.Backups = backup.New(c.opts.backupDir, deviceslots.NewDecoder(devices))
+		c.deviceFlows = devices
+	})
+}
+
+// fileOperations are the flows over a .hls, .hlb or .hlx on disk.
+func (c *Client) fileOperations() *fileslots.Flows {
+	c.buildFlows()
+
+	return c.fileFlows
+}
+
+// deviceOperations are the flows over an attached device.
+func (c *Client) deviceOperations() *deviceslots.Flows {
+	c.buildFlows()
+
+	return c.deviceFlows
 }
 
 // Catalog is the catalog this Client names gear against.

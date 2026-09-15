@@ -93,6 +93,8 @@ func (*Translator) Placements(
 }
 
 // Snapshots carries what the device recalls on a footswitch.
-func (*Translator) Snapshots(got wire.DevicePreset) *[]rig.Snapshot {
+func (*Translator) Snapshots(
+	got wire.DevicePreset,
+) *[]rig.Snapshot {
 	return Snapshots(got)
 }

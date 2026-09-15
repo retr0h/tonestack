@@ -59,7 +59,9 @@ func (s *NewPublicTestSuite) catalogs(
 	return c
 }
 
-func (s *NewPublicTestSuite) opts(dir string) recipes.NewOptions {
+func (s *NewPublicTestSuite) opts(
+	dir string,
+) recipes.NewOptions {
 	return recipes.NewOptions{
 		Dir:        dir,
 		ID:         "test-player",
@@ -344,6 +346,8 @@ func (s *NewPublicTestSuite) TestNew() {
 	}
 }
 
-func TestNewPublicTestSuite(t *testing.T) {
+func TestNewPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(NewPublicTestSuite))
 }

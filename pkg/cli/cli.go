@@ -44,7 +44,11 @@ import (
 type Theme = paint.Theme
 
 // SetTheme picks a theme by name, and says whether it knew the name.
-func SetTheme(name string) bool { return paint.SetTheme(name) }
+func SetTheme(
+	name string,
+) bool {
+	return paint.SetTheme(name)
+}
 
 // ActiveTheme is the theme in use.
 func ActiveTheme() *Theme { return paint.ActiveTheme() }
@@ -57,7 +61,15 @@ func ThemeNames() []string { return paint.ThemeNames() }
 // Handed out rather than printed here, because whatever reports the error
 // already knows how to print one. This is what makes that line read in this
 // project's voice instead of the framework's.
-func FailurePrefix(w io.Writer) string { return paint.FailurePrefix(w) }
+func FailurePrefix(
+	w io.Writer,
+) string {
+	return paint.FailurePrefix(w)
+}
 
 // Banner is the heading a help page opens with.
-func Banner(w io.Writer) string { return paint.Banner(w) }
+func Banner(
+	w io.Writer,
+) string {
+	return paint.Banner(w)
+}

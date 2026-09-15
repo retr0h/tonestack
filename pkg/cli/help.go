@@ -55,7 +55,9 @@ type Help struct {
 }
 
 // Render writes the help page.
-func (h Help) Render(w io.Writer) error {
+func (h Help) Render(
+	w io.Writer,
+) error {
 	// The root page shows the banner instead, which already names the tool.
 	if h.Name != "" {
 		if _, err := fmt.Fprintf(w, "\n%s%s\n", paint.Indent, paint.Title(w, h.Name)); err != nil {
@@ -95,7 +97,11 @@ func (h Help) Render(w io.Writer) error {
 }
 
 // block writes a heading and its rows, and nothing at all when empty.
-func block(w io.Writer, title string, rows [][]string) error {
+func block(
+	w io.Writer,
+	title string,
+	rows [][]string,
+) error {
 	if len(rows) == 0 {
 		return nil
 	}
@@ -109,7 +115,10 @@ func block(w io.Writer, title string, rows [][]string) error {
 
 // itemRows renders names beside their descriptions, indented under the
 // heading they belong to.
-func itemRows(w io.Writer, items []Item) [][]string {
+func itemRows(
+	w io.Writer,
+	items []Item,
+) [][]string {
 	rows := make([][]string, 0, len(items))
 
 	for _, it := range items {
@@ -123,7 +132,9 @@ func itemRows(w io.Writer, items []Item) [][]string {
 }
 
 // indented puts every line of a paragraph at the page's left margin.
-func indented(s string) string {
+func indented(
+	s string,
+) string {
 	lines := strings.Split(strings.TrimRight(s, "\n"), "\n")
 	for i, l := range lines {
 		if l == "" {

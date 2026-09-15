@@ -51,7 +51,9 @@ const (
 // Modelled rather than carried as device state, because a snapshot is a
 // musical decision: which blocks are on, at what tempo, under what name. What
 // somebody put on a footswitch is part of the rig.
-func snapshotsOf(doc *preset.Document) *[]rig.Snapshot {
+func snapshotsOf(
+	doc *preset.Document,
+) *[]rig.Snapshot {
 	keys := make([]string, 0, len(doc.Data.Tone))
 
 	for key := range doc.Data.Tone {
@@ -78,7 +80,9 @@ func snapshotsOf(doc *preset.Document) *[]rig.Snapshot {
 }
 
 // snapshotOf reads one snapshot entry.
-func snapshotOf(entry preset.Tone) rig.Snapshot {
+func snapshotOf(
+	entry preset.Tone,
+) rig.Snapshot {
 	var out rig.Snapshot
 
 	decode(entry[snapName], &out.Name)
@@ -125,7 +129,10 @@ var modelled = map[string]bool{
 // Numbered from zero in the order the rig lists them, which is the order they
 // were read in. A device names them snapshot0 upward and nothing else refers
 // to them by name.
-func restoreSnapshots(doc *preset.Document, snapshots []rig.Snapshot) {
+func restoreSnapshots(
+	doc *preset.Document,
+	snapshots []rig.Snapshot,
+) {
 	for i, snap := range snapshots {
 		entry := preset.Tone{}
 
@@ -155,7 +162,9 @@ func restoreSnapshots(doc *preset.Document, snapshots []rig.Snapshot) {
 }
 
 // snapshotIndex reads the number a snapshot is stored under, or -1.
-func snapshotIndex(key string) int {
+func snapshotIndex(
+	key string,
+) int {
 	rest, ok := strings.CutPrefix(key, snapshotPrefix)
 	if !ok {
 		return -1
@@ -174,7 +183,10 @@ func snapshotIndex(key string) int {
 // A preset omits fields rather than writing nulls, and a field this cannot
 // read is left unset for the same reason: writing a zero would claim the
 // device said something it did not.
-func decode[T any](raw json.RawMessage, target **T) {
+func decode[T any](
+	raw json.RawMessage,
+	target **T,
+) {
 	if len(raw) == 0 {
 		return
 	}
@@ -188,7 +200,11 @@ func decode[T any](raw json.RawMessage, target **T) {
 }
 
 // put writes a field back, or writes nothing when the rig has none.
-func put[T any](entry preset.Tone, key string, v *T) {
+func put[T any](
+	entry preset.Tone,
+	key string,
+	v *T,
+) {
 	if v == nil {
 		return
 	}

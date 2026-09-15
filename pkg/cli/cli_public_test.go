@@ -105,7 +105,9 @@ func (s *HelpPublicTestSuite) TestRenderReportsAWriterThatFails() {
 	}
 }
 
-func TestHelpPublicTestSuite(t *testing.T) {
+func TestHelpPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(HelpPublicTestSuite))
 }
 
@@ -116,7 +118,9 @@ type failAfter struct {
 	c int
 }
 
-func (w *failAfter) Write(p []byte) (int, error) {
+func (w *failAfter) Write(
+	p []byte,
+) (int, error) {
 	w.c++
 	if w.c > w.n {
 		return 0, errors.New("boom")

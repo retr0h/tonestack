@@ -75,7 +75,9 @@ func (s *PlacePublicTestSuite) blank() *wire.Document {
 }
 
 // read runs a document through the decoder the reading commands use.
-func (s *PlacePublicTestSuite) read(doc *wire.Document) wire.DevicePreset {
+func (s *PlacePublicTestSuite) read(
+	doc *wire.Document,
+) wire.DevicePreset {
 	got, err := wire.DecodePreset(doc.Encode())
 	s.Require().NoError(err)
 
@@ -84,7 +86,9 @@ func (s *PlacePublicTestSuite) read(doc *wire.Document) wire.DevicePreset {
 
 // capture returns a document a device wrote, optionally rebuilt holding only
 // the given sections.
-func (s *PlacePublicTestSuite) capture(sections ...int8) *wire.Document {
+func (s *PlacePublicTestSuite) capture(
+	sections ...int8,
+) *wire.Document {
 	raw, err := os.ReadFile(filepath.Join("testdata", "preset.bin"))
 	s.Require().NoError(err)
 
@@ -307,7 +311,9 @@ func (s *PlacePublicTestSuite) replace(
 
 // keepsRouting checks that every position a chain cannot take still holds the
 // byte the device wrote, in every snapshot.
-func (s *PlacePublicTestSuite) keepsRouting(doc *wire.Document) {
+func (s *PlacePublicTestSuite) keepsRouting(
+	doc *wire.Document,
+) {
 	fresh := s.blank()
 
 	// An unused slot keeps its input, split, join and output at 0, 9, 10 and
@@ -607,7 +613,9 @@ func (s *PlacePublicTestSuite) at(
 // 0.44999998807907104. A rig read off hardware already carries values that
 // have been through this and so survives it unchanged; one somebody typed
 // gets rounded to what the device can store.
-func (s *PlacePublicTestSuite) asDevice(values []any) []any {
+func (s *PlacePublicTestSuite) asDevice(
+	values []any,
+) []any {
 	if values == nil {
 		return nil
 	}
@@ -628,7 +636,9 @@ func (s *PlacePublicTestSuite) asDevice(values []any) []any {
 }
 
 // messagePackBool is the one byte the format spends on a bool.
-func (s *PlacePublicTestSuite) messagePackBool(v bool) []byte {
+func (s *PlacePublicTestSuite) messagePackBool(
+	v bool,
+) []byte {
 	if v {
 		return []byte{0xc3}
 	}
@@ -636,6 +646,8 @@ func (s *PlacePublicTestSuite) messagePackBool(v bool) []byte {
 	return []byte{0xc2}
 }
 
-func TestPlacePublicTestSuite(t *testing.T) {
+func TestPlacePublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(PlacePublicTestSuite))
 }

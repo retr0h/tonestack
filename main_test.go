@@ -105,6 +105,96 @@ func (s *MainTestSuite) TestATestFileSaysWhichKindItIs() {
 	s.Require().NoError(err)
 }
 
+// TestEverySignatureTakesALinePerParameter holds the rule CONTRIBUTING gives
+// a function's parameters.
+//
+// One to a line, with the closing parenthesis on a line after the last, so
+// adding a parameter shows as one added line rather than a rewritten
+// signature. No linter checks it: lll and golines only measure length. It
+// was broken 753 times before this test existed, and a rule broken that often
+// protects nothing.
+//
+// Every function and method declaration with parameters, test files included.
+// Function literals and interface methods are exempt: a literal is usually a
+// one-line callback, and an interface lists shapes rather than code anybody
+// diffs. Generated files are exempt because nobody writes them.
+func (s *MainTestSuite) TestEverySignatureTakesALinePerParameter() {
+	fset := token.NewFileSet()
+
+	var broken []string
+
+	err := filepath.WalkDir(".", func(path string, d fs.DirEntry, err error) error {
+		switch {
+		case err != nil:
+			return err
+		case d.IsDir():
+			// Nothing this repository wrote, and nothing it can fix. .claude
+			// holds other checkouts' worktrees.
+			switch d.Name() {
+			case ".git", ".worktrees", ".claude", "node_modules":
+				return fs.SkipDir
+			}
+
+			return nil
+		case !strings.HasSuffix(path, ".go"),
+			strings.HasSuffix(path, ".gen.go"),
+			strings.HasSuffix(path, ".gen_test.go"):
+			return nil
+		}
+
+		f, err := parser.ParseFile(fset, path, nil, parser.ParseComments)
+		if err != nil {
+			return err
+		}
+
+		if ast.IsGenerated(f) {
+			return nil
+		}
+
+		for _, decl := range f.Decls {
+			fn, ok := decl.(*ast.FuncDecl)
+			if ok && !oneLinePerParameter(fset, fn.Type.Params) {
+				broken = append(broken,
+					fmt.Sprintf("%s: %s", fset.Position(fn.Pos()), fn.Name.Name))
+			}
+		}
+
+		return nil
+	})
+	s.Require().NoError(err)
+
+	s.Require().Empty(broken,
+		"put each parameter on a line of its own and the closing parenthesis "+
+			"on the line after the last; see Function signatures in CONTRIBUTING.md")
+}
+
+// oneLinePerParameter reports whether a parameter list follows the rule: each
+// parameter starts on a line after the opening parenthesis or the parameter
+// before it, and the closing parenthesis sits on a line after the last. A list
+// with no parameters stays on one line.
+func oneLinePerParameter(
+	fset *token.FileSet,
+	params *ast.FieldList,
+) bool {
+	if len(params.List) == 0 {
+		return true
+	}
+
+	line := func(p token.Pos) int { return fset.Position(p).Line }
+
+	prev := line(params.Opening)
+
+	for _, f := range params.List {
+		if line(f.Pos()) <= prev {
+			return false
+		}
+
+		prev = line(f.End())
+	}
+
+	return line(params.Closing) > prev
+}
+
 // TestTheSDKTakesNothingElseWithIt holds the device half where the argument
 // for it being liftable assumes it is.
 //
@@ -138,6 +228,27 @@ func (s *MainTestSuite) TestTheSDKTakesNothingElseWithIt() {
 		s.Require().True(unit[dep],
 			"%s is not part of the SDK, and the SDK reaching it means the "+
 				"device half can no longer be lifted out on its own", dep)
+	}
+}
+
+// TestBackupsDoNotReachTheDevice holds the backup policy apart from the
+// transport.
+//
+// What gets kept before a write, in which format and where, is a decision
+// about somebody's presets, not about USB. It reads a device's answer through
+// a Decoder the device flows hand in, so the day it imports the device or its
+// wire is the day the policy starts changing when the transport does.
+func (s *MainTestSuite) TestBackupsDoNotReachTheDevice() {
+	out, err := exec.Command(
+		"go", "list", "-deps", "./pkg/sdk/internal/backup").Output()
+	s.Require().NoError(err)
+
+	for _, dep := range strings.Fields(string(out)) {
+		switch dep {
+		case mod + "pkg/sdk/internal/device", mod + "pkg/sdk/internal/wire":
+			s.Require().Fail("reaches the transport",
+				"pkg/sdk/internal/backup reaches %s; hand it a Decoder instead", dep)
+		}
 	}
 }
 
@@ -391,6 +502,8 @@ func (s *MainTestSuite) TestTheSDKReadsOneVariable() {
 		"the one variable pkg/sdk reads is XDG_STATE_HOME")
 }
 
-func TestMainTestSuite(t *testing.T) {
+func TestMainTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(MainTestSuite))
 }

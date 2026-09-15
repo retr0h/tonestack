@@ -64,6 +64,8 @@ func (s *ChangePublicTestSuite) TestOnDevice() {
 	}
 }
 
-func TestChangePublicTestSuite(t *testing.T) {
+func TestChangePublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(ChangePublicTestSuite))
 }

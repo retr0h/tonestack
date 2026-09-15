@@ -198,6 +198,8 @@ func (s *FramePublicTestSuite) TestCarriesData() {
 	}
 }
 
-func TestFramePublicTestSuite(t *testing.T) {
+func TestFramePublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(FramePublicTestSuite))
 }

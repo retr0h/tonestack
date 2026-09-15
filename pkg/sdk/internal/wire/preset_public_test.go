@@ -46,7 +46,9 @@ func (s *PresetPublicTestSuite) capture() []byte {
 }
 
 // captureNamed returns one slot as an HX Stomp actually sent it.
-func (s *PresetPublicTestSuite) captureNamed(name string) []byte {
+func (s *PresetPublicTestSuite) captureNamed(
+	name string,
+) []byte {
 	raw, err := os.ReadFile(filepath.Join("testdata", name))
 	s.Require().NoError(err)
 
@@ -55,7 +57,9 @@ func (s *PresetPublicTestSuite) captureNamed(name string) []byte {
 
 // withControllers rebuilds the captured preset with a different controller
 // section, so shapes a device never sends can still be read.
-func (s *PresetPublicTestSuite) withControllers(section any) []byte {
+func (s *PresetPublicTestSuite) withControllers(
+	section any,
+) []byte {
 	doc, err := wire.DecodeDocument(s.capture())
 	s.Require().NoError(err)
 
@@ -338,6 +342,8 @@ func (s *PresetPublicTestSuite) TestDecodeLoaded() {
 	}
 }
 
-func TestPresetPublicTestSuite(t *testing.T) {
+func TestPresetPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(PresetPublicTestSuite))
 }

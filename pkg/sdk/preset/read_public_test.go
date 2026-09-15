@@ -50,7 +50,9 @@ func (s *ReadPublicTestSuite) doc() *preset.Document {
 }
 
 // read is a shorthand for the many documents written inline below.
-func (s *ReadPublicTestSuite) read(doc string) (*preset.Document, error) {
+func (s *ReadPublicTestSuite) read(
+	doc string,
+) (*preset.Document, error) {
 	return preset.Read(strings.NewReader(doc))
 }
 
@@ -320,6 +322,8 @@ func (s *ReadPublicTestSuite) TestSpecReadsTheFixture() {
 	s.Require().Equal(int64(2), i)
 }
 
-func TestReadPublicTestSuite(t *testing.T) {
+func TestReadPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(ReadPublicTestSuite))
 }

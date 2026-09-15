@@ -106,7 +106,10 @@ func Lower(
 }
 
 // at reads an optional integer, falling back when a rig does not state one.
-func at(v *int, fallback int) int {
+func at(
+	v *int,
+	fallback int,
+) int {
 	if v == nil {
 		return fallback
 	}
@@ -209,7 +212,9 @@ func paramsFor(
 //
 // They travel together because a device mixes them in one block, and they are
 // told apart by the @ prefix the format itself uses.
-func attrsFor(entry rig.ChainEntry) map[string]json.RawMessage {
+func attrsFor(
+	entry rig.ChainEntry,
+) map[string]json.RawMessage {
 	if entry.Params == nil {
 		return nil
 	}

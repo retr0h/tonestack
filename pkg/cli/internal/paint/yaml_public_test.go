@@ -98,6 +98,8 @@ func (s *YAMLPublicTestSuite) TestSwatch() {
 	}
 }
 
-func TestYAMLPublicTestSuite(t *testing.T) {
+func TestYAMLPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(YAMLPublicTestSuite))
 }

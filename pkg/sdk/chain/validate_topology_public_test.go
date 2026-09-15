@@ -38,7 +38,9 @@ func (*ValidateTopologyPublicTestSuite) limits() chain.Limits {
 }
 
 // snapshot is a chain of one block with one override, keyed by at.
-func (s *ValidateTopologyPublicTestSuite) snapshot(at string) chain.Chain {
+func (s *ValidateTopologyPublicTestSuite) snapshot(
+	at string,
+) chain.Chain {
 	return chain.Chain{
 		Blocks: []chain.Block{{Model: "A", DSP: 0, Pos: 0}},
 		Snapshots: []chain.Snapshot{{
@@ -149,6 +151,8 @@ func (s *ValidateTopologyPublicTestSuite) TestValidateTopology() {
 	}
 }
 
-func TestValidateTopologyPublicTestSuite(t *testing.T) {
+func TestValidateTopologyPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(ValidateTopologyPublicTestSuite))
 }

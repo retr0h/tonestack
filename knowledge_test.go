@@ -151,7 +151,9 @@ func (s *KnowledgeTestSuite) TestTheFiguresMatchTheData() {
 }
 
 // model reads one model's measurements, which the page's examples depend on.
-func (s *KnowledgeTestSuite) model(id catalog.ModelID) corpus.ModelStats {
+func (s *KnowledgeTestSuite) model(
+	id catalog.ModelID,
+) corpus.ModelStats {
 	ms, ok := s.stats.Models[id]
 	s.Require().True(ok, "the corpus no longer measures %s", id)
 
@@ -159,7 +161,10 @@ func (s *KnowledgeTestSuite) model(id catalog.ModelID) corpus.ModelStats {
 }
 
 // float reads a parameter's stated default.
-func (s *KnowledgeTestSuite) float(b catalog.Block, key string) float64 {
+func (s *KnowledgeTestSuite) float(
+	b catalog.Block,
+	key string,
+) float64 {
 	v, ok := b.Params[key].Default.Float()
 	s.Require().True(ok, "%s %s has no numeric default", b.ID, key)
 
@@ -195,16 +200,24 @@ func (s *KnowledgeTestSuite) parameters() (map[string]int, int) {
 }
 
 // percent rounds a share to a whole percentage, the way the page quotes it.
-func percent(share float64) int { return int(math.Round(share * 100)) }
+func percent(
+	share float64,
+) int {
+	return int(math.Round(share * 100))
+}
 
 // roundTo rounds n to the nearest multiple of step, for figures quoted as
 // "about".
-func roundTo(n, step int) int {
+func roundTo(
+	n, step int,
+) int {
 	return int(math.Round(float64(n)/float64(step))) * step
 }
 
 // thousands writes n with a comma between each group of three digits.
-func thousands(n int) string {
+func thousands(
+	n int,
+) string {
 	digits := fmt.Sprint(n)
 
 	var b strings.Builder
@@ -220,6 +233,8 @@ func thousands(n int) string {
 	return b.String()
 }
 
-func TestKnowledgeTestSuite(t *testing.T) {
+func TestKnowledgeTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(KnowledgeTestSuite))
 }

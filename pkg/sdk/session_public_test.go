@@ -624,7 +624,9 @@ func (s *SessionPublicTestSuite) TestClose() {
 	}
 }
 
-func TestSessionPublicTestSuite(t *testing.T) {
+func TestSessionPublicTestSuite(
+	t *testing.T,
+) {
 	t.Parallel()
 
 	suite.Run(t, new(SessionPublicTestSuite))

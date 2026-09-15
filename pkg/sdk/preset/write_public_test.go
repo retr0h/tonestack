@@ -300,8 +300,14 @@ func (s *WritePublicTestSuite) TestNew() {
 
 type failingWriter struct{}
 
-func (*failingWriter) Write([]byte) (int, error) { return 0, errors.New("boom") }
+func (*failingWriter) Write(
+	[]byte,
+) (int, error) {
+	return 0, errors.New("boom")
+}
 
-func TestWritePublicTestSuite(t *testing.T) {
+func TestWritePublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(WritePublicTestSuite))
 }

@@ -57,7 +57,9 @@ type Section struct {
 }
 
 // Render writes the section.
-func (s Section) Render(w io.Writer) error {
+func (s Section) Render(
+	w io.Writer,
+) error {
 	if err := s.title(w); err != nil {
 		return err
 	}
@@ -80,7 +82,9 @@ func (s Section) Render(w io.Writer) error {
 }
 
 // title writes the heading line, if there is one.
-func (s Section) title(w io.Writer) error {
+func (s Section) title(
+	w io.Writer,
+) error {
 	if s.Title == "" {
 		return nil
 	}
@@ -96,7 +100,9 @@ func (s Section) title(w io.Writer) error {
 }
 
 // rows prepends the column headings, when there are any.
-func (s Section) rows(w io.Writer) [][]string {
+func (s Section) rows(
+	w io.Writer,
+) [][]string {
 	if len(s.Headers) == 0 {
 		return s.Rows
 	}
@@ -113,7 +119,9 @@ func (s Section) rows(w io.Writer) [][]string {
 }
 
 // summary writes the closing line, if there is one.
-func (s Section) summary(w io.Writer) error {
+func (s Section) summary(
+	w io.Writer,
+) error {
 	if s.Summary == "" {
 		_, err := fmt.Fprintln(w)
 
@@ -130,7 +138,11 @@ func (s Section) summary(w io.Writer) error {
 // Widths are measured with lipgloss rather than len, because a styled cell
 // carries escape sequences that occupy no width on screen. Measuring bytes
 // would push every column right by however much colour the cell used.
-func Table(w io.Writer, rows [][]string, align []lipgloss.Position) error {
+func Table(
+	w io.Writer,
+	rows [][]string,
+	align []lipgloss.Position,
+) error {
 	if len(rows) == 0 {
 		return nil
 	}
@@ -162,7 +174,9 @@ func Table(w io.Writer, rows [][]string, align []lipgloss.Position) error {
 }
 
 // columnWidths measures the widest rendered cell in each column.
-func columnWidths(rows [][]string) []int {
+func columnWidths(
+	rows [][]string,
+) []int {
 	var widths []int
 
 	for _, row := range rows {
@@ -181,7 +195,10 @@ func columnWidths(rows [][]string) []int {
 }
 
 // alignment returns the alignment for a column, defaulting to left.
-func alignment(align []lipgloss.Position, i int) lipgloss.Position {
+func alignment(
+	align []lipgloss.Position,
+	i int,
+) lipgloss.Position {
 	if i < len(align) {
 		return align[i]
 	}
@@ -190,7 +207,11 @@ func alignment(align []lipgloss.Position, i int) lipgloss.Position {
 }
 
 // pad widens a cell to a column width.
-func pad(cell string, width int, align lipgloss.Position) string {
+func pad(
+	cell string,
+	width int,
+	align lipgloss.Position,
+) string {
 	fill := width - lipgloss.Width(cell)
 	if fill <= 0 {
 		return cell
@@ -229,7 +250,9 @@ type Detail struct {
 }
 
 // Render writes the detail view.
-func (d Detail) Render(w io.Writer) error {
+func (d Detail) Render(
+	w io.Writer,
+) error {
 	line := Indent + Title(w, d.Title)
 	if d.Subtitle != "" {
 		line += "  " + Mute(w, d.Subtitle)

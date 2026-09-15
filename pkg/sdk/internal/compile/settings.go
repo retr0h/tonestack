@@ -43,7 +43,10 @@ const agreementThreshold = 0.15
 // The catalog's default is the floor: Line 6 states one for every parameter
 // and it is never invalid. The corpus can raise on it, but only where players
 // agree closely enough that the median means something.
-func settings(b catalog.Block, stats *corpus.Stats) chain.Params {
+func settings(
+	b catalog.Block,
+	stats *corpus.Stats,
+) chain.Params {
 	out := make(chain.Params, len(b.Params))
 
 	for key, p := range b.Params {

@@ -32,7 +32,10 @@ import (
 )
 
 // Recipes prints every rig a directory holds, one to a row.
-func Recipes(w io.Writer, r sdk.Recipes) error {
+func Recipes(
+	w io.Writer,
+	r sdk.Recipes,
+) error {
 	rows := make([][]string, 0, len(r.Rigs))
 
 	for _, spec := range r.Rigs {
@@ -55,7 +58,10 @@ func Recipes(w io.Writer, r sdk.Recipes) error {
 }
 
 // Recipe prints one rig in full.
-func Recipe(w io.Writer, r sdk.Recipe) error {
+func Recipe(
+	w io.Writer,
+	r sdk.Recipe,
+) error {
 	spec := r.Rig
 	d := paint.Detail{Title: spec.Subject.Name, Subtitle: spec.ID}
 
@@ -95,7 +101,9 @@ func Recipe(w io.Writer, r sdk.Recipe) error {
 //
 // Only the first carries the label, so several read as one block rather than
 // as the same word repeated down the page.
-func variants(all []sdk.Variant) []paint.Field {
+func variants(
+	all []sdk.Variant,
+) []paint.Field {
 	out := make([]paint.Field, 0, len(all))
 
 	for _, v := range all {
@@ -120,7 +128,10 @@ func variants(all []sdk.Variant) []paint.Field {
 // that carries colour. A rig is only shown as confirmed when every claim in
 // it rests on something checkable — the weakest link is what the reader needs
 // to know about.
-func source(w io.Writer, spec rig.Spec) string {
+func source(
+	w io.Writer,
+	spec rig.Spec,
+) string {
 	if rig.Trusted(spec) {
 		return paint.OK(w, string(rig.Sourced(spec)))
 	}
@@ -132,7 +143,9 @@ func source(w io.Writer, spec rig.Spec) string {
 //
 // Labelled by role rather than by position, because "amp" is what a person
 // reading this wants to find and "3" is not.
-func signalPath(spec rig.Spec) []paint.Field {
+func signalPath(
+	spec rig.Spec,
+) []paint.Field {
 	out := make([]paint.Field, 0, len(spec.Chain))
 
 	for _, e := range spec.Chain {
@@ -143,7 +156,9 @@ func signalPath(spec rig.Spec) []paint.Field {
 }
 
 // confidence reports how far a rig says it should be trusted.
-func confidence(spec rig.Spec) rig.Confidence {
+func confidence(
+	spec rig.Spec,
+) rig.Confidence {
 	if spec.Confidence == nil {
 		return rig.ConfidenceLow
 	}
@@ -155,7 +170,9 @@ func confidence(spec rig.Spec) rig.Confidence {
 //
 // The label repeats as blank so the values line up in the same column as
 // every other field rather than starting a block of their own.
-func character(spec rig.Spec) []paint.Field {
+func character(
+	spec rig.Spec,
+) []paint.Field {
 	if spec.Character == nil || len(*spec.Character) == 0 {
 		return nil
 	}
@@ -187,7 +204,9 @@ var where = map[rig.Position]string{
 // A rig stores them apart so that two rigs can be compared, and nobody says
 // "attack: pick, position: bridge" out loud. Muting is named only when there
 // is some, because "not muted" is what every unmuted note already sounds like.
-func technique(t rig.Technique) string {
+func technique(
+	t rig.Technique,
+) string {
 	parts := []string{string(t.Attack)}
 
 	if t.Position != nil {
@@ -202,7 +221,9 @@ func technique(t rig.Technique) string {
 }
 
 // wrapReport gives a reporting failure the same shape everywhere.
-func wrapReport(err error) error {
+func wrapReport(
+	err error,
+) error {
 	if err == nil {
 		return nil
 	}
@@ -211,7 +232,10 @@ func wrapReport(err error) error {
 }
 
 // Scaffolded says what recipe was written and what to do with it.
-func Scaffolded(w io.Writer, sc sdk.Scaffolded) error {
+func Scaffolded(
+	w io.Writer,
+	sc sdk.Scaffolded,
+) error {
 	rows := [][]string{
 		{paint.Mute(w, "id"), paint.Accent(w, sc.ID)},
 		{paint.Mute(w, "instrument"), sc.Instrument},

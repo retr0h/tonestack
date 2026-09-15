@@ -134,6 +134,8 @@ func (s *SymbolPublicTestSuite) TestSymbolNumber() {
 	}
 }
 
-func TestSymbolPublicTestSuite(t *testing.T) {
+func TestSymbolPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(SymbolPublicTestSuite))
 }

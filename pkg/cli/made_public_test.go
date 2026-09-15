@@ -42,7 +42,9 @@ type stops struct {
 	n  int
 }
 
-func (w *stops) Write(p []byte) (int, error) {
+func (w *stops) Write(
+	p []byte,
+) (int, error) {
 	w.n++
 	if w.n > w.ok {
 		return 0, errors.New("boom")
@@ -64,7 +66,9 @@ func (s *MadePublicTestSuite) cat() *catalog.Catalog {
 	}}
 }
 
-func (s *MadePublicTestSuite) made(mutate func(*sdk.Made)) sdk.Made {
+func (s *MadePublicTestSuite) made(
+	mutate func(*sdk.Made),
+) sdk.Made {
 	m := sdk.Made{
 		Chain: chain.Chain{
 			Name:   "Test Player",
@@ -267,7 +271,9 @@ func (s *MadePublicTestSuite) TestMadeReportsAFailingWriter() {
 // counting accepts every write and says how many there were.
 type counting struct{ n int }
 
-func (w *counting) Write(p []byte) (int, error) {
+func (w *counting) Write(
+	p []byte,
+) (int, error) {
 	w.n++
 
 	return len(p), nil
@@ -275,6 +281,8 @@ func (w *counting) Write(p []byte) (int, error) {
 
 var _ io.Writer = (*stops)(nil)
 
-func TestMadePublicTestSuite(t *testing.T) {
+func TestMadePublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(MadePublicTestSuite))
 }

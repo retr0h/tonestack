@@ -52,7 +52,10 @@ var routeSelector = map[string]string{
 // they are. A file has to name them, and the catalog carries which models this
 // device uses. The split and the join name themselves, so those come from the
 // answer.
-func routingOf(got wire.DevicePreset, cat *catalog.Catalog) *map[string]json.RawMessage {
+func routingOf(
+	got wire.DevicePreset,
+	cat *catalog.Catalog,
+) *map[string]json.RawMessage {
 	out := map[string]json.RawMessage{}
 
 	pairedCabs(out, got, cat)
@@ -103,7 +106,10 @@ func routingOf(got wire.DevicePreset, cat *catalog.Catalog) *map[string]json.Raw
 const processorKey = "dsp0"
 
 // routeModelOf names the model behind one routing entry.
-func routeModelOf(r wire.DeviceRouting, cat *catalog.Catalog) (catalog.ModelID, bool) {
+func routeModelOf(
+	r wire.DeviceRouting,
+	cat *catalog.Catalog,
+) (catalog.ModelID, bool) {
 	if r.HasModel {
 		sym, ok := cat.Symbol(r.Model)
 
@@ -150,7 +156,10 @@ func namedValues(
 //
 // By name rather than by number: an input carries no number, and the table is
 // the only place its parameters are named.
-func symbolFor(model catalog.ModelID, cat *catalog.Catalog) (catalog.Symbol, bool) {
+func symbolFor(
+	model catalog.ModelID,
+	cat *catalog.Catalog,
+) (catalog.Symbol, bool) {
 	for _, sym := range cat.Symbols {
 		if sym.ID == model {
 			return sym, true
@@ -165,7 +174,10 @@ func symbolFor(model catalog.ModelID, cat *catalog.Catalog) (catalog.Symbol, boo
 // Only what was read. A rig that carries a partial record would rebuild into a
 // preset that routes differently from the one it came from, which is worse
 // than carrying none and using an untouched preset.
-func DeviceState(got wire.DevicePreset, cat *catalog.Catalog) *rig.DeviceState {
+func DeviceState(
+	got wire.DevicePreset,
+	cat *catalog.Catalog,
+) *rig.DeviceState {
 	routing := routingOf(got, cat)
 	if routing == nil {
 		return nil

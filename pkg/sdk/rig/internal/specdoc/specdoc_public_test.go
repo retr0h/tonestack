@@ -235,7 +235,9 @@ func (s *SpecdocPublicTestSuite) TestTheShippedPageIsCurrent() {
 }
 
 // object wraps field definitions in the smallest contract that carries them.
-func object(fields string) string {
+func object(
+	fields string,
+) string {
 	return `
 openapi: 3.0.3
 info: { title: t, version: "1" }
@@ -247,6 +249,8 @@ components:
       properties:` + fields + "\n"
 }
 
-func TestSpecdocPublicTestSuite(t *testing.T) {
+func TestSpecdocPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(SpecdocPublicTestSuite))
 }

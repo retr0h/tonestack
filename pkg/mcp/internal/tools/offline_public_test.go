@@ -405,6 +405,8 @@ func (s *OfflinePublicTestSuite) TestPresetBuild() {
 	})
 }
 
-func TestOfflinePublicTestSuite(t *testing.T) {
+func TestOfflinePublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(OfflinePublicTestSuite))
 }

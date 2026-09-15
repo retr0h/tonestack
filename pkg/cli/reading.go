@@ -36,7 +36,10 @@ import (
 //
 // Painted for a terminal and plain for anything else, which is what makes it
 // safe to redirect: the bytes are the same document either way.
-func Reading(w io.Writer, r sdk.Reading) error {
+func Reading(
+	w io.Writer,
+	r sdk.Reading,
+) error {
 	if r.Answer != nil {
 		return Answer(w, *r.Answer)
 	}
@@ -68,7 +71,10 @@ func Reading(w io.Writer, r sdk.Reading) error {
 // Answer reports a device reply that did not decode as a preset.
 //
 // Saying plainly what arrived beats printing a chain that would be wrong.
-func Answer(w io.Writer, a sdk.Answer) error {
+func Answer(
+	w io.Writer,
+	a sdk.Answer,
+) error {
 	return paint.Section{
 		Title:   a.Model,
 		Detail:  "slot " + slotpkg.Label(a.Slot),
@@ -82,7 +88,10 @@ func Answer(w io.Writer, a sdk.Answer) error {
 //
 // The slot and the name as well as the path, because somebody exporting
 // several in a row is checking they got the one they meant.
-func Written(w io.Writer, x sdk.Written) error {
+func Written(
+	w io.Writer,
+	x sdk.Written,
+) error {
 	_, err := fmt.Fprintf(w, "\n%s%s %s\n\n%s%s\n\n",
 		paint.Indent, paint.Accent(w, slotpkg.Label(x.Slot)), x.Name,
 		paint.Indent, paint.Success(w, "wrote "+x.Path))

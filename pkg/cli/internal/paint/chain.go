@@ -56,7 +56,10 @@ var categoryColor = map[catalog.Category]lipgloss.Color{
 
 // Category renders a category name in the colour that block type carries
 // everywhere else, so a one-line chain summary and a full chain agree.
-func Category(w io.Writer, c catalog.Category) string {
+func Category(
+	w io.Writer,
+	c catalog.Category,
+) string {
 	col, ok := categoryColor[c]
 	if !ok {
 		return Mute(w, string(c))
@@ -69,7 +72,11 @@ func Category(w io.Writer, c catalog.Category) string {
 //
 // DSP is the constraint a chain lives inside, and a number alone does not say
 // how close to the edge it is. A bar does, at a glance.
-func Meter(w io.Writer, pct float64, width int) string {
+func Meter(
+	w io.Writer,
+	pct float64,
+	width int,
+) string {
 	filled := int(pct / 100 * float64(width))
 	if filled > width {
 		filled = width
@@ -95,7 +102,11 @@ func Meter(w io.Writer, pct float64, width int) string {
 //
 // Blocks arrive in the order the device runs them, so they are printed in
 // that order and the processor totals follow.
-func Chain(w io.Writer, spec chain.Chain, cat *catalog.Catalog) error {
+func Chain(
+	w io.Writer,
+	spec chain.Chain,
+	cat *catalog.Catalog,
+) error {
 	rows := make([][]string, 0, len(spec.Blocks))
 	used := map[int]float64{}
 
@@ -136,7 +147,10 @@ func Chain(w io.Writer, spec chain.Chain, cat *catalog.Catalog) error {
 // A user impulse response imitates nothing the catalog knows; it plays
 // whatever is in a slot of the owner's IR library, so the slot is the useful
 // thing to show.
-func basedOn(blk catalog.Block, b chain.Block) string {
+func basedOn(
+	blk catalog.Block,
+	b chain.Block,
+) string {
 	if !catalog.NeedsUserIR(b.Model) {
 		return blk.BasedOn
 	}
@@ -153,7 +167,10 @@ func basedOn(blk catalog.Block, b chain.Block) string {
 // This is the one thing in a preset that the file does not carry. Somebody
 // opening a preset from elsewhere needs to know that part of its sound lives
 // on the machine it came from.
-func userIRs(w io.Writer, spec chain.Chain) error {
+func userIRs(
+	w io.Writer,
+	spec chain.Chain,
+) error {
 	var slots []string
 
 	for _, b := range spec.Blocks {
@@ -183,7 +200,10 @@ func userIRs(w io.Writer, spec chain.Chain) error {
 // A bypassed block still occupies its position and still costs DSP, so it is
 // shown rather than hidden, but dimmed so a chain reads as what it sounds
 // like rather than what it contains.
-func state(w io.Writer, enabled bool) string {
+func state(
+	w io.Writer,
+	enabled bool,
+) string {
 	if enabled {
 		return OK(w, "●")
 	}
@@ -211,7 +231,11 @@ func blockName(
 }
 
 // cost renders a DSP figure, or nothing when it is not known.
-func cost(w io.Writer, mono float64, known bool) string {
+func cost(
+	w io.Writer,
+	mono float64,
+	known bool,
+) string {
 	if !known {
 		return Mute(w, "?")
 	}
@@ -220,7 +244,10 @@ func cost(w io.Writer, mono float64, known bool) string {
 }
 
 // budget prints how much of each processor the chain uses.
-func budget(w io.Writer, used map[int]float64) error {
+func budget(
+	w io.Writer,
+	used map[int]float64,
+) error {
 	if _, err := fmt.Fprintln(w); err != nil {
 		return err
 	}

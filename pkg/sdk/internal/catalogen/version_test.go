@@ -150,6 +150,8 @@ func (s *VersionTestSuite) TestSourceName() {
 	}
 }
 
-func TestVersionTestSuite(t *testing.T) {
+func TestVersionTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(VersionTestSuite))
 }

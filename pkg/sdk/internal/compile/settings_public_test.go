@@ -188,6 +188,8 @@ func (s *SettingsPublicTestSuite) TestResolveSettings() {
 	}
 }
 
-func TestSettingsPublicTestSuite(t *testing.T) {
+func TestSettingsPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(SettingsPublicTestSuite))
 }

@@ -147,6 +147,8 @@ func (s *TranslatorPublicTestSuite) TestSnapshots() {
 		editor.New().Snapshots(s.got))
 }
 
-func TestTranslatorPublicTestSuite(t *testing.T) {
+func TestTranslatorPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(TranslatorPublicTestSuite))
 }

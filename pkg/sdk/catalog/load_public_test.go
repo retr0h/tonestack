@@ -134,8 +134,14 @@ func (s *LoadPublicTestSuite) TestBlock() {
 
 type failingReader struct{}
 
-func (*failingReader) Read([]byte) (int, error) { return 0, os.ErrClosed }
+func (*failingReader) Read(
+	[]byte,
+) (int, error) {
+	return 0, os.ErrClosed
+}
 
-func TestLoadPublicTestSuite(t *testing.T) {
+func TestLoadPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(LoadPublicTestSuite))
 }

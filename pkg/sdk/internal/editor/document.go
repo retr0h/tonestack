@@ -149,7 +149,9 @@ func Document(
 }
 
 // Snapshots carries what the device recalls on a footswitch.
-func Snapshots(got wire.DevicePreset) *[]rig.Snapshot {
+func Snapshots(
+	got wire.DevicePreset,
+) *[]rig.Snapshot {
 	if len(got.Snapshots) == 0 {
 		return nil
 	}
@@ -179,7 +181,10 @@ func Snapshots(got wire.DevicePreset) *[]rig.Snapshot {
 }
 
 // Footswitches carries what the pedal prints under each switch.
-func Footswitches(got wire.DevicePreset, cat *catalog.Catalog) *[]rig.Footswitch {
+func Footswitches(
+	got wire.DevicePreset,
+	cat *catalog.Catalog,
+) *[]rig.Footswitch {
 	if len(got.Footswitches) == 0 {
 		return nil
 	}

@@ -63,6 +63,8 @@ func (s *TypesPublicTestSuite) TestProvenanceValuesAreDistinct() {
 	}
 }
 
-func TestTypesPublicTestSuite(t *testing.T) {
+func TestTypesPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(TypesPublicTestSuite))
 }

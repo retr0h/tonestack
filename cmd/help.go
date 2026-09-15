@@ -36,7 +36,9 @@ import (
 // Replacing the renderer rather than the template keeps the layout in
 // pkg/cli, where it is tested, and leaves this as the adapter from
 // cobra's types to it.
-func styleHelp(root *cobra.Command) {
+func styleHelp(
+	root *cobra.Command,
+) {
 	root.SetHelpFunc(func(c *cobra.Command, _ []string) {
 		out := c.OutOrStdout()
 
@@ -58,7 +60,9 @@ func styleHelp(root *cobra.Command) {
 }
 
 // help describes a command in the terms the renderer takes.
-func help(c *cobra.Command) cli.Help {
+func help(
+	c *cobra.Command,
+) cli.Help {
 	h := cli.Help{
 		Name:        name(c),
 		Description: description(c),
@@ -77,7 +81,9 @@ func help(c *cobra.Command) cli.Help {
 
 // name titles the page, except at the root where the banner has already
 // said it.
-func name(c *cobra.Command) string {
+func name(
+	c *cobra.Command,
+) string {
 	if !c.HasParent() {
 		return ""
 	}
@@ -86,7 +92,9 @@ func name(c *cobra.Command) string {
 }
 
 // description prefers the long form, falling back to the short one.
-func description(c *cobra.Command) string {
+func description(
+	c *cobra.Command,
+) string {
 	if c.Long != "" {
 		return c.Long
 	}
@@ -95,7 +103,9 @@ func description(c *cobra.Command) string {
 }
 
 // commands lists the subcommands worth showing.
-func commands(c *cobra.Command) []cli.Item {
+func commands(
+	c *cobra.Command,
+) []cli.Item {
 	var items []cli.Item
 
 	for _, sub := range c.Commands() {
@@ -110,7 +120,9 @@ func commands(c *cobra.Command) []cli.Item {
 }
 
 // flags lists a command's own flags, with the shorthand where it has one.
-func flags(c *cobra.Command) []cli.Item {
+func flags(
+	c *cobra.Command,
+) []cli.Item {
 	var items []cli.Item
 
 	c.LocalFlags().VisitAll(func(f *pflag.Flag) {
@@ -128,7 +140,9 @@ func flags(c *cobra.Command) []cli.Item {
 //
 // Boolean flags take no value, so naming a type for them would describe an
 // invocation that does not work.
-func flagName(f *pflag.Flag) string {
+func flagName(
+	f *pflag.Flag,
+) string {
 	var b strings.Builder
 
 	if f.Shorthand != "" {

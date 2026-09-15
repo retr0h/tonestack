@@ -529,7 +529,9 @@ func (s *PresetsPublicTestSuite) TestCompile() {
 	}
 }
 
-func TestPresetsPublicTestSuite(t *testing.T) {
+func TestPresetsPublicTestSuite(
+	t *testing.T,
+) {
 	t.Parallel()
 
 	suite.Run(t, new(PresetsPublicTestSuite))

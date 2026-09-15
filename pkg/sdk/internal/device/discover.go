@@ -26,7 +26,9 @@ import (
 )
 
 // modelFor returns the model with the given USB product identifier.
-func modelFor(product uint16) (Model, bool) {
+func modelFor(
+	product uint16,
+) (Model, bool) {
 	for _, m := range models {
 		if m.ProductID == product {
 			return m, true
@@ -42,7 +44,10 @@ func modelFor(product uint16) (Model, bool) {
 // Devices from other vendors are ignored. A Line 6 device with an unrecognised
 // product identifier is also ignored rather than reported as an error — a bus
 // may legitimately hold hardware this package does not know.
-func Devices(ctx context.Context, l Lister) ([]Device, error) {
+func Devices(
+	ctx context.Context,
+	l Lister,
+) ([]Device, error) {
 	descs, err := l.List(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("listing usb devices: %w", err)
@@ -71,7 +76,10 @@ func Devices(ctx context.Context, l Lister) ([]Device, error) {
 // It reports ErrNoDevice when none is attached. When more than one is present
 // it returns the first the bus reported, because there is no basis for
 // preferring one over another — a caller that cares should use Devices.
-func first(ctx context.Context, l Lister) (Device, error) {
+func first(
+	ctx context.Context,
+	l Lister,
+) (Device, error) {
 	found, err := Devices(ctx, l)
 	if err != nil {
 		return Device{}, err

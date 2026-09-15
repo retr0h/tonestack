@@ -55,7 +55,9 @@ func (s *CheckPublicTestSuite) blocks() []chain.Block {
 
 // catalogWith returns a catalog whose one block carries the given parameters,
 // for the lists too long or too crowded to build out of the fixture.
-func (s *CheckPublicTestSuite) catalogWith(params ...string) *catalog.Catalog {
+func (s *CheckPublicTestSuite) catalogWith(
+	params ...string,
+) *catalog.Catalog {
 	held := make(map[string]catalog.Param, len(params))
 	for _, name := range params {
 		held[name] = catalog.Param{Key: name, Type: catalog.ParamFloat}
@@ -317,6 +319,8 @@ func (s *CheckPublicTestSuite) TestCheckReportsEveryBadValue() {
 	s.Require().Equal("nonsense", detail.Value)
 }
 
-func TestCheckPublicTestSuite(t *testing.T) {
+func TestCheckPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(CheckPublicTestSuite))
 }

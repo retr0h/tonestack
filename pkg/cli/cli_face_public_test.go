@@ -99,6 +99,8 @@ func (s *ThemeFacePublicTestSuite) TestBanner() {
 	s.Require().NotEmpty(cli.Banner(&buf))
 }
 
-func TestThemeFacePublicTestSuite(t *testing.T) {
+func TestThemeFacePublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(ThemeFacePublicTestSuite))
 }

@@ -82,6 +82,8 @@ func (s *HintPublicTestSuite) TestHint() {
 	}
 }
 
-func TestHintPublicTestSuite(t *testing.T) {
+func TestHintPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(HintPublicTestSuite))
 }

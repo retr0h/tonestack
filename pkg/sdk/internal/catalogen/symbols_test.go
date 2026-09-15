@@ -34,7 +34,9 @@ type SymbolsTestSuite struct {
 }
 
 // write puts a symbol file in a fresh directory and returns it.
-func (s *SymbolsTestSuite) write(body string) string {
+func (s *SymbolsTestSuite) write(
+	body string,
+) string {
 	dir := s.T().TempDir()
 	s.Require().NoError(
 		os.WriteFile(filepath.Join(dir, symbolFile), []byte(body), 0o600))
@@ -236,6 +238,8 @@ func (s *SymbolsTestSuite) TestBuildReportsAnInstallationItCannotRead() {
 	}
 }
 
-func TestSymbolsTestSuite(t *testing.T) {
+func TestSymbolsTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(SymbolsTestSuite))
 }

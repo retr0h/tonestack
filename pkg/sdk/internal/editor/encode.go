@@ -139,7 +139,9 @@ func held(
 // A chain built here carries it as a parameter and one read back out of a
 // preset carries it as an attribute, because `@cab` is @-prefixed and that
 // is where a preset keeps those. Both are the same claim.
-func cabNameOf(b chain.Block) (string, bool) {
+func cabNameOf(
+	b chain.Block,
+) (string, bool) {
 	if name, ok := b.Params[attrCab].Enum(); ok {
 		return name, true
 	}
@@ -184,7 +186,9 @@ func paramsOfJSON(
 // A cabinet sends one more value than the model has names for, and that is
 // the microphone. A preset keeps it as `@mic` rather than as a parameter, so
 // it comes back as the tail of the value list or as nothing at all.
-func micOf(fields map[string]json.RawMessage) []any {
+func micOf(
+	fields map[string]json.RawMessage,
+) []any {
 	raw, ok := fields[cabMic]
 	if !ok {
 		return nil
@@ -308,7 +312,9 @@ func rawValue(
 }
 
 // asFloat reads a value the catalog calls a fraction.
-func asFloat(v catalog.ParamValue) float64 {
+func asFloat(
+	v catalog.ParamValue,
+) float64 {
 	if f, ok := v.Float(); ok {
 		return f
 	}
@@ -319,7 +325,9 @@ func asFloat(v catalog.ParamValue) float64 {
 }
 
 // asWhole reads a value the catalog calls a whole number.
-func asWhole(v catalog.ParamValue) int64 {
+func asWhole(
+	v catalog.ParamValue,
+) int64 {
 	if n, ok := v.Int(); ok {
 		return n
 	}

@@ -150,6 +150,8 @@ func (s *BlockTestSuite) TestBuild() {
 	s.Require().Equal(catalog.CategoryCab, b.Category)
 }
 
-func TestBlockTestSuite(t *testing.T) {
+func TestBlockTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(BlockTestSuite))
 }

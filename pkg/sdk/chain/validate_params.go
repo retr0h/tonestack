@@ -32,7 +32,10 @@ import (
 // declare, or whose value does not fit the declared kind or range. Parameters
 // are checked in sorted key order so the same rig always reports the same
 // failure.
-func ValidateParams(l BlockLookup, s Chain) error {
+func ValidateParams(
+	l BlockLookup,
+	s Chain,
+) error {
 	for _, sb := range s.Blocks {
 		blk, ok := l.Block(sb.Model)
 		if !ok {
@@ -49,7 +52,11 @@ func ValidateParams(l BlockLookup, s Chain) error {
 	return nil
 }
 
-func checkParam(blk catalog.Block, key string, val catalog.ParamValue) error {
+func checkParam(
+	blk catalog.Block,
+	key string,
+	val catalog.ParamValue,
+) error {
 	p, ok := blk.Params[key]
 	if !ok {
 		return &catalog.BadParamError{

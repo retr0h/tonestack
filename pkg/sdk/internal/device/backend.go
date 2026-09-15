@@ -59,7 +59,10 @@ func matching[T any](
 }
 
 // pickFirst takes the first entry and releases the rest.
-func pickFirst[T any](all []T, release func(T)) (T, bool) {
+func pickFirst[T any](
+	all []T,
+	release func(T),
+) (T, bool) {
 	var zero T
 
 	if len(all) == 0 {
@@ -151,7 +154,11 @@ func claimOne[T any](
 }
 
 // piped turns a pipe lookup into the endpoint a session talks over.
-func piped[S any](ref uint8, err error, wrap func(uint8) S) (S, error) {
+func piped[S any](
+	ref uint8,
+	err error,
+	wrap func(uint8) S,
+) (S, error) {
 	var zero S
 
 	if err != nil {
@@ -209,7 +216,10 @@ func readUntil(
 //
 // Busy means somebody else holds it, and on every Helix that is HX Edit. The
 // interface is never seized from it, so saying what to quit is the fix.
-func refused(err error, busy bool) error {
+func refused(
+	err error,
+	busy bool,
+) error {
 	if busy {
 		return fmt.Errorf("the editor interface is in use, quit HX Edit: %w", err)
 	}
@@ -220,7 +230,10 @@ func refused(err error, busy bool) error {
 // located names a device by a location ID, which is how IOKit places a device
 // on the bus rather than by bus number and address. The top byte is the bus,
 // and the port path below it stands in for the address.
-func located(vendor, product uint16, location uint32) Descriptor {
+func located(
+	vendor, product uint16,
+	location uint32,
+) Descriptor {
 	return Descriptor{
 		Vendor:  vendor,
 		Product: product,

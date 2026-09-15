@@ -983,7 +983,9 @@ func (s *ClientPublicTestSuite) TestBuild() {
 	}
 }
 
-func TestClientPublicTestSuite(t *testing.T) {
+func TestClientPublicTestSuite(
+	t *testing.T,
+) {
 	t.Parallel()
 
 	suite.Run(t, new(ClientPublicTestSuite))

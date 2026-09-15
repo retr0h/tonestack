@@ -48,7 +48,10 @@ type WritePublicTestSuite struct {
 }
 
 // answer encodes a reply carrying one status.
-func (s *WritePublicTestSuite) answer(txn uint64, status int) []byte {
+func (s *WritePublicTestSuite) answer(
+	txn uint64,
+	status int,
+) []byte {
 	var buf bytes.Buffer
 
 	enc := msgpack.NewEncoder(&buf)
@@ -493,6 +496,8 @@ func (s *WritePublicTestSuite) TestAWriteOnAChannelNobodyOpened() {
 	s.Require().ErrorContains(err, "no data channel")
 }
 
-func TestWriteTestSuite(t *testing.T) {
+func TestWriteTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(WritePublicTestSuite))
 }

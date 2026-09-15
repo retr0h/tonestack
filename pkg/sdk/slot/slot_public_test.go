@@ -165,6 +165,8 @@ func (s *SlotPublicTestSuite) TestValueWithNowhereToWrite() {
 	s.Require().Empty((&slot.Value{}).String())
 }
 
-func TestSlotPublicTestSuite(t *testing.T) {
+func TestSlotPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(SlotPublicTestSuite))
 }

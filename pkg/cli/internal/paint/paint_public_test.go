@@ -90,7 +90,10 @@ func (s *ThemePublicTestSuite) TestBanner() {
 }
 
 // glyph returns the nth space-separated letter of a two-line banner.
-func glyph(banner string, n int) string {
+func glyph(
+	banner string,
+	n int,
+) string {
 	lines := strings.Split(strings.TrimRight(banner, "\n"), "\n")
 
 	return strings.Fields(lines[0])[n] + strings.Fields(lines[1])[n]
@@ -151,7 +154,9 @@ func (s *ThemePublicTestSuite) TestActiveTheme() {
 	s.Require().Equal([]string{"tube"}, paint.ThemeNames())
 }
 
-func TestThemePublicTestSuite(t *testing.T) {
+func TestThemePublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(ThemePublicTestSuite))
 }
 
@@ -373,7 +378,9 @@ func (s *UIPublicTestSuite) TestTableReportsAWriterThatFails() {
 	s.Require().Contains(err.Error(), "writing row")
 }
 
-func TestUIPublicTestSuite(t *testing.T) {
+func TestUIPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(UIPublicTestSuite))
 }
 
@@ -402,7 +409,9 @@ func (s *ChainPublicTestSuite) cat() *catalog.Catalog {
 	}}
 }
 
-func (s *ChainPublicTestSuite) spec(blocks ...chain.Block) chain.Chain {
+func (s *ChainPublicTestSuite) spec(
+	blocks ...chain.Block,
+) chain.Chain {
 	return chain.Chain{Name: "Test", Blocks: blocks}
 }
 
@@ -562,7 +571,9 @@ type failAfter struct {
 	n  int
 }
 
-func (w *failAfter) Write(p []byte) (int, error) {
+func (w *failAfter) Write(
+	p []byte,
+) (int, error) {
 	w.n++
 	if w.n > w.ok {
 		return 0, errors.New("boom")
@@ -571,6 +582,8 @@ func (w *failAfter) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-func TestChainPublicTestSuite(t *testing.T) {
+func TestChainPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(ChainPublicTestSuite))
 }

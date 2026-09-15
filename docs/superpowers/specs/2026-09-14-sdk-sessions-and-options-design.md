@@ -1,6 +1,7 @@
 # SDK sessions and options
 
-**Status:** proposed\
+**Status:** implemented, in chunks 49.4 to 49.7. The last of them is the `slots`
+split and signatures.\
 **Scope:** `pkg/sdk`, `pkg/sdk/internal/device`, `pkg/sdk/internal/slots`,
 `pkg/mcp/internal/tools`, the `cmd/` presets and devices commands, and
 `main_test.go`\
@@ -388,7 +389,9 @@ one table test:
 1. A slot the device answered nothing for is not kept.
 2. A slot with no blocks, still called `New Preset`, is not kept.
 3. A slot that decodes is kept as `.hlx`.
-4. Anything else is kept as the device's bytes, `.bin`.
+4. Anything else is kept as the device's bytes, `.bin`. A slot the decoder
+   cannot read is reported as an error instead, so by rule 6 the write stops and
+   the slot is left untouched.
 5. A backup never replaces another.
 6. A write whose backup failed does not happen.
 

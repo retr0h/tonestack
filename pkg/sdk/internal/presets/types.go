@@ -28,6 +28,7 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk/corpus"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/compile"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/recipes"
+	"github.com/retr0h/tonestack/pkg/sdk/preset"
 	"github.com/retr0h/tonestack/pkg/sdk/rig"
 )
 
@@ -44,10 +45,11 @@ type Recipes interface {
 	Find(dir, id string) (rig.Spec, error)
 }
 
-// Compiler turns a rig into a chain a device has room for.
+// Compiler turns a rig into a preset a device has room for.
 //
-// The other half of what pkg/compile carries, Lift and Lower, belongs to
-// reading a device rather than building a preset, so it is not named here.
+// Three of the four methods pkg/compile carries. Resolve and Fit build a chain
+// from a recipe, and Lower writes a rig into a preset. Lift reads a slot
+// rather than building one, so it is not named here.
 type Compiler interface {
 	// Resolve turns a rig and a catalog into a chain.
 	Resolve(
@@ -55,6 +57,8 @@ type Compiler interface {
 	) (chain.Chain, []compile.Added, []compile.Moved, error)
 	// Fit drops what a device has no room for.
 	Fit(spec chain.Chain, cat *catalog.Catalog, lim chain.Limits) chain.Chain
+	// Lower writes a rig into a preset.
+	Lower(doc *preset.Document, spec rig.Spec, cat *catalog.Catalog) error
 }
 
 // Deps are the collaborators building a preset works through.

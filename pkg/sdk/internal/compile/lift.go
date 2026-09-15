@@ -37,7 +37,10 @@ import (
 // keyed by device. The name alone cannot identify a model — 665 of them share
 // 469 names — so a rig that only carried the name would rebuild into a
 // different preset.
-func Lift(doc *preset.Document, cat *catalog.Catalog) (rig.Spec, error) {
+func Lift(
+	doc *preset.Document,
+	cat *catalog.Catalog,
+) (rig.Spec, error) {
 	c, err := doc.Spec()
 	if err != nil {
 		return rig.Spec{}, fmt.Errorf("reading the chain: %w", err)
@@ -84,7 +87,9 @@ func Lift(doc *preset.Document, cat *catalog.Catalog) (rig.Spec, error) {
 //
 // A preset carries a name and nothing about who plays it, so a lifted rig is
 // a sound rather than an artist until somebody says otherwise.
-func subjectName(doc *preset.Document) string {
+func subjectName(
+	doc *preset.Document,
+) string {
 	if name := strings.TrimSpace(doc.Data.Meta.Name); name != "" {
 		return name
 	}
@@ -93,7 +98,9 @@ func subjectName(doc *preset.Document) string {
 }
 
 // identifier turns a preset name into the shape the schema states for one.
-func identifier(name string) string {
+func identifier(
+	name string,
+) string {
 	var b strings.Builder
 
 	for _, r := range strings.ToLower(name) {
@@ -114,7 +121,9 @@ func identifier(name string) string {
 }
 
 // collapse reduces runs of hyphens to one, which the pattern requires.
-func collapse(s string) string {
+func collapse(
+	s string,
+) string {
 	for strings.Contains(s, "--") {
 		s = strings.ReplaceAll(s, "--", "-")
 	}
@@ -123,7 +132,11 @@ func collapse(s string) string {
 }
 
 // entryFor describes one block as gear.
-func entryFor(b chain.Block, cat *catalog.Catalog, device string) rig.ChainEntry {
+func entryFor(
+	b chain.Block,
+	cat *catalog.Catalog,
+	device string,
+) rig.ChainEntry {
 	blk, known := cat.Block(b.Model)
 
 	pos, path := b.Pos, b.DSP
@@ -163,7 +176,11 @@ func entryFor(b chain.Block, cat *catalog.Catalog, device string) rig.ChainEntry
 // The gear it emulates when Line 6 say what that is, and the model's own name
 // otherwise — every Line 6 original reads "Line 6 Original", which names
 // nothing.
-func gearName(blk catalog.Block, id catalog.ModelID, known bool) string {
+func gearName(
+	blk catalog.Block,
+	id catalog.ModelID,
+	known bool,
+) string {
 	if !known {
 		return string(id)
 	}
@@ -184,7 +201,10 @@ func gearName(blk catalog.Block, id catalog.ModelID, known bool) string {
 // A model the catalog has never heard of is described as other rather than
 // left blank: a rig has to say what every block is, and "something this
 // device carries and we do not recognise" is a truthful answer.
-func roleFor(c catalog.Category, known bool) rig.Role {
+func roleFor(
+	c catalog.Category,
+	known bool,
+) rig.Role {
 	if !known {
 		return rig.RoleOther
 	}
@@ -219,7 +239,10 @@ var roles = map[catalog.Category]rig.Role{
 //
 // Line 6 tag amps Guitar or Bass. A chain with no amp names no instrument, so
 // guitar stands as the more common default.
-func instrumentOf(c chain.Chain, cat *catalog.Catalog) rig.Instrument {
+func instrumentOf(
+	c chain.Chain,
+	cat *catalog.Catalog,
+) rig.Instrument {
 	for _, b := range c.Blocks {
 		blk, known := cat.Block(b.Model)
 		if !known || blk.Category != catalog.CategoryAmp {

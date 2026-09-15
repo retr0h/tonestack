@@ -61,6 +61,8 @@ func (s *USBOtherPublicTestSuite) TestList() {
 	s.Require().ErrorIs(err, device.ErrNoUSBSupport)
 }
 
-func TestUSBOtherPublicTestSuite(t *testing.T) {
+func TestUSBOtherPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(USBOtherPublicTestSuite))
 }

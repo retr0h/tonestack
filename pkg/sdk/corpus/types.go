@@ -104,7 +104,9 @@ type CategoryStats struct {
 }
 
 // Frequency is the share of chains holding at least one of these.
-func (c CategoryStats) Frequency(chains int) float64 {
+func (c CategoryStats) Frequency(
+	chains int,
+) float64 {
 	if chains == 0 {
 		return 0
 	}

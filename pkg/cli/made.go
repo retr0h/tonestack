@@ -36,7 +36,11 @@ import (
 // Reporting the chain matters as much as writing the file. A generated preset
 // is a set of decisions, and a wrong amp should be visible before anybody
 // plugs in rather than after.
-func Made(w io.Writer, m sdk.Made, cat *catalog.Catalog) error {
+func Made(
+	w io.Writer,
+	m sdk.Made,
+	cat *catalog.Catalog,
+) error {
 	if err := made(w, m, cat); err != nil {
 		return fmt.Errorf("reporting: %w", err)
 	}
@@ -46,7 +50,11 @@ func Made(w io.Writer, m sdk.Made, cat *catalog.Catalog) error {
 
 // made writes the parts, so a failure part way through is reported rather
 // than leaving a half-written summary and a success.
-func made(w io.Writer, m sdk.Made, cat *catalog.Catalog) error {
+func made(
+	w io.Writer,
+	m sdk.Made,
+	cat *catalog.Catalog,
+) error {
 	if _, err := fmt.Fprintf(
 		w, "\n%s%s\n\n", paint.Indent, paint.Title(w, m.Chain.Name),
 	); err != nil {
@@ -75,7 +83,10 @@ func made(w io.Writer, m sdk.Made, cat *catalog.Catalog) error {
 }
 
 // added names the blocks nobody asked for, and why they are there.
-func added(w io.Writer, all []sdk.Added) error {
+func added(
+	w io.Writer,
+	all []sdk.Added,
+) error {
 	if len(all) == 0 {
 		return nil
 	}
@@ -105,7 +116,10 @@ func added(w io.Writer, all []sdk.Added) error {
 //
 // Both halves, because a term that moved nothing is still something the rig
 // said. Reporting only the ones that worked would read as if the rest had.
-func heard(w io.Writer, all []sdk.Moved) error {
+func heard(
+	w io.Writer,
+	all []sdk.Moved,
+) error {
 	if len(all) == 0 {
 		return nil
 	}
@@ -140,7 +154,10 @@ func heard(w io.Writer, all []sdk.Moved) error {
 }
 
 // unfamiliar names the character terms nothing defines.
-func unfamiliar(w io.Writer, all []sdk.Unfamiliar) error {
+func unfamiliar(
+	w io.Writer,
+	all []sdk.Unfamiliar,
+) error {
 	if len(all) == 0 {
 		return nil
 	}

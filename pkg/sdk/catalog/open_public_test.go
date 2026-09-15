@@ -123,6 +123,8 @@ func (s *OpenPublicTestSuite) TestDefaultPathIsWhereTheCatalogLives() {
 		"resources/schemas/hx-stomp.catalog.json", catalog.DefaultPath)
 }
 
-func TestOpenPublicTestSuite(t *testing.T) {
+func TestOpenPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(OpenPublicTestSuite))
 }

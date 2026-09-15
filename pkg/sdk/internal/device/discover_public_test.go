@@ -223,7 +223,9 @@ func (s *DiscoverPublicTestSuite) TestFirst() {
 }
 
 // names is what a discovery answered with, in order.
-func names(found []device.Device) []string {
+func names(
+	found []device.Device,
+) []string {
 	out := make([]string, 0, len(found))
 	for _, d := range found {
 		out = append(out, d.Model)
@@ -232,6 +234,8 @@ func names(found []device.Device) []string {
 	return out
 }
 
-func TestDiscoverPublicTestSuite(t *testing.T) {
+func TestDiscoverPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(DiscoverPublicTestSuite))
 }

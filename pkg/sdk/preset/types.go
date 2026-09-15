@@ -89,7 +89,9 @@ type DataMeta struct {
 const nameKey = "name"
 
 // UnmarshalJSON keeps every field, modelled or not.
-func (m *DataMeta) UnmarshalJSON(b []byte) error {
+func (m *DataMeta) UnmarshalJSON(
+	b []byte,
+) error {
 	if err := json.Unmarshal(b, &m.Rest); err != nil {
 		return fmt.Errorf("decoding preset metadata: %w", err)
 	}
@@ -176,7 +178,9 @@ func (f FlexInt) MarshalJSON() ([]byte, error) {
 }
 
 // UnmarshalJSON accepts a number or a string holding one.
-func (f *FlexInt) UnmarshalJSON(b []byte) error {
+func (f *FlexInt) UnmarshalJSON(
+	b []byte,
+) error {
 	var n int
 	if err := json.Unmarshal(b, &n); err == nil {
 		f.Value = n

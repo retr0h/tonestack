@@ -33,7 +33,9 @@ import "strings"
 // And a Line 6 original imitates nothing, so its BasedOn reads "Line 6
 // Original" and the only usable handle is its name. Matching BasedOn alone
 // would make every original model impossible to ask for.
-func (b Block) Matches(want string) bool {
+func (b Block) Matches(
+	want string,
+) bool {
 	want = normalize(want)
 	if want == "" {
 		return false
@@ -50,7 +52,9 @@ func (b Block) Matches(want string) bool {
 // "Ampeg 8x10" to everyone who owns one. Requiring the same word order would
 // reject the name a person actually types, and the name a person types is
 // what this format is for.
-func holds(name, want string) bool {
+func holds(
+	name, want string,
+) bool {
 	if name == "" {
 		return false
 	}
@@ -75,6 +79,8 @@ var noise = strings.NewReplacer(
 )
 
 // normalize reduces a gear name to what two people would agree it says.
-func normalize(s string) string {
+func normalize(
+	s string,
+) string {
 	return strings.Join(strings.Fields(strings.ToLower(noise.Replace(s))), " ")
 }

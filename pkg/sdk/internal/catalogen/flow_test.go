@@ -41,7 +41,10 @@ type FlowTestSuite struct {
 const stomp = 2162694
 
 // model returns one entry from io.models.
-func model(id string, devices ...int) wireModel {
+func model(
+	id string,
+	devices ...int,
+) wireModel {
 	out := wireModel{SymbolicID: id}
 	for _, d := range devices {
 		out.Devices = append(out.Devices, wireDevice{ID: d})
@@ -111,6 +114,8 @@ func (s *FlowTestSuite) TestFlowFor() {
 	}
 }
 
-func TestFlowTestSuite(t *testing.T) {
+func TestFlowTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(FlowTestSuite))
 }

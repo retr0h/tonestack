@@ -288,6 +288,8 @@ func (s *RecipesPublicTestSuite) TestNew() {
 	}
 }
 
-func TestRecipesPublicTestSuite(t *testing.T) {
+func TestRecipesPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(RecipesPublicTestSuite))
 }

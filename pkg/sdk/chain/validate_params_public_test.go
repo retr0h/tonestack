@@ -218,6 +218,8 @@ func (s *ValidateParamsPublicTestSuite) TestValidateParams() {
 	}
 }
 
-func TestValidateParamsPublicTestSuite(t *testing.T) {
+func TestValidateParamsPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(ValidateParamsPublicTestSuite))
 }

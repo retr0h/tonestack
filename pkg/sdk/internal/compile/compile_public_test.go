@@ -143,6 +143,8 @@ func (s *CompilePublicTestSuite) TestFit() {
 	}
 }
 
-func TestCompilePublicTestSuite(t *testing.T) {
+func TestCompilePublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(CompilePublicTestSuite))
 }

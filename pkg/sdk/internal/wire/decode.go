@@ -26,7 +26,9 @@ package wire
 // accepting any of them rather than asserting one.
 
 // asUint reads any unsigned-shaped value.
-func asUint(v any) (uint64, bool) {
+func asUint(
+	v any,
+) (uint64, bool) {
 	switch n := v.(type) {
 	case uint64:
 		return n, true
@@ -52,7 +54,9 @@ func asUint(v any) (uint64, bool) {
 }
 
 // asInt reads any signed-shaped value, which an error code is.
-func asInt(v any) (int64, bool) {
+func asInt(
+	v any,
+) (int64, bool) {
 	switch n := v.(type) {
 	case int64:
 		return n, true
@@ -75,7 +79,9 @@ func asInt(v any) (int64, bool) {
 //
 // Line 6's strings are C strings whose declared length counts the trailing
 // NUL, so a name arrives one byte longer than it reads.
-func asString(v any) (string, bool) {
+func asString(
+	v any,
+) (string, bool) {
 	s, ok := v.(string)
 	if !ok {
 		return "", false
@@ -92,7 +98,9 @@ func asString(v any) (string, bool) {
 //
 // MessagePack carries a value in the narrowest form that fits, so the same
 // field arrives as an integer in one preset and a float in another.
-func asFloat(v any) (float64, bool) {
+func asFloat(
+	v any,
+) (float64, bool) {
 	switch t := v.(type) {
 	case float64:
 		return t, true

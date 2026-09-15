@@ -30,7 +30,11 @@ package chain
 //
 // Callers wanting to know every problem at once should call the layers
 // individually. This returns the first.
-func Validate(l BlockLookup, s Chain, lim Limits) error {
+func Validate(
+	l BlockLookup,
+	s Chain,
+	lim Limits,
+) error {
 	if err := ValidateStructure(l, s); err != nil {
 		return err
 	}

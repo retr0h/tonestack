@@ -65,6 +65,8 @@ func (s *ThemeTestSuite) TestThemeEnvIsNamedForTheProject() {
 	s.Require().Equal("TONESTACK_THEME", ThemeEnv)
 }
 
-func TestThemeTestSuite(t *testing.T) {
+func TestThemeTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(ThemeTestSuite))
 }

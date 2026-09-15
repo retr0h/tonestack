@@ -59,6 +59,8 @@ func (s *ErrorsPublicTestSuite) TestBadParamErrorSurvivesWrapping() {
 	s.Require().Equal("Gain", target.Key)
 }
 
-func TestErrorsPublicTestSuite(t *testing.T) {
+func TestErrorsPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(ErrorsPublicTestSuite))
 }

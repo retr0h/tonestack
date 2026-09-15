@@ -164,7 +164,9 @@ func skipScalar(
 }
 
 // fixedWidth gives the whole size of a value whose length is in its code.
-func fixedWidth(c byte) (int, bool) {
+func fixedWidth(
+	c byte,
+) (int, bool) {
 	switch c {
 	case codeNil, codeFalse, codeTrue:
 		return 1, true
@@ -192,7 +194,9 @@ func fixedWidth(c byte) (int, bool) {
 }
 
 // variableWidth gives how many bytes hold the length of a counted value.
-func variableWidth(c byte) (int, bool) {
+func variableWidth(
+	c byte,
+) (int, bool) {
 	switch c {
 	case codeBin8, codeStr8, codeExt8:
 		return 1, true
@@ -206,7 +210,9 @@ func variableWidth(c byte) (int, bool) {
 }
 
 // extra is the type byte the ext family carries after its length.
-func extra(c byte) int {
+func extra(
+	c byte,
+) int {
 	if c == codeExt8 || c == codeExt16 || c == codeExt32 {
 		return 1
 	}

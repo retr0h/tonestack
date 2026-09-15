@@ -36,7 +36,10 @@ import (
 // recomputed here rather than carried over from the file that was read. A
 // stale checksum would be rejected by whatever loads the file next, and the
 // message it gave would blame the wrong thing.
-func Write(w io.Writer, d *Document) error {
+func Write(
+	w io.Writer,
+	d *Document,
+) error {
 	raw, err := encodePayload(d)
 	if err != nil {
 		return err
@@ -74,7 +77,9 @@ func Write(w io.Writer, d *Document) error {
 }
 
 // encodePayload renders the inner JSON in the shape the schema calls for.
-func encodePayload(d *Document) ([]byte, error) {
+func encodePayload(
+	d *Document,
+) ([]byte, error) {
 	if d.Schema == schemaBundle {
 		p := payloadBundle{Setlists: make([]payloadSetlist, 0, len(d.Setlists))}
 		for _, s := range d.Setlists {
@@ -96,7 +101,9 @@ func encodePayload(d *Document) ([]byte, error) {
 }
 
 // marshalPayload renders the payload compactly, the way a device writes it.
-func marshalPayload(v any) ([]byte, error) {
+func marshalPayload(
+	v any,
+) ([]byte, error) {
 	raw, err := json.Marshal(v)
 	if err != nil {
 		return nil, fmt.Errorf("encoding payload: %w", err)

@@ -194,7 +194,10 @@ func commonest(
 //
 // Line 6 tags amps and cabinets Guitar or Bass; everything else is untagged
 // and available to either.
-func suits(b catalog.Block, instrument string) bool {
+func suits(
+	b catalog.Block,
+	instrument string,
+) bool {
 	if b.Subcategory == "" || !isInstrumentTag(b.Subcategory) {
 		return true
 	}
@@ -205,7 +208,9 @@ func suits(b catalog.Block, instrument string) bool {
 // sortedByShare orders categories by how often they appear, so the chain is
 // filled with the most conventional blocks first and a budget runs out on the
 // least important.
-func sortedByShare(g corpus.Grammar) []catalog.Category {
+func sortedByShare(
+	g corpus.Grammar,
+) []catalog.Category {
 	out := make([]catalog.Category, 0, len(g.Categories))
 	for c := range g.Categories {
 		out = append(out, c)

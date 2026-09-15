@@ -54,7 +54,10 @@ func List(
 	}
 }
 
-func match(c *catalog.Catalog, f Filter) []catalog.Block {
+func match(
+	c *catalog.Catalog,
+	f Filter,
+) []catalog.Block {
 	out := make([]catalog.Block, 0, len(c.Blocks))
 
 	for _, b := range c.Blocks {
@@ -79,7 +82,10 @@ func match(c *catalog.Catalog, f Filter) []catalog.Block {
 }
 
 // mentions reports whether a block's name or real-world gear contains term.
-func mentions(b catalog.Block, term string) bool {
+func mentions(
+	b catalog.Block,
+	term string,
+) bool {
 	// The same rule the resolver uses, so browsing for gear predicts whether
 	// a rig naming it will build. Two matchers meant a search could find gear
 	// that then failed to resolve, which is the worst way to learn the

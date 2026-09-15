@@ -28,7 +28,9 @@ import (
 
 // Load reads a catalog from JSON. It does not validate that the catalog is
 // complete or internally consistent — it reports only what it could not parse.
-func Load(r io.Reader) (*Catalog, error) {
+func Load(
+	r io.Reader,
+) (*Catalog, error) {
 	var c Catalog
 
 	if err := json.NewDecoder(r).Decode(&c); err != nil {

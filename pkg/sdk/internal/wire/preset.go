@@ -271,7 +271,9 @@ type DeviceBlock struct {
 // `l6-helix`, a table of byte offsets the device seeks with, and the preset
 // itself. Only the third is read here — the offsets exist for writing, which
 // this does not do.
-func DecodePreset(body []byte) (DevicePreset, error) {
+func DecodePreset(
+	body []byte,
+) (DevicePreset, error) {
 	dec := msgpack.NewDecoder(bytes.NewReader(body))
 	dec.SetMapDecoder(func(d *msgpack.Decoder) (any, error) {
 		return d.DecodeUntypedMap()
@@ -312,7 +314,9 @@ func DecodePreset(body []byte) (DevicePreset, error) {
 // The section is an array of ten, one per controller, and the index is the
 // controller. Most are nil on any real preset: one expression pedal assigned
 // to one parameter leaves the other nine holding nothing.
-func controllersOf(doc map[any]any) []DeviceController {
+func controllersOf(
+	doc map[any]any,
+) []DeviceController {
 	section, ok := doc[int8(keyControllers)].([]any)
 	if !ok {
 		return nil
@@ -338,14 +342,19 @@ func controllersOf(doc map[any]any) []DeviceController {
 
 // mustFloat reads one end of a controller's travel, which a device writes as
 // a fraction or, when it is whole, as a whole number.
-func mustFloat(v any) float64 {
+func mustFloat(
+	v any,
+) float64 {
 	f, _ := asFloat(v)
 
 	return f
 }
 
 // controllerOf reads one assignment.
-func controllerOf(number int, entry any) (DeviceController, bool) {
+func controllerOf(
+	number int,
+	entry any,
+) (DeviceController, bool) {
 	fields, ok := entry.(map[any]any)
 	if !ok {
 		return DeviceController{}, false
@@ -387,7 +396,9 @@ func controllerOf(number int, entry any) (DeviceController, bool) {
 //
 // The same array the blocks come from. An entry that is not a block is one of
 // four things, and each names itself the way a preset does.
-func routingOf(doc map[any]any) []DeviceRouting {
+func routingOf(
+	doc map[any]any,
+) []DeviceRouting {
 	entries := chainEntries(doc)
 	out := []DeviceRouting(nil)
 
@@ -433,8 +444,10 @@ func routingOf(doc map[any]any) []DeviceRouting {
 func appendPair(
 	out []DeviceRouting,
 	body map[any]any,
-	endSlot string, endKey, selectKey int,
-	blockSlot string, blockKey int,
+	endSlot string,
+	endKey, selectKey int,
+	blockSlot string,
+	blockKey int,
 ) []DeviceRouting {
 	if end, ok := body[int8(endKey)].(map[any]any); ok {
 		out = append(out, flowOf(endSlot, end, selectKey))
@@ -461,7 +474,11 @@ func appendPair(
 }
 
 // flowOf reads one input or output.
-func flowOf(slot string, body map[any]any, selectKey int) DeviceRouting {
+func flowOf(
+	slot string,
+	body map[any]any,
+	selectKey int,
+) DeviceRouting {
 	out := DeviceRouting{Slot: slot, Values: flowValues(body)}
 
 	if n, ok := asUint(body[int8(selectKey)]); ok {
@@ -472,7 +489,9 @@ func flowOf(slot string, body map[any]any, selectKey int) DeviceRouting {
 }
 
 // flowValues reads a routing entry's parameters.
-func flowValues(body map[any]any) []any {
+func flowValues(
+	body map[any]any,
+) []any {
 	params, ok := body[int8(keyFlowParams)].(map[any]any)
 	if !ok {
 		return nil
@@ -487,7 +506,9 @@ func flowValues(body map[any]any) []any {
 }
 
 // chainEntries returns the array holding the chain and its routing.
-func chainEntries(doc map[any]any) []any {
+func chainEntries(
+	doc map[any]any,
+) []any {
 	tone, ok := doc[int8(keyTone)].(map[any]any)
 	if !ok {
 		return nil
@@ -499,7 +520,9 @@ func chainEntries(doc map[any]any) []any {
 }
 
 // snapshotsOf reads the snapshots a preset carries.
-func snapshotsOf(doc map[any]any) []DeviceSnapshot {
+func snapshotsOf(
+	doc map[any]any,
+) []DeviceSnapshot {
 	section, ok := doc[int8(keySnapshots)].(map[any]any)
 	if !ok {
 		return nil
@@ -541,7 +564,9 @@ func snapshotsOf(doc map[any]any) []DeviceSnapshot {
 //
 // A label and a colour are somebody's decisions about their own pedal, and
 // nothing else in a preset records them.
-func footswitchesOf(doc map[any]any) []DeviceFootswitch {
+func footswitchesOf(
+	doc map[any]any,
+) []DeviceFootswitch {
 	section, ok := doc[int8(keyFootswitch)].(map[any]any)
 	if !ok {
 		return nil
@@ -604,7 +629,9 @@ func footswitchesOf(doc map[any]any) []DeviceFootswitch {
 // Entries that hold no model are the device's own: an input, an output, a
 // gap where nothing is placed. They are skipped rather than reported, because
 // a chain is what somebody put there.
-func blocksOf(doc map[any]any) []DeviceBlock {
+func blocksOf(
+	doc map[any]any,
+) []DeviceBlock {
 	entries := chainEntries(doc)
 
 	out := make([]DeviceBlock, 0, len(entries))
@@ -638,7 +665,9 @@ func blocksOf(doc map[any]any) []DeviceBlock {
 }
 
 // blockOf reads one block's model and parameters.
-func blockOf(body map[any]any) (DeviceBlock, bool) {
+func blockOf(
+	body map[any]any,
+) (DeviceBlock, bool) {
 	ref, ok := body[int8(keyModelRef)].(map[any]any)
 	if !ok {
 		return DeviceBlock{}, false
@@ -681,7 +710,9 @@ func blockOf(body map[any]any) (DeviceBlock, bool) {
 // device mixes numbers, switches and enumerated positions in one array, and
 // those three distinctions are the ones that matter: narrowing them all to
 // numbers turns every switch off.
-func narrow(values []any) []any {
+func narrow(
+	values []any,
+) []any {
 	out := make([]any, 0, len(values))
 
 	for _, v := range values {
@@ -701,7 +732,9 @@ func narrow(values []any) []any {
 }
 
 // whole renders an integer of any width, or keeps what is not one.
-func whole(v any) any {
+func whole(
+	v any,
+) any {
 	// asInt already falls back to the unsigned widths.
 	if n, ok := asInt(v); ok {
 		return n
@@ -716,7 +749,10 @@ func whole(v any) any {
 // not. A device carries both and flags which it is showing, because the two
 // are different things: "60s / 70s" is what a player reads on stage and
 // "Ampeg B-15NF" is what the block happens to be.
-func labelOf(entry map[any]any, gear string) string {
+func labelOf(
+	entry map[any]any,
+	gear string,
+) string {
 	named, _ := entry[int8(keyFsNamed)].(bool)
 	if !named {
 		return gear
@@ -745,7 +781,9 @@ type Loaded struct {
 // The one honest signal that a select has finished. A device takes a select
 // and completes it afterwards, and answers other questions while the switch
 // is still in flight, so "it answered again" is not "it finished".
-func DecodeLoaded(result any) (Loaded, error) {
+func DecodeLoaded(
+	result any,
+) (Loaded, error) {
 	body, ok := result.(map[any]any)
 	if !ok {
 		return Loaded{}, fmt.Errorf(

@@ -138,7 +138,9 @@ func (s *DevicePublicTestSuite) TestRoundTrip() {
 // Parameters are compared one way: every parameter want sets must be set to
 // the same value in got. A blank slot can carry parameters a source never set,
 // and those are not a loss.
-func chainDiff(want, got rig.Spec) []string {
+func chainDiff(
+	want, got rig.Spec,
+) []string {
 	var diffs []string
 
 	if len(want.Chain) != len(got.Chain) {
@@ -181,7 +183,9 @@ func chainDiff(want, got rig.Spec) []string {
 }
 
 // slotFrom reads a slot label from the environment, or falls back to one.
-func (s *DevicePublicTestSuite) slotFrom(name, fallback string) int {
+func (s *DevicePublicTestSuite) slotFrom(
+	name, fallback string,
+) int {
 	label := os.Getenv(name)
 	if label == "" {
 		label = fallback
@@ -225,6 +229,8 @@ func restore(
 	}
 }
 
-func TestDevicePublicTestSuite(t *testing.T) {
+func TestDevicePublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(DevicePublicTestSuite))
 }

@@ -352,6 +352,8 @@ func (s *ConversationPublicTestSuite) TestModel() {
 	s.Require().Equal("HX Stomp", device.NewTestSession(s.T(), nil, nil).Model().Name)
 }
 
-func TestConversationTestSuite(t *testing.T) {
+func TestConversationTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(ConversationPublicTestSuite))
 }

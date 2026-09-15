@@ -161,6 +161,8 @@ func (s *MadePublicTestSuite) TestHolds() {
 	}
 }
 
-func TestMadePublicTestSuite(t *testing.T) {
+func TestMadePublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(MadePublicTestSuite))
 }

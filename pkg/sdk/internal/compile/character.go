@@ -79,7 +79,9 @@ func CharacterTerms() []string {
 // CheckCharacter reports the character terms a rig uses that nothing defines.
 //
 // An empty result means every word in the rig is one the vocabulary carries.
-func CheckCharacter(spec rig.Spec) []UnknownTerm {
+func CheckCharacter(
+	spec rig.Spec,
+) []UnknownTerm {
 	if spec.Character == nil {
 		return nil
 	}
@@ -116,7 +118,9 @@ type ContestedAxis struct {
 // for somebody else's: a description is theirs to write. The rigs this project
 // ships are the examples everybody copies, so they are held to one term per
 // axis by a test instead.
-func CheckAxes(spec rig.Spec) []ContestedAxis {
+func CheckAxes(
+	spec rig.Spec,
+) []ContestedAxis {
 	if spec.Character == nil {
 		return nil
 	}
@@ -159,7 +163,10 @@ func CheckAxes(spec rig.Spec) []ContestedAxis {
 // check.go, finds a name somebody typed part of. This finds a term inside a
 // sentence somebody wrote. Word overlap cannot reach "Ampeg SVT" from
 // "Ampeg", and a prefix cannot reach a phrase whose words are reordered.
-func closest(known []string, term string) []string {
+func closest(
+	known []string,
+	term string,
+) []string {
 	want := words(term)
 	if len(want) == 0 {
 		return nil
@@ -194,7 +201,9 @@ func closest(known []string, term string) []string {
 }
 
 // words splits a term into the words it is made of, however it was spelled.
-func words(s string) map[string]bool {
+func words(
+	s string,
+) map[string]bool {
 	out := map[string]bool{}
 
 	for _, w := range strings.FieldsFunc(strings.ToLower(s), func(r rune) bool {
@@ -207,7 +216,10 @@ func words(s string) map[string]bool {
 }
 
 // has says whether the vocabulary carries a term.
-func has(known []string, term string) bool {
+func has(
+	known []string,
+	term string,
+) bool {
 	for _, k := range known {
 		if k == term {
 			return true
@@ -221,7 +233,9 @@ func has(known []string, term string) bool {
 //
 // An axis is what makes a term mean something: saying "mid-forward" has
 // already said "not scooped", and a rig claiming both has claimed nothing.
-func axisOf(term string) (string, bool) {
+func axisOf(
+	term string,
+) (string, bool) {
 	var v vocabulary
 
 	// Embedded and written by this repository, so it parses.

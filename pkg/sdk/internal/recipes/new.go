@@ -178,7 +178,10 @@ func New(
 }
 
 // checkGear refuses a recipe naming gear the device has no model for.
-func checkGear(cat *catalog.Catalog, opts NewOptions) error {
+func checkGear(
+	cat *catalog.Catalog,
+	opts NewOptions,
+) error {
 	type gear struct {
 		field string
 		want  string
@@ -207,7 +210,10 @@ func checkGear(cat *catalog.Catalog, opts NewOptions) error {
 }
 
 // models reports whether anything in the catalog is this gear.
-func models(cat *catalog.Catalog, want string) bool {
+func models(
+	cat *catalog.Catalog,
+	want string,
+) bool {
 	for _, b := range cat.Blocks {
 		if b.Matches(want) {
 			return true
@@ -222,7 +228,10 @@ func models(cat *catalog.Catalog, want string) bool {
 // Not fuzzy matching: a shared word is a strong enough signal to be worth
 // showing, and a weak one is worse than nothing when somebody is deciding
 // whether they got the name wrong.
-func near(cat *catalog.Catalog, want string) []string {
+func near(
+	cat *catalog.Catalog,
+	want string,
+) []string {
 	words := strings.Fields(strings.ToLower(want))
 	seen := map[string]bool{}
 

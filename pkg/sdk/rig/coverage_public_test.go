@@ -166,7 +166,10 @@ func (s *CoveragePublicTestSuite) written() map[string]bool {
 }
 
 // keys records every mapping key in a decoded document.
-func (s *CoveragePublicTestSuite) keys(value any, out map[string]bool) {
+func (s *CoveragePublicTestSuite) keys(
+	value any,
+	out map[string]bool,
+) {
 	switch typed := value.(type) {
 	case map[string]any:
 		for key, sub := range typed {
@@ -181,6 +184,8 @@ func (s *CoveragePublicTestSuite) keys(value any, out map[string]bool) {
 	}
 }
 
-func TestCoveragePublicTestSuite(t *testing.T) {
+func TestCoveragePublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(CoveragePublicTestSuite))
 }

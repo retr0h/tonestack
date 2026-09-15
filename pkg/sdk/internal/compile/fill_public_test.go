@@ -342,13 +342,18 @@ func (s *FillPublicTestSuite) TestResolveFill() {
 }
 
 // categoryAt returns the category of the block at a position.
-func (s *FillPublicTestSuite) categoryAt(spec chain.Chain, i int) catalog.Category {
+func (s *FillPublicTestSuite) categoryAt(
+	spec chain.Chain,
+	i int,
+) catalog.Category {
 	b, ok := s.cat.Block(spec.Blocks[i].Model)
 	s.Require().True(ok)
 
 	return b.Category
 }
 
-func TestFillPublicTestSuite(t *testing.T) {
+func TestFillPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(FillPublicTestSuite))
 }

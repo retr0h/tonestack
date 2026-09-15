@@ -64,7 +64,9 @@ func (h *handlers) mayWrite(
 
 // notInCatalog wraps ErrNotInCatalog with the model id that could not be
 // found, so the agent sees which model and not just an opaque schema failure.
-func notInCatalog(id string) error {
+func notInCatalog(
+	id string,
+) error {
 	return fmt.Errorf("%w: %s", ErrNotInCatalog, id)
 }
 

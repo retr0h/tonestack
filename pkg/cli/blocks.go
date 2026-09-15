@@ -34,7 +34,10 @@ import (
 )
 
 // Blocks prints what a device can do, one block to a row.
-func Blocks(w io.Writer, b sdk.Blocks) error {
+func Blocks(
+	w io.Writer,
+	b sdk.Blocks,
+) error {
 	rows := make([][]string, 0, len(b.Matched))
 
 	for _, blk := range b.Matched {
@@ -66,7 +69,9 @@ func Blocks(w io.Writer, b sdk.Blocks) error {
 //
 // A catalog that recorded nothing is not the same as one from a source nobody
 // recognises, and saying so beats a blank where a provenance should be.
-func origin(source string) string {
+func origin(
+	source string,
+) string {
 	if source == "" {
 		return "source unknown"
 	}
@@ -75,7 +80,10 @@ func origin(source string) string {
 }
 
 // Block prints one block and everything it accepts.
-func Block(w io.Writer, b catalog.Block) error {
+func Block(
+	w io.Writer,
+	b catalog.Block,
+) error {
 	d := paint.Detail{Title: b.Name, Subtitle: string(b.ID)}
 
 	if b.BasedOn != "" {
@@ -109,7 +117,10 @@ func Block(w io.Writer, b catalog.Block) error {
 }
 
 // params prints every parameter a block accepts, in name order.
-func params(w io.Writer, b catalog.Block) error {
+func params(
+	w io.Writer,
+	b catalog.Block,
+) error {
 	keys := make([]string, 0, len(b.Params))
 	for k := range b.Params {
 		keys = append(keys, k)
@@ -146,7 +157,9 @@ func params(w io.Writer, b catalog.Block) error {
 }
 
 // reporting gives a reporting failure the same shape everywhere.
-func reporting(err error) error {
+func reporting(
+	err error,
+) error {
 	if err == nil {
 		return nil
 	}

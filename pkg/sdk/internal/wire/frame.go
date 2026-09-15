@@ -98,7 +98,9 @@ var ErrShortTransfer = errors.New("transfer is too short")
 // The endianness is genuinely mixed. Sequence and type are big endian and
 // everything else is little endian, which is invisible while the values are
 // small because the high bytes are zero either way.
-func EncodeFrame(f Frame) []byte {
+func EncodeFrame(
+	f Frame,
+) []byte {
 	body := ChannelSize + len(f.Payload)
 	out := make([]byte, FrameSize+body, FrameSize+pad4(body))
 
@@ -123,7 +125,9 @@ func EncodeFrame(f Frame) []byte {
 //
 // Padding to a four-byte boundary is skipped rather than returned. The device
 // does not always zero it, so it cannot be treated as the start of anything.
-func DecodeFrame(raw []byte) (Frame, []byte, error) {
+func DecodeFrame(
+	raw []byte,
+) (Frame, []byte, error) {
 	if len(raw) < FrameSize+ChannelSize {
 		return Frame{}, nil, fmt.Errorf(
 			"%w: %d bytes, need at least %d",
@@ -170,4 +174,8 @@ func DecodeFrame(raw []byte) (Frame, []byte, error) {
 func (f Frame) CarriesData() bool { return f.Type&MsgData != 0 }
 
 // pad4 rounds a length up to a four-byte boundary.
-func pad4(n int) int { return (n + 3) &^ 3 }
+func pad4(
+	n int,
+) int {
+	return (n + 3) &^ 3
+}

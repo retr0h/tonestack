@@ -23,7 +23,10 @@ package chain
 // ValidateStructure reports the first block in s whose model the catalog does
 // not hold. It is the first of the validation layers and answers only one
 // question, so a failure names one cause.
-func ValidateStructure(l BlockLookup, s Chain) error {
+func ValidateStructure(
+	l BlockLookup,
+	s Chain,
+) error {
 	for _, b := range s.Blocks {
 		if _, ok := l.Block(b.Model); !ok {
 			return &UnknownBlockError{Model: string(b.Model)}

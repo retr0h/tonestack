@@ -26,7 +26,7 @@ import (
 	"fmt"
 
 	"github.com/retr0h/tonestack/pkg/sdk/internal/device"
-	"github.com/retr0h/tonestack/pkg/sdk/internal/slots"
+	"github.com/retr0h/tonestack/pkg/sdk/internal/deviceslots"
 	"github.com/retr0h/tonestack/pkg/sdk/slot"
 )
 
@@ -119,7 +119,7 @@ func (s *Session) unlock() { <-s.op }
 func operation[T any](
 	ctx context.Context,
 	s *Session,
-	call func(*slots.Flows) (T, error),
+	call func(*deviceslots.Flows) (T, error),
 ) (T, error) {
 	if err := s.lock(ctx); err != nil {
 		var zero T
@@ -129,7 +129,7 @@ func operation[T any](
 
 	defer s.unlock()
 
-	return call(s.client.operations())
+	return call(s.client.deviceOperations())
 }
 
 // Presets reports what a setlist on the device holds, slot by slot.
@@ -137,8 +137,8 @@ func (s *Session) Presets(
 	ctx context.Context,
 	setlist int,
 ) (Listing, error) {
-	return operation(ctx, s, func(f *slots.Flows) (Listing, error) {
-		return f.ListWith(ctx, s.editor, setlist)
+	return operation(ctx, s, func(f *deviceslots.Flows) (Listing, error) {
+		return f.List(ctx, s.editor, setlist)
 	})
 }
 
@@ -150,13 +150,13 @@ func (s *Session) Preset(
 	ctx context.Context,
 	at slot.Address,
 ) (Reading, error) {
-	return operation(ctx, s, func(f *slots.Flows) (Reading, error) {
-		read, err := f.ShowWith(ctx, s.editor, at)
+	return operation(ctx, s, func(f *deviceslots.Flows) (Reading, error) {
+		read, err := f.Show(ctx, s.editor, at)
 
 		// Somebody who asked to look at a slot is answered that it holds
 		// nothing. Somebody exporting one gets the error, because there is no
 		// file to write.
-		if errors.Is(err, slots.ErrEmptySlot) {
+		if errors.Is(err, deviceslots.ErrEmptySlot) {
 			return Reading{Name: slot.Label(at.Slot)}, nil
 		}
 
@@ -176,8 +176,8 @@ func (s *Session) Export(
 	out string,
 	as Format,
 ) (Written, error) {
-	return operation(ctx, s, func(f *slots.Flows) (Written, error) {
-		return f.ExportWith(ctx, s.editor, at, out, as)
+	return operation(ctx, s, func(f *deviceslots.Flows) (Written, error) {
+		return f.Export(ctx, s.editor, at, out, as)
 	})
 }
 
@@ -190,8 +190,8 @@ func (s *Session) Import(
 	file string,
 	at slot.Address,
 ) (Change, error) {
-	return operation(ctx, s, func(f *slots.Flows) (Change, error) {
-		return f.ImportWith(ctx, s.editor, file, at)
+	return operation(ctx, s, func(f *deviceslots.Flows) (Change, error) {
+		return f.Import(ctx, s.editor, file, at)
 	})
 }
 
@@ -203,8 +203,8 @@ func (s *Session) Copy(
 	ctx context.Context,
 	from, to slot.Address,
 ) (Change, error) {
-	return operation(ctx, s, func(f *slots.Flows) (Change, error) {
-		return f.CopyWith(ctx, s.editor, from, to)
+	return operation(ctx, s, func(f *deviceslots.Flows) (Change, error) {
+		return f.Copy(ctx, s.editor, from, to)
 	})
 }
 
@@ -215,8 +215,8 @@ func (s *Session) Swap(
 	ctx context.Context,
 	a, b slot.Address,
 ) (Change, error) {
-	return operation(ctx, s, func(f *slots.Flows) (Change, error) {
-		return f.SwapWith(ctx, s.editor, a, b)
+	return operation(ctx, s, func(f *deviceslots.Flows) (Change, error) {
+		return f.Swap(ctx, s.editor, a, b)
 	})
 }
 
@@ -229,8 +229,8 @@ func (s *Session) Select(
 	ctx context.Context,
 	at slot.Address,
 ) (Change, error) {
-	return operation(ctx, s, func(f *slots.Flows) (Change, error) {
-		return f.SelectWith(ctx, s.editor, at)
+	return operation(ctx, s, func(f *deviceslots.Flows) (Change, error) {
+		return f.Select(ctx, s.editor, at)
 	})
 }
 

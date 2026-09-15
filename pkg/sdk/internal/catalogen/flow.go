@@ -48,7 +48,10 @@ const (
 // Devices with one output name it `Output`; devices with two name them
 // `OutputMain` and `OutputSend`. The first is read as the main pair, which is
 // what a preset written for such a device does with it.
-func flowFor(models []wireModel, deviceID int) catalog.Flow {
+func flowFor(
+	models []wireModel,
+	deviceID int,
+) catalog.Flow {
 	var out catalog.Flow
 
 	for _, m := range models {

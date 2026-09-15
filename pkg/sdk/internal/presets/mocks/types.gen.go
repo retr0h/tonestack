@@ -17,6 +17,7 @@ import (
 	chain "github.com/retr0h/tonestack/pkg/sdk/chain"
 	corpus "github.com/retr0h/tonestack/pkg/sdk/corpus"
 	compile "github.com/retr0h/tonestack/pkg/sdk/internal/compile"
+	preset "github.com/retr0h/tonestack/pkg/sdk/preset"
 	rig "github.com/retr0h/tonestack/pkg/sdk/rig"
 	gomock "go.uber.org/mock/gomock"
 )
@@ -135,6 +136,20 @@ func (m *MockCompiler) Fit(spec chain.Chain, cat *catalog.Catalog, lim chain.Lim
 func (mr *MockCompilerMockRecorder) Fit(spec, cat, lim any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Fit", reflect.TypeOf((*MockCompiler)(nil).Fit), spec, cat, lim)
+}
+
+// Lower mocks base method.
+func (m *MockCompiler) Lower(doc *preset.Document, spec rig.Spec, cat *catalog.Catalog) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Lower", doc, spec, cat)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Lower indicates an expected call of Lower.
+func (mr *MockCompilerMockRecorder) Lower(doc, spec, cat any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Lower", reflect.TypeOf((*MockCompiler)(nil).Lower), doc, spec, cat)
 }
 
 // Resolve mocks base method.

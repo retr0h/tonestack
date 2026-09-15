@@ -69,7 +69,9 @@ func (*USBLister) Close() error { return nil }
 //
 // Devices are enumerated from the registry only. None is opened, so this needs
 // no special privileges and cannot disturb a device in use by other software.
-func (*USBLister) List(_ context.Context) ([]Descriptor, error) {
+func (*USBLister) List(
+	_ context.Context,
+) ([]Descriptor, error) {
 	devs, err := usb.Devices(usb.Filter{})
 
 	return listed(devs, err, describeDevice, closeDevice)
@@ -83,7 +85,9 @@ type iokitBus struct{}
 
 // Devices returns every device the matcher accepts. Nothing is opened: IOKit
 // claims an interface without the device being opened first.
-func (iokitBus) Devices(match func(vendor, product uint16) bool) ([]handle, error) {
+func (iokitBus) Devices(
+	match func(vendor, product uint16) bool,
+) ([]handle, error) {
 	devs, err := usb.Devices(usb.Filter{})
 
 	return found(devs, err, deviceIDs, match, closeDevice, wrapDevice)
@@ -146,7 +150,11 @@ func (e iokitEndpoints) In() (receiver, error) {
 }
 
 // sender is the write half of one pipe.
-func (e iokitEndpoints) sender(ref uint8) sender { return iokitSender{intf: e.intf, ref: ref} }
+func (e iokitEndpoints) sender(
+	ref uint8,
+) sender {
+	return iokitSender{intf: e.intf, ref: ref}
+}
 
 // receiver is the read half of one pipe.
 func (e iokitEndpoints) receiver(
@@ -162,7 +170,9 @@ type iokitSender struct {
 }
 
 // Write sends p, or reports that the device did not take it in time.
-func (s iokitSender) Write(p []byte) (int, error) {
+func (s iokitSender) Write(
+	p []byte,
+) (int, error) {
 	return s.intf.Write(s.ref, p, writeTimeout)
 }
 
@@ -173,12 +183,18 @@ type iokitReceiver struct {
 }
 
 // ReadContext waits for the device to send something, or for ctx to end.
-func (r iokitReceiver) ReadContext(ctx context.Context, p []byte) (int, error) {
+func (r iokitReceiver) ReadContext(
+	ctx context.Context,
+	p []byte,
+) (int, error) {
 	return readUntil(ctx, p, readSlice, r.read, idle)
 }
 
 // read is one IOKit read on this pipe.
-func (r iokitReceiver) read(p []byte, timeout time.Duration) (int, error) {
+func (r iokitReceiver) read(
+	p []byte,
+	timeout time.Duration,
+) (int, error) {
 	return r.intf.Read(r.ref, p, timeout)
 }
 
@@ -189,44 +205,73 @@ func (r iokitReceiver) read(p []byte, timeout time.Duration) (int, error) {
 // normally once it has: seen on hardware, where counting that as the bus
 // ended every session at its first write. A cable that has gone reports
 // something else, and still fails the read.
-func idle(err error) bool {
+func idle(
+	err error,
+) bool {
 	return is(err, ioreturn.USBTransactionTimeout) || is(err, ioreturn.Aborted)
 }
 
 // busy reports an interface somebody else holds.
-func busy(err error) bool { return is(err, ioreturn.ExclusiveAccess) }
+func busy(
+	err error,
+) bool {
+	return is(err, ioreturn.ExclusiveAccess)
+}
 
 // is reports whether err is an IOKit error carrying code.
-func is(err error, code ioreturn.Code) bool {
+func is(
+	err error,
+	code ioreturn.Code,
+) bool {
 	var e *usb.IOError
 
 	return errors.As(err, &e) && e.Code == code
 }
 
 // deviceIDs reads a device's vendor and product.
-func deviceIDs(d *usb.Device) (vendor, product uint16) {
+func deviceIDs(
+	d *usb.Device,
+) (vendor, product uint16) {
 	i := d.Info()
 
 	return i.VendorID, i.ProductID
 }
 
 // describeDevice reads what a device says it is.
-func describeDevice(d *usb.Device) Descriptor {
+func describeDevice(
+	d *usb.Device,
+) Descriptor {
 	i := d.Info()
 
 	return located(i.VendorID, i.ProductID, i.LocationID)
 }
 
 // wrapDevice makes a registry device into a handle.
-func wrapDevice(d *usb.Device) handle { return iokitHandle{dev: d} }
+func wrapDevice(
+	d *usb.Device,
+) handle {
+	return iokitHandle{dev: d}
+}
 
 // closeDevice gives back a device reference nobody kept.
 // Best effort: nothing holds the reference, so a refusal has nobody to tell.
-func closeDevice(d *usb.Device) { _ = d.Close() }
+func closeDevice(
+	d *usb.Device,
+) {
+	_ = d.Close()
+}
 
 // openInterface claims an interface without seizing it.
-func openInterface(i *usb.InterfaceHandle) error { return i.Open() }
+func openInterface(
+	i *usb.InterfaceHandle,
+) error {
+	return i.Open()
+}
 
 // closeInterface gives back an interface reference.
 // Best effort: the claim is over either way, and a refusal has nobody to tell.
-func closeInterface(i *usb.InterfaceHandle) { _ = i.Close() }
+func closeInterface(
+	i *usb.InterfaceHandle,
+) {
+	_ = i.Close()
+}

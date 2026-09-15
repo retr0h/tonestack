@@ -293,6 +293,8 @@ func (s *TransportPublicTestSuite) TestTheWireTrace() {
 	s.Require().Contains(trace.String(), "OUT control")
 }
 
-func TestTransportTestSuite(t *testing.T) {
+func TestTransportTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(TransportPublicTestSuite))
 }

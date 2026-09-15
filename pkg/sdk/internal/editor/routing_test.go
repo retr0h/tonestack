@@ -289,6 +289,8 @@ func (s *RoutingTestSuite) TestDeviceStateOf() {
 	}
 }
 
-func TestRoutingTestSuite(t *testing.T) {
+func TestRoutingTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(RoutingTestSuite))
 }

@@ -96,6 +96,8 @@ func (s *TechniqueTestSuite) TestTechnique() {
 	}
 }
 
-func TestTechniqueTestSuite(t *testing.T) {
+func TestTechniqueTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(TechniqueTestSuite))
 }

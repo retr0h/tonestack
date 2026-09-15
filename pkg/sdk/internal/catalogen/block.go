@@ -27,7 +27,11 @@ import (
 )
 
 // block converts one Line 6 model definition into a catalog block.
-func block(m wireModel, family string, gear gearEntry) catalog.Block {
+func block(
+	m wireModel,
+	family string,
+	gear gearEntry,
+) catalog.Block {
 	b := catalog.Block{
 		ID:          catalog.ModelID(m.SymbolicID),
 		Name:        m.Name,
@@ -74,7 +78,9 @@ func block(m wireModel, family string, gear gearEntry) catalog.Block {
 //
 // Min and Max are set for numeric kinds only. Line 6 records a bool's bounds
 // as false and true and a string's as empty, neither of which is a range.
-func param(p wireParam) catalog.Param {
+func param(
+	p wireParam,
+) catalog.Param {
 	out := catalog.Param{
 		Key:   p.SymbolicID,
 		Label: p.Name,
@@ -97,7 +103,9 @@ func param(p wireParam) catalog.Param {
 }
 
 // paramType maps Line 6's valueType to ours.
-func paramType(v int) catalog.ParamType {
+func paramType(
+	v int,
+) catalog.ParamType {
 	switch v {
 	case wireInt:
 		return catalog.ParamInt
@@ -111,7 +119,9 @@ func paramType(v int) catalog.ParamType {
 }
 
 // number decodes a raw JSON number, reporting zero for anything else.
-func number(raw json.RawMessage) float64 {
+func number(
+	raw json.RawMessage,
+) float64 {
 	var f float64
 	if err := json.Unmarshal(raw, &f); err != nil {
 		return 0
@@ -121,7 +131,9 @@ func number(raw json.RawMessage) float64 {
 }
 
 // defaultValue decodes a parameter's default in the kind its valueType names.
-func defaultValue(p wireParam) catalog.ParamValue {
+func defaultValue(
+	p wireParam,
+) catalog.ParamValue {
 	switch p.ValueType {
 	case wireBool:
 		var b bool
@@ -148,7 +160,9 @@ func defaultValue(p wireParam) catalog.ParamValue {
 }
 
 // category maps a .models filename to a block category.
-func category(family string) catalog.Category {
+func category(
+	family string,
+) catalog.Category {
 	switch family {
 	case "amp", "preamp":
 		return catalog.CategoryAmp

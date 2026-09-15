@@ -114,6 +114,8 @@ func (s *ValidatePublicTestSuite) TestValidate() {
 	}
 }
 
-func TestValidatePublicTestSuite(t *testing.T) {
+func TestValidatePublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(ValidatePublicTestSuite))
 }

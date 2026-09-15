@@ -308,6 +308,8 @@ func (s *EncodePublicTestSuite) TestEncodeLike() {
 	}
 }
 
-func TestEncodePublicTestSuite(t *testing.T) {
+func TestEncodePublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(EncodePublicTestSuite))
 }

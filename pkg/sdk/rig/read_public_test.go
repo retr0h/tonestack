@@ -33,7 +33,9 @@ type ReadPublicTestSuite struct {
 }
 
 // spec returns a rig holding the given chain, with nothing else filled in.
-func spec(chain ...rig.ChainEntry) rig.Spec {
+func spec(
+	chain ...rig.ChainEntry,
+) rig.Spec {
 	return rig.Spec{
 		Schema:     rig.SchemaName,
 		ID:         "test",
@@ -44,7 +46,9 @@ func spec(chain ...rig.ChainEntry) rig.Spec {
 }
 
 // evidence returns the kinds as a rig carries them.
-func evidence(kinds ...rig.EvidenceKind) *[]rig.Evidence {
+func evidence(
+	kinds ...rig.EvidenceKind,
+) *[]rig.Evidence {
 	out := make([]rig.Evidence, 0, len(kinds))
 	for _, k := range kinds {
 		out = append(out, rig.Evidence{Kind: k})
@@ -242,6 +246,8 @@ func (s *ReadPublicTestSuite) TestSourced() {
 	}
 }
 
-func TestReadPublicTestSuite(t *testing.T) {
+func TestReadPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(ReadPublicTestSuite))
 }

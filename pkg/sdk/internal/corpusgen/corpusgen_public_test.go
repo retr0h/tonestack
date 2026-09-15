@@ -37,7 +37,9 @@ type CorpusgenPublicTestSuite struct {
 	suite.Suite
 }
 
-func (s *CorpusgenPublicTestSuite) opts(out string) corpusgen.Options {
+func (s *CorpusgenPublicTestSuite) opts(
+	out string,
+) corpusgen.Options {
 	return corpusgen.Options{
 		CorpusDir:   filepath.Join("testdata", "corpus"),
 		CatalogPath: filepath.Join("testdata", "catalog.json"),
@@ -306,7 +308,9 @@ func (s *CorpusgenPublicTestSuite) TestRun() {
 }
 
 // read loads statistics this suite generated.
-func (s *CorpusgenPublicTestSuite) read(path string) *corpus.Stats {
+func (s *CorpusgenPublicTestSuite) read(
+	path string,
+) *corpus.Stats {
 	f, err := os.Open(path) //nolint:gosec // a path this test chose
 	s.Require().NoError(err)
 
@@ -357,6 +361,8 @@ func (s *CorpusgenPublicTestSuite) TestMeasureADirectoryThatIsNotThere() {
 	s.Require().ErrorContains(err, "searching")
 }
 
-func TestCorpusgenPublicTestSuite(t *testing.T) {
+func TestCorpusgenPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(CorpusgenPublicTestSuite))
 }
