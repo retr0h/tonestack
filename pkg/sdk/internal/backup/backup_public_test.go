@@ -25,10 +25,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/mock/gomock"
@@ -91,12 +93,18 @@ func (s *BackupPublicTestSuite) TestKeep() {
 		blocked  bool
 		readOnly bool
 		noHome   bool
+		// the clock stands still, so every backup wants the same name.
+		pinned bool
 
 		// the extension of each file kept, in order. Empty means nothing is.
 		kept []string
 		// part of the first kept file's name.
 		base    string
+		is      error
 		errText string
+		// how many files a failed Keep leaves behind, each still the preset
+		// it was written as.
+		intact int
 	}{
 		{
 			// Rule 1. Nothing to lose, and a file saying so would only leave
@@ -151,6 +159,20 @@ func (s *BackupPublicTestSuite) TestKeep() {
 			held:    []backup.Held{{Body: body}, {Body: body}},
 			decodes: []decoded{{blank: true}, {blank: true}},
 			kept:    []string{".hlx", ".hlx"},
+		},
+		{
+			// Rule 5, with the clock pinned so both backups want one name. The
+			// second is refused rather than written over the first, and the
+			// first is left as it was.
+			name: "the same slot twice in the same instant",
+			held: []backup.Held{
+				{Body: body, At: slot.Address{Setlist: 1, Slot: 4}},
+				{Body: body, At: slot.Address{Setlist: 1, Slot: 4}},
+			},
+			decodes: []decoded{{blank: true}, {blank: true}},
+			pinned:  true,
+			is:      fs.ErrExist,
+			intact:  1,
 		},
 		{
 			// A swap replaces two, and one holding nothing is left out of the
@@ -249,11 +271,41 @@ func (s *BackupPublicTestSuite) TestKeep() {
 				last = call
 			}
 
-			got, err := backup.New(dir, decoder).Keep(context.Background(), tt.held...)
+			keeper := backup.New(dir, decoder)
 
-			if tt.errText != "" {
-				s.Require().ErrorContains(err, tt.errText)
+			if tt.pinned {
+				at := time.Date(2026, 9, 15, 12, 0, 0, 0, time.UTC)
+				keeper.WithClock(func() time.Time { return at })
+			}
+
+			got, err := keeper.Keep(context.Background(), tt.held...)
+
+			if tt.errText != "" || tt.is != nil {
+				if tt.errText != "" {
+					s.Require().ErrorContains(err, tt.errText)
+				}
+
+				if tt.is != nil {
+					s.Require().ErrorIs(err, tt.is)
+				}
+
 				s.Require().Nil(got)
+
+				if tt.intact == 0 {
+					return
+				}
+
+				left, err := os.ReadDir(dir)
+				s.Require().NoError(err)
+				s.Require().Len(left, tt.intact)
+
+				raw, err := os.ReadFile(filepath.Join(dir, left[0].Name()))
+				s.Require().NoError(err)
+
+				doc, err := preset.Read(bytes.NewReader(raw))
+				s.Require().NoError(err)
+				s.Require().Equal("Black Rusty", doc.Data.Meta.Name,
+					"the first backup is still the preset it was written as")
 
 				return
 			}

@@ -61,6 +61,8 @@ const untouched = "New Preset"
 type Keeper struct {
 	dir     string
 	decoder Decoder
+	// now is the moment a backup is named for. time.Now outside tests.
+	now func() time.Time
 }
 
 // New is a Keeper writing into dir and reading answers through d.
@@ -72,7 +74,7 @@ func New(
 	dir string,
 	d Decoder,
 ) *Keeper {
-	return &Keeper{dir: dir, decoder: d}
+	return &Keeper{dir: dir, decoder: d, now: time.Now}
 }
 
 // Keep writes every slot an edit is about to replace, and returns where each
@@ -138,7 +140,7 @@ func (k *Keeper) one(
 	// ever share a name, the second fails rather than replacing the first.
 	path := filepath.Join(dir, fmt.Sprintf("%s-s%d-%s%s",
 		slot.Label(h.At.Slot), h.At.Setlist,
-		time.Now().UTC().Format("20060102-150405.000000000"), ext))
+		k.now().UTC().Format("20060102-150405.000000000"), ext))
 
 	if err := atomicfile.WriteNew(path, data, 0o600); err != nil {
 		return "", err
