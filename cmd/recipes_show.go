@@ -34,8 +34,12 @@ var recipesShowCmd = &cobra.Command{
 	Short: "Show one recipe in full",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		one, err := newClient(sdk.WithRecipes(recipesDir)).
-			Recipe(cmd.Context(), recipesShowID)
+		dir, id, err := recipeFor(cmd.Context(), recipesDir, recipesShowID)
+		if err != nil {
+			return cli.Hint(err)
+		}
+
+		one, err := newClient(sdk.WithRecipes(dir)).Recipe(cmd.Context(), id)
 		if err != nil {
 			return cli.Hint(err)
 		}

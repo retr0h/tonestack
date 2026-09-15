@@ -67,6 +67,14 @@ tonestack recipes new \
 Every gear name is resolved before anything is written, and near misses are
 suggested when one does not resolve.
 
+The file goes to your own recipes directory, `$XDG_DATA_HOME/tonestack/recipes`,
+or `~/.local/share/tonestack/recipes` when that variable is unset, and the
+command prints its path. `recipes list`, `recipes show` and `presets make` read
+that directory beside the rigs that ship, so the new rig builds straight away.
+`--dir` writes somewhere else instead. A rig written there is only found when
+you name the same directory again, with `--dir` or with
+`presets make --recipes`.
+
 Then open the file and fill in what the flags cannot express: `character`,
 `technique`, and honest `provenance`. [recipes.md](recipes.md) covers each field
 and [`examples/rigspec/mike-dirnt.yaml`](../examples/rigspec/mike-dirnt.yaml)

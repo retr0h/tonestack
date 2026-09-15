@@ -46,12 +46,21 @@ usually been copied somewhere else too.
 --from copies an existing recipe instead, comments and citations included, and
 records where it came from in extends. Nothing merges the two: the copy is a
 whole rig and editing it does not touch the original. Use it for a rig that
-departs from another, such as one song played differently from the rest.`,
+departs from another, such as one song played differently from the rest.
+
+The recipe is written to your own recipes directory, where recipes list and
+presets make find it, unless --dir names another. The output says which file
+it wrote.`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		dir := recipesDir
 		if dir == "" {
-			dir = "pkg/sdk/rigs"
+			own, err := userRecipesDir()
+			if err != nil {
+				return err
+			}
+
+			dir = own
 		}
 
 		made, err := newClient(sdk.WithRecipes(dir), sdk.WithCatalog(recipesNewCatalog)).

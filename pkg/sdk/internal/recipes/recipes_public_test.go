@@ -46,12 +46,20 @@ func (s *RecipesPublicTestSuite) TestLoad() {
 	s.Require().NoError(os.WriteFile(path, []byte("id: locked"), 0o600))
 	s.Require().NoError(os.Chmod(path, 0o000))
 
+	unreadable := s.T().TempDir()
+	s.Require().NoError(os.Chmod(unreadable, 0o000))
+	// Put back so the directory can be removed. Runs before TempDir's own
+	// cleanup, which was registered first; a failure shows up there.
+	s.T().Cleanup(func() { _ = os.Chmod(unreadable, 0o750) })
+
 	tests := []struct {
 		name  string
 		dir   string
 		ids   []string
 		empty bool
 		err   string
+		// unprivileged is a row root would pass, since root reads anything.
+		unprivileged bool
 	}{
 		{
 			name: "every recipe in the directory, sorted",
@@ -76,6 +84,20 @@ func (s *RecipesPublicTestSuite) TestLoad() {
 			empty: true,
 		},
 		{
+			// Nobody has written a recipe of their own yet.
+			name:  "a directory that is not there holds none",
+			dir:   filepath.Join(s.T().TempDir(), "missing"),
+			empty: true,
+		},
+		{
+			// Not the same as holding none: reporting it empty would hide
+			// every recipe in it without saying why.
+			name:         "a directory that cannot be read",
+			dir:          unreadable,
+			err:          "reading " + unreadable,
+			unprivileged: true,
+		},
+		{
 			// No directory is the case for anyone running an installed
 			// binary rather than working in a checkout.
 			name: "no directory falls back to the built-in recipes",
@@ -85,6 +107,10 @@ func (s *RecipesPublicTestSuite) TestLoad() {
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
+			if tt.unprivileged && os.Geteuid() == 0 {
+				s.T().Skip("root reads a directory whatever its mode")
+			}
+
 			all, err := recipes.Load(tt.dir)
 
 			if tt.err != "" {
