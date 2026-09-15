@@ -352,6 +352,8 @@ func (s *RecipesPublicTestSuite) TestNewFlags() {
 		absent string
 		// body must be in the file written.
 		body string
+		// example puts the meteor rig in the directory written to.
+		example bool
 	}{
 		{
 			// --kind names what a copy is attributed to, and a rig from gear
@@ -393,12 +395,46 @@ func (s *RecipesPublicTestSuite) TestNewFlags() {
 			args: []string{"--from", "flea"},
 			out:  "Gallien-Krueger 2001RB",
 		},
+		{
+			name: "a copy reports the copied rig's cab",
+			args: []string{"--from", "flea"},
+			out:  "Gallien-Krueger 410",
+		},
+		{
+			// Everything else the chain holds, in signal order.
+			name:    "a copy reports the copied rig's pedals",
+			args:    []string{"--from", "dir-angl-meteor"},
+			example: true,
+			out:     "Arbiter Cry Baby, Ibanez® TS808 Tube Screamer®",
+		},
+		{
+			// Written bare, this name is a mapping and the file is not a rig.
+			name: "a copy named with YAML syntax",
+			args: []string{"--from", "flea", "--name", `a: "b" #c`},
+			body: `name: 'a: "b" #c'`,
+		},
+		{
+			// Written bare, a rig loads this name as the boolean true and
+			// refuses the file. Yes is a band.
+			name: "a copy named for a band called Yes",
+			args: []string{"--from", "flea", "--name", "Yes"},
+			body: `name: "Yes"`,
+		},
 	}
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
 			dir := s.T().TempDir()
 			s.T().Setenv("XDG_DATA_HOME", s.T().TempDir())
+
+			if tt.example {
+				raw, err := os.ReadFile(
+					filepath.Join("..", "examples", "rigspec", "dir-angl-meteor.yaml"))
+				s.Require().NoError(err)
+				s.Require().NoError(os.MkdirAll(filepath.Join(dir, "artists"), 0o750))
+				s.Require().NoError(os.WriteFile(
+					filepath.Join(dir, "artists", "dir-angl-meteor.yaml"), raw, 0o600))
+			}
 
 			args := append([]string{"recipes", "new", "--dir", dir, "--id", "the-copy"}, tt.args...)
 			out, err := s.try(args...)
