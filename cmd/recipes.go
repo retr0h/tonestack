@@ -21,15 +21,16 @@ package cmd
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/spf13/cobra"
 
 	"github.com/retr0h/tonestack/pkg/sdk"
+	"github.com/retr0h/tonestack/pkg/sdk/rig"
 )
 
 // recipesCmd represents the recipes command.
@@ -47,8 +48,9 @@ from Line 6's files; recipes are written by people.
 Your own recipes live in $XDG_DATA_HOME/tonestack/recipes, or in
 ~/.local/share/tonestack/recipes when that variable is unset. recipes new
 writes there, and recipes list, recipes show and presets make read them beside
-the built-in ones. One with the same identifier as a built-in recipe is used in
-its place. --dir names another directory, which is read instead of both.`,
+the built-in ones. One sharing an identifier or alias with a built-in recipe is
+used in its place. --dir names another directory, which is read instead of
+both.`,
 }
 
 var recipesDir string
@@ -77,43 +79,126 @@ func userRecipesDir() (string, error) {
 	return filepath.Join(home, ".local", "share", "tonestack", "recipes"), nil
 }
 
-// recipesDirFor is the directory to read one recipe from.
+// userRecipes reads somebody's own recipes.
 //
-// A directory somebody named is used as it is. Otherwise their own directory
-// is used when the recipe is there, and the built-in recipes when it is not,
-// so a rig of theirs is found without hiding the ones that ship.
-func recipesDirFor(
+// Dir is empty when there is nowhere to keep them, which means there are
+// none. A directory that is there and cannot be read is an error, not an
+// empty one: reporting it empty would hide every rig in it without a word.
+func userRecipes(
+	ctx context.Context,
+) (sdk.Recipes, error) {
+	dir, err := userRecipesDir()
+	if err != nil {
+		return sdk.Recipes{}, nil
+	}
+
+	return newClient(sdk.WithRecipes(dir)).Recipes(ctx)
+}
+
+// names are every way a rig can be asked for, compared as lookup compares.
+func names(
+	spec rig.Spec,
+) []string {
+	out := []string{strings.ToLower(spec.ID)}
+
+	if spec.Aliases != nil {
+		for _, a := range *spec.Aliases {
+			out = append(out, strings.ToLower(a))
+		}
+	}
+
+	return out
+}
+
+// answersTo reports whether asking for id finds this rig.
+func answersTo(
+	spec rig.Spec,
+	id string,
+) bool {
+	for _, n := range names(spec) {
+		if n == strings.ToLower(id) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// replaces reports whether a rig of theirs stands in for a shipped one.
+//
+// Any name in common, identifier or alias, because asking for that name would
+// otherwise find one rig through show and make and list the other.
+func replaces(
+	theirs rig.Spec,
+	shipped rig.Spec,
+) bool {
+	for _, n := range names(shipped) {
+		if answersTo(theirs, n) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// recipeFor is the directory to read one recipe from, and the identifier to
+// ask it for.
+//
+// A directory somebody named is used as it is. Otherwise a rig of theirs that
+// answers to id is used, then a shipped rig that does unless one of theirs
+// replaces it, so show and make pick the rig list shows.
+func recipeFor(
 	ctx context.Context,
 	named string,
 	id string,
-) (string, error) {
+) (string, string, error) {
 	if named != "" {
-		return named, nil
+		return named, id, nil
 	}
 
-	dir, err := userRecipesDir()
+	own, err := userRecipes(ctx)
 	if err != nil {
-		// Nowhere to keep recipes of their own means there are none.
-		return "", nil
+		return "", "", err
 	}
 
-	_, err = newClient(sdk.WithRecipes(dir)).Recipe(ctx, id)
-
-	switch {
-	case err == nil:
-		return dir, nil
-	case errors.Is(err, sdk.ErrNoSuchRecipe):
-		return "", nil
-	default:
-		return "", err
+	if own.Dir == "" {
+		return "", id, nil
 	}
+
+	for _, spec := range own.Rigs {
+		if answersTo(spec, id) {
+			return own.Dir, spec.ID, nil
+		}
+	}
+
+	shipped, err := newClient().Recipes(ctx)
+	if err != nil {
+		return "", "", err
+	}
+
+	for _, spec := range shipped.Rigs {
+		if !answersTo(spec, id) {
+			continue
+		}
+
+		for _, theirs := range own.Rigs {
+			if replaces(theirs, spec) {
+				return own.Dir, theirs.ID, nil
+			}
+		}
+
+		break
+	}
+
+	// A shipped rig, or none at all, which the lookup itself reports.
+	return "", id, nil
 }
 
 // allRecipes reads the recipes a listing shows.
 //
 // A directory somebody named is read on its own. Otherwise their own recipes
-// are read beside the built-in ones, and one of theirs replaces a built-in
-// recipe with the same identifier.
+// are read beside the built-in ones, and one of theirs replaces any built-in
+// recipe it shares a name with.
 func allRecipes(
 	ctx context.Context,
 	named string,
@@ -122,35 +207,39 @@ func allRecipes(
 		return newClient(sdk.WithRecipes(named)).Recipes(ctx)
 	}
 
+	own, err := userRecipes(ctx)
+	if err != nil {
+		return sdk.Recipes{}, err
+	}
+
 	shipped, err := newClient().Recipes(ctx)
 	if err != nil {
 		return sdk.Recipes{}, err
 	}
 
-	dir, err := userRecipesDir()
-	if err != nil {
+	if own.Dir == "" {
 		return shipped, nil
-	}
-
-	own, err := newClient(sdk.WithRecipes(dir)).Recipes(ctx)
-	if err != nil {
-		return sdk.Recipes{}, err
-	}
-
-	mine := make(map[string]bool, len(own.Rigs))
-	for _, spec := range own.Rigs {
-		mine[spec.ID] = true
 	}
 
 	out := own.Rigs
 
 	for _, spec := range shipped.Rigs {
-		if !mine[spec.ID] {
+		replaced := false
+
+		for _, theirs := range own.Rigs {
+			if replaces(theirs, spec) {
+				replaced = true
+
+				break
+			}
+		}
+
+		if !replaced {
 			out = append(out, spec)
 		}
 	}
 
 	sort.SliceStable(out, func(i, j int) bool { return out[i].ID < out[j].ID })
 
-	return sdk.Recipes{Dir: dir, Rigs: out}, nil
+	return sdk.Recipes{Dir: own.Dir, Rigs: out}, nil
 }

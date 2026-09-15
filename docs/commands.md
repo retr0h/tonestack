@@ -427,8 +427,9 @@ from Line 6's files; recipes are written by people.
 Your own recipes live in $XDG_DATA_HOME/tonestack/recipes, or in
 ~/.local/share/tonestack/recipes when that variable is unset. recipes new
 writes there, and recipes list, recipes show and presets make read them beside
-the built-in ones. One with the same identifier as a built-in recipe is used in
-its place. --dir names another directory, which is read instead of both.
+the built-in ones. One sharing an identifier or alias with a built-in recipe is
+used in its place. --dir names another directory, which is read instead of
+both.
 
 ```text
 tonestack recipes <command> [flags]

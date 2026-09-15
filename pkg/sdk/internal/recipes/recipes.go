@@ -27,6 +27,7 @@ package recipes
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -51,14 +52,22 @@ func Load(dir string) ([]rig.Spec, error) {
 	// No directory means the recipes that ship in the binary, which is the
 	// case for anyone who has not written their own.
 	if dir == "" {
-		return loadFS(rigs.FS, ".")
+		return loadFS(rigs.FS, ".", "the built-in recipes")
 	}
 
-	return loadFS(os.DirFS(dir), ".")
+	return loadFS(os.DirFS(dir), ".", dir)
 }
 
 // loadFS reads every rig under root, wherever that filesystem comes from.
-func loadFS(fsys fs.FS, root string) ([]rig.Spec, error) {
+// name says where that is, for a directory that cannot be read.
+func loadFS(fsys fs.FS, root, name string) ([]rig.Spec, error) {
+	// Glob drops a directory it cannot read, which would make one nobody may
+	// open look like one holding no recipes. A directory that is not there is
+	// different: nobody has written a recipe into it yet.
+	if _, err := fs.ReadDir(fsys, root); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return nil, fmt.Errorf("reading %s: %w", name, err)
+	}
+
 	// The pattern is a constant, so it cannot be malformed.
 	paths, _ := fs.Glob(fsys, path.Join(root, "*", "*.yaml"))
 

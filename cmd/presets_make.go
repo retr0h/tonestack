@@ -42,19 +42,22 @@ parameter is set to what Line 6 states as its default — a recipe's character
 words then move the controls they name.`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		dir, err := recipesDirFor(
+		dir, id, err := recipeFor(
 			cmd.Context(), presetsMakeClient.recipes, presetsMakeOptions.RecipeID)
 		if err != nil {
 			return cli.Hint(err)
 		}
 
-		// A copy, so the flag keeps what was typed rather than what it
+		// Copies, so the flags keep what was typed rather than what it
 		// resolved to.
 		flags := presetsMakeClient
 		flags.recipes = dir
 		client := flags.client()
 
-		made, err := client.Build(cmd.Context(), presetsMakeOptions)
+		opts := presetsMakeOptions
+		opts.RecipeID = id
+
+		made, err := client.Build(cmd.Context(), opts)
 		if err != nil {
 			return cli.Hint(err)
 		}

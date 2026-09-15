@@ -13,9 +13,10 @@ The rigs that ship live under `pkg/sdk/rigs/`. `tonestack recipes new` writes
 yours to `$XDG_DATA_HOME/tonestack/recipes/artists/`, or to
 `~/.local/share/tonestack/recipes/artists/` when that variable is unset.
 `recipes list`, `recipes show` and `presets make` read that directory beside the
-rigs that ship, and a rig of yours with the same `id` as a shipped one takes its
-place. `--dir`, or `--recipes` on `presets make`, names a different directory,
-and the command reads that one instead of both.
+rigs that ship. A rig of yours takes the place of a shipped one when the two
+share a name, whether that is the `id` or one of the `aliases`, in any case.
+`--dir`, or `--recipes` on `presets make`, names a different directory, and the
+command reads that one instead of both.
 
 This page is how to write one. For what each field may say, read
 [`docs/rigspec.md`](rigspec.md), which is generated from the contract and lists
