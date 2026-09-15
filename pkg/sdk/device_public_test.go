@@ -72,7 +72,13 @@ func (s *DevicePublicTestSuite) TestRoundTrip() {
 
 	source := s.slotFrom("TONESTACK_SOURCE_SLOT", "01A")
 
-	session, err := sdk.New().Open(ctx)
+	// The same switch the CLI reads, so a hardware run leaves a frame trace.
+	var opts []sdk.Option
+	if os.Getenv("TONESTACK_USB_DEBUG") != "" {
+		opts = append(opts, sdk.WithTrace(os.Stderr))
+	}
+
+	session, err := sdk.New(opts...).Open(ctx)
 	if errors.Is(err, device.ErrNoDevice) {
 		s.T().Skip("no Helix attached")
 	}

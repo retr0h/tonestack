@@ -179,9 +179,19 @@ func readUntil(
 			return 0, err
 		}
 
+		began := time.Now()
+
 		n, err := read(p, slice)
 		if err != nil && idle(err) {
 			if n == 0 {
+				// A quiet read can end early: a device cancels the read it
+				// has pending while it writes flash. The rest of the slice is
+				// waited out, so one that keeps doing it cannot spin the loop.
+				select {
+				case <-ctx.Done():
+				case <-time.After(slice - time.Since(began)):
+				}
+
 				continue
 			}
 

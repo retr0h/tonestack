@@ -105,17 +105,31 @@ func (s *BackendPublicTestSuite) TestReadUntil() {
 		reads  []error
 		counts []int
 		cancel bool
+		// the read, counting from one, that Ctrl-C lands during.
+		stopAt int
 		wantN  int
 		want   error
 		// how many reads happened.
 		calls int
+		// the least time the wait may take.
+		atLeast time.Duration
 	}{
 		{
-			// The usual case: nothing, nothing, then an answer.
+			// The usual case: nothing, nothing, then an answer. These quiet
+			// reads return at once, the way an aborted one does, and each still
+			// waits out its slice rather than spinning.
 			name:   "idle reads until the device answers",
 			reads:  []error{errIdle, errIdle, nil},
 			counts: []int{0, 0, 12},
 			wantN:  12, calls: 3,
+			atLeast: 20 * time.Millisecond,
+		},
+		{
+			name:   "a context that ends while a quiet read waits",
+			reads:  []error{errIdle},
+			counts: []int{0},
+			stopAt: 1,
+			want:   context.Canceled, calls: 1,
 		},
 		{
 			name:   "a real error ends the wait",
@@ -157,13 +171,19 @@ func (s *BackendPublicTestSuite) TestReadUntil() {
 				n, err := tt.counts[calls], tt.reads[calls]
 				calls++
 
+				if calls == tt.stopAt {
+					stop()
+				}
+
 				return n, err
 			}
 
+			began := time.Now()
 			n, err := device.ReadUntil(ctx, make([]byte, 64), 10*time.Millisecond, read, idle)
 
 			s.Require().Equal(tt.wantN, n)
 			s.Require().Equal(tt.calls, calls)
+			s.Require().GreaterOrEqual(time.Since(began), tt.atLeast)
 
 			if tt.want == nil {
 				s.Require().NoError(err)

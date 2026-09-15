@@ -182,8 +182,16 @@ func (r iokitReceiver) read(p []byte, timeout time.Duration) (int, error) {
 	return r.intf.Read(r.ref, p, timeout)
 }
 
-// idle reports a read that timed out because the device had nothing to say.
-func idle(err error) bool { return is(err, ioreturn.USBTransactionTimeout) }
+// idle reports a read that ended with the device having nothing to say.
+//
+// Either it timed out, or the device aborted it. An HX Stomp aborts the read
+// posted on it while it commits a written preset to flash, and answers
+// normally once it has: seen on hardware, where counting that as the bus
+// ended every session at its first write. A cable that has gone reports
+// something else, and still fails the read.
+func idle(err error) bool {
+	return is(err, ioreturn.USBTransactionTimeout) || is(err, ioreturn.Aborted)
+}
 
 // busy reports an interface somebody else holds.
 func busy(err error) bool { return is(err, ioreturn.ExclusiveAccess) }
