@@ -50,12 +50,9 @@ func section(
 ) {
 	fmt.Fprintf(b, "\n## %s\n\n%s\n", c.CommandPath(), strings.TrimSpace(description(c)))
 
-	usage := c.UseLine()
-	if c.HasAvailableSubCommands() {
-		usage = c.CommandPath() + " <command> [flags]"
-	}
+	rows := flags(c)
 
-	fmt.Fprintf(b, "\n```text\n%s\n```\n", usage)
+	fmt.Fprintf(b, "\n```text\n%s\n```\n", usage(c, len(rows) > 0))
 
 	subs := available(c)
 	if len(subs) > 0 {
@@ -66,7 +63,7 @@ func section(
 		}
 	}
 
-	if rows := flags(c); len(rows) > 0 {
+	if len(rows) > 0 {
 		b.WriteString("\n| flag | takes | default | what it does |\n| --- | --- | --- | --- |\n")
 
 		for _, row := range rows {
@@ -77,6 +74,33 @@ func section(
 	for _, sub := range subs {
 		section(b, sub)
 	}
+}
+
+// usage is the line a command is invoked by. A group names the command it
+// expects; anything else says [flags] only where it has flags of its own.
+//
+// Not cobra's UseLine: that asks whether the command has flags, and the answer
+// changes once a parent's persistent flags are merged into it, which reading
+// LocalFlags does. The same tree then rendered one page the first time and
+// another the second.
+func usage(
+	c *cobra.Command,
+	hasFlags bool,
+) string {
+	if c.HasAvailableSubCommands() {
+		return c.CommandPath() + " <command> [flags]"
+	}
+
+	line := strings.Replace(c.Use, c.Name(), c.DisplayName(), 1)
+	if c.HasParent() {
+		line = c.Parent().CommandPath() + " " + line
+	}
+
+	if hasFlags && !c.DisableFlagsInUseLine && !strings.Contains(line, "[flags]") {
+		line += " [flags]"
+	}
+
+	return line
 }
 
 // description prefers the long form, the way --help does.
