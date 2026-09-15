@@ -48,10 +48,17 @@ Tools that overwrite what a pedal holds (import, copy, swap) are offered only
 with --allow-writes. Each still saves what it replaces to a file first.`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		err := mcp.New(newClient(ownRecipes("")), mcp.Options{
+		server := mcp.New(newClient(ownRecipes("")), mcp.Options{
 			Version:     version,
 			AllowWrites: mcpStartAllowWrites,
-		}).RunOver(cmd.Context(), cmd.InOrStdin(), cmd.OutOrStdout())
+		})
+
+		// The server holds the pedal only from a device call until the agent
+		// goes quiet, so an interrupt asks it at that moment rather than this
+		// command claiming the pedal up front. See cli.Interrupts.
+		pedal.follow(server)
+
+		err := server.RunOver(cmd.Context(), cmd.InOrStdin(), cmd.OutOrStdout())
 
 		// Ctrl-C and SIGTERM are how this is meant to stop, not a failure.
 		if errors.Is(err, context.Canceled) {

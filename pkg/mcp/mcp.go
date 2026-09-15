@@ -63,11 +63,21 @@ type Server struct {
 	server *gomcp.Server
 	// pedal holds the pedal between device calls.
 	pedal io.Closer
+	// held counts the Sessions the tools have open, for Held.
+	held *holding
 }
 
 // New builds a server whose tools call client.
 func New(
 	client *sdk.Client,
+	opts Options,
+) *Server {
+	return newServer(tools.FromSDK(client), opts)
+}
+
+// newServer builds a server whose tools call c.
+func newServer(
+	c tools.Client,
 	opts Options,
 ) *Server {
 	version := opts.Version
@@ -79,9 +89,10 @@ func New(
 		&gomcp.Implementation{Name: "tonestack", Version: version},
 		&gomcp.ServerOptions{Instructions: instructions},
 	)
-	pedal := tools.Register(s, tools.FromSDK(client), opts.AllowWrites)
+	held := &holding{Client: c}
+	pedal := tools.Register(s, held, opts.AllowWrites)
 
-	return &Server{server: s, pedal: pedal}
+	return &Server{server: s, pedal: pedal, held: held}
 }
 
 // Run serves over stdin and stdout until ctx ends or the agent disconnects.
