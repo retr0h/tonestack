@@ -87,6 +87,19 @@ func (w *afterHangUp) Write(
 	return w.out.Write(p)
 }
 
+// errRefused is what refuses says to every write.
+var errRefused = errors.New("refused")
+
+// refuses stands in for a stdout that has gone.
+type refuses struct{}
+
+// Write fails.
+func (refuses) Write(
+	[]byte,
+) (int, error) {
+	return 0, errRefused
+}
+
 // TestRunOver covers how a session over a client's streams ends.
 func (s *StdioPublicTestSuite) TestRunOver() {
 	tests := []struct {
@@ -118,6 +131,18 @@ func (s *StdioPublicTestSuite) TestRunOver() {
 			},
 			cancel: true,
 			err:    context.Canceled,
+		},
+		{
+			// A client still connected whose replies can't be written. That
+			// is a failure, not a hang-up.
+			name: "a client whose output fails",
+			streams: func() (io.ReadCloser, io.Writer) {
+				r, w := io.Pipe()
+				go func() { _, _ = io.WriteString(w, initialize) }()
+
+				return r, refuses{}
+			},
+			err: errRefused,
 		},
 	}
 
