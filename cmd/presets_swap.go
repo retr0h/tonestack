@@ -20,10 +20,14 @@
 package cmd
 
 import (
+	"errors"
+	"fmt"
+
 	"github.com/spf13/cobra"
 
 	"github.com/retr0h/tonestack/pkg/cli"
 	"github.com/retr0h/tonestack/pkg/sdk"
+	"github.com/retr0h/tonestack/pkg/sdk/slot"
 )
 
 var (
@@ -69,7 +73,22 @@ func swapped(
 	o, client := &presetsSwapOptions, presetsSwapClient.client()
 
 	if o.file == "" {
-		return client.Swap(cmd.Context(), o.source(), o.destination())
+		change, err := client.Swap(cmd.Context(), o.source(), o.destination())
+
+		// The SDK says what went wrong; the next step is a command, and that
+		// is this layer's to name.
+		var empty *sdk.EmptySwapError
+		if errors.As(err, &empty) && empty.Full != nil {
+			full := slot.Label(empty.Full.Slot)
+			hollow := slot.Label(empty.Empty[0].Slot)
+
+			return change, fmt.Errorf(
+				"%w; run tonestack presets copy --from %s --to %s instead, "+
+					"which fills %s and leaves %s as it is",
+				err, full, hollow, hollow, full)
+		}
+
+		return change, err
 	}
 
 	return client.Setlist(o.file).Swap(cmd.Context(), o.source(), o.destination(), o.out)
