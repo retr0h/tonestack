@@ -427,16 +427,13 @@ func (s *LoopPublicTestSuite) TestPaceEndsWhenTheBusDiesWhileWaiting() {
 	s.Require().ErrorIs(err, device.ErrBus)
 }
 
-// acks counts the acknowledgements a session sent on a channel, and says what
-// the last of them carried.
-func acks(
+// ackValues is what each acknowledgement a session sent on a channel carried,
+// in the order they went out.
+func ackValues(
 	d *deviceDouble,
 	channel string,
-) (int, uint32) {
-	var (
-		count int
-		last  uint32
-	)
+) []uint32 {
+	var values []uint32
 
 	for _, raw := range d.frames() {
 		f, _, err := wire.DecodeFrame(raw)
@@ -444,11 +441,24 @@ func acks(
 			continue
 		}
 
-		count++
-		last = f.Ack
+		values = append(values, f.Ack)
 	}
 
-	return count, last
+	return values
+}
+
+// acks counts the acknowledgements a session sent on a channel, and says what
+// the last of them carried.
+func acks(
+	d *deviceDouble,
+	channel string,
+) (int, uint32) {
+	values := ackValues(d, channel)
+	if len(values) == 0 {
+		return 0, 0
+	}
+
+	return len(values), values[len(values)-1]
 }
 
 // allAcks counts the acknowledgements a session sent on every channel.

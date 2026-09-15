@@ -246,6 +246,12 @@ func (s *session) awaitReply(
 		// since is acknowledged by nobody here: the next look finds it, and a
 		// write's answer is then settled once the flash pause is over rather
 		// than inside the write.
+		//
+		// A channel that already owed bytes is the exception. If a write's
+		// answer lands between that look and this send, owed is still true,
+		// and an acknowledgement's value is read as it goes out, so this one
+		// covers the answer as well. It goes out just before the flash pause,
+		// not during it. That was so before owed was read with the buffer.
 		if owed {
 			if err := s.send(c, wire.MsgAck, nil); err != nil {
 				return wire.Response{}, err
