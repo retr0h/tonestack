@@ -27,6 +27,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"testing/iotest"
 	"time"
 
 	"github.com/stretchr/testify/suite"
@@ -90,6 +91,9 @@ func (w *afterHangUp) Write(
 // errRefused is what refuses says to every write.
 var errRefused = errors.New("refused")
 
+// errBrokenInput is what a stdin that breaks says.
+var errBrokenInput = errors.New("input broken")
+
 // refuses stands in for a stdout that has gone.
 type refuses struct{}
 
@@ -151,6 +155,15 @@ func (s *StdioPublicTestSuite) TestRunOver() {
 				return r, refuses{}
 			},
 			err: errRefused,
+		},
+		{
+			// An input that breaks rather than ends. Nothing was written and
+			// nothing hung up, so what the library reports is the failure.
+			name: "a client whose input fails",
+			streams: func() (io.Reader, io.Writer) {
+				return iotest.ErrReader(errBrokenInput), io.Discard
+			},
+			err: errBrokenInput,
 		},
 	}
 

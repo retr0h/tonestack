@@ -23,6 +23,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"sync"
 	"sync/atomic"
 
 	gomcp "github.com/modelcontextprotocol/go-sdk/mcp"
@@ -41,8 +42,9 @@ func (s *Server) run(
 	w io.Writer,
 ) error {
 	in := &hangup{ReadCloser: r}
+	out := &output{Writer: w}
 
-	err := s.Serve(ctx, &gomcp.IOTransport{Reader: in, Writer: nopWriteCloser{w}})
+	err := s.Serve(ctx, &gomcp.IOTransport{Reader: in, Writer: out})
 
 	// A context that has ended is why the session stopped, even when the input
 	// ran out in the same moment and the library reported that instead. Which
@@ -50,6 +52,13 @@ func (s *Server) run(
 	// by the context's error.
 	if ctxErr := ctx.Err(); ctxErr != nil {
 		return errors.Join(ctxErr, err)
+	}
+
+	// A reply that could not be written is why, too. The library closes the
+	// input when a write fails, and whether it then reports the write or the
+	// read that closing ended is another race.
+	if werr := out.failed(); werr != nil {
+		return errors.Join(werr, err)
 	}
 
 	if in.ended.Load() {
@@ -77,11 +86,38 @@ func (h *hangup) Read(
 	return n, err
 }
 
-// nopWriteCloser leaves stdout open when a session closes, since the process
-// may still print to it on the way out.
-type nopWriteCloser struct {
+// output is where replies go. It remembers the first write that failed, and
+// leaves stdout open when a session closes, since the process may still print
+// to it on the way out.
+type output struct {
 	io.Writer
+	mu  sync.Mutex
+	err error
+}
+
+// Write writes a reply and notes the first failure.
+func (o *output) Write(
+	p []byte,
+) (int, error) {
+	n, err := o.Writer.Write(p)
+	if err != nil {
+		o.mu.Lock()
+		if o.err == nil {
+			o.err = err
+		}
+		o.mu.Unlock()
+	}
+
+	return n, err
 }
 
 // Close does nothing.
-func (nopWriteCloser) Close() error { return nil }
+func (*output) Close() error { return nil }
+
+// failed is the first write that failed, if one did.
+func (o *output) failed() error {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	return o.err
+}
