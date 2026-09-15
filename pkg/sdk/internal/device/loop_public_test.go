@@ -650,13 +650,35 @@ func (s *LoopPublicTestSuite) TestIdleAck() {
 	s.Run("the flash pause after a write", func() {
 		// The write's answer is owed an acknowledgement, and it waits until
 		// the flash pause is over.
+		//
+		// The answer is routed at the one moment that used to break that:
+		// after the write looked through the buffer and found nothing, and
+		// before it decided whether anything was owed. Deciding on a later
+		// look than the buffer's acknowledged the whole answer inside the
+		// write, which the scheduler did on its own three times in five
+		// thousand loaded runs.
 		clk := s.newClock()
-		d := answers(s.ctrl, s.status(device.DataChannel, device.FirstTxn, 0))
+		d := answers(s.ctrl)
 
 		b := device.ShortBudgets()
 		b.Idle, b.After = time.Millisecond, clk.after
 
 		session := device.NewOpenTestSession(s.T(), d.out, d.in, b)
+		status := s.status(device.DataChannel, device.FirstTxn, 0)
+
+		var once sync.Once
+
+		// On the write's goroutine, so it asserts rather than requires.
+		session.OnUnanswered(func() {
+			once.Do(func() {
+				d.tell(status)
+
+				s.Eventually(func() bool {
+					return session.Received(device.DataChannel) > 0
+				}, 5*time.Second, time.Millisecond, "the answer was routed")
+			})
+		})
+
 		done := make(chan error, 1)
 
 		go func() { done <- session.WritePreset(context.Background(), 0, 3, []byte{0x01}) }()

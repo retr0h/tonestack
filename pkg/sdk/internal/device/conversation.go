@@ -238,8 +238,12 @@ type session struct {
 	// framing and counters, and none of it needs a bus.
 	holds []releaser
 	done  func()
-	out   sender
-	in    receiver
+	// unanswered runs each time an exchange has looked through its channel's
+	// buffer and found no answer, before it decides whether to acknowledge.
+	// Nil outside tests, which use it to route an answer at that moment.
+	unanswered func()
+	out        sender
+	in         receiver
 	// chans is every channel, made with the session and never written after,
 	// so the loop ranges over it without a lock.
 	chans   map[string]*channel

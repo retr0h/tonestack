@@ -171,6 +171,15 @@ func (s *session) OnDone(
 	s.done = done
 }
 
+// OnUnanswered runs f each time an exchange looks for its answer and does not
+// find it, before it decides whether anything is owed an acknowledgement.
+// Set before the exchange starts.
+func (s *session) OnUnanswered(
+	f func(),
+) {
+	s.unanswered = f
+}
+
 // releaseFunc makes a function into something a session can give back.
 type releaseFunc func() error
 
