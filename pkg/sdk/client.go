@@ -449,8 +449,8 @@ type ExtendRecipe struct {
 //
 // The rig is written where Scaffold writes. From is looked for there first,
 // then in the rigs beneath: the ones WithRecipes named when WithUserRecipes
-// was given too, and the ones that ship otherwise. The report's Instrument is
-// the copied rig's.
+// was given too, and the ones that ship otherwise. The report's Instrument and
+// Amp are the copied rig's, and so is its Name unless in.Name gave another.
 func (c *Client) Extend(
 	ctx context.Context,
 	in ExtendRecipe,

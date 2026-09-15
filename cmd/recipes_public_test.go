@@ -373,6 +373,26 @@ func (s *RecipesPublicTestSuite) TestNewFlags() {
 			out:    "bass",
 			absent: "guitar",
 		},
+		{
+			// The copy is called what the copied rig is, since nothing
+			// renamed it.
+			name: "a copy with no --name reports the copied rig's name",
+			args: []string{"--from", "mike-dirnt"},
+			out:  "Mike Dirnt",
+		},
+		{
+			name:   "a copy with --name reports that name",
+			args:   []string{"--from", "mike-dirnt", "--name", "Basket Case"},
+			out:    "Basket Case",
+			absent: "Mike Dirnt",
+		},
+		{
+			// A copy names no gear of its own, so the amp is the one the
+			// chain it copied holds.
+			name: "a copy reports the copied rig's amp",
+			args: []string{"--from", "flea"},
+			out:  "Gallien-Krueger 2001RB",
+		},
 	}
 
 	for _, tt := range tests {
