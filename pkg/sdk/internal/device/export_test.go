@@ -413,6 +413,9 @@ type (
 // StreamChunk is how much of a message a device takes per frame.
 const StreamChunk = streamChunk
 
+// ErrUnacked is a chunk the device never acknowledged.
+var ErrUnacked = errUnacked
+
 // Write sends a request too large for one frame and waits for the device to
 // finish acting on it.
 func (s *session) Write(

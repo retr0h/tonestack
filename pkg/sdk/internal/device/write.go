@@ -109,8 +109,9 @@ func (s *session) write(
 	args []wire.Arg,
 ) error {
 	// Before anything is sent. Afterwards a caller who stops waiting does not
-	// stop it: the message goes on until the device does, so this call's tail
-	// never overlaps the next one's head.
+	// stop it: only the device does, by taking each chunk or by going quiet
+	// long enough that pace ends the session, so this call's tail never
+	// overlaps the next one's head.
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -166,9 +167,10 @@ func (s *session) commit(
 
 	// A write that has started finishes, and its answer is read, whoever
 	// stops waiting; the next operation is the one that sees the
-	// cancellation. The message itself carries no deadline at all: a budget
-	// that ran out between chunks would leave the device holding half of it.
-	// It is finite regardless, one bounded pause per chunk.
+	// cancellation. Between chunks the message is bounded regardless: the
+	// pace budget is what stops it if the device goes quiet, and running out
+	// ends the session rather than leave the data channel holding half a
+	// message for a later call to feed a fresh request into.
 	if err := s.stream(c, body); err != nil {
 		return err
 	}

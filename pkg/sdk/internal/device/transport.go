@@ -145,6 +145,13 @@ func (s *session) deliver(
 		// The device's ack base has no relation to wire.AckBase, so only a
 		// change is ever compared, never a computed byte count. What moves
 		// is what a chunk's pace waits on.
+		//
+		// Not forward-only either. The width the pedal counts in is not
+		// known, and a compare that only accepted a larger value would stall
+		// a long held session outright the moment that counter wrapped. A
+		// repeated value has not been seen on hardware: every trace holds
+		// only bare acks, keep-alives, and 0x18 frames on control, never one
+		// carrying both data and an acknowledgement.
 		if f.Type&wire.MsgAck != 0 && (!c.ackSeen || f.Ack != c.lastAck) {
 			c.lastAck = f.Ack
 			c.ackSeen = true

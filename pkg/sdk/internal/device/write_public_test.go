@@ -351,6 +351,12 @@ func (s *WritePublicTestSuite) TestAMessageGoesOutInPiecesADeviceCanPace() {
 // pedal's USB endpoint on hardware: a chunk released by a frame on another
 // channel rather than its own acknowledgement, and nothing acking after it.
 // docs/protocol.md cites the trace.
+//
+// A timeout here does not merely fail the write. The data channel would be
+// left holding half a message, and a later call feeding it a fresh request
+// is the held-session stall all over again, so the timeout ends the session:
+// the error matches ErrBus, the next call sends nothing, and Close still
+// attempts the closing hellos.
 func (s *WritePublicTestSuite) TestAChunkTheDeviceNeverAcksStopsTheMessage() {
 	d := answers(s.ctrl)
 	d.stopAckingAfter(device.DataChannel, 4)
@@ -367,6 +373,8 @@ func (s *WritePublicTestSuite) TestAChunkTheDeviceNeverAcksStopsTheMessage() {
 		context.Background(), 0, 3, bytes.Repeat([]byte{0x2a}, 2000))
 
 	s.Require().Error(err)
+	s.Require().ErrorIs(err, device.ErrBus)
+	s.Require().ErrorIs(err, device.ErrUnacked)
 	s.Require().ErrorIs(err, context.DeadlineExceeded)
 	s.Require().ErrorContains(err, "stopped taking the message")
 
@@ -379,11 +387,35 @@ func (s *WritePublicTestSuite) TestAChunkTheDeviceNeverAcksStopsTheMessage() {
 	}
 
 	s.Require().LessOrEqual(chunks, 5, "nothing went out after the unacked chunk")
+
+	before := len(d.frames())
+
+	_, err = session.Call(context.Background(), device.ControlChannel, 1, nil)
+	s.Require().ErrorIs(err, device.ErrBus)
+	s.Require().Len(d.frames(), before, "nothing is asked of a session the timeout ended")
+
+	s.Require().ErrorIs(session.Close(), device.ErrBus)
+
+	hellos := 0
+
+	for _, raw := range d.frames()[before:] {
+		if kind, _ := device.MessageKind(raw); kind == wire.MsgHello {
+			hellos++
+		}
+	}
+
+	s.Require().Equal(len(device.ChannelNames()), hellos, "the farewell was attempted")
 }
 
 // TestAnUnrelatedFrameDoesNotReleaseTheNextChunk covers a notification that
 // arrives on another channel while a message paces: pace waits for its own
 // channel's acknowledgement, not any transfer.
+//
+// A count of chunks that all eventually went out would pass on the old logic
+// too, which released a chunk on any transfer, the unrelated frame included.
+// What proves the fix is the order: chunk N+1 is never written until chunk
+// N's own acknowledgement has been served, never merely a frame on some other
+// channel.
 func (s *WritePublicTestSuite) TestAnUnrelatedFrameDoesNotReleaseTheNextChunk() {
 	d := s.completes()
 
@@ -400,15 +432,21 @@ func (s *WritePublicTestSuite) TestAnUnrelatedFrameDoesNotReleaseTheNextChunk() 
 
 	s.Require().NoError(err)
 
-	chunks := 0
+	events := d.eventLog()
 
-	for _, raw := range d.frames() {
-		if kind, _ := device.MessageKind(raw); kind == wire.MsgData {
-			chunks++
+	s.Require().GreaterOrEqual(len(events), 2, "more than one chunk went out")
+
+	want := "write"
+
+	for i, e := range events {
+		s.Require().Equal(want, e, "event %d out of order: %v", i, events)
+
+		if want == "write" {
+			want = "ack"
+		} else {
+			want = "write"
 		}
 	}
-
-	s.Require().GreaterOrEqual(chunks, 2000/device.StreamChunk, "every chunk went out")
 }
 
 // TestAWriteIsPacedForTheFlash covers the wait that is real.

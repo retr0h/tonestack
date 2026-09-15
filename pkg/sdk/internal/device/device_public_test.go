@@ -97,6 +97,12 @@ type deviceDouble struct {
 	// reply, and a test that waits for scripted replies to drain must not see
 	// pacing as one still outstanding.
 	autoAcked [][]byte
+	// events records, in order, "write" when a data-channel chunk with a
+	// payload is written and "ack" when its automatic acknowledgement is
+	// served to a read, so a test can prove chunk N+1 is never written before
+	// chunk N's acknowledgement is served, not merely that every chunk
+	// eventually goes out.
+	events []string
 	// noisy is handed back on every read with nothing ready: a device that
 	// never goes quiet.
 	noisy []byte
@@ -180,6 +186,8 @@ func (d *deviceDouble) autoAck(
 	if name != device.DataChannel {
 		return
 	}
+
+	d.events = append(d.events, "write")
 
 	if d.acked == nil {
 		d.acked = map[string]int{}
@@ -298,6 +306,7 @@ func (d *deviceDouble) next(
 		if len(d.autoAcked) > 0 {
 			frame := d.autoAcked[0]
 			d.autoAcked = d.autoAcked[1:]
+			d.events = append(d.events, "ack")
 
 			return copy(p, frame), 0, true, d.partial
 		}
@@ -364,6 +373,15 @@ func (d *deviceDouble) frames() [][]byte {
 	defer d.mu.Unlock()
 
 	return append([][]byte(nil), d.sent...)
+}
+
+// eventLog is every data-channel chunk write and served acknowledgement, in
+// the order they happened.
+func (d *deviceDouble) eventLog() []string {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	return append([]string(nil), d.events...)
 }
 
 // pending is how many scripted frames nobody has read yet.

@@ -165,9 +165,11 @@ window a device punishes.
 
 No chunk of a write goes out without the device's acknowledgement of the one
 before it. A read that fails while a message is going out ends the read loop the
-same way any other bus failure does. The chunk waiting on that acknowledgement
-fails with it, and the message stops where it is rather than going out unpaced.
-Closing a session whose loop has ended still sends the closing hellos, as it did
+same way any other bus failure does, and the chunk waiting on that
+acknowledgement fails with it. A pace that never gets one ends the session too,
+rather than leave the data channel holding half a message for a later call to
+feed a fresh request into. Closing a session whose loop has ended still sends a
+bare acknowledgement on every channel and then the closing hellos, as it did
 before sessions had a read loop, though nothing reads what the device answers.
 
 ## Remote calls
@@ -437,9 +439,11 @@ what keeps that from happening.
 
 **A message goes out in pieces.** A device takes 256 bytes of stream data per
 frame and paces the sender with acknowledgements. The host waits for the
-device's own acknowledgement on the data channel before sending the next chunk,
-and stops the message rather than sending one unpaced. Sending a whole preset at
-once works against that pacing the same way. It fills the device's receive
+device's own acknowledgement on the data channel before sending the next chunk.
+Going too long without one stops the message rather than send it unpaced, and
+ends the session doing it, which is better than a data channel left holding half
+a message for a later call to feed a fresh request into. Sending a whole preset
+at once works against that pacing the same way. It fills the device's receive
 window and stalls the endpoint. The transfer times out, and the interface will
 not be claimed again until the device is power cycled.
 

@@ -347,9 +347,13 @@ func (s *session) pause(
 // it is the stall a hardware trace showed, a chunk dropped and every chunk
 // after it going out into a pedal that had stopped consuming. If the loop
 // has already ended, its error is returned at once rather than waiting out
-// the budget on a bus that is gone. If the budget runs out first, nothing
-// more is sent: an unpaced chunk into a pedal that is not acknowledging is
-// the stall itself.
+// the budget on a bus that is gone.
+//
+// If the budget runs out first, the session ends here rather than merely
+// failing this write: the data channel is left holding half a message, and a
+// later call that fed it a fresh request would be the held-session stall all
+// over again. Ending it is what makes the error match ErrBus, which is what a
+// caller holding the session releases it on.
 func (s *session) pace(
 	c *channel,
 	mark uint64,
@@ -369,7 +373,10 @@ func (s *session) pace(
 		select {
 		case <-at.next:
 		case <-budget:
-			return fmt.Errorf("%w: %w", errUnacked, context.DeadlineExceeded)
+			err := &busError{err: fmt.Errorf("%w: %w", errUnacked, context.DeadlineExceeded)}
+			s.end(err)
+
+			return err
 		case <-s.dead:
 			return s.endErr
 		}
