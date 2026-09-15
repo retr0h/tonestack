@@ -512,3 +512,22 @@ against `pkg/`.
   note, because "one device call at a time" now lives in the Session.
 - **`docs/knowledge.md`:** checked in each chunk's pull request for a line this
   finishes.
+
+## Amended 2026-09-15: what a write does about a file already there
+
+This record is left as it was decided. The signatures above for
+`Session.Export`, `Setlist.Export` and `Build` are out of date in one respect.
+In pull request #127, `Build` and every `Export` gained a trailing
+`existing sdk.Existing` argument, and `Compile` gained an `Existing` field.
+
+The MCP tools `preset_build` and `preset_export` refused a file already at the
+output path by looking for one and then writing. A file created between the look
+and the write was replaced. The refusal had to become part of the write, so the
+write had to be told whether it may replace. That is a decision about one output
+path, so it travels beside the path, typed the way `Format` is.
+`ReplaceExisting` is the zero value and what the CLI passes, and `KeepExisting`
+makes the write fail with an error matching `fs.ErrExist`.
+
+A Client option was ruled out. The MCP server is handed a Client it did not
+build, so an option would put the gate in whoever built the Client rather than
+in the tool that decides.

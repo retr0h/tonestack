@@ -300,6 +300,9 @@ func (s *OfflinePublicTestSuite) TestPresetBuild() {
 	held := filepath.Join(dir, "held.hlx")
 	s.Require().NoError(os.WriteFile(held, []byte("somebody's preset"), 0o600))
 	racy := filepath.Join(dir, "racy.hlx")
+	racyRig := filepath.Join(dir, "racy-rig.hlx")
+	// A rig that builds, so a real compile has something to write.
+	rigFile := filepath.Join("..", "..", "..", "..", "examples", "rigspec", "mike-dirnt.yaml")
 
 	s.run("preset_build", []row{
 		{
@@ -351,6 +354,32 @@ func (s *OfflinePublicTestSuite) TestPresetBuild() {
 			err:  true,
 			check: func(s *OfflinePublicTestSuite, _ *gomcp.CallToolResult) {
 				got, err := os.ReadFile(racy) //nolint:gosec // a path this test chose
+				s.Require().NoError(err)
+				s.Require().Equal("somebody's preset", string(got))
+			},
+		},
+		{
+			// The same race on the other source: a rig file compiled for
+			// real, through Compile's own write.
+			name: "a file that appears between the decision and the write, from a rig file, with writes off",
+			args: tools.Build{RigPath: rigFile, Out: racyRig},
+			setup: func(c *mocks.MockClient) {
+				c.EXPECT().
+					Compile(gomock.Any(), sdk.Compile{
+						Rig: rigFile, Out: racyRig, Existing: sdk.KeepExisting,
+					}).
+					DoAndReturn(func(ctx context.Context, in sdk.Compile) (sdk.Built, error) {
+						if err := os.WriteFile(in.Out, []byte("somebody's preset"), 0o600); err != nil {
+							return sdk.Built{}, err
+						}
+
+						return sdk.New().Compile(ctx, in)
+					})
+			},
+			want: tools.ErrWouldOverwrite.Error() + ": " + racyRig,
+			err:  true,
+			check: func(s *OfflinePublicTestSuite, _ *gomcp.CallToolResult) {
+				got, err := os.ReadFile(racyRig) //nolint:gosec // a path this test chose
 				s.Require().NoError(err)
 				s.Require().Equal("somebody's preset", string(got))
 			},

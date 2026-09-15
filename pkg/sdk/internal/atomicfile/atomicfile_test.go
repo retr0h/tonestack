@@ -57,17 +57,21 @@ func (s *AtomicfileTestSuite) refuseLinks(
 	}
 }
 
-// TestPlace covers WriteNew on a filesystem with no hard links, where the name
-// is claimed with an empty file and the synced temporary file renamed over it.
-func (s *AtomicfileTestSuite) TestPlace() {
+// TestCreate covers WriteNew on a filesystem with no hard links, where the
+// file is created in place through its own exclusive handle.
+func (s *AtomicfileTestSuite) TestCreate() {
 	tests := []struct {
 		name string
+		// a file size limit, so the write in place stops partway. Called
+		// straight to create, because the temporary file would stop first.
+		limited bool
 		// what the link is refused with.
 		refusal error
 		// a file already at the path.
 		existing bool
-		// the temporary file is gone before it can be renamed.
-		vanished bool
+		// another program renames its own file over the name the moment it
+		// is claimed, as a concurrent Write to the same path does.
+		replaced bool
 		// the directory cannot be opened once the link is refused, so it
 		// cannot be synced.
 		unsyncable bool
@@ -92,12 +96,17 @@ func (s *AtomicfileTestSuite) TestPlace() {
 			is:       fs.ErrExist,
 		},
 		{
-			// The name was claimed and nothing moved onto it, so the claim
-			// is given back rather than left as an empty file.
-			name:     "a rename that fails",
+			// A disk that fills partway through. No partial file is left.
+			name:    "a write that stops partway",
+			limited: true,
+			errText: "file too large",
+		},
+		{
+			// Somebody's file took the name after it was claimed. Theirs
+			// stays: nothing is moved over it, and nothing removes it.
+			name:     "another file put over the claim",
 			refusal:  syscall.ENOTSUP,
-			vanished: true,
-			errText:  "no such file",
+			replaced: true,
 		},
 		{
 			// As on a filesystem with links: a retry is not refused as a
@@ -118,30 +127,32 @@ func (s *AtomicfileTestSuite) TestPlace() {
 				s.Require().NoError(os.WriteFile(path, []byte("old"), 0o600))
 			}
 
-			// The temporary file as written, so the file placed can be shown
-			// to be that one rather than a second write of the data.
-			var written os.FileInfo
-
-			s.refuseLinks(tt.refusal, func(tmp string) {
-				info, err := os.Stat(tmp)
-				s.Require().NoError(err)
-
-				written = info
-
-				switch {
-				case tt.vanished:
-					s.Require().NoError(os.Remove(tmp))
-				case tt.unsyncable:
+			s.refuseLinks(tt.refusal, func(string) {
+				if tt.unsyncable {
 					s.Require().NoError(os.Chmod(dir, 0o300))
 				}
 			})
 
-			err := WriteNew(path, []byte("new"), 0o600)
+			if tt.replaced {
+				s.replaceOnClaim(path)
+			}
+
+			err := s.write(path, tt.limited)
 
 			s.Require().NoError(os.Chmod(dir, 0o700))
 
 			entries, readErr := os.ReadDir(dir)
 			s.Require().NoError(readErr)
+
+			if tt.replaced {
+				s.Require().Len(entries, 1, "only their file is left")
+
+				got, err := os.ReadFile(path) //nolint:gosec // a path this test chose
+				s.Require().NoError(err)
+				s.Require().Equal("theirs", string(got), "their file is not written over")
+
+				return
+			}
 
 			if tt.is != nil {
 				s.Require().ErrorIs(err, tt.is)
@@ -164,13 +175,61 @@ func (s *AtomicfileTestSuite) TestPlace() {
 			got, err := os.ReadFile(path) //nolint:gosec // a path this test chose
 			s.Require().NoError(err)
 			s.Require().Equal("new", string(got))
-
-			placed, err := os.Stat(path)
-			s.Require().NoError(err)
-			s.Require().True(os.SameFile(written, placed),
-				"the file placed is the one written, not the data written a second time")
 		})
 	}
+}
+
+// write calls WriteNew, or create under a file size limit when a case asks for
+// one.
+func (s *AtomicfileTestSuite) write(
+	path string,
+	limited bool,
+) error {
+	if !limited {
+		return WriteNew(path, []byte("new"), 0o600)
+	}
+
+	var was syscall.Rlimit
+
+	s.Require().NoError(syscall.Getrlimit(syscall.RLIMIT_FSIZE, &was))
+	s.Require().NoError(syscall.Setrlimit(syscall.RLIMIT_FSIZE,
+		&syscall.Rlimit{Cur: 3, Max: was.Max}))
+
+	_, err := create(path, []byte("longer than the limit"), 0o600)
+
+	s.Require().NoError(syscall.Setrlimit(syscall.RLIMIT_FSIZE, &was))
+
+	return err
+}
+
+// replaceOnClaim has another program rename a file of its own over path the
+// moment this package creates path exclusively, for the rest of the test.
+func (s *AtomicfileTestSuite) replaceOnClaim(
+	path string,
+) {
+	was := openFile
+	s.T().Cleanup(func() { openFile = was })
+
+	openFile = func(name string, flag int, perm os.FileMode) (*os.File, error) {
+		f, err := was(name, flag, perm)
+		if err != nil || name != path || flag&os.O_EXCL == 0 {
+			return f, err
+		}
+
+		s.replace(path)
+
+		return f, nil
+	}
+}
+
+// replace renames a file saying "theirs" over path, as atomicfile.Write in
+// another program does.
+func (s *AtomicfileTestSuite) replace(
+	path string,
+) {
+	theirs := path + ".theirs"
+	s.Require().NoError(os.WriteFile(theirs, []byte("theirs"), 0o600))
+	s.Require().NoError(os.Rename(theirs, path))
 }
 
 // TestWriteNew covers a sync that fails after the link has landed, where what
@@ -183,7 +242,17 @@ func (s *AtomicfileTestSuite) TestWriteNew() {
 		errText []string
 		// the file is left, because it could not be removed.
 		left bool
+		// another program renames its own file over the name after the link
+		// lands, so the file at the path is no longer this write's.
+		replaced bool
 	}{
+		{
+			// Theirs is not this write's to remove.
+			name:     "a directory it cannot sync, with the file since replaced",
+			mode:     0o300,
+			errText:  []string{"syncing its directory"},
+			replaced: true,
+		},
 		{
 			// Can be written into but not opened: the name goes, and a
 			// retry writes the file.
@@ -214,6 +283,10 @@ func (s *AtomicfileTestSuite) TestWriteNew() {
 					return err
 				}
 
+				if tt.replaced {
+					s.replace(newname)
+				}
+
 				return os.Chmod(dir, tt.mode)
 			}
 
@@ -226,6 +299,14 @@ func (s *AtomicfileTestSuite) TestWriteNew() {
 			}
 
 			s.Require().NotErrorIs(err, fs.ErrExist)
+
+			if tt.replaced {
+				got, readErr := os.ReadFile(path) //nolint:gosec // a path this test chose
+				s.Require().NoError(readErr)
+				s.Require().Equal("theirs", string(got), "their file is left alone")
+
+				return
+			}
 
 			if tt.left {
 				s.Require().FileExists(path)

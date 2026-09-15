@@ -44,6 +44,13 @@ import (
 // which no temporary directory provides.
 var link = os.Link
 
+// openFile opens a file.
+//
+// A variable so a test can have another program act on a name between the
+// moment this package claims it and what it does next, which no real
+// directory lets a test time.
+var openFile = os.OpenFile
+
 // dirSyncs is whether this platform can sync a directory at all.
 //
 // Windows cannot: a directory there is not something a program flushes, and
@@ -73,7 +80,7 @@ func Write(
 		perm = info.Mode().Perm()
 	}
 
-	tmp, err := temp(path, data, perm)
+	tmp, _, err := temp(path, data, perm)
 	if err != nil {
 		return err
 	}
@@ -94,96 +101,123 @@ func Write(
 // alone: os.Link refuses to replace its target. A file already there is
 // refused with an error matching fs.ErrExist, and no other failure matches it.
 //
-// A failure leaves nothing at path, a failed directory sync included. The link
-// has landed by then, but a name nobody can count on surviving a crash is not
-// a finished write, and one left behind would make the caller's retry fail as
-// though somebody else's file were there. The name is removed, so the error is
-// the sync's own and a retry starts clean. Only when that removal fails too is
-// the file left, and both failures are returned.
+// A failure leaves nothing of this write's at path, a failed directory sync
+// included. The link has landed by then, but a name nobody can count on
+// surviving a crash is not a finished write, and one left behind would make
+// the caller's retry fail as though somebody else's file were there. So the
+// file is removed, and the error is the sync's own. It is removed only while
+// it is still the file this write put there: one another program has renamed
+// over it since is theirs, and is left. When the removal fails, both failures
+// are returned and the file stays.
 //
-// A filesystem with no hard links, FAT and exFAT among them, gets the name
-// claimed in place instead. See place.
+// A filesystem with no hard links, FAT and exFAT among them, gets the file
+// created in place instead. See create.
 func WriteNew(
 	path string,
 	data []byte,
 	perm os.FileMode,
 ) error {
-	tmp, err := temp(path, data, perm)
+	tmp, ours, err := temp(path, data, perm)
 	if err != nil {
 		return err
 	}
 
-	// Gone once linked or renamed, and the error that matters is returned
-	// either way.
+	// A spare name once linked, and the error that matters is returned either
+	// way.
 	defer func() { _ = os.Remove(tmp) }()
 
 	err = link(tmp, path)
 	if linkless(err) {
-		err = place(tmp, path, perm)
+		ours, err = create(path, data, perm)
 	}
 
 	if err != nil {
 		return fmt.Errorf("writing %s: %w", path, err)
 	}
 
-	err = syncDir(path)
-	if err == nil {
-		return nil
+	if err := syncDir(path); err != nil {
+		return errors.Join(err, unlink(path, ours))
 	}
 
-	if rmErr := os.Remove(path); rmErr != nil {
-		return errors.Join(err, fmt.Errorf("writing %s: removing it after: %w", path, rmErr))
-	}
-
-	return err
+	return nil
 }
 
 // linkless reports a link refused because the filesystem has no hard links.
 //
 // Unsupported where the platform says so, and a permission error where Linux
 // answers FAT that way. Falling back on a permission error that meant
-// something else costs nothing: place refuses an existing file too, and fails
-// on a directory it cannot write into.
+// something else costs nothing: create refuses an existing file too, and
+// fails on a directory it cannot write into.
 func linkless(
 	err error,
 ) bool {
 	return errors.Is(err, errors.ErrUnsupported) || errors.Is(err, fs.ErrPermission)
 }
 
-// place moves tmp to path on a filesystem with no hard links, refusing a file
-// already there.
+// create writes path directly, for a filesystem with no hard links, and
+// returns the file it wrote.
 //
-// The name is claimed with an empty file first, and O_EXCL refuses a file
-// already there as a link would. The temporary file, already written and
-// synced, is then renamed over the claim. So the data is written once, and
-// what lands at path is the file temp synced.
+// O_EXCL refuses a file already there, as a link would, and the data goes
+// through the handle that exclusive create returned rather than to the name.
+// So another program that puts its own file at path meanwhile, as a
+// concurrent Write does by renaming over it, keeps it: this write lands in a
+// file nobody can reach any more, and nothing of theirs is written over or
+// removed.
 //
-// It is not atomic. Until the rename, path holds an empty file, and a crash in
-// between leaves it empty; never partial, and never over somebody's file. A
-// claim the rename could not replace is removed.
-func place(
-	tmp string,
+// That costs writing the data a second time, after temp. Renaming the
+// temporary file over an empty claim would write it once, but the rename would
+// replace whatever had taken the name by then, and a failed rename's cleanup
+// would remove it. A few kilobytes are cheaper than somebody's file.
+//
+// It is not atomic: a crash partway can leave a partial file at path. A file
+// that could not be written in full is removed, if it is still this write's.
+func create(
 	path string,
+	data []byte,
 	perm os.FileMode,
-) error {
-	f, err := os.OpenFile( //nolint:gosec // the path is the caller's own file
-		path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, perm)
+) (os.FileInfo, error) {
+	f, err := openFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, perm)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	if err := errors.Join(f.Close(), os.Rename(tmp, path)); err != nil {
-		// Best effort: the claim is this write's own, and the error that
-		// stopped it is the one returned.
-		_ = os.Remove(path)
+	_, err = f.Write(data)
+	info, statErr := f.Stat()
 
-		return err
+	if err := errors.Join(err, statErr, f.Sync(), f.Close()); err != nil {
+		// Best effort: the write error is the one returned.
+		_ = unlink(path, info)
+
+		return nil, err
+	}
+
+	return info, nil
+}
+
+// unlink removes path, if it is still ours.
+//
+// Another program may have renamed its own file over the name since this
+// write put a file there, and that one is not this write's to remove. The
+// look and the removal are two steps, so a file renamed over path between
+// them is still removed; the gap is two system calls rather than a whole write.
+func unlink(
+	path string,
+	ours os.FileInfo,
+) error {
+	now, err := os.Lstat(path)
+	if err != nil || !os.SameFile(now, ours) {
+		return nil
+	}
+
+	if err := os.Remove(path); err != nil {
+		return fmt.Errorf("writing %s: removing it after: %w", path, err)
 	}
 
 	return nil
 }
 
-// temp writes data to a new file beside path and returns its name.
+// temp writes data to a new file beside path and returns its name, and the
+// file it is, so a caller can later tell it from one put at the same name.
 //
 // Beside it rather than in the system's temporary directory, because a rename
 // or a link only works within one filesystem. Synced before it is returned, so
@@ -193,10 +227,10 @@ func temp(
 	path string,
 	data []byte,
 	perm os.FileMode,
-) (string, error) {
+) (string, os.FileInfo, error) {
 	f, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+".*.tmp")
 	if err != nil {
-		return "", fmt.Errorf("writing %s: %w", path, err)
+		return "", nil, fmt.Errorf("writing %s: %w", path, err)
 	}
 
 	_, err = f.Write(data)
@@ -207,16 +241,18 @@ func temp(
 		err = errors.Join(err, f.Chmod(perm))
 	}
 
+	info, statErr := f.Stat()
+
 	// One check for all of them: each leaves a file that is not what was
 	// asked for, and each is answered the same way.
-	if err := errors.Join(err, f.Sync(), f.Close()); err != nil {
+	if err := errors.Join(err, statErr, f.Sync(), f.Close()); err != nil {
 		// Best effort: the write error is the one returned.
 		_ = os.Remove(f.Name())
 
-		return "", fmt.Errorf("writing %s: %w", path, err)
+		return "", nil, fmt.Errorf("writing %s: %w", path, err)
 	}
 
-	return f.Name(), nil
+	return f.Name(), info, nil
 }
 
 // syncDir syncs the directory holding path, so a new name in it survives a

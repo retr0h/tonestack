@@ -403,10 +403,23 @@ func (s *SessionPublicTestSuite) TestExport() {
 		as   sdk.Format
 		file string
 		// a file somebody already has at the path.
-		taken    bool
+		taken bool
+		// a file somebody puts at the path while the device is being read,
+		// after any look a caller made and before the write.
+		appears  bool
 		existing sdk.Existing
 		is       error
 	}{
+		{
+			// The race the MCP tool closes, on the device path: the write
+			// itself refuses the file.
+			name:     "a file that appears while the slot is read, kept",
+			as:       sdk.FormatRig,
+			file:     "one.yaml",
+			appears:  true,
+			existing: sdk.KeepExisting,
+			is:       fs.ErrExist,
+		},
 		{name: "as a rig", as: sdk.FormatRig, file: "one.yaml"},
 		{name: "as the device's own file", as: sdk.FormatPreset, file: "one.hlx"},
 		{name: "over a file, replaced", as: sdk.FormatRig, file: "one.yaml", taken: true},
@@ -424,11 +437,17 @@ func (s *SessionPublicTestSuite) TestExport() {
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
+			out := filepath.Join(s.T().TempDir(), tt.file)
+
 			dev := s.device()
 			dev.MockEditor.EXPECT().Presets(gomock.Any(), 0).Return(listing(), nil)
-			dev.MockEditor.EXPECT().ReadPreset(gomock.Any(), 0, 0).Return(s.body(), nil)
-
-			out := filepath.Join(s.T().TempDir(), tt.file)
+			dev.MockEditor.EXPECT().ReadPreset(gomock.Any(), 0, 0).
+				Do(func(context.Context, int, int) {
+					if tt.appears {
+						s.Require().NoError(os.WriteFile(out, []byte("somebody's rig"), 0o600))
+					}
+				}).
+				Return(s.body(), nil)
 
 			if tt.taken {
 				s.Require().NoError(os.WriteFile(out, []byte("somebody's rig"), 0o600))
