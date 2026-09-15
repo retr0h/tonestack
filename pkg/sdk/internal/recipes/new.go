@@ -306,6 +306,10 @@ func scaffoldFor(
 			Amp:        rig.GearName(parent.spec, rig.RoleAmp),
 			Cab:        rig.GearName(parent.spec, rig.RoleCab),
 			Pedals:     pedals(parent.spec),
+			// The rig this came from, so what reads the answer can tell a
+			// copy from a scaffold and say only what was checked. The same
+			// identifier `extends` records, for the same reason.
+			From: parent.spec.ID,
 		}, err
 	}
 

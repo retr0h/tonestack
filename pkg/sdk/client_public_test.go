@@ -370,6 +370,9 @@ func (s *ClientPublicTestSuite) TestUserRecipesAreWrittenTo() {
 		opts []sdk.Option
 		// instrument is what the report says the new rig is played on.
 		instrument string
+		// from is the rig the report says it was copied from, and empty for
+		// a rig scaffolded from gear, which was copied from nothing.
+		from string
 	}{
 		{
 			name: "a rig scaffolded from gear",
@@ -389,6 +392,7 @@ func (s *ClientPublicTestSuite) TestUserRecipesAreWrittenTo() {
 				return c.Extend(ctx, sdk.ExtendRecipe{From: "mike-dirnt", ID: "copied"})
 			},
 			instrument: "bass",
+			from:       "mike-dirnt",
 		},
 		{
 			name: "a copy of a rig in the directory beneath theirs",
@@ -397,6 +401,7 @@ func (s *ClientPublicTestSuite) TestUserRecipesAreWrittenTo() {
 				return c.Extend(ctx, sdk.ExtendRecipe{From: "guitarist", ID: "copied-guitar"})
 			},
 			instrument: "guitar",
+			from:       "guitarist",
 		},
 	}
 
@@ -406,6 +411,8 @@ func (s *ClientPublicTestSuite) TestUserRecipesAreWrittenTo() {
 			s.Require().NoError(err)
 			s.Require().Equal(user, filepath.Dir(filepath.Dir(got.Path)))
 			s.Require().Equal(tt.instrument, got.Instrument)
+			s.Require().Equal(tt.from, got.From)
+			s.Require().Equal(tt.from != "", got.Copied())
 		})
 	}
 }
@@ -1089,6 +1096,10 @@ func (s *ClientPublicTestSuite) TestExtend() {
 				// it copied: its name and its amp.
 				s.Require().Equal("Flea", got.got.Name)
 				s.Require().Equal("Gallien-Krueger 2001RB", got.got.Amp)
+				// The rig it was copied from, which is what tells a copy
+				// from a scaffold after the fact.
+				s.Require().Equal("flea", got.got.From)
+				s.Require().True(got.got.Copied())
 				s.Require().Equal("Mike Dirnt", base.got.Name)
 				s.Require().Equal("Ampeg SVT", base.got.Amp)
 			},
