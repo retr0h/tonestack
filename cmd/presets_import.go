@@ -110,6 +110,8 @@ func imported(
 	at := slot.Address{Setlist: presetsImportSetlist, Slot: presetsImportSlot}
 
 	if presetsImportFile == "" {
+		pedal.claim()
+
 		return client.Import(cmd.Context(), presetsImportPreset, at)
 	}
 

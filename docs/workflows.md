@@ -222,6 +222,15 @@ A device has no undo, so whatever the slot held is read and saved first, and the
 output says where. Put it back with `presets import --preset` and that file.
 `--backup-dir` changes where they go.
 
+Ctrl-C does not cut a write off halfway, because a half-sent message stalls the
+pedal. The write finishes, then the command tells the pedal the session is over
+and waits for it, which can take up to about 20 seconds. The first Ctrl-C prints
+that the pedal is being let go safely, and the second prints that it is still
+finishing. A third quits on the spot. That leaves the pedal believing an editor
+is still attached, and it may need its power unplugged to recover, as
+[protocol.md](protocol.md#rules-that-keep-a-device-alive) explains. Every
+command that talks to the device answers Ctrl-C this way, not only `import`.
+
 A slot with no blocks is kept as a `.bin` file instead. It holds the bytes the
 device sent, so nothing is lost, but `presets import` can't read it yet.
 

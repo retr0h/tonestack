@@ -44,6 +44,8 @@ is the one device command that changes what you hear without changing what the
 device holds.`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
+		pedal.claim()
+
 		change, err := newClient().Select(cmd.Context(),
 			slot.Address{Setlist: presetsSelectSetlist, Slot: presetsSelectSlot})
 		if err != nil {

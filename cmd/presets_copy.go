@@ -117,6 +117,8 @@ func copied(
 	o, client := &presetsCopyOptions, presetsCopyClient.client()
 
 	if o.file == "" {
+		pedal.claim()
+
 		return client.Copy(cmd.Context(), o.source(), o.destination())
 	}
 

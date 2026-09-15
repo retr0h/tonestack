@@ -105,6 +105,8 @@ func listed(
 	client *sdk.Client,
 ) (sdk.Listing, error) {
 	if presetsListFile == "" {
+		pedal.claim()
+
 		return client.Presets(ctx, presetsListSetlist)
 	}
 

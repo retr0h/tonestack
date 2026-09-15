@@ -73,6 +73,8 @@ func swapped(
 	o, client := &presetsSwapOptions, presetsSwapClient.client()
 
 	if o.file == "" {
+		pedal.claim()
+
 		change, err := client.Swap(cmd.Context(), o.source(), o.destination())
 
 		// The SDK says what went wrong; the next step is a command, and that
