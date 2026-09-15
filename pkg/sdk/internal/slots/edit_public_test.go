@@ -66,6 +66,18 @@ func background(
 	return ctx
 }
 
+// formatFor is as, or a rig for a row that says nothing about the format. An
+// export refuses the zero Format, so a row has to ask for one.
+func formatFor(
+	as result.Format,
+) result.Format {
+	if as == "" {
+		return result.FormatRig
+	}
+
+	return as
+}
+
 // TestCopy covers writing one slot of a file over another.
 func (s *EditPublicTestSuite) TestCopy() {
 	tests := []struct {
@@ -278,6 +290,14 @@ func (s *EditPublicTestSuite) TestExport() {
 		},
 		{name: "a file that is not there", path: fixture("nope.hls"), errText: "opening"},
 		{
+			// Refused before the file is opened, with the error a flag gives,
+			// rather than written as a rig nobody asked for.
+			name:    "a format that is neither a rig nor the device's own file",
+			path:    fixture("nope.hls"),
+			as:      result.Format("yaml"),
+			errText: result.ErrUnknownFormat.Error(),
+		},
+		{
 			name:    "a slot that is not there",
 			at:      slotpkg.Address{Slot: 99},
 			as:      result.FormatPreset,
@@ -324,7 +344,7 @@ func (s *EditPublicTestSuite) TestExport() {
 			}
 
 			written, err := flows(s.T(), tt.catalog).
-				Export(background(tt.ctx), path, tt.at, out, tt.as)
+				Export(background(tt.ctx), path, tt.at, out, formatFor(tt.as))
 
 			if tt.errText != "" {
 				s.Require().ErrorContains(err, tt.errText)

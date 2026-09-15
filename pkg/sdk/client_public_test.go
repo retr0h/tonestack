@@ -643,19 +643,103 @@ func (s *ClientPublicTestSuite) TestRecipe() {
 
 // TestScaffold covers writing a rig, gear checked first.
 func (s *ClientPublicTestSuite) TestScaffold() {
+	scaffold := func(ctx context.Context, in sdk.NewRecipe, opts ...sdk.Option) (scaffolded, error) {
+		got, err := sdk.New(opts...).Scaffold(ctx, in)
+		if err != nil {
+			return scaffolded{}, err
+		}
+
+		body, err := os.ReadFile(got.Path)
+		s.Require().NoError(err)
+
+		return scaffolded{got: got, body: string(body)}, nil
+	}
+
+	// Each row writes into a directory of its own, because a scaffold is
+	// never written over a rig already there.
+	into := func() sdk.Option { return sdk.WithRecipes(s.T().TempDir()) }
+
+	base := sdk.NewRecipe{
+		ID: "test-player", Name: "Test Player",
+		Instrument: "bass", Amp: "Ampeg SVT",
+	}
+
+	written, err := scaffold(context.Background(), base, into())
+	s.Require().NoError(err)
+
+	// with is the base recipe with one field changed.
+	with := func(change func(*sdk.NewRecipe)) sdk.NewRecipe {
+		in := base
+		change(&in)
+
+		return in
+	}
+
 	tests := []struct {
 		name string
 		ctx  context.Context
 		in   sdk.NewRecipe
 		// nowhere means the Client was given no directory of rigs.
 		nowhere bool
-		err     bool
+		// check is what the written rig must say that the base rig does
+		// not, for a row that changes one field.
+		check func(got scaffolded)
+		err   bool
 	}{
 		{
 			name: "a rig naming gear this device models",
-			in: sdk.NewRecipe{
-				ID: "test-player", Name: "Test Player",
-				Instrument: "bass", Amp: "Ampeg SVT",
+			in:   base,
+			check: func(got scaffolded) {
+				s.Require().Equal(base.ID, got.got.ID)
+				s.Require().Equal(written.body, got.body)
+			},
+		},
+		{
+			name: "Name decides who the rig is about",
+			in:   with(func(in *sdk.NewRecipe) { in.Name = "Other Player" }),
+			check: func(got scaffolded) {
+				s.Require().Contains(got.body, "  name: Other Player")
+				s.Require().Contains(written.body, "  name: Test Player")
+			},
+		},
+		{
+			name: "Band decides the group the rig names",
+			in:   with(func(in *sdk.NewRecipe) { in.Band = "The Test Band" }),
+			check: func(got scaffolded) {
+				s.Require().Contains(got.body, "  band: The Test Band")
+				s.Require().NotContains(written.body, "band:")
+			},
+		},
+		{
+			name: "Instrument decides which instrument the rig is for",
+			in:   with(func(in *sdk.NewRecipe) { in.Instrument = "guitar" }),
+			check: func(got scaffolded) {
+				s.Require().Contains(got.body, "instrument: guitar")
+				s.Require().Contains(written.body, "instrument: bass")
+			},
+		},
+		{
+			name: "Amp decides the amplifier in the chain",
+			in:   with(func(in *sdk.NewRecipe) { in.Amp = "Acoustic 360" }),
+			check: func(got scaffolded) {
+				s.Require().Contains(got.body, "role: amp\n    gear: Acoustic 360")
+				s.Require().Contains(written.body, "role: amp\n    gear: Ampeg SVT")
+			},
+		},
+		{
+			name: "Cab decides the cabinet in the chain",
+			in:   with(func(in *sdk.NewRecipe) { in.Cab = "Ampeg 8x10" }),
+			check: func(got scaffolded) {
+				s.Require().Contains(got.body, "role: cab\n    gear: Ampeg 8x10")
+				s.Require().NotContains(written.body, "role: cab")
+			},
+		},
+		{
+			name: "Pedals decide what goes ahead of the amp",
+			in:   with(func(in *sdk.NewRecipe) { in.Pedals = []string{"Klon"} }),
+			check: func(got scaffolded) {
+				s.Require().Contains(got.body, "role: drive\n    gear: Klon")
+				s.Require().NotContains(written.body, "role: drive")
 			},
 		},
 		{
@@ -701,10 +785,10 @@ func (s *ClientPublicTestSuite) TestScaffold() {
 
 			var opts []sdk.Option
 			if !tt.nowhere {
-				opts = append(opts, sdk.WithRecipes(s.T().TempDir()))
+				opts = append(opts, into())
 			}
 
-			got, err := sdk.New(opts...).Scaffold(ctx, tt.in)
+			got, err := scaffold(ctx, tt.in, opts...)
 
 			if tt.err {
 				s.Require().Error(err)
@@ -713,10 +797,15 @@ func (s *ClientPublicTestSuite) TestScaffold() {
 			}
 
 			s.Require().NoError(err)
-			s.Require().Equal(tt.in.ID, got.ID)
-			s.Require().FileExists(got.Path)
+			tt.check(got)
 		})
 	}
+}
+
+// scaffolded is what a scaffold answered and the rig it wrote.
+type scaffolded struct {
+	got  sdk.Scaffolded
+	body string
 }
 
 // extended is what an extend answered and the rig it wrote.

@@ -158,7 +158,7 @@ func (c *Client) PresetFile(
 	ctx context.Context,
 	path string,
 ) (Reading, error) {
-	return c.flows.ShowFile(ctx, path)
+	return c.operations().ShowFile(ctx, path)
 }
 
 // Compile says what rig to build, what to build it into, and where the preset
@@ -181,5 +181,5 @@ func (c *Client) Compile(
 	ctx context.Context,
 	in Compile,
 ) (Built, error) {
-	return c.flows.Compile(ctx, in.Rig, in.Template, in.Out)
+	return c.operations().Compile(ctx, in.Rig, in.Template, in.Out)
 }

@@ -47,12 +47,16 @@ import (
 // Client works with no hardware attached. That is what lets a service compile
 // rigs on a machine that has never seen a Helix.
 //
-// A Client is safe for concurrent use.
+// A Client is safe for concurrent use. Build one with New. The zero Client
+// reads files and the built-in catalog, but has no bus to reach a device
+// through.
 type Client struct {
 	opts options
 
-	// flows are the slot operations, configured once from opts.
-	flows *slots.Flows
+	// flows are the slot operations, configured from opts once, on first use,
+	// so a Client that did not come from New still has them.
+	flowsOnce sync.Once
+	flows     *slots.Flows
 
 	// mu guards cat, the catalog opened on first use.
 	mu  sync.Mutex
@@ -158,17 +162,22 @@ func New(
 		o.devices = device.NewUSB(o.trace)
 	}
 
-	c := &Client{opts: o, claim: make(chan struct{}, 1)}
+	return &Client{opts: o, claim: make(chan struct{}, 1)}
+}
 
-	// The flows read the catalog through the Client, so they share the one
-	// it opens and keeps.
-	c.flows = &slots.Flows{
-		Catalogs:  c,
-		BackupDir: o.backupDir,
-		Capture:   o.capture,
-	}
+// operations are the slot flows, built the first time anything asks.
+func (c *Client) operations() *slots.Flows {
+	c.flowsOnce.Do(func() {
+		// The flows read the catalog through the Client, so they share the
+		// one it opens and keeps.
+		c.flows = &slots.Flows{
+			Catalogs:  c,
+			BackupDir: c.opts.backupDir,
+			Capture:   c.opts.capture,
+		}
+	})
 
-	return c
+	return c.flows
 }
 
 // Catalog is the catalog this Client names gear against.

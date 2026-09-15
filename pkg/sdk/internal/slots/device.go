@@ -57,6 +57,11 @@ func (f *Flows) ExportWith(
 	out string,
 	as result.Format,
 ) (result.Written, error) {
+	// Before the device is asked anything.
+	if err := known(as); err != nil {
+		return result.Written{}, err
+	}
+
 	read, err := f.read(ctx, s, at, as)
 	if err != nil {
 		return result.Written{}, err

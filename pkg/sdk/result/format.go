@@ -25,11 +25,12 @@ import (
 	"fmt"
 )
 
-// Format is what an export is written as.
+// Format is what an export is written as: FormatRig or FormatPreset, and
+// nothing else. An export refuses any other value, the zero value included,
+// with ErrUnknownFormat.
 //
-// The zero value writes a rig, the same as FormatRig. It satisfies pflag.Value,
-// so a command line refuses a format that does not exist while it parses its
-// flags rather than once the device is open.
+// It satisfies pflag.Value, so a command line refuses a format that does not
+// exist while it parses its flags rather than once the device is open.
 type Format string
 
 // The formats an export can take.

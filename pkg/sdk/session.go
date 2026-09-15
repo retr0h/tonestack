@@ -129,7 +129,7 @@ func operation[T any](
 
 	defer s.unlock()
 
-	return call(s.client.flows)
+	return call(s.client.operations())
 }
 
 // Presets reports what a setlist on the device holds, slot by slot.
@@ -168,7 +168,8 @@ func (s *Session) Preset(
 //
 // as is the format: FormatRig writes a rig, which is what reads on other
 // hardware, and FormatPreset writes the device's own file, a faithful copy.
-// The zero Format writes a rig.
+// Any other Format, the zero one included, is refused with ErrUnknownFormat
+// before the device is asked anything.
 func (s *Session) Export(
 	ctx context.Context,
 	at slot.Address,

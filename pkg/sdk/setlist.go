@@ -45,7 +45,7 @@ type Setlist struct {
 func (c *Client) Setlist(
 	path string,
 ) *Setlist {
-	return &Setlist{flows: c.flows, path: path}
+	return &Setlist{flows: c.operations(), path: path}
 }
 
 // Presets reports what one setlist in the file holds, slot by slot. A .hls

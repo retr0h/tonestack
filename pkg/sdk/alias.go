@@ -83,7 +83,7 @@ type (
 	// Measured is what the corpus recorded, and what was asked of it.
 	Measured = result.Measured
 
-	// Format is what an export is written as. The zero value writes a rig.
+	// Format is what an export is written as: FormatRig or FormatPreset.
 	Format = result.Format
 )
 

@@ -55,6 +55,20 @@ func (s *SetlistPublicTestSuite) TestSetlist() {
 	s.Run("a file that is not there, which is not read until asked", func() {
 		s.Require().NotNil(sdk.New().Setlist(fixture("nope.hls")))
 	})
+
+	s.Run("on a Client nobody built with New", func() {
+		// The flows are built on first use, the way the catalog is opened,
+		// so a zero Client still reads files.
+		var client sdk.Client
+
+		got, err := client.Setlist(fixture("setlist.hls")).Presets(context.Background(), 0)
+		s.Require().NoError(err)
+		s.Require().NotEmpty(got.Slots)
+
+		read, err := client.PresetFile(context.Background(), fixture("preset.hlx"))
+		s.Require().NoError(err)
+		s.Require().NotEmpty(read.Name)
+	})
 }
 
 // TestPresets covers what one setlist in a file holds.
@@ -151,8 +165,24 @@ func (s *SetlistPublicTestSuite) TestExport() {
 		{
 			name: "out of a file that is not there",
 			path: fixture("nope.hls"),
+			as:   sdk.FormatRig,
 			file: "one.yaml",
 			says: "opening",
+		},
+		{
+			// A library caller gets the error a flag gives, rather than a
+			// rig nobody asked for.
+			name: "a format that is neither a rig nor the device's own file",
+			path: fixture("setlist.hls"),
+			as:   sdk.Format("yaml"),
+			file: "one.yaml",
+			says: sdk.ErrUnknownFormat.Error(),
+		},
+		{
+			name: "no format at all",
+			path: fixture("setlist.hls"),
+			file: "one.yaml",
+			says: sdk.ErrUnknownFormat.Error(),
 		},
 	}
 

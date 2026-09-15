@@ -25,6 +25,7 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk/internal/catalogview"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/device"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/recipes"
+	"github.com/retr0h/tonestack/pkg/sdk/result"
 )
 
 // Errors a caller matches with errors.Is.
@@ -37,6 +38,9 @@ var (
 	ErrNoSuchBlock = catalogview.ErrNotFound
 	// ErrNoSuchRecipe reports a rig nobody has written.
 	ErrNoSuchRecipe = recipes.ErrNotFound
+	// ErrUnknownFormat reports an export asked for a Format that is neither
+	// FormatRig nor FormatPreset.
+	ErrUnknownFormat = result.ErrUnknownFormat
 
 	// ErrClosed reports a Session method called after Close.
 	ErrClosed = errors.New("the session is closed")

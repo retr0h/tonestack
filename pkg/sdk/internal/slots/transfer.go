@@ -45,6 +45,10 @@ func (f *Flows) Export(
 	out string,
 	as result.Format,
 ) (result.Written, error) {
+	if err := known(as); err != nil {
+		return result.Written{}, err
+	}
+
 	doc, err := open(ctx, path)
 	if err != nil {
 		return result.Written{}, err
@@ -80,6 +84,19 @@ func (f *Flows) Export(
 	}
 
 	return write(read, at.Slot, out, as)
+}
+
+// known refuses a format that is neither a rig nor the device's own file, the
+// zero Format included.
+//
+// The same check and the same error a flag gives when it is handed a format by
+// name, so a library caller cannot get a rig by misspelling hlx either.
+func known(
+	as result.Format,
+) error {
+	probe := result.FormatRig
+
+	return probe.Set(string(as))
 }
 
 // write puts a reading on disk in the format that was asked for.

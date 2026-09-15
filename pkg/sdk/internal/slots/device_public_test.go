@@ -388,6 +388,8 @@ func (s *DevicePublicTestSuite) TestExportWith() {
 		contains []string
 		// a translator that hands back a document that will not encode.
 		unencodable bool
+		// the format is refused before the device is asked anything.
+		refused bool
 		// the file must hold the blocks where HX Edit puts them.
 		laidOut bool
 		is      error
@@ -448,17 +450,29 @@ func (s *DevicePublicTestSuite) TestExportWith() {
 			err:    true,
 		},
 		{name: "a slot the device will not read", out: "x.yaml", err: true},
+		{
+			// No expectation is set on the device, so asking it anything
+			// fails the row.
+			name:    "a format that is neither a rig nor the device's own file",
+			as:      result.Format("yaml"),
+			out:     "x.yaml",
+			refused: true,
+			err:     true,
+			errText: result.ErrUnknownFormat.Error(),
+		},
 	}
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
 			path := filepath.Join(s.T().TempDir(), tt.out)
 
-			s.dev.EXPECT().Presets(gomock.Any(), 0).Return(s.listing(), nil)
-
-			if tt.err && tt.answer == nil {
+			switch {
+			case tt.refused:
+			case tt.err && tt.answer == nil:
+				s.dev.EXPECT().Presets(gomock.Any(), 0).Return(s.listing(), nil)
 				s.dev.EXPECT().ReadPreset(gomock.Any(), 0, tt.slot).Return(nil, errors.New("boom"))
-			} else {
+			default:
+				s.dev.EXPECT().Presets(gomock.Any(), 0).Return(s.listing(), nil)
 				s.dev.EXPECT().ReadPreset(gomock.Any(), 0, tt.slot).Return(tt.answer, nil)
 			}
 
@@ -474,7 +488,7 @@ func (s *DevicePublicTestSuite) TestExportWith() {
 			}
 
 			written, err := f.ExportWith(context.Background(), s.dev,
-				slotpkg.Address{Slot: tt.slot}, path, tt.as)
+				slotpkg.Address{Slot: tt.slot}, path, formatFor(tt.as))
 
 			if tt.is != nil {
 				s.Require().ErrorIs(err, tt.is)
