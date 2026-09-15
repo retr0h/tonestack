@@ -35,6 +35,42 @@ import (
 // ErrSameSlot is a copy or a swap whose two slots are one slot.
 var ErrSameSlot = errors.New("the source and the destination are the same slot")
 
+// EmptySwapError is a swap refused because a slot it names holds no preset.
+//
+// A swap with an empty slot would be a move, and a move has to leave the
+// source empty again. A device answers an empty slot with no document at all,
+// and nothing here can write that: the only empty preset this project holds,
+// wire.Blank, is a document with no blocks off another slot and another
+// firmware, so writing it would leave a slot the device never produced. The
+// swap is refused before anything is kept or written.
+type EmptySwapError struct {
+	// Empty are the slots that hold no preset, in the order the swap named
+	// them.
+	Empty []slotpkg.Address
+	// Full is the slot that holds one, or nil when neither does.
+	Full *slotpkg.Address
+}
+
+// Error implements the error interface.
+func (e *EmptySwapError) Error() string {
+	labels := make([]string, 0, len(e.Empty))
+	for _, at := range e.Empty {
+		labels = append(labels, slotpkg.Label(at.Slot))
+	}
+
+	if e.Full == nil {
+		return fmt.Sprintf("%v: %s, so there is nothing to swap",
+			ErrEmptySlot, strings.Join(labels, " and "))
+	}
+
+	return fmt.Sprintf("%v: %s, and a swap would have to leave %s empty, "+
+		"which nothing here can write", ErrEmptySlot, labels[0],
+		slotpkg.Label(e.Full.Slot))
+}
+
+// Unwrap returns ErrEmptySlot, so callers can match it.
+func (*EmptySwapError) Unwrap() error { return ErrEmptySlot }
+
 // KeptError is a write to a device that failed after what a slot held was
 // backed up.
 //
@@ -197,13 +233,19 @@ func (f *Flows) swapTwo(
 		return edited{}, err
 	}
 
-	source, err := slotBytes(ctx, s, from)
+	source, err := readSlot(ctx, s, from)
 	if err != nil {
 		return edited{}, err
 	}
 
-	destination, err := slotBytes(ctx, s, to)
+	destination, err := readSlot(ctx, s, to)
 	if err != nil {
+		return edited{}, err
+	}
+
+	// Both read first, so the refusal can name every empty side, and before
+	// anything is kept or written, so a refused swap changes nothing.
+	if err := emptySides(from, source, to, destination); err != nil {
 		return edited{}, err
 	}
 
@@ -238,8 +280,28 @@ func (f *Flows) swapTwo(
 	return edited{from: fromName, to: toName, kept: kept}, nil
 }
 
-// slotBytes reads one slot as the bytes the device holds.
+// slotBytes reads one slot as the bytes the device holds, refusing a slot
+// that holds none.
 func slotBytes(
+	ctx context.Context,
+	s device.Editor,
+	at slotpkg.Address,
+) ([]byte, error) {
+	body, err := readSlot(ctx, s, at)
+	if err != nil {
+		return nil, err
+	}
+
+	if body == nil {
+		return nil, fmt.Errorf("%w: %s", ErrEmptySlot, slotpkg.Label(at.Slot))
+	}
+
+	return body, nil
+}
+
+// readSlot reads one slot as the bytes the device holds, or nothing for an
+// empty slot.
+func readSlot(
 	ctx context.Context,
 	s device.Editor,
 	at slotpkg.Address,
@@ -249,12 +311,28 @@ func slotBytes(
 		return nil, fmt.Errorf("reading slot %s: %w", slotpkg.Label(at.Slot), err)
 	}
 
-	if body == nil {
-		return nil, fmt.Errorf("slot %s did not answer with a preset",
-			slotpkg.Label(at.Slot))
-	}
-
 	return body, nil
+}
+
+// emptySides refuses a swap when either slot holds no preset.
+//
+// See EmptySwapError for why that is a refusal rather than a move.
+func emptySides(
+	a slotpkg.Address,
+	aBody []byte,
+	b slotpkg.Address,
+	bBody []byte,
+) error {
+	switch {
+	case aBody == nil && bBody == nil:
+		return &EmptySwapError{Empty: []slotpkg.Address{a, b}}
+	case aBody == nil:
+		return &EmptySwapError{Empty: []slotpkg.Address{a}, Full: &b}
+	case bBody == nil:
+		return &EmptySwapError{Empty: []slotpkg.Address{b}, Full: &a}
+	default:
+		return nil
+	}
 }
 
 // names reads what the device calls both slots, before either is changed.

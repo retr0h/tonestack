@@ -252,6 +252,10 @@ the same way `import` does. Moving a preset is a swap: leaving the source empty
 would mean inventing an empty preset, and an empty preset still carries routing
 that differs by model and firmware.
 
+For the same reason a swap with a slot that holds no preset is refused, and
+nothing is kept or written. To fill an empty slot, `copy` into it instead. The
+source keeps its preset.
+
 ## Correct a rig you have heard
 
 This is the loop that matters, because **nothing here can hear**. Every other

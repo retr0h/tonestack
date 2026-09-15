@@ -100,7 +100,7 @@ func (h *handlers) presetsSwap(
 		return s.Swap(ctx, from, to)
 	})
 	if err != nil {
-		return nil, sdk.Change{}, err
+		return nil, sdk.Change{}, remedy(err)
 	}
 
 	return said("swapped %s and %s", in.From, in.To), change, nil

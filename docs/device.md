@@ -139,6 +139,13 @@ reads only names.
 42C   New Preset       empty
 ```
 
+A slot can be empty in two ways on the wire. A read of one slot can come back
+with no document at all, or with a whole document holding no blocks.
+`wire.Blank` is the second kind, captured from slot `02B` on firmware 2.92.
+Nothing here has seen a write that leaves a slot answering with no document, so
+a swap with such a slot is refused. Leaving the source empty is not something
+this project can write. `copy` into the slot instead.
+
 `42C` is untouched. `27B` has a name and no blocks. Only the second one is
 surprising, and it is the state that cost a day: a listing counting names called
 it "in use", every read of it correctly answered "nothing", and the gap between

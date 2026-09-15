@@ -184,8 +184,8 @@ func (s *EditDevicePublicTestSuite) expectListing(
 	reader.EXPECT().Presets(gomock.Any(), 0).Return(s.listing(), nil)
 }
 
-// expectRead sets up one slot being read: answered, refused, or answered with
-// something that is not a preset.
+// expectRead sets up one slot being read: answered, refused, or empty, which a
+// device answers with no document at all.
 func (s *EditDevicePublicTestSuite) expectRead(
 	reader *mocks.MockEditor,
 	setlist, slot int,
@@ -195,7 +195,7 @@ func (s *EditDevicePublicTestSuite) expectRead(
 	case "refused":
 		return reader.EXPECT().ReadPreset(gomock.Any(), setlist, slot).
 			Return(nil, errors.New("boom"))
-	case "not a preset":
+	case "empty":
 		return reader.EXPECT().ReadPreset(gomock.Any(), setlist, slot).
 			Return(nil, nil)
 	default:
@@ -321,10 +321,13 @@ func (s *EditDevicePublicTestSuite) TestCopy() {
 			errText: "reading slot 01A",
 		},
 		{
-			name:    "an answer that is not a preset",
+			// Nothing to copy, and said as the empty slot it is rather than
+			// as a device that failed to answer.
+			name:    "a source that holds no preset",
 			listed:  true,
-			read:    "not a preset",
-			errText: "did not answer with a preset",
+			read:    "empty",
+			is:      deviceslots.ErrEmptySlot,
+			errText: "no preset: 01A",
 		},
 		{
 			// The destination was kept before the write failed, and the
@@ -456,6 +459,8 @@ func (s *EditDevicePublicTestSuite) TestSwap() {
 		same bool
 		// the caller stops waiting while the first write is going out.
 		cancelsOnFirstWrite bool
+		// the backup directory is still empty afterwards.
+		nothingKept bool
 
 		contains string
 		// how many backups the error names.
@@ -521,6 +526,33 @@ func (s *EditDevicePublicTestSuite) TestSwap() {
 			listed:  true,
 			reads:   []string{"answered", "refused"},
 			errText: "reading slot 02A",
+		},
+		{
+			// A move, which would have to leave 02A as empty as the device
+			// leaves an unused slot. Nothing here can write that, so nothing
+			// is kept or written. No write is expected, so one would fail.
+			name:        "a first slot that holds no preset",
+			listed:      true,
+			reads:       []string{"empty", "answered"},
+			nothingKept: true,
+			is:          deviceslots.ErrEmptySlot,
+			errText:     "no preset: 01A, and a swap would have to leave 02A empty",
+		},
+		{
+			name:        "a second slot that holds no preset",
+			listed:      true,
+			reads:       []string{"answered", "empty"},
+			nothingKept: true,
+			is:          deviceslots.ErrEmptySlot,
+			errText:     "no preset: 02A, and a swap would have to leave 01A empty",
+		},
+		{
+			name:        "two slots that hold no preset",
+			listed:      true,
+			reads:       []string{"empty", "empty"},
+			nothingKept: true,
+			is:          deviceslots.ErrEmptySlot,
+			errText:     "no preset: 01A and 02A, so there is nothing to swap",
 		},
 		{
 			name:      "the destination, which it cannot write",
@@ -623,7 +655,8 @@ func (s *EditDevicePublicTestSuite) TestSwap() {
 				}
 			}
 
-			f := keepingIn(&deviceslots.Flows{}, s.backupDir(tt.badBackup))
+			dir := s.backupDir(tt.badBackup)
+			f := keepingIn(&deviceslots.Flows{}, dir)
 
 			change, err := f.Swap(ctx, dev,
 				slotpkg.Address{}, slotpkg.Address{Setlist: toSetlist, Slot: toSlot})
@@ -637,6 +670,12 @@ func (s *EditDevicePublicTestSuite) TestSwap() {
 				}
 
 				requireKept(s.Require(), err, tt.keptInErr)
+
+				if tt.nothingKept {
+					entries, readErr := os.ReadDir(dir)
+					s.Require().NoError(readErr)
+					s.Require().Empty(entries, "a refused swap keeps nothing")
+				}
 
 				return
 			}

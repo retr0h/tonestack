@@ -126,6 +126,9 @@ func (c *Client) Copy(
 // This is what moving a preset means: a slot cannot be left blank without
 // writing an empty preset, and an empty preset carries routing that differs
 // by device and firmware. Swapping invents nothing.
+//
+// So a slot holding no preset is refused with an EmptySwapError, before
+// anything is kept or written. Copy fills an empty slot.
 func (c *Client) Swap(
 	ctx context.Context,
 	a, b slot.Address,

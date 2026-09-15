@@ -146,6 +146,22 @@ func (s *WritesPublicTestSuite) TestPresetsSwap() {
 			want: "swapped 01A and 01B",
 		},
 		{
+			// The SDK says the slot is empty; the tool says which tool fills
+			// it.
+			name: "a slot holding no preset",
+			args: tools.Move{From: "01A", To: "01B"},
+			setup: func(_ *mocks.MockClient, pedal *mocks.MockSession) {
+				pedal.EXPECT().Swap(gomock.Any(), slot.Address{}, slot.Address{Slot: 1}).
+					Return(sdk.Change{}, &sdk.EmptySwapError{
+						Empty: []slot.Address{{Slot: 1}},
+						Full:  &slot.Address{},
+					})
+			},
+			want: "no preset: 01B, and a swap would have to leave 01A empty, " +
+				"which nothing here can write; call presets_copy from 01A to 01B instead",
+			err: true,
+		},
+		{
 			name: "a source that does not parse",
 			args: tools.Move{From: "nope", To: "01B"},
 			err:  true,

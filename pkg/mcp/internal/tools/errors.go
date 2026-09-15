@@ -26,6 +26,7 @@ import (
 	"os"
 
 	"github.com/retr0h/tonestack/pkg/sdk"
+	"github.com/retr0h/tonestack/pkg/sdk/slot"
 )
 
 var (
@@ -78,7 +79,14 @@ func notInCatalog(
 func remedy(
 	err error,
 ) error {
+	var empty *sdk.EmptySwapError
+
 	switch {
+	case errors.As(err, &empty) && empty.Full != nil:
+		return fmt.Errorf("%w; call presets_copy from %s to %s instead, "+
+			"which fills %s and leaves %s as it is", err,
+			slot.Label(empty.Full.Slot), slot.Label(empty.Empty[0].Slot),
+			slot.Label(empty.Empty[0].Slot), slot.Label(empty.Full.Slot))
 	case errors.Is(err, sdk.ErrNoSuchBlock):
 		return fmt.Errorf("%w, call catalog_search to find one", err)
 	case errors.Is(err, sdk.ErrNoSuchRecipe):
