@@ -94,8 +94,21 @@ func readFS(
 	// Glob drops a directory it cannot read, which would make one nobody may
 	// open look like one holding no recipes. A directory that is not there is
 	// different: nobody has written a recipe into it yet.
-	if _, err := fs.ReadDir(fsys, "."); err != nil && !errors.Is(err, fs.ErrNotExist) {
+	top, err := fs.ReadDir(fsys, ".")
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return nil, nil, fmt.Errorf("reading %s: %w", name, err)
+	}
+
+	// The same holds one level down, where the glob looks for rigs: an
+	// artists/ nobody may open would otherwise hide every rig in it.
+	for _, e := range top {
+		if !e.IsDir() {
+			continue
+		}
+
+		if _, err := fs.ReadDir(fsys, e.Name()); err != nil && !errors.Is(err, fs.ErrNotExist) {
+			return nil, nil, fmt.Errorf("reading %s: %w", filepath.Join(name, e.Name()), err)
+		}
 	}
 
 	// The pattern is a constant, so it cannot be malformed.
@@ -247,7 +260,9 @@ func departures(
 	out := []result.Variant(nil)
 
 	for _, other := range all {
-		if other.Extends == nil || *other.Extends != spec.ID {
+		// A rig of somebody's own copied from a shipped one under the same
+		// identifier extends a rig it has replaced. It is not its own variant.
+		if other.Extends == nil || *other.Extends != spec.ID || other.ID == spec.ID {
 			continue
 		}
 

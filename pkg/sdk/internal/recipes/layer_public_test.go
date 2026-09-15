@@ -71,7 +71,9 @@ func (s *LayerPublicTestSuite) TestLayered() {
 		folders []string
 		missing bool
 		locked  bool
-		id      string
+		// lockedArtists leaves artists/ in their directory unreadable.
+		lockedArtists bool
+		id            string
 		// want is the subject the lookup finds.
 		want string
 		// variants must be among what the found rig reports.
@@ -133,6 +135,23 @@ func (s *LayerPublicTestSuite) TestLayered() {
 			id:      "mike-dirnt",
 			findErr: "reading",
 			listErr: "reading",
+		},
+		{
+			// The glob would drop it, and every rig in it with no word said.
+			name:          "an artists directory of theirs that cannot be read",
+			files:         map[string]string{"mine.yaml": userRig("mike-dirnt", "")},
+			lockedArtists: true,
+			id:            "mike-dirnt",
+			findErr:       "artists",
+			listErr:       "artists",
+		},
+		{
+			// Copied from the shipped rig under its own identifier, so it
+			// extends the rig it replaces and is not a variant of itself.
+			name:  "a rig of theirs extending the shipped rig it replaces",
+			files: map[string]string{"mine.yaml": userRig("mike-dirnt", "extends: mike-dirnt")},
+			id:    "mike-dirnt",
+			want:  "Their Player",
 		},
 		{
 			// One mistake in their directory does not stop every shipped rig
@@ -200,7 +219,7 @@ func (s *LayerPublicTestSuite) TestLayered() {
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			if tt.locked && os.Geteuid() == 0 {
+			if (tt.locked || tt.lockedArtists) && os.Geteuid() == 0 {
 				s.T().Skip("root reads a directory whatever its mode")
 			}
 
@@ -224,6 +243,12 @@ func (s *LayerPublicTestSuite) TestLayered() {
 				// Put back so the directory can be removed; a failure shows
 				// up in TempDir's own cleanup.
 				s.T().Cleanup(func() { _ = os.Chmod(dir, 0o750) })
+			}
+
+			if tt.lockedArtists {
+				artists := filepath.Join(dir, "artists")
+				s.Require().NoError(os.Chmod(artists, 0o000))
+				s.T().Cleanup(func() { _ = os.Chmod(artists, 0o750) })
 			}
 
 			src := recipes.Source{User: dir}
@@ -278,6 +303,8 @@ func (s *LayerPublicTestSuite) TestLayered() {
 			for _, want := range tt.variants {
 				s.Require().Contains(got, want)
 			}
+
+			s.Require().NotContains(got, found.ID, "a rig is not its own variant")
 		})
 	}
 }

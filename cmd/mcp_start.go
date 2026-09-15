@@ -51,7 +51,7 @@ with --allow-writes. Each still saves what it replaces to a file first.`,
 		err := mcp.New(newClient(ownRecipes("")), mcp.Options{
 			Version:     version,
 			AllowWrites: mcpStartAllowWrites,
-		}).Run(cmd.Context())
+		}).RunOver(cmd.Context(), cmd.InOrStdin(), cmd.OutOrStdout())
 
 		// Ctrl-C and SIGTERM are how this is meant to stop, not a failure.
 		if errors.Is(err, context.Canceled) {
