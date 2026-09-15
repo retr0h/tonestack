@@ -71,7 +71,9 @@ type field struct {
 }
 
 // Render writes the contract out as markdown.
-func Render(schema []byte) ([]byte, error) {
+func Render(
+	schema []byte,
+) ([]byte, error) {
 	doc, err := openapi3.NewLoader().LoadFromData(schema)
 	if err != nil {
 		return nil, fmt.Errorf("reading the RigSpec schema: %w", err)
@@ -117,7 +119,9 @@ func Render(schema []byte) ([]byte, error) {
 //
 // RigSpec first, because that is the document; the rest alphabetically, since
 // no other order means anything to somebody looking a field up.
-func objects(all openapi3.Schemas) []string {
+func objects(
+	all openapi3.Schemas,
+) []string {
 	var names []string
 
 	for name, ref := range all {
@@ -142,7 +146,9 @@ func objects(all openapi3.Schemas) []string {
 }
 
 // fieldsOf reads one object's fields, in the order the contract lists them.
-func fieldsOf(s *openapi3.Schema) []field {
+func fieldsOf(
+	s *openapi3.Schema,
+) []field {
 	required := make(map[string]bool, len(s.Required))
 	for _, name := range s.Required {
 		required[name] = true
@@ -177,7 +183,9 @@ func fieldsOf(s *openapi3.Schema) []field {
 // A field that holds another object is in no bucket: the question moves to
 // that object's own table, and the cell points at it. Only the fields
 // somebody types a value into have a grammar.
-func grammarOf(ref *openapi3.SchemaRef) (bucket, string) {
+func grammarOf(
+	ref *openapi3.SchemaRef,
+) (bucket, string) {
 	s := ref.Value
 
 	if len(s.Enum) > 0 {
@@ -228,7 +236,9 @@ func grammarOf(ref *openapi3.SchemaRef) (bucket, string) {
 }
 
 // bounds renders the range a number is held to.
-func bounds(s *openapi3.Schema) string {
+func bounds(
+	s *openapi3.Schema,
+) string {
 	switch {
 	case s.Min != nil && s.Max != nil:
 		return fmt.Sprintf("`%g` to `%g`", *s.Min, *s.Max)
@@ -242,12 +252,16 @@ func bounds(s *openapi3.Schema) string {
 }
 
 // link points at another object's table on this page.
-func link(name string) string {
+func link(
+	name string,
+) string {
 	return fmt.Sprintf("[%s](#%s)", name, strings.ToLower(name))
 }
 
 // typeOf names what a field holds, in words rather than in JSON Schema's.
-func typeOf(ref *openapi3.SchemaRef) string {
+func typeOf(
+	ref *openapi3.SchemaRef,
+) string {
 	// Named only when the name leads somewhere. A reference to something
 	// with no fields to tabulate is described instead, since the reader
 	// cannot go and look it up.
@@ -272,14 +286,18 @@ func typeOf(ref *openapi3.SchemaRef) string {
 }
 
 // refName is the schema a reference points at.
-func refName(ref string) string {
+func refName(
+	ref string,
+) string {
 	at := strings.LastIndex(ref, "/")
 
 	return ref[at+1:]
 }
 
 // list renders an enumeration.
-func list(all []any) string {
+func list(
+	all []any,
+) string {
 	out := make([]string, 0, len(all))
 	for _, v := range all {
 		out = append(out, fmt.Sprintf("`%v`", v))
@@ -289,7 +307,9 @@ func list(all []any) string {
 }
 
 // cell keeps a table cell from breaking the row it is in.
-func cell(s string) string {
+func cell(
+	s string,
+) string {
 	if s == "" {
 		return "—"
 	}
@@ -298,7 +318,9 @@ func cell(s string) string {
 }
 
 // first returns the opening sentence of a description.
-func first(s string) string {
+func first(
+	s string,
+) string {
 	s = strings.TrimSpace(s)
 
 	if at := strings.Index(s, "\n\n"); at >= 0 {

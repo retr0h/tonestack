@@ -35,7 +35,9 @@ import (
 // thing before another reports the second one's failure rather than the first.
 type oneGoodWrite struct{ n int }
 
-func (w *oneGoodWrite) Write(p []byte) (int, error) {
+func (w *oneGoodWrite) Write(
+	p []byte,
+) (int, error) {
 	w.n++
 	if w.n > 1 {
 		return 0, io.ErrClosedPipe
@@ -292,6 +294,8 @@ func (s *ChangePublicTestSuite) TestBuilt() {
 	}
 }
 
-func TestChangePublicTestSuite(t *testing.T) {
+func TestChangePublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(ChangePublicTestSuite))
 }

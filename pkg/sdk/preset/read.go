@@ -32,7 +32,9 @@ import (
 )
 
 // Read decodes a preset file.
-func Read(r io.Reader) (*Document, error) {
+func Read(
+	r io.Reader,
+) (*Document, error) {
 	var doc Document
 	if err := json.NewDecoder(r).Decode(&doc); err != nil {
 		return nil, fmt.Errorf("decoding preset: %w", err)
@@ -87,7 +89,11 @@ func (d *Data) Spec() (chain.Chain, error) {
 }
 
 // keep records an attribute exactly as it arrived.
-func keep(b *block, key string, val json.RawMessage) {
+func keep(
+	b *block,
+	key string,
+	val json.RawMessage,
+) {
 	if b.Attrs == nil {
 		b.Attrs = map[string]json.RawMessage{}
 	}
@@ -96,7 +102,11 @@ func keep(b *block, key string, val json.RawMessage) {
 }
 
 // assignTyped fills the attributes this package models as fields.
-func assignTyped(b *block, key string, val json.RawMessage) error {
+func assignTyped(
+	b *block,
+	key string,
+	val json.RawMessage,
+) error {
 	switch key {
 	case attrPath:
 		return json.Unmarshal(val, &b.Path)
@@ -109,7 +119,9 @@ func assignTyped(b *block, key string, val json.RawMessage) error {
 
 // sortedProcessors returns the dspN keys in index order, so a chain is read
 // the same way every time.
-func sortedProcessors(t map[string]Tone) []string {
+func sortedProcessors(
+	t map[string]Tone,
+) []string {
 	var keys []string
 
 	for k := range t {
@@ -136,7 +148,9 @@ func sortedProcessors(t map[string]Tone) []string {
 }
 
 // processorIndex reads the number out of a dspN key.
-func processorIndex(key string) (int, error) {
+func processorIndex(
+	key string,
+) (int, error) {
 	n, err := strconv.Atoi(strings.TrimPrefix(key, "dsp"))
 	if err != nil {
 		return 0, fmt.Errorf("unreadable processor key %q: %w", key, err)
@@ -149,7 +163,9 @@ func processorIndex(key string) (int, error) {
 //
 // Entries that are not blocks — cab0, inputA, split, join — are skipped: they
 // describe routing, not a link in the chain.
-func readBlocks(t Tone) ([]block, error) {
+func readBlocks(
+	t Tone,
+) ([]block, error) {
 	var out []block
 
 	for key, raw := range t {
@@ -189,7 +205,9 @@ func readBlocks(t Tone) ([]block, error) {
 }
 
 // decodeBlock splits one block object into attributes and parameters.
-func decodeBlock(raw json.RawMessage) (block, error) {
+func decodeBlock(
+	raw json.RawMessage,
+) (block, error) {
 	var fields map[string]json.RawMessage
 	if err := json.Unmarshal(raw, &fields); err != nil {
 		return block{}, fmt.Errorf("decoding block: %w", err)
@@ -207,7 +225,11 @@ func decodeBlock(raw json.RawMessage) (block, error) {
 }
 
 // assign puts one field of a block object where it belongs.
-func assign(b *block, key string, val json.RawMessage) error {
+func assign(
+	b *block,
+	key string,
+	val json.RawMessage,
+) error {
 	switch key {
 	case attrModel:
 		return json.Unmarshal(val, &b.Model)

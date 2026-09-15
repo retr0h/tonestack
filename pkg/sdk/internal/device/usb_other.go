@@ -49,7 +49,9 @@ func openUSB() bus { return noBus{} }
 type noBus struct{}
 
 // Devices reports ErrNoUSBSupport.
-func (noBus) Devices(func(vendor, product uint16) bool) ([]handle, error) {
+func (noBus) Devices(
+	func(vendor, product uint16) bool,
+) ([]handle, error) {
 	return nil, ErrNoUSBSupport
 }
 
@@ -60,6 +62,8 @@ func (noBus) Close() error { return nil }
 func (*USBLister) Close() error { return nil }
 
 // List reports ErrNoUSBSupport.
-func (*USBLister) List(_ context.Context) ([]Descriptor, error) {
+func (*USBLister) List(
+	_ context.Context,
+) ([]Descriptor, error) {
 	return nil, ErrNoUSBSupport
 }

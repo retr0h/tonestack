@@ -128,6 +128,8 @@ func (s *PedalTestSuite) TestOnPedal() {
 	})
 }
 
-func TestPedalTestSuite(t *testing.T) {
+func TestPedalTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(PedalTestSuite))
 }

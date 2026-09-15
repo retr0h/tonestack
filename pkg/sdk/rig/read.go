@@ -25,7 +25,10 @@ package rig
 // A chain is ordered by what the signal does rather than grouped by kind, so
 // finding the amplifier means looking for it. Every caller that displays a rig
 // wants this and none of them should search the chain themselves.
-func gear(spec Spec, role Role) (ChainEntry, bool) {
+func gear(
+	spec Spec,
+	role Role,
+) (ChainEntry, bool) {
 	for _, e := range spec.Chain {
 		if e.Role == role {
 			return e, true
@@ -36,7 +39,10 @@ func gear(spec Spec, role Role) (ChainEntry, bool) {
 }
 
 // GearName returns the gear filling a role, or an empty string.
-func GearName(spec Spec, role Role) string {
+func GearName(
+	spec Spec,
+	role Role,
+) string {
 	if e, ok := gear(spec, role); ok {
 		return e.Gear
 	}
@@ -56,7 +62,9 @@ func GearName(spec Spec, role Role) string {
 // Evidence on the rig answers for all of it — a rig rundown covers every
 // piece of gear in it, and requiring the citation to be repeated on each
 // entry would only encourage repeating it.
-func Trusted(spec Spec) bool {
+func Trusted(
+	spec Spec,
+) bool {
 	if checkable(spec.Evidence) {
 		return true
 	}
@@ -78,7 +86,9 @@ func Trusted(spec Spec) bool {
 //
 // Absent evidence is not checkable either. A claim nobody supported and a
 // claim a model asserted are the same claim.
-func checkable(evidence *[]Evidence) bool {
+func checkable(
+	evidence *[]Evidence,
+) bool {
 	if evidence == nil {
 		return false
 	}
@@ -97,7 +107,9 @@ func checkable(evidence *[]Evidence) bool {
 // Ranked by how far somebody has to go to disagree with it. A person who
 // listened outranks a citation, because this project's founding constraint is
 // that nothing in it can hear.
-func Sourced(spec Spec) EvidenceKind {
+func Sourced(
+	spec Spec,
+) EvidenceKind {
 	best := EvidenceKind("")
 	rank := func(k EvidenceKind) int {
 		switch k {

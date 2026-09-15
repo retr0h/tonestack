@@ -107,6 +107,8 @@ func (s *TransferPublicTestSuite) TestWrite() {
 	}
 }
 
-func TestTransferPublicTestSuite(t *testing.T) {
+func TestTransferPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(TransferPublicTestSuite))
 }

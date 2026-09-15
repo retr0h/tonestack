@@ -146,6 +146,8 @@ func (s *SelectDevicePublicTestSuite) TestSelect() {
 	}
 }
 
-func TestSelectDevicePublicTestSuite(t *testing.T) {
+func TestSelectDevicePublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(SelectDevicePublicTestSuite))
 }

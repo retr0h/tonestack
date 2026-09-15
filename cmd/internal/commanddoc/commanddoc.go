@@ -32,7 +32,9 @@ import (
 //
 // Commands come in the order cobra lists them, which is sorted, so the page
 // does not change between runs for reasons nobody chose.
-func Render(root *cobra.Command) []byte {
+func Render(
+	root *cobra.Command,
+) []byte {
 	var b bytes.Buffer
 
 	b.WriteString(preamble)
@@ -42,7 +44,10 @@ func Render(root *cobra.Command) []byte {
 }
 
 // section writes one command, then each command beneath it.
-func section(b *bytes.Buffer, c *cobra.Command) {
+func section(
+	b *bytes.Buffer,
+	c *cobra.Command,
+) {
 	fmt.Fprintf(b, "\n## %s\n\n%s\n", c.CommandPath(), strings.TrimSpace(description(c)))
 
 	usage := c.UseLine()
@@ -75,7 +80,9 @@ func section(b *bytes.Buffer, c *cobra.Command) {
 }
 
 // description prefers the long form, the way --help does.
-func description(c *cobra.Command) string {
+func description(
+	c *cobra.Command,
+) string {
 	if c.Long != "" {
 		return c.Long
 	}
@@ -87,7 +94,9 @@ func description(c *cobra.Command) string {
 //
 // Hidden ones stay hidden here too: a page is not the place to announce what
 // the help deliberately leaves out.
-func available(c *cobra.Command) []*cobra.Command {
+func available(
+	c *cobra.Command,
+) []*cobra.Command {
 	var out []*cobra.Command
 
 	for _, sub := range c.Commands() {
@@ -100,7 +109,9 @@ func available(c *cobra.Command) []*cobra.Command {
 }
 
 // flags renders a command's own flags as table rows.
-func flags(c *cobra.Command) []string {
+func flags(
+	c *cobra.Command,
+) []string {
 	var rows []string
 
 	c.LocalFlags().VisitAll(func(f *pflag.Flag) {
@@ -116,7 +127,9 @@ func flags(c *cobra.Command) []string {
 }
 
 // flagName is the flag as it is typed, with its shorthand where it has one.
-func flagName(f *pflag.Flag) string {
+func flagName(
+	f *pflag.Flag,
+) string {
 	if f.Shorthand != "" {
 		return "-" + f.Shorthand + ", --" + f.Name
 	}
@@ -125,7 +138,9 @@ func flagName(f *pflag.Flag) string {
 }
 
 // takes names the value a flag expects. A boolean flag takes none.
-func takes(f *pflag.Flag) string {
+func takes(
+	f *pflag.Flag,
+) string {
 	if t := f.Value.Type(); t != "bool" {
 		return t
 	}
@@ -135,7 +150,9 @@ func takes(f *pflag.Flag) string {
 
 // defaultOf shows a default only where it says something. An empty string,
 // false and zero are what a flag left unset already means.
-func defaultOf(f *pflag.Flag) string {
+func defaultOf(
+	f *pflag.Flag,
+) string {
 	switch f.DefValue {
 	case "", "false", "0", "[]":
 		return ""
@@ -145,12 +162,16 @@ func defaultOf(f *pflag.Flag) string {
 }
 
 // anchor is the fragment GitHub gives a heading naming this command.
-func anchor(c *cobra.Command) string {
+func anchor(
+	c *cobra.Command,
+) string {
 	return strings.ReplaceAll(c.CommandPath(), " ", "-")
 }
 
 // cell keeps text on one table row.
-func cell(s string) string {
+func cell(
+	s string,
+) string {
 	s = strings.ReplaceAll(s, "|", "\\|")
 
 	return strings.Join(strings.Fields(s), " ")

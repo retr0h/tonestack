@@ -38,7 +38,11 @@ import (
 // symbol list is what puts names back on both — and that table is longer than
 // the block list, because it holds a mono and a stereo entry for the same
 // model.
-func Chain(name string, got wire.DevicePreset, cat *catalog.Catalog) (chain.Chain, error) {
+func Chain(
+	name string,
+	got wire.DevicePreset,
+	cat *catalog.Catalog,
+) (chain.Chain, error) {
 	if len(cat.Symbols) == 0 {
 		return chain.Chain{}, fmt.Errorf(
 			"this catalog has no model table, so a preset read off the device " +
@@ -114,7 +118,11 @@ const (
 //
 // A device does not store it, because a device knows what it put there. A
 // preset does, and one written without it is a preset that loads wrongly.
-func typeOf(model catalog.ModelID, cat *catalog.Catalog, paired bool) int64 {
+func typeOf(
+	model catalog.ModelID,
+	cat *catalog.Catalog,
+	paired bool,
+) int64 {
 	blk, known := cat.Block(model)
 	if !known {
 		return typeOther
@@ -135,7 +143,11 @@ func typeOf(model catalog.ModelID, cat *catalog.Catalog, paired bool) int64 {
 }
 
 // cabKey names a paired cabinet the way a preset names it.
-func cabKey(n int) string { return "cab" + strconv.Itoa(n) }
+func cabKey(
+	n int,
+) string {
+	return "cab" + strconv.Itoa(n)
+}
 
 // modelOf resolves a device's own model name to the catalog's.
 //
@@ -147,7 +159,10 @@ func cabKey(n int) string { return "cab" + strconv.Itoa(n) }
 // The rest are hardware this device does not have: a second effects loop, the
 // flow inputs of a bigger Helix. Their own name is kept, which is what any
 // unknown model gets, so the rig still rebuilds them exactly.
-func modelOf(id catalog.ModelID, cat *catalog.Catalog) catalog.ModelID {
+func modelOf(
+	id catalog.ModelID,
+	cat *catalog.Catalog,
+) catalog.ModelID {
 	if _, ok := cat.Block(id); ok {
 		return id
 	}
@@ -172,7 +187,10 @@ func modelOf(id catalog.ModelID, cat *catalog.Catalog) catalog.ModelID {
 // about the rest, so the shorter of the two is what can be read. It sends one
 // more for a cabinet, and that one is the microphone: micOf picks it up, and
 // a preset keeps it as an attribute rather than a parameter.
-func paramsOf(sym catalog.Symbol, values []any) map[string]catalog.ParamValue {
+func paramsOf(
+	sym catalog.Symbol,
+	values []any,
+) map[string]catalog.ParamValue {
 	out := make(map[string]catalog.ParamValue, len(values))
 
 	for i, name := range sym.Params {
@@ -189,7 +207,10 @@ func paramsOf(sym catalog.Symbol, values []any) map[string]catalog.ParamValue {
 }
 
 // micAttr keeps the microphone a cabinet sends past its named values.
-func micAttr(sym catalog.Symbol, values []any) map[string]json.RawMessage {
+func micAttr(
+	sym catalog.Symbol,
+	values []any,
+) map[string]json.RawMessage {
 	if len(values) <= len(sym.Params) {
 		return nil
 	}
@@ -206,7 +227,9 @@ func micAttr(sym catalog.Symbol, values []any) map[string]json.RawMessage {
 //
 // The wire layer has already narrowed a device's answer to a switch, a whole
 // number or a fraction, which are the three things a parameter can be.
-func paramValue(v any) (catalog.ParamValue, bool) {
+func paramValue(
+	v any,
+) (catalog.ParamValue, bool) {
 	switch t := v.(type) {
 	case bool:
 		return catalog.Bool(t), true

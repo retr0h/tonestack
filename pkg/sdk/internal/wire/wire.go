@@ -104,7 +104,9 @@ func (*BodyTooLargeError) Unwrap() error { return ErrBodyTooLarge }
 //	2       2     service
 //	4       4     body length, little endian
 //	8       n     body
-func EncodeEnvelope(f Envelope) []byte {
+func EncodeEnvelope(
+	f Envelope,
+) []byte {
 	out := make([]byte, EnvelopeSize+len(f.Body))
 
 	binary.LittleEndian.PutUint16(out[0:2], uint16(f.Originator))
@@ -119,7 +121,9 @@ func EncodeEnvelope(f Envelope) []byte {
 //
 // A bulk read can carry more than one frame, so the remainder is handed back
 // rather than discarded.
-func DecodeEnvelope(raw []byte) (Envelope, []byte, error) {
+func DecodeEnvelope(
+	raw []byte,
+) (Envelope, []byte, error) {
 	if len(raw) < EnvelopeSize {
 		return Envelope{}, nil, fmt.Errorf(
 			"%w: %d bytes, need at least %d", ErrShortFrame, len(raw), EnvelopeSize)
@@ -144,7 +148,9 @@ func DecodeEnvelope(raw []byte) (Envelope, []byte, error) {
 }
 
 // readEnvelope decodes one envelope from a stream.
-func readEnvelope(r io.Reader) (Envelope, error) {
+func readEnvelope(
+	r io.Reader,
+) (Envelope, error) {
 	head := make([]byte, EnvelopeSize)
 	if _, err := io.ReadFull(r, head); err != nil {
 		return Envelope{}, fmt.Errorf("reading frame header: %w", err)

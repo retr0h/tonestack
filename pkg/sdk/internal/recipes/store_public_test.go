@@ -67,6 +67,8 @@ func (s *StorePublicTestSuite) TestFind() {
 	}
 }
 
-func TestStorePublicTestSuite(t *testing.T) {
+func TestStorePublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(StorePublicTestSuite))
 }

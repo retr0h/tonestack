@@ -323,7 +323,9 @@ func (s *RecipesPublicTestSuite) TestShow() {
 
 // ids reads the identifiers out of a set of rigs, so a test can say which
 // were found without also saying what else each one holds.
-func ids(all []rig.Spec) []string {
+func ids(
+	all []rig.Spec,
+) []string {
 	out := make([]string, 0, len(all))
 	for _, r := range all {
 		out = append(out, r.ID)
@@ -332,6 +334,8 @@ func ids(all []rig.Spec) []string {
 	return out
 }
 
-func TestRecipesPublicTestSuite(t *testing.T) {
+func TestRecipesPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(RecipesPublicTestSuite))
 }

@@ -33,7 +33,10 @@ var (
 
 // NewDocument returns a copy of one holding only the named sections, so a
 // preset with fewer than a device writes can be tested.
-func NewDocument(from *Document, keep []int8) *Document {
+func NewDocument(
+	from *Document,
+	keep []int8,
+) *Document {
 	out := &Document{
 		magic:    from.magic,
 		table:    from.table,

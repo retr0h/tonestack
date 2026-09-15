@@ -88,6 +88,8 @@ func (s *ErrorsPublicTestSuite) TestSentinelsAreDistinct() {
 	}
 }
 
-func TestErrorsPublicTestSuite(t *testing.T) {
+func TestErrorsPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(ErrorsPublicTestSuite))
 }

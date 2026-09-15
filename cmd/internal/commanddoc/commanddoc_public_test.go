@@ -132,6 +132,8 @@ func (s *CommanddocPublicTestSuite) TestTheShippedPageIsCurrent() {
 		"docs/commands.md is out of date — run `just generate`")
 }
 
-func TestCommanddocPublicTestSuite(t *testing.T) {
+func TestCommanddocPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(CommanddocPublicTestSuite))
 }

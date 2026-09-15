@@ -26,7 +26,9 @@ import "github.com/retr0h/tonestack/pkg/sdk/catalog"
 // No double is needed here: *catalog.Catalog already satisfies chain.BlockLookup,
 // and lookup is the whole of its behaviour. A mock would assert calls into a
 // map, which tests the test rather than the code.
-func newCatalog(blocks ...catalog.Block) *catalog.Catalog {
+func newCatalog(
+	blocks ...catalog.Block,
+) *catalog.Catalog {
 	byID := make(map[catalog.ModelID]catalog.Block, len(blocks))
 	for _, b := range blocks {
 		byID[b.ID] = b

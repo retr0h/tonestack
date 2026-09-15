@@ -38,7 +38,9 @@ type PresetShapeTestSuite struct {
 }
 
 // encode renders a document the way a device would.
-func (s *PresetShapeTestSuite) encode(doc any) []byte {
+func (s *PresetShapeTestSuite) encode(
+	doc any,
+) []byte {
 	var buf bytes.Buffer
 
 	enc := msgpack.NewEncoder(&buf)
@@ -50,7 +52,9 @@ func (s *PresetShapeTestSuite) encode(doc any) []byte {
 }
 
 // footswitch wraps one switch entry the way a preset carries it.
-func footswitch(entry map[int8]any) map[int8]any {
+func footswitch(
+	entry map[int8]any,
+) map[int8]any {
 	return map[int8]any{
 		keyFootswitch: map[int8]any{keyFsPaths: []any{[]any{entry}}},
 	}
@@ -296,6 +300,8 @@ func (s *PresetShapeTestSuite) TestAsFloat() {
 	}
 }
 
-func TestPresetShapeTestSuite(t *testing.T) {
+func TestPresetShapeTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(PresetShapeTestSuite))
 }

@@ -74,7 +74,10 @@ func (s *MoveTestSuite) built() chain.Chain {
 }
 
 // paramOf reads one control off whichever block holds it.
-func (s *MoveTestSuite) paramOf(built chain.Chain, key string) float64 {
+func (s *MoveTestSuite) paramOf(
+	built chain.Chain,
+	key string,
+) float64 {
 	for _, b := range built.Blocks {
 		if v, ok := b.Params[key].Float(); ok {
 			return v
@@ -481,6 +484,8 @@ func (s *MoveTestSuite) TestTermsOf() {
 	}
 }
 
-func TestMoveTestSuite(t *testing.T) {
+func TestMoveTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(MoveTestSuite))
 }

@@ -263,8 +263,14 @@ func (s *CorpusPublicTestSuite) TestDecode() {
 // the difference between "nothing there" and "could not read" is exercised.
 type failingReader struct{}
 
-func (*failingReader) Read([]byte) (int, error) { return 0, errors.New("boom") }
+func (*failingReader) Read(
+	[]byte,
+) (int, error) {
+	return 0, errors.New("boom")
+}
 
-func TestCorpusPublicTestSuite(t *testing.T) {
+func TestCorpusPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(CorpusPublicTestSuite))
 }

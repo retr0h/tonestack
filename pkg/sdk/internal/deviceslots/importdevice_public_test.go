@@ -325,6 +325,8 @@ func (s *ImportDevicePublicTestSuite) TestImport() {
 	}
 }
 
-func TestImportDevicePublicTestSuite(t *testing.T) {
+func TestImportDevicePublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(ImportDevicePublicTestSuite))
 }

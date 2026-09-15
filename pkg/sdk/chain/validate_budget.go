@@ -35,7 +35,11 @@ import (
 //
 // A block whose DSP cost carries an untrusted provenance is refused outright
 // rather than counted. A guessed figure cannot support a claim that a rig fits.
-func ValidateBudget(l BlockLookup, s Chain, lim Limits) error {
+func ValidateBudget(
+	l BlockLookup,
+	s Chain,
+	lim Limits,
+) error {
 	if lim.Paths <= 0 {
 		return &TopologyError{
 			Reason: "limits declare no dsp processors",

@@ -344,6 +344,8 @@ func (s *DocumentPublicTestSuite) TestFootswitches() {
 	}
 }
 
-func TestDocumentPublicTestSuite(t *testing.T) {
+func TestDocumentPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(DocumentPublicTestSuite))
 }

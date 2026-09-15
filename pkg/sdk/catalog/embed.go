@@ -48,7 +48,9 @@ func BuiltIn() (*Catalog, error) { return decode(builtIn) }
 // Separate from BuiltIn so a corrupted archive can be exercised. The embedded
 // copy is a compile-time constant and cannot be damaged at run time, but a
 // build that shipped a truncated one should say so rather than panic.
-func decode(packed []byte) (*Catalog, error) {
+func decode(
+	packed []byte,
+) (*Catalog, error) {
 	zr, err := gzip.NewReader(bytes.NewReader(packed))
 	if err != nil {
 		return nil, fmt.Errorf("opening the built-in catalog: %w", err)

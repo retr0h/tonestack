@@ -178,6 +178,8 @@ func (s *StdioPublicTestSuite) TestRunOver() {
 	}
 }
 
-func TestStdioPublicTestSuite(t *testing.T) {
+func TestStdioPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(StdioPublicTestSuite))
 }

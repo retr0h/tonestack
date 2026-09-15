@@ -48,7 +48,9 @@ type symbolEntry struct {
 // Absent on an installation too old to have it, which is not fatal: a catalog
 // without it still describes what the device can do, and only reading presets
 // off the hardware needs it.
-func readSymbols(dir string) ([]catalog.Symbol, error) {
+func readSymbols(
+	dir string,
+) ([]catalog.Symbol, error) {
 	body, err := os.ReadFile(
 		filepath.Join(dir, symbolFile),
 	) //nolint:gosec // the app's own directory
@@ -91,7 +93,9 @@ const ledControl = "footswitchLED"
 //
 // Absent on an installation too old to have it, which is not fatal: only
 // reading footswitches off the hardware needs it.
-func readLEDColours(dir string) ([]string, error) {
+func readLEDColours(
+	dir string,
+) ([]string, error) {
 	body, err := os.ReadFile(
 		filepath.Join(dir, controlsFile),
 	) //nolint:gosec // the app's own directory

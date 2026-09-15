@@ -53,7 +53,9 @@ func (s *FootswitchesPublicTestSuite) SetupSuite() {
 }
 
 // presetWith returns a document whose footswitch section is the given JSON.
-func (s *FootswitchesPublicTestSuite) presetWith(body string) *preset.Document {
+func (s *FootswitchesPublicTestSuite) presetWith(
+	body string,
+) *preset.Document {
 	doc, err := preset.Blank()
 	s.Require().NoError(err)
 
@@ -217,6 +219,8 @@ func (s *FootswitchesPublicTestSuite) TestASwitchWithNoBlockIsNotWritten() {
 	s.Require().NotContains(out.String(), "orphan")
 }
 
-func TestFootswitchesPublicTestSuite(t *testing.T) {
+func TestFootswitchesPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(FootswitchesPublicTestSuite))
 }

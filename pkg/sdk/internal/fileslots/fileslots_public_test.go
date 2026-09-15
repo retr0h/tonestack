@@ -396,6 +396,8 @@ func (s *FileslotsPublicTestSuite) TestShowFile() {
 	}
 }
 
-func TestFileslotsPublicTestSuite(t *testing.T) {
+func TestFileslotsPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(FileslotsPublicTestSuite))
 }

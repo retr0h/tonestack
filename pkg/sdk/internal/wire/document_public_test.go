@@ -45,7 +45,9 @@ type DocumentPublicTestSuite struct {
 }
 
 // capture returns one slot as an HX Stomp actually sent it.
-func (s *DocumentPublicTestSuite) capture(name string) []byte {
+func (s *DocumentPublicTestSuite) capture(
+	name string,
+) []byte {
 	raw, err := os.ReadFile(filepath.Join("testdata", name))
 	s.Require().NoError(err)
 
@@ -53,7 +55,9 @@ func (s *DocumentPublicTestSuite) capture(name string) []byte {
 }
 
 // offsets reads the table a preset carries.
-func (s *DocumentPublicTestSuite) offsets(raw []byte) []uint32 {
+func (s *DocumentPublicTestSuite) offsets(
+	raw []byte,
+) []uint32 {
 	dec := msgpack.NewDecoder(bytes.NewReader(raw))
 
 	_, err := dec.DecodeRaw()
@@ -74,7 +78,9 @@ func (s *DocumentPublicTestSuite) offsets(raw []byte) []uint32 {
 }
 
 // header returns a preset header with an empty offset table.
-func header(magic string) []byte {
+func header(
+	magic string,
+) []byte {
 	return append([]byte(magic+"\xda\x00\x30"), make([]byte, 48)...)
 }
 
@@ -268,6 +274,8 @@ func (s *DocumentPublicTestSuite) TestNewDocument() {
 	s.Require().False(ok, "the section that was dropped")
 }
 
-func TestDocumentPublicTestSuite(t *testing.T) {
+func TestDocumentPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(DocumentPublicTestSuite))
 }

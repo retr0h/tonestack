@@ -37,6 +37,8 @@ const userIRPrefix = "HD2_ImpulseResponse"
 // Nothing generated should reach for one. Line 6's own cabinets, including
 // the 92 impulse-response cabinets whose audio ships in the device, sound the
 // same everywhere.
-func NeedsUserIR(id ModelID) bool {
+func NeedsUserIR(
+	id ModelID,
+) bool {
 	return strings.HasPrefix(string(id), userIRPrefix)
 }

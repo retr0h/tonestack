@@ -38,7 +38,10 @@ import (
 //
 // Which of the two questions was asked decides what there is to draw, and the
 // answer already says which.
-func Measured(w io.Writer, m sdk.Measured) error {
+func Measured(
+	w io.Writer,
+	m sdk.Measured,
+) error {
 	if m.AboutOne() {
 		return model(w, m.Stats, m.Catalog, m.Model)
 	}
@@ -99,7 +102,11 @@ func model(
 }
 
 // span is a parameter's range, used to judge a spread against it.
-func span(blk catalog.Block, key string, known bool) float64 {
+func span(
+	blk catalog.Block,
+	key string,
+	known bool,
+) float64 {
 	if !known {
 		return 0
 	}
@@ -114,7 +121,10 @@ func span(blk catalog.Block, key string, known bool) float64 {
 
 // agreement renders how tightly players agree, relative to the range the
 // parameter can occupy.
-func agreement(w io.Writer, spread, span float64) string {
+func agreement(
+	w io.Writer,
+	spread, span float64,
+) string {
 	if span <= 0 {
 		return paint.Mute(w, "—")
 	}
@@ -132,7 +142,11 @@ func agreement(w io.Writer, spread, span float64) string {
 }
 
 // grammar prints what chains tend to contain, per instrument.
-func grammar(w io.Writer, stats *corpus.Stats, only string) error {
+func grammar(
+	w io.Writer,
+	stats *corpus.Stats,
+	only string,
+) error {
 	var rows [][]string
 
 	for _, instrument := range sortedGrammar(stats.Grammar) {
@@ -167,7 +181,9 @@ func grammar(w io.Writer, stats *corpus.Stats, only string) error {
 }
 
 // sortedParams orders parameter keys so a listing is stable.
-func sortedParams(m map[string]corpus.ParamStats) []string {
+func sortedParams(
+	m map[string]corpus.ParamStats,
+) []string {
 	out := make([]string, 0, len(m))
 	for k := range m {
 		out = append(out, k)
@@ -179,7 +195,9 @@ func sortedParams(m map[string]corpus.ParamStats) []string {
 }
 
 // sortedGrammar orders instruments so a listing is stable.
-func sortedGrammar(m map[string]corpus.Grammar) []string {
+func sortedGrammar(
+	m map[string]corpus.Grammar,
+) []string {
 	out := make([]string, 0, len(m))
 	for k := range m {
 		out = append(out, k)

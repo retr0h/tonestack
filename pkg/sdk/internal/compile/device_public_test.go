@@ -53,7 +53,9 @@ func (s *DevicePublicTestSuite) SetupSuite() {
 }
 
 // rig returns a buildable rig carrying the given device state.
-func (s *DevicePublicTestSuite) rig(state *rig.DeviceState) rig.Spec {
+func (s *DevicePublicTestSuite) rig(
+	state *rig.DeviceState,
+) rig.Spec {
 	return rig.Spec{
 		Schema:     rig.SchemaName,
 		ID:         "test",
@@ -156,6 +158,8 @@ func (s *DevicePublicTestSuite) TestLowerDeviceState() {
 	}
 }
 
-func TestDevicePublicTestSuite(t *testing.T) {
+func TestDevicePublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(DevicePublicTestSuite))
 }

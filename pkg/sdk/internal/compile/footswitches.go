@@ -54,7 +54,9 @@ var fsModelled = map[string]bool{
 // A preset keys these by the block a switch acts on, inside the processor
 // that block sits on. Both are carried, because a label with nothing to
 // attach it to cannot be written back.
-func footswitchesOf(doc *preset.Document) *[]rig.Footswitch {
+func footswitchesOf(
+	doc *preset.Document,
+) *[]rig.Footswitch {
 	entry, ok := doc.Data.Tone[footswitchKey]
 	if !ok {
 		return nil
@@ -91,7 +93,11 @@ func footswitchesOf(doc *preset.Document) *[]rig.Footswitch {
 }
 
 // footswitchOf reads one assignment.
-func footswitchOf(raw json.RawMessage, key string, path int) (rig.Footswitch, bool) {
+func footswitchOf(
+	raw json.RawMessage,
+	key string,
+	path int,
+) (rig.Footswitch, bool) {
 	number, err := strconv.Atoi(strings.TrimPrefix(key, blockPrefix))
 	if err != nil {
 		return rig.Footswitch{}, false
@@ -132,7 +138,10 @@ func footswitchOf(raw json.RawMessage, key string, path int) (rig.Footswitch, bo
 
 // restoreFootswitches writes a rig's footswitches back as a preset stores
 // them: keyed by the block each acts on, inside its processor.
-func restoreFootswitches(doc *preset.Document, switches []rig.Footswitch) {
+func restoreFootswitches(
+	doc *preset.Document,
+	switches []rig.Footswitch,
+) {
 	byProcessor := map[string]map[string]json.RawMessage{}
 
 	for _, fs := range switches {
@@ -164,7 +173,9 @@ func restoreFootswitches(doc *preset.Document, switches []rig.Footswitch) {
 }
 
 // fieldsOf renders one assignment the way a preset stores it.
-func fieldsOf(fs rig.Footswitch) json.RawMessage {
+func fieldsOf(
+	fs rig.Footswitch,
+) json.RawMessage {
 	fields := map[string]json.RawMessage{}
 
 	putRaw(fields, fsIndex, fs.Switch)
@@ -187,7 +198,11 @@ func fieldsOf(fs rig.Footswitch) json.RawMessage {
 }
 
 // putRaw writes a field back, or writes nothing when the rig has none.
-func putRaw[T any](fields map[string]json.RawMessage, key string, v *T) {
+func putRaw[T any](
+	fields map[string]json.RawMessage,
+	key string,
+	v *T,
+) {
 	if v == nil {
 		return
 	}
@@ -199,7 +214,9 @@ func putRaw[T any](fields map[string]json.RawMessage, key string, v *T) {
 
 // sorted returns a tone entry's keys in order, so output does not depend on
 // map iteration.
-func sorted(entry preset.Tone) []string {
+func sorted(
+	entry preset.Tone,
+) []string {
 	out := make([]string, 0, len(entry))
 	for k := range entry {
 		out = append(out, k)
@@ -211,7 +228,9 @@ func sorted(entry preset.Tone) []string {
 }
 
 // sortedKeys returns a raw map's keys in order.
-func sortedKeys(m map[string]json.RawMessage) []string {
+func sortedKeys(
+	m map[string]json.RawMessage,
+) []string {
 	out := make([]string, 0, len(m))
 	for k := range m {
 		out = append(out, k)

@@ -100,6 +100,8 @@ func (s *ListingPublicTestSuite) TestEmpty() {
 	}
 }
 
-func TestListingPublicTestSuite(t *testing.T) {
+func TestListingPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(ListingPublicTestSuite))
 }

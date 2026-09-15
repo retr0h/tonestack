@@ -38,7 +38,11 @@ import (
 // than swallowed.
 type brokenWriter struct{}
 
-func (*brokenWriter) Write([]byte) (int, error) { return 0, errors.New("boom") }
+func (*brokenWriter) Write(
+	[]byte,
+) (int, error) {
+	return 0, errors.New("boom")
+}
 
 // valid is the smallest rig the contract accepts, so a test about rendering
 // one is not also a test about what a rig must carry.
@@ -229,6 +233,8 @@ func (s *ReadingPublicTestSuite) TestWritten() {
 	}
 }
 
-func TestReadingPublicTestSuite(t *testing.T) {
+func TestReadingPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(ReadingPublicTestSuite))
 }

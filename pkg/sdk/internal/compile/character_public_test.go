@@ -175,6 +175,8 @@ func (s *CharacterPublicTestSuite) TestCheckAxes() {
 	}
 }
 
-func TestCharacterPublicTestSuite(t *testing.T) {
+func TestCharacterPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(CharacterPublicTestSuite))
 }

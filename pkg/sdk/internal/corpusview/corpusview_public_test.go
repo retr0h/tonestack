@@ -213,6 +213,8 @@ func (s *CorpusViewPublicTestSuite) TestChains() {
 	}
 }
 
-func TestCorpusViewPublicTestSuite(t *testing.T) {
+func TestCorpusViewPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(CorpusViewPublicTestSuite))
 }

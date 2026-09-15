@@ -90,6 +90,8 @@ func (s *ErrorsPublicTestSuite) TestNotAPresetError() {
 	}
 }
 
-func TestErrorsPublicTestSuite(t *testing.T) {
+func TestErrorsPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(ErrorsPublicTestSuite))
 }

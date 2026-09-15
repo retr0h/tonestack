@@ -35,7 +35,10 @@ import (
 // The backups first, because they are what somebody needs before they need
 // anything else here: a device has no undo, and the line naming the file is
 // the only way back to what the slot held.
-func Change(w io.Writer, c sdk.Change) error {
+func Change(
+	w io.Writer,
+	c sdk.Change,
+) error {
 	if err := Kept(w, c.Kept...); err != nil {
 		return err
 	}
@@ -56,7 +59,10 @@ func Change(w io.Writer, c sdk.Change) error {
 }
 
 // moved says what went from one slot to another.
-func moved(w io.Writer, c sdk.Change) error {
+func moved(
+	w io.Writer,
+	c sdk.Change,
+) error {
 	// A device says what the destination stopped being, because there is no
 	// file to go and look at. A file says where it was written, because
 	// there is.
@@ -76,7 +82,10 @@ func moved(w io.Writer, c sdk.Change) error {
 }
 
 // landed says what arrived in one slot, with nowhere it came from.
-func landed(w io.Writer, c sdk.Change) error {
+func landed(
+	w io.Writer,
+	c sdk.Change,
+) error {
 	// Loading a preset writes nothing, so there is nothing to say about
 	// what the slot held: it still holds it.
 	if c.Action == sdk.Selected {
@@ -105,7 +114,10 @@ func landed(w io.Writer, c sdk.Change) error {
 }
 
 // Kept names the backups a write made before it overwrote anything.
-func Kept(w io.Writer, paths ...string) error {
+func Kept(
+	w io.Writer,
+	paths ...string,
+) error {
 	for _, path := range paths {
 		if path == "" {
 			continue
@@ -121,7 +133,10 @@ func Kept(w io.Writer, paths ...string) error {
 }
 
 // Built reports a preset compiled from a rig.
-func Built(w io.Writer, b sdk.Built) error {
+func Built(
+	w io.Writer,
+	b sdk.Built,
+) error {
 	_, err := fmt.Fprintf(w, "\n%s%s  %s\n\n%s%s\n\n",
 		paint.Indent, paint.Title(w, b.Name),
 		paint.Mute(w, fmt.Sprintf("%s in the chain", Plural(b.Blocks, "block"))),

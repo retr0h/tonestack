@@ -481,7 +481,9 @@ func (s *session) opened() []*channel {
 // is busy is worth waiting on rather than reporting. Separate from the call
 // itself because the policy — how many times, how long between — is the part
 // worth being sure about, and the call is the part that needs hardware.
-func retry(attempt func() error) error {
+func retry(
+	attempt func() error,
+) error {
 	var last error
 
 	for i := range claimAttempts {

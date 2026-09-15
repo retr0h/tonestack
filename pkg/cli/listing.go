@@ -39,7 +39,12 @@ import (
 // handed back every slot and what is in each. Which of them to show, what
 // colour a label is and how a chain reads as one line are decided here,
 // because they are answers for a terminal and a terminal only.
-func Listing(w io.Writer, l sdk.Listing, cat *catalog.Catalog, all bool) error {
+func Listing(
+	w io.Writer,
+	l sdk.Listing,
+	cat *catalog.Catalog,
+	all bool,
+) error {
 	rows := make([][]string, 0, len(l.Slots))
 
 	for _, h := range l.Slots {
@@ -73,7 +78,10 @@ func Listing(w io.Writer, l sdk.Listing, cat *catalog.Catalog, all bool) error {
 
 // Plural renders a count with its noun, so a setlist of one does not read as
 // "1 slots".
-func Plural(n int, noun string) string {
+func Plural(
+	n int,
+	noun string,
+) string {
 	if n == 1 {
 		return "1 " + noun
 	}
@@ -86,7 +94,11 @@ func Plural(n int, noun string) string {
 // Categories rather than model names, because a listing is for finding the
 // preset you meant among a hundred and twenty-eight, and "drive → amp → cab"
 // does that where four model names in a row do not.
-func Flow(w io.Writer, blocks []chain.Block, cat *catalog.Catalog) string {
+func Flow(
+	w io.Writer,
+	blocks []chain.Block,
+	cat *catalog.Catalog,
+) string {
 	parts := make([]string, 0, len(blocks))
 
 	for _, b := range blocks {

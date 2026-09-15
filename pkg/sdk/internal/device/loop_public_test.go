@@ -677,6 +677,8 @@ func (s *LoopPublicTestSuite) TestIdleAck() {
 	})
 }
 
-func TestLoopPublicTestSuite(t *testing.T) {
+func TestLoopPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(LoopPublicTestSuite))
 }

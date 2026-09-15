@@ -199,6 +199,8 @@ func (s *MCPPublicTestSuite) TestRun() {
 	}
 }
 
-func TestMCPPublicTestSuite(t *testing.T) {
+func TestMCPPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(MCPPublicTestSuite))
 }

@@ -41,7 +41,11 @@ type thing struct {
 	vendor, product uint16
 }
 
-func ids(t thing) (vendor, product uint16) { return t.vendor, t.product }
+func ids(
+	t thing,
+) (vendor, product uint16) {
+	return t.vendor, t.product
+}
 
 // TestMatching covers keeping the devices asked for.
 func (s *BackendPublicTestSuite) TestMatching() {
@@ -93,7 +97,11 @@ func (s *BackendPublicTestSuite) TestPickFirst() {
 // errIdle stands in for a read that timed out with nothing.
 var errIdle = errors.New("timed out")
 
-func idle(err error) bool { return errors.Is(err, errIdle) }
+func idle(
+	err error,
+) bool {
+	return errors.Is(err, errIdle)
+}
 
 // TestReadUntil covers keeping a read posted until the device speaks.
 func (s *BackendPublicTestSuite) TestReadUntil() {
@@ -321,6 +329,8 @@ func (s *BackendPublicTestSuite) TestPiped() {
 	s.Require().ErrorIs(err, errPipe)
 }
 
-func TestBackendPublicTestSuite(t *testing.T) {
+func TestBackendPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(BackendPublicTestSuite))
 }

@@ -222,6 +222,8 @@ func (s *BlocksPublicTestSuite) TestBlock() {
 	}
 }
 
-func TestBlocksPublicTestSuite(t *testing.T) {
+func TestBlocksPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(BlocksPublicTestSuite))
 }

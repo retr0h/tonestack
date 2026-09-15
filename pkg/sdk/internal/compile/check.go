@@ -41,7 +41,11 @@ import (
 // The blocks are the chain as resolved, because a controller names the block
 // it moves by position and the parameter by name, and only the model sitting
 // at that position says whether the name is one of its own.
-func check(spec rig.Spec, blocks []chain.Block, cat *catalog.Catalog) error {
+func check(
+	spec rig.Spec,
+	blocks []chain.Block,
+	cat *catalog.Catalog,
+) error {
 	// Every complaint at once. A rig with four bad colours in it took four
 	// runs to fix when this reported the first one, and each run hid the
 	// next. errors.Is and errors.As reach through a join, so a caller
@@ -54,7 +58,10 @@ func check(spec rig.Spec, blocks []chain.Block, cat *catalog.Catalog) error {
 }
 
 // checkTarget refuses a rig built for another device.
-func checkTarget(spec rig.Spec, cat *catalog.Catalog) error {
+func checkTarget(
+	spec rig.Spec,
+	cat *catalog.Catalog,
+) error {
 	if spec.Target == nil || spec.Target.Device == nil || *spec.Target.Device == "" {
 		return nil
 	}
@@ -75,7 +82,10 @@ func checkTarget(spec rig.Spec, cat *catalog.Catalog) error {
 //
 // The device has twelve, and the catalog carries their names. A rig naming a
 // thirteenth describes a switch nobody will see.
-func checkFootswitches(spec rig.Spec, cat *catalog.Catalog) error {
+func checkFootswitches(
+	spec rig.Spec,
+	cat *catalog.Catalog,
+) error {
 	if spec.Footswitches == nil || len(cat.LEDColours) == 0 {
 		return nil
 	}
@@ -162,7 +172,10 @@ func checkControllers(
 }
 
 // blockAt finds the block sitting at a position along the path.
-func blockAt(blocks []chain.Block, position int) (chain.Block, bool) {
+func blockAt(
+	blocks []chain.Block,
+	position int,
+) (chain.Block, bool) {
 	for _, b := range blocks {
 		if b.Pos == position {
 			return b, true
@@ -173,7 +186,10 @@ func blockAt(blocks []chain.Block, position int) (chain.Block, bool) {
 }
 
 // slicesContainFold reports whether a value is in a list, ignoring case.
-func slicesContainFold(all []string, want string) bool {
+func slicesContainFold(
+	all []string,
+	want string,
+) bool {
 	for _, s := range all {
 		if strings.EqualFold(s, want) {
 			return true
@@ -193,7 +209,10 @@ func slicesContainFold(all []string, want string) bool {
 // one or mistypes its first letters, so a prefix and a substring are what
 // find it. A phrase in the wrong order is a different problem and closest,
 // beside this, is what solves it.
-func near(all []string, want string) (hits []string, whole bool) {
+func near(
+	all []string,
+	want string,
+) (hits []string, whole bool) {
 	want = strings.ToLower(want)
 
 	for _, s := range all {

@@ -34,7 +34,9 @@ type RefreshTestSuite struct {
 	suite.Suite
 }
 
-func (s *RefreshTestSuite) opts(out string) Options {
+func (s *RefreshTestSuite) opts(
+	out string,
+) Options {
 	return Options{
 		ResourcesDir: "testdata",
 		GearMapPath:  filepath.Join("testdata", "gear-map.json"),
@@ -45,7 +47,9 @@ func (s *RefreshTestSuite) opts(out string) Options {
 }
 
 // written reads back a catalog this suite generated.
-func (s *RefreshTestSuite) written(path string) *catalog.Catalog {
+func (s *RefreshTestSuite) written(
+	path string,
+) *catalog.Catalog {
 	f, err := os.Open(path) //nolint:gosec // a path this test chose
 	s.Require().NoError(err)
 
@@ -173,6 +177,8 @@ func (s *RefreshTestSuite) TestRefreshLeavesAnUnchangedCatalogAlone() {
 	s.Require().Equal(was, now)
 }
 
-func TestRefreshTestSuite(t *testing.T) {
+func TestRefreshTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(RefreshTestSuite))
 }

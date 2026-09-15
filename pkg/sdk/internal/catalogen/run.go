@@ -34,7 +34,9 @@ import (
 // It is embedded in the binary, and a catalog is repetitive JSON: gzip takes
 // 1.5MB to about 65KB, which is the difference between the device knowledge
 // being worth shipping and not.
-func compress(raw []byte) []byte {
+func compress(
+	raw []byte,
+) []byte {
 	var buf bytes.Buffer
 
 	// Compressing into a buffer cannot fail.

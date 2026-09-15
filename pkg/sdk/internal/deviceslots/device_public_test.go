@@ -648,6 +648,8 @@ func (refusing) Write(
 	return 0, errors.New("nowhere to keep it")
 }
 
-func TestDevicePublicTestSuite(t *testing.T) {
+func TestDevicePublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(DevicePublicTestSuite))
 }

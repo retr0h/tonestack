@@ -72,6 +72,8 @@ func (s *ReadingPublicTestSuite) TestEmpty() {
 	}
 }
 
-func TestReadingPublicTestSuite(t *testing.T) {
+func TestReadingPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(ReadingPublicTestSuite))
 }

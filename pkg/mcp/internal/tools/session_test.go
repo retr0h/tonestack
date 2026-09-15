@@ -84,6 +84,8 @@ func (s *SessionTestSuite) TestFromSDK() {
 	})
 }
 
-func TestSessionTestSuite(t *testing.T) {
+func TestSessionTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(SessionTestSuite))
 }

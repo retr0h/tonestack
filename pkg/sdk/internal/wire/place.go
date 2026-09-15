@@ -295,7 +295,10 @@ func snapshots(
 // the slot held. Asked rather than inferred from the value: model 0 is a
 // legitimate index into the device's own table, so a block sitting there with
 // nothing set is indistinguishable from a position nobody named.
-func entryFor(b Placement, named bool) ([]byte, error) {
+func entryFor(
+	b Placement,
+	named bool,
+) ([]byte, error) {
 	if !named {
 		return append(mapHeader(2),
 			byte(keyBlockKind), kindEmpty,
@@ -336,7 +339,9 @@ func entryFor(b Placement, named bool) ([]byte, error) {
 }
 
 // cabModelOf is the cabinet's model number, or the -1 that means none.
-func cabModelOf(b Placement) int {
+func cabModelOf(
+	b Placement,
+) int {
 	if len(b.Cab) == 0 {
 		return -1
 	}
@@ -392,12 +397,16 @@ func countOf(
 }
 
 // encodeNumber renders an integer the way a device writes a small one.
-func encodeNumber(v int) []byte {
+func encodeNumber(
+	v int,
+) []byte {
 	return encodeInt(int64(v), 0)
 }
 
 // boolean is MessagePack's one-byte true or false.
-func boolean(v bool) byte {
+func boolean(
+	v bool,
+) byte {
 	if v {
 		return codeTrue
 	}
@@ -406,7 +415,9 @@ func boolean(v bool) byte {
 }
 
 // arrayHeader counts an array the way the device does.
-func arrayHeader(n int) []byte {
+func arrayHeader(
+	n int,
+) []byte {
 	if n < 16 {
 		return []byte{byte(0x90 | n)}
 	}

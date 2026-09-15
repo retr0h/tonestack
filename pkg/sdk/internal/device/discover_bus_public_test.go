@@ -443,6 +443,8 @@ func (s *DiscoverBusPublicTestSuite) TestUSBBus() {
 	s.Require().NoError(b.Close())
 }
 
-func TestDiscoverBusTestSuite(t *testing.T) {
+func TestDiscoverBusTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(DiscoverBusPublicTestSuite))
 }

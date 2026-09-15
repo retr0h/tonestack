@@ -88,6 +88,8 @@ func (s *WhereTestSuite) TestWhere() {
 	}
 }
 
-func TestWhereTestSuite(t *testing.T) {
+func TestWhereTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(WhereTestSuite))
 }

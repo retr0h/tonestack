@@ -116,6 +116,8 @@ func (s *DecoderPublicTestSuite) TestDocument() {
 	}
 }
 
-func TestDecoderPublicTestSuite(t *testing.T) {
+func TestDecoderPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(DecoderPublicTestSuite))
 }

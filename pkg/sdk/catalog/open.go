@@ -32,7 +32,9 @@ const DefaultPath = "resources/schemas/hx-stomp.catalog.json"
 //
 // Here rather than beside whatever draws one, because opening a catalog is
 // this package's own business and every part of the library needs it.
-func Open(path string) (*Catalog, error) {
+func Open(
+	path string,
+) (*Catalog, error) {
 	// No path means the catalog that ships in the binary, which is the case
 	// for anyone who has not generated their own.
 	if path == "" {
@@ -62,4 +64,8 @@ func Open(path string) (*Catalog, error) {
 type Files struct{}
 
 // Open reads the catalog at path, or the built-in one when path is empty.
-func (Files) Open(path string) (*Catalog, error) { return Open(path) }
+func (Files) Open(
+	path string,
+) (*Catalog, error) {
+	return Open(path)
+}

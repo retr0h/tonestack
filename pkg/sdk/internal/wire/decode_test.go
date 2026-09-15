@@ -117,6 +117,8 @@ func (s *DecodeTestSuite) TestAsStringDropsTheTerminator() {
 	}
 }
 
-func TestDecodeTestSuite(t *testing.T) {
+func TestDecodeTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(DecodeTestSuite))
 }

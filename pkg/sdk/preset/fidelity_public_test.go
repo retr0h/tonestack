@@ -39,7 +39,9 @@ type FidelityPublicTestSuite struct {
 }
 
 // roundTrip reads a preset and writes it straight back.
-func (s *FidelityPublicTestSuite) roundTrip(in string) string {
+func (s *FidelityPublicTestSuite) roundTrip(
+	in string,
+) string {
 	doc, err := preset.Read(bytes.NewReader([]byte(in)))
 	s.Require().NoError(err)
 
@@ -49,7 +51,9 @@ func (s *FidelityPublicTestSuite) roundTrip(in string) string {
 	return s.canonical(out.Bytes())
 }
 
-func (s *FidelityPublicTestSuite) canonical(raw []byte) string {
+func (s *FidelityPublicTestSuite) canonical(
+	raw []byte,
+) string {
 	var v any
 	s.Require().NoError(json.Unmarshal(raw, &v))
 
@@ -208,6 +212,8 @@ func (s *FidelityPublicTestSuite) TestRefusesABlockKeyThatIsNotNumbered() {
 	s.Require().Contains(err.Error(), "not numbered")
 }
 
-func TestFidelityPublicTestSuite(t *testing.T) {
+func TestFidelityPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(FidelityPublicTestSuite))
 }

@@ -167,6 +167,8 @@ func (s *ListingPublicTestSuite) TestFlow() {
 	}
 }
 
-func TestListingPublicTestSuite(t *testing.T) {
+func TestListingPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(ListingPublicTestSuite))
 }

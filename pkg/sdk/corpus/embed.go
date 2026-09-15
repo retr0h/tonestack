@@ -49,7 +49,11 @@ func BuiltIn() (*Stats, error) { return decode(builtIn) }
 // Separate from BuiltIn so a corrupted archive can be exercised. The embedded
 // copy is a compile-time constant and cannot be damaged at run time, but a
 // build that shipped a truncated one should say so rather than panic.
-func decode(packed []byte) (*Stats, error) { return Load(bytes.NewReader(packed)) }
+func decode(
+	packed []byte,
+) (*Stats, error) {
+	return Load(bytes.NewReader(packed))
+}
 
 // gzipMagic is the two bytes every gzip stream begins with.
 var gzipMagic = []byte{0x1f, 0x8b}
@@ -59,7 +63,9 @@ var gzipMagic = []byte{0x1f, 0x8b}
 // The generator writes gzip because the file is embedded, but somebody
 // inspecting or hand-editing a copy will have plain JSON. Refusing one of the
 // two would be an arbitrary distinction, so the stream says which it is.
-func Load(r io.Reader) (*Stats, error) {
+func Load(
+	r io.Reader,
+) (*Stats, error) {
 	br := bufio.NewReader(r)
 
 	head, err := br.Peek(len(gzipMagic))
@@ -91,7 +97,10 @@ func Load(r io.Reader) (*Stats, error) {
 
 // Param returns the distribution of one model's parameter, and whether the
 // corpus saw it often enough to say anything.
-func (s *Stats) Param(id catalog.ModelID, key string) (ParamStats, bool) {
+func (s *Stats) Param(
+	id catalog.ModelID,
+	key string,
+) (ParamStats, bool) {
 	m, ok := s.Models[id]
 	if !ok {
 		return ParamStats{}, false

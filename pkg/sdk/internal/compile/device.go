@@ -45,7 +45,10 @@ const blockPrefix = "block"
 // Kept as raw JSON rather than decoded values, because a preset spells the
 // same number more than one way — `"0.00"` and `0` are both real — and
 // rewriting one as the other changes a file nobody asked to change.
-func deviceState(doc *preset.Document, modelled map[string]bool) *rig.DeviceState {
+func deviceState(
+	doc *preset.Document,
+	modelled map[string]bool,
+) *rig.DeviceState {
 	out := &rig.DeviceState{
 		Id:      &doc.Data.Device,
 		Format:  &doc.Version,
@@ -104,7 +107,10 @@ func deviceState(doc *preset.Document, modelled map[string]bool) *rig.DeviceStat
 // Only what the rig carries. A rig somebody typed has none of this, and the
 // untouched preset underneath keeps whatever it came with — which is the
 // right answer for a rig that was never lifted from anything.
-func restore(doc *preset.Document, state *rig.DeviceState) {
+func restore(
+	doc *preset.Document,
+	state *rig.DeviceState,
+) {
 	if state == nil {
 		return
 	}
@@ -144,7 +150,9 @@ func restore(doc *preset.Document, state *rig.DeviceState) {
 // A rig's snapshots replace them rather than merging: an untouched preset
 // carries three of its own, and keeping those beside a rig's would rebuild a
 // preset holding snapshots nobody made.
-func pruneSnapshots(doc *preset.Document) {
+func pruneSnapshots(
+	doc *preset.Document,
+) {
 	for key := range doc.Data.Tone {
 		if snapshotIndex(key) >= 0 {
 			delete(doc.Data.Tone, key)
@@ -153,12 +161,17 @@ func pruneSnapshots(doc *preset.Document) {
 }
 
 // pruneFootswitches drops what the preset being written into came with.
-func pruneFootswitches(doc *preset.Document) {
+func pruneFootswitches(
+	doc *preset.Document,
+) {
 	delete(doc.Data.Tone, footswitchKey)
 }
 
 // restoreTone puts back the entries that sit beside the processors.
-func restoreTone(doc *preset.Document, tone *map[string]json.RawMessage) {
+func restoreTone(
+	doc *preset.Document,
+	tone *map[string]json.RawMessage,
+) {
 	// Replace rather than merge. An untouched preset carries entries of its
 	// own — a Variax section, snapshots it was shipped with — and keeping
 	// those beside the rig's would rebuild a preset holding things the
@@ -194,7 +207,10 @@ func restoreTone(doc *preset.Document, tone *map[string]json.RawMessage) {
 // 98.6% of real presets carry inputs and outputs and one assembled from
 // nothing carries none, so a preset rebuilt without them routes differently
 // from the one it came from.
-func restoreRouting(doc *preset.Document, routing *map[string]json.RawMessage) {
+func restoreRouting(
+	doc *preset.Document,
+	routing *map[string]json.RawMessage,
+) {
 	// Replace rather than merge, for the same reason: a template routes a
 	// signal its own way, and a rig that names no split must not inherit one.
 	for key, entry := range doc.Data.Tone {
@@ -230,7 +246,9 @@ func restoreRouting(doc *preset.Document, routing *map[string]json.RawMessage) {
 }
 
 // isBlock reports whether a processor entry is a chain block.
-func isBlock(key string) bool {
+func isBlock(
+	key string,
+) bool {
 	rest, ok := strings.CutPrefix(key, blockPrefix)
 	if !ok || rest == "" {
 		return false
@@ -242,7 +260,10 @@ func isBlock(key string) bool {
 }
 
 // assign points a rig's optional map at one that has something in it.
-func assign(target **map[string]json.RawMessage, m map[string]json.RawMessage) {
+func assign(
+	target **map[string]json.RawMessage,
+	m map[string]json.RawMessage,
+) {
 	if len(m) == 0 {
 		return
 	}
@@ -251,7 +272,9 @@ func assign(target **map[string]json.RawMessage, m map[string]json.RawMessage) {
 }
 
 // rawMap copies a preset's own raw fields, or nothing when it carries none.
-func rawMap(m map[string]json.RawMessage) *map[string]json.RawMessage {
+func rawMap(
+	m map[string]json.RawMessage,
+) *map[string]json.RawMessage {
 	if len(m) == 0 {
 		return nil
 	}
@@ -268,7 +291,9 @@ func rawMap(m map[string]json.RawMessage) *map[string]json.RawMessage {
 //
 // The error is discarded because the only thing passed here is a number the
 // preset already parsed, and a number always marshals.
-func rawOf(v any) *json.RawMessage {
+func rawOf(
+	v any,
+) *json.RawMessage {
 	body, _ := json.Marshal(v)
 	out := json.RawMessage(body)
 
@@ -278,7 +303,9 @@ func rawOf(v any) *json.RawMessage {
 // mustRaw renders a tone entry as raw JSON.
 //
 // A tone entry is raw JSON already, so re-encoding it cannot fail.
-func mustRaw(t preset.Tone) json.RawMessage {
+func mustRaw(
+	t preset.Tone,
+) json.RawMessage {
 	body, _ := json.Marshal(t)
 
 	return body

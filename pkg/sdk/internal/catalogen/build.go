@@ -50,7 +50,9 @@ const DefaultResourcesDir = "/Applications/Line6/HX Edit.app/Contents/Resources"
 
 // sourceName describes where a catalog's models came from, as a release
 // somebody could go and check.
-func sourceName(opts Options) string {
+func sourceName(
+	opts Options,
+) string {
 	if opts.SourceName != defaultSourceName {
 		v := appVersion(opts.ResourcesDir)
 		if v == "" {
@@ -68,7 +70,9 @@ func sourceName(opts Options) string {
 // Exported because the staleness check asks the same question of the machine
 // it runs on: what would a catalog built right now say it came from, and does
 // the committed one agree.
-func SourceFor(resourcesDir string) string {
+func SourceFor(
+	resourcesDir string,
+) string {
 	v := appVersion(resourcesDir)
 	if v == "" {
 		return ""
@@ -91,7 +95,9 @@ const (
 // Models the device does not support are excluded. Line 6 states support per
 // model; a model that names no devices at all is taken as universal, which is
 // how their own data reads.
-func Build(opts Options) (*catalog.Catalog, error) {
+func Build(
+	opts Options,
+) (*catalog.Catalog, error) {
 	paths, err := filepath.Glob(filepath.Join(opts.ResourcesDir, "*.models"))
 	if err != nil {
 		return nil, fmt.Errorf("globbing model definitions: %w", err)
@@ -151,7 +157,9 @@ func Build(opts Options) (*catalog.Catalog, error) {
 }
 
 // readModels decodes one .models file.
-func readModels(path string) ([]wireModel, error) {
+func readModels(
+	path string,
+) ([]wireModel, error) {
 	raw, err := os.ReadFile(path) //nolint:gosec // a path this program globbed
 	if err != nil {
 		return nil, fmt.Errorf("reading %s: %w", filepath.Base(path), err)
@@ -172,7 +180,9 @@ func readModels(path string) ([]wireModel, error) {
 // choice, and the file is gitignored — a fresh clone that swallowed this
 // would generate a catalog where nothing resolves and say so only as
 // "0 mapped to real gear" halfway down a report.
-func loadGearMap(path string) (map[string]gearEntry, error) {
+func loadGearMap(
+	path string,
+) (map[string]gearEntry, error) {
 	if path == "" {
 		return map[string]gearEntry{}, nil
 	}
@@ -195,7 +205,10 @@ func loadGearMap(path string) (map[string]gearEntry, error) {
 // Line 6 lists supporting devices per model. A model listing none is taken as
 // universal rather than unsupported — that is how their data reads, and
 // excluding those would drop most of the catalog.
-func supports(m wireModel, deviceID int) bool {
+func supports(
+	m wireModel,
+	deviceID int,
+) bool {
 	if len(m.Devices) == 0 {
 		return true
 	}

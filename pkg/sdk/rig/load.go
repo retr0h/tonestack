@@ -33,7 +33,9 @@ import (
 // YAML, because a rig is written and corrected by hand and JSON is a poor
 // format to argue with. The schema is JSON Schema either way; sigs.k8s.io/yaml
 // converts, so the generated types need no second set of tags.
-func Load(r io.Reader) (Spec, error) {
+func Load(
+	r io.Reader,
+) (Spec, error) {
 	raw, err := io.ReadAll(r)
 	if err != nil {
 		return Spec{}, fmt.Errorf("reading rig: %w", err)
@@ -75,7 +77,10 @@ func Load(r io.Reader) (Spec, error) {
 //
 // Validated first: writing one that does not meet its own contract would put
 // a file into the world that nothing else will accept.
-func Write(w io.Writer, spec Spec) error {
+func Write(
+	w io.Writer,
+	spec Spec,
+) error {
 	if err := Validate(spec); err != nil {
 		return err
 	}

@@ -174,6 +174,8 @@ func (s *KeepTestSuite) TestReplacing() {
 	}
 }
 
-func TestKeepTestSuite(t *testing.T) {
+func TestKeepTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(KeepTestSuite))
 }

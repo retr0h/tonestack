@@ -109,6 +109,8 @@ func (s *AttachedPublicTestSuite) TestAttached() {
 	}
 }
 
-func TestAttachedPublicTestSuite(t *testing.T) {
+func TestAttachedPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(AttachedPublicTestSuite))
 }

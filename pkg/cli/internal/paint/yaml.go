@@ -34,7 +34,10 @@ import (
 //
 // Line by line rather than by parsing: what goes in is already valid, and
 // re-encoding it to paint it would be a second chance to change it.
-func YAML(w io.Writer, body string) string {
+func YAML(
+	w io.Writer,
+	body string,
+) string {
 	lines := strings.Split(body, "\n")
 	out := make([]string, 0, len(lines))
 
@@ -46,7 +49,10 @@ func YAML(w io.Writer, body string) string {
 }
 
 // paintLine paints one line of a document.
-func paintLine(w io.Writer, line string) string {
+func paintLine(
+	w io.Writer,
+	line string,
+) string {
 	indent := line[:len(line)-len(strings.TrimLeft(line, " "))]
 	rest := line[len(indent):]
 
@@ -72,7 +78,11 @@ func paintLine(w io.Writer, line string) string {
 // Top-level keys carry the accent because they are what somebody scans for;
 // everything nested under one is quieter, so the shape of the document reads
 // before the detail does.
-func paintValue(w io.Writer, s string, top bool) string {
+func paintValue(
+	w io.Writer,
+	s string,
+	top bool,
+) string {
 	key, value, ok := strings.Cut(s, ":")
 	if !ok {
 		return s
@@ -116,7 +126,10 @@ var lit = map[string]int{
 //
 // Reading `violet` is fine; seeing it is the difference between reading a rig
 // and recognising your own pedal.
-func swatch(w io.Writer, key, value string) string {
+func swatch(
+	w io.Writer,
+	key, value string,
+) string {
 	if strings.TrimSpace(key) != ledKey {
 		return value
 	}

@@ -46,7 +46,11 @@ func (s *HandshakePublicTestSuite) SetupTest() {
 }
 
 // answer encodes what a device replies to one transaction.
-func (s *HandshakePublicTestSuite) answer(txn uint64, status int, result any) []byte {
+func (s *HandshakePublicTestSuite) answer(
+	txn uint64,
+	status int,
+	result any,
+) []byte {
 	var buf bytes.Buffer
 
 	enc := msgpack.NewEncoder(&buf)
@@ -62,13 +66,21 @@ func (s *HandshakePublicTestSuite) answer(txn uint64, status int, result any) []
 }
 
 // reply frames an answer the way the device sends it.
-func (s *HandshakePublicTestSuite) reply(txn uint64, status int, result any) []byte {
+func (s *HandshakePublicTestSuite) reply(
+	txn uint64,
+	status int,
+	result any,
+) []byte {
 	return device.Reply(device.ControlChannel, s.answer(txn, status, result))
 }
 
 // replyOnData is the answer to a question about a preset document, which the
 // device takes on the data channel rather than the control one.
-func (s *HandshakePublicTestSuite) replyOnData(txn uint64, status int, result any) []byte {
+func (s *HandshakePublicTestSuite) replyOnData(
+	txn uint64,
+	status int,
+	result any,
+) []byte {
 	return device.Reply(device.DataChannel, s.answer(txn, status, result))
 }
 
@@ -464,6 +476,8 @@ func (s *HandshakePublicTestSuite) TestReadPreset() {
 	}
 }
 
-func TestHandshakeTestSuite(t *testing.T) {
+func TestHandshakeTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(HandshakePublicTestSuite))
 }

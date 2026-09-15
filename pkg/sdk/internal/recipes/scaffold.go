@@ -51,7 +51,10 @@ var (
 // copy is a whole rig and reads as one. That is deliberate. Inheritance would
 // mean the file on disk is not the rig that compiles, and this format is
 // meant to be read.
-func scaffold(parent, from string, opts NewOptions) string {
+func scaffold(
+	parent, from string,
+	opts NewOptions,
+) string {
 	body := parent
 
 	body = aliasesLine.ReplaceAllString(body, "")
@@ -77,7 +80,10 @@ func scaffold(parent, from string, opts NewOptions) string {
 }
 
 // header says what a reader of the copy needs to know before believing it.
-func header(from string, opts NewOptions) string {
+func header(
+	from string,
+	opts NewOptions,
+) string {
 	var b strings.Builder
 
 	fmt.Fprintf(&b, "# %s\n#\n", opts.ID)
@@ -98,7 +104,9 @@ func header(from string, opts NewOptions) string {
 //
 // The text rather than the decoded rig, because a copy keeps the comments and
 // decoding drops them.
-func findFile(dir, id string) (string, string, error) {
+func findFile(
+	dir, id string,
+) (string, string, error) {
 	// Somebody's own directory first, then the ones in the binary. Copying a
 	// shipped rig into a directory of your own is the common case, and it
 	// would not work if the parent had to live beside the copy.

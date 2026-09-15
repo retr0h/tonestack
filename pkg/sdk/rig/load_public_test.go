@@ -289,11 +289,19 @@ func (s *LoadPublicTestSuite) TestWrite() {
 
 type failingReader struct{}
 
-func (*failingReader) Read([]byte) (int, error) { return 0, errors.New("boom") }
+func (*failingReader) Read(
+	[]byte,
+) (int, error) {
+	return 0, errors.New("boom")
+}
 
 type failingWriter struct{}
 
-func (*failingWriter) Write([]byte) (int, error) { return 0, errors.New("boom") }
+func (*failingWriter) Write(
+	[]byte,
+) (int, error) {
+	return 0, errors.New("boom")
+}
 
 // TestTheContractAcceptsTheVersionThisPackageWrites keeps the constant and
 // the contract from drifting apart.
@@ -309,6 +317,8 @@ func (s *LoadPublicTestSuite) TestTheContractAcceptsTheVersionThisPackageWrites(
 	s.Require().NoError(err)
 }
 
-func TestLoadPublicTestSuite(t *testing.T) {
+func TestLoadPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(LoadPublicTestSuite))
 }

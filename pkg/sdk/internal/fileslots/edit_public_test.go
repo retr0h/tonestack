@@ -487,6 +487,8 @@ func (s *EditPublicTestSuite) TestImport() {
 	}
 }
 
-func TestEditPublicTestSuite(t *testing.T) {
+func TestEditPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(EditPublicTestSuite))
 }

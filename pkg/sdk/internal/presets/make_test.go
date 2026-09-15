@@ -62,6 +62,8 @@ func (s *MakeTestSuite) TestWrite() {
 	}
 }
 
-func TestMakeTestSuite(t *testing.T) {
+func TestMakeTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(MakeTestSuite))
 }

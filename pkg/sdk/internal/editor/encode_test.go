@@ -50,7 +50,9 @@ func (s *EncodeTestSuite) SetupSuite() {
 }
 
 // capture returns one slot as an HX Stomp actually sent it.
-func (s *EncodeTestSuite) capture(name string) []byte {
+func (s *EncodeTestSuite) capture(
+	name string,
+) []byte {
 	raw, err := os.ReadFile(
 		filepath.Join("..", "wire", "testdata", name))
 	s.Require().NoError(err)
@@ -429,6 +431,8 @@ func (s *EncodeTestSuite) TestTypesOf() {
 	s.Require().Nil(typesOf("HD2_NoSuchThing", s.cat))
 }
 
-func TestEncodeTestSuite(t *testing.T) {
+func TestEncodeTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(EncodeTestSuite))
 }

@@ -58,6 +58,8 @@ func (s *ValidateStructurePublicTestSuite) TestRejectsAnUnknownModel() {
 	s.Require().Equal("HD2_Nope", target.Model)
 }
 
-func TestValidateStructurePublicTestSuite(t *testing.T) {
+func TestValidateStructurePublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(ValidateStructurePublicTestSuite))
 }

@@ -113,6 +113,8 @@ func (s *EmbedPublicTestSuite) TestDecode() {
 	}
 }
 
-func TestEmbedPublicTestSuite(t *testing.T) {
+func TestEmbedPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(EmbedPublicTestSuite))
 }

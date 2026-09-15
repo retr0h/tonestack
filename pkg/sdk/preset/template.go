@@ -52,7 +52,9 @@ func Blank() (*Document, error) { return decodeBlank(blank) }
 // Separate from Blank so a damaged one can be exercised. The embedded copy is
 // a compile-time constant and cannot be broken at run time, but a build that
 // shipped a truncated one should say so rather than produce half a preset.
-func decodeBlank(raw []byte) (*Document, error) {
+func decodeBlank(
+	raw []byte,
+) (*Document, error) {
 	doc, err := Read(bytes.NewReader(raw))
 	if err != nil {
 		return nil, fmt.Errorf("reading the blank preset: %w", err)

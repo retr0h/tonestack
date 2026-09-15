@@ -39,7 +39,9 @@ type SlotsPublicTestSuite struct {
 	suite.Suite
 }
 
-func (s *SlotsPublicTestSuite) doc(name string) *setlist.Document {
+func (s *SlotsPublicTestSuite) doc(
+	name string,
+) *setlist.Document {
 	f, err := os.Open(filepath.Join("testdata", name)) //nolint:gosec // a test fixture
 	s.Require().NoError(err)
 
@@ -309,8 +311,14 @@ func (s *SlotsPublicTestSuite) TestWrite() {
 
 type failingWriter struct{}
 
-func (*failingWriter) Write([]byte) (int, error) { return 0, errors.New("boom") }
+func (*failingWriter) Write(
+	[]byte,
+) (int, error) {
+	return 0, errors.New("boom")
+}
 
-func TestSlotsPublicTestSuite(t *testing.T) {
+func TestSlotsPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(SlotsPublicTestSuite))
 }

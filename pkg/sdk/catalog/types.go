@@ -187,7 +187,9 @@ type Catalog struct {
 // A number this catalog does not reach keeps its number: a device on newer
 // firmware may know colours the release this was generated from did not, and
 // inventing a name for one would be worse than saying nothing.
-func (c *Catalog) LEDColour(n int) (string, bool) {
+func (c *Catalog) LEDColour(
+	n int,
+) (string, bool) {
 	if n < 0 || n >= len(c.LEDColours) {
 		return "", false
 	}
@@ -219,7 +221,9 @@ type Symbol struct {
 }
 
 // Symbol returns the model a device's own numbering names.
-func (c *Catalog) Symbol(n int) (Symbol, bool) {
+func (c *Catalog) Symbol(
+	n int,
+) (Symbol, bool) {
 	if n < 0 || n >= len(c.Symbols) {
 		return Symbol{}, false
 	}
@@ -234,7 +238,9 @@ func (c *Catalog) Symbol(n int) (Symbol, bool) {
 // so a catalog name can reach more than one symbol. The first is returned,
 // which is the mono one: the table lists them in that order and an HX Stomp
 // runs mono unless a preset asks otherwise.
-func (c *Catalog) SymbolNumber(id ModelID) (int, bool) {
+func (c *Catalog) SymbolNumber(
+	id ModelID,
+) (int, bool) {
 	// Most exact first: a name the table carries as it stands beats one it
 	// carries only with a suffix.
 	for _, suffix := range []string{"", "Mono", "Stereo"} {

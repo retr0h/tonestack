@@ -64,7 +64,9 @@ func (s *SplicePublicTestSuite) blocks() []byte {
 }
 
 // wrap builds the one-pair map {1: value}, so a row can supply any encoding.
-func (s *SplicePublicTestSuite) wrap(value []byte) []byte {
+func (s *SplicePublicTestSuite) wrap(
+	value []byte,
+) []byte {
 	return append([]byte{0x81, 0x01}, value...)
 }
 
@@ -482,6 +484,8 @@ func (s *SplicePublicTestSuite) TestLocate() {
 	}
 }
 
-func TestSplicePublicTestSuite(t *testing.T) {
+func TestSplicePublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(SplicePublicTestSuite))
 }

@@ -49,6 +49,8 @@ func (s *TemplateTestSuite) TestRefusesATemplateItCannotRead() {
 	}
 }
 
-func TestTemplateTestSuite(t *testing.T) {
+func TestTemplateTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(TemplateTestSuite))
 }

@@ -56,7 +56,10 @@ var ErrNoPresets = errors.New("no presets found")
 // The filter that does apply is the model: anything the target catalog does
 // not carry is skipped, because a statistic about a block this device lacks
 // could never be acted on.
-func Measure(opts Options, cat *catalog.Catalog) (*corpus.Stats, error) {
+func Measure(
+	opts Options,
+	cat *catalog.Catalog,
+) (*corpus.Stats, error) {
 	paths, err := find(opts.CorpusDir)
 	if err != nil {
 		return nil, err
@@ -83,7 +86,9 @@ func Measure(opts Options, cat *catalog.Catalog) (*corpus.Stats, error) {
 }
 
 // find lists every preset file under a directory.
-func find(dir string) ([]string, error) {
+func find(
+	dir string,
+) ([]string, error) {
 	var paths []string
 
 	err := filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
@@ -105,7 +110,9 @@ func find(dir string) ([]string, error) {
 }
 
 // read decodes one preset.
-func read(path string) (*preset.Document, error) {
+func read(
+	path string,
+) (*preset.Document, error) {
 	f, err := os.Open(path) //nolint:gosec // a path this package walked
 	if err != nil {
 		return nil, err
@@ -129,7 +136,9 @@ type measurer struct {
 }
 
 // newMeasurer returns a measurer ready to accumulate.
-func newMeasurer(cat *catalog.Catalog) *measurer {
+func newMeasurer(
+	cat *catalog.Catalog,
+) *measurer {
 	return &measurer{
 		cat:     cat,
 		uses:    map[catalog.ModelID]int{},
@@ -141,7 +150,9 @@ func newMeasurer(cat *catalog.Catalog) *measurer {
 }
 
 // add folds one preset into the running totals.
-func (m *measurer) add(doc *preset.Document) {
+func (m *measurer) add(
+	doc *preset.Document,
+) {
 	spec, err := doc.Spec()
 	if err != nil || len(spec.Blocks) == 0 {
 		return
@@ -166,7 +177,10 @@ func (m *measurer) add(doc *preset.Document) {
 // Booleans and enumerated strings are skipped. A median over an enumeration
 // is meaningless, and averaging a switch produces a value the device cannot
 // accept.
-func (m *measurer) record(id catalog.ModelID, params map[string]catalog.ParamValue) {
+func (m *measurer) record(
+	id catalog.ModelID,
+	params map[string]catalog.ParamValue,
+) {
 	for key, v := range params {
 		var f float64
 
@@ -189,7 +203,9 @@ func (m *measurer) record(id catalog.ModelID, params map[string]catalog.ParamVal
 }
 
 // grammarOf records what a chain contained and where, for its instrument.
-func (m *measurer) grammarOf(spec chain.Chain) {
+func (m *measurer) grammarOf(
+	spec chain.Chain,
+) {
 	instrument, ampAt, ok := m.instrumentOf(spec)
 	if !ok {
 		return
@@ -247,7 +263,9 @@ func (m *measurer) grammarOf(spec chain.Chain) {
 // The amp is the thing everything else is positioned around, so it is not
 // counted as a neighbour of itself. Plumbing is excluded because a volume
 // block in 93% of chains says nothing about how anybody builds a tone.
-func tonal(c catalog.Category) bool {
+func tonal(
+	c catalog.Category,
+) bool {
 	return c != catalog.CategoryAmp && c != catalog.CategoryUtility
 }
 
@@ -256,7 +274,9 @@ func tonal(c catalog.Category) bool {
 //
 // A chain with no amp says nothing about ordering, because there is nothing to
 // order around.
-func (m *measurer) instrumentOf(spec chain.Chain) (string, int, bool) {
+func (m *measurer) instrumentOf(
+	spec chain.Chain,
+) (string, int, bool) {
 	for i, b := range spec.Blocks {
 		blk, known := m.cat.Block(b.Model)
 		if !known || blk.Category != catalog.CategoryAmp {
@@ -275,7 +295,9 @@ func (m *measurer) instrumentOf(spec chain.Chain) (string, int, bool) {
 }
 
 // reduce turns the accumulated observations into quartiles.
-func (m *measurer) reduce(minSamples int) *corpus.Stats {
+func (m *measurer) reduce(
+	minSamples int,
+) *corpus.Stats {
 	out := &corpus.Stats{
 		Device:   m.cat.Device,
 		DeviceID: m.cat.DeviceID,
@@ -318,7 +340,9 @@ func (m *measurer) reduce(minSamples int) *corpus.Stats {
 }
 
 // quartiles reduces a sample to the three figures worth keeping.
-func quartiles(vals sample) corpus.ParamStats {
+func quartiles(
+	vals sample,
+) corpus.ParamStats {
 	sort.Float64s(vals)
 
 	return corpus.ParamStats{
@@ -336,7 +360,9 @@ func quartiles(vals sample) corpus.ParamStats {
 // picked. Keeping that noise would put a value in a generated preset that
 // differs from Line 6's own by a hundred-millionth and reads as though it
 // were measured to that precision.
-func round(v float64) float64 {
+func round(
+	v float64,
+) float64 {
 	return math.Round(v*precision) / precision
 }
 
@@ -349,6 +375,9 @@ const precision = 1000
 // No bounds check: the quantiles asked for here top out at 0.75, so the index
 // is always inside the sample. A guard against a case that cannot arise would
 // be a branch no test can reach.
-func at(sorted sample, q float64) float64 {
+func at(
+	sorted sample,
+	q float64,
+) float64 {
 	return sorted[int(float64(len(sorted))*q)]
 }

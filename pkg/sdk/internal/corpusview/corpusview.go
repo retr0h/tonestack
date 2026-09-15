@@ -104,7 +104,9 @@ func Chains(
 }
 
 // open reads statistics, falling back to the ones in this binary.
-func open(path string) (*corpus.Stats, error) {
+func open(
+	path string,
+) (*corpus.Stats, error) {
 	if path == "" {
 		return corpus.BuiltIn()
 	}

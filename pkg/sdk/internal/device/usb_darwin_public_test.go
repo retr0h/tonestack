@@ -68,6 +68,8 @@ func (s *USBDarwinPublicTestSuite) TestSearch() {
 	s.Require().Zero(n)
 }
 
-func TestUSBDarwinPublicTestSuite(t *testing.T) {
+func TestUSBDarwinPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(USBDarwinPublicTestSuite))
 }

@@ -59,7 +59,9 @@ func dump(
 //
 // Anything else is a decoded document, and JSON is the readable way to keep
 // one.
-func bytesOf(got any) ([]byte, error) {
+func bytesOf(
+	got any,
+) ([]byte, error) {
 	switch v := got.(type) {
 	case string:
 		return []byte(v), nil

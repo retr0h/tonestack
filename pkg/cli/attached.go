@@ -30,7 +30,10 @@ import (
 )
 
 // Attached prints what is on the bus, one device to a row.
-func Attached(w io.Writer, a sdk.Attached) error {
+func Attached(
+	w io.Writer,
+	a sdk.Attached,
+) error {
 	rows := make([][]string, 0, len(a.Devices))
 
 	for _, d := range a.Devices {

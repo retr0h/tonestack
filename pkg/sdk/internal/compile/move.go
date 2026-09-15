@@ -209,7 +209,10 @@ func move(
 //
 // The first, because a chain may hold two reverbs and a word is one opinion:
 // spreading it over both would be two opinions nobody expressed.
-func indexOf(blocks []catalog.Block, want catalog.Category) int {
+func indexOf(
+	blocks []catalog.Block,
+	want catalog.Category,
+) int {
 	for i, b := range blocks {
 		if b.Category == want {
 			return i
@@ -271,7 +274,9 @@ func step(
 }
 
 // clamp keeps a value inside what the device accepts.
-func clamp(v, lo, hi float64) float64 {
+func clamp(
+	v, lo, hi float64,
+) float64 {
 	switch {
 	case v < lo:
 		return lo
@@ -283,7 +288,9 @@ func clamp(v, lo, hi float64) float64 {
 }
 
 // termsOf reads the words a rig describes itself with, in the order written.
-func termsOf(spec rig.Spec) []string {
+func termsOf(
+	spec rig.Spec,
+) []string {
 	if spec.Character == nil {
 		return nil
 	}
@@ -297,7 +304,9 @@ func termsOf(spec rig.Spec) []string {
 }
 
 // contested finds the axes a rig spoke for more than once.
-func contested(terms []string) map[string]bool {
+func contested(
+	terms []string,
+) map[string]bool {
 	seen := map[string]int{}
 
 	for _, term := range terms {

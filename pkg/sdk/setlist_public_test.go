@@ -310,7 +310,9 @@ func orBackground(
 	return ctx
 }
 
-func TestSetlistPublicTestSuite(t *testing.T) {
+func TestSetlistPublicTestSuite(
+	t *testing.T,
+) {
 	t.Parallel()
 
 	suite.Run(t, new(SetlistPublicTestSuite))

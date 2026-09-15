@@ -164,7 +164,9 @@ func (s *RoundTripPublicTestSuite) TestTheWholeCorpusSurvivesIt() {
 // A fresh read, because lowering writes the chain into a document rather than
 // building one: routing, snapshots and controller assignments are whatever
 // the file already held.
-func (s *RoundTripPublicTestSuite) roundTrip(path string) []byte {
+func (s *RoundTripPublicTestSuite) roundTrip(
+	path string,
+) []byte {
 	raw := s.read(path)
 
 	back, err := preset.Read(bytes.NewReader(raw))
@@ -179,7 +181,9 @@ func (s *RoundTripPublicTestSuite) roundTrip(path string) []byte {
 // This is the claim that matters. Lowering into the preset a rig came from
 // proves little — routing and snapshots survive because nobody removed them.
 // A rig that reaches somebody else arrives on its own.
-func (s *RoundTripPublicTestSuite) fromNothing(path string) []byte {
+func (s *RoundTripPublicTestSuite) fromNothing(
+	path string,
+) []byte {
 	blank, err := preset.Blank()
 	s.Require().NoError(err)
 
@@ -192,7 +196,9 @@ func (s *RoundTripPublicTestSuite) fromNothing(path string) []byte {
 // writes: such a field survives .hlx to .hlx because the preset underneath
 // still holds it, and disappears here because the rig is all there is. Both
 // rigs must say the same thing.
-func (s *RoundTripPublicTestSuite) backAgain(raw []byte) (string, string) {
+func (s *RoundTripPublicTestSuite) backAgain(
+	raw []byte,
+) (string, string) {
 	from, err := preset.Read(bytes.NewReader(raw))
 	s.Require().NoError(err)
 
@@ -215,7 +221,9 @@ func (s *RoundTripPublicTestSuite) backAgain(raw []byte) (string, string) {
 // Go sorts a map's keys when it encodes JSON; the YAML writer orders them
 // differently for the same content, which would make this test fail over how
 // a document was laid out rather than over what it says.
-func (s *RoundTripPublicTestSuite) marshal(spec rig.Spec) string {
+func (s *RoundTripPublicTestSuite) marshal(
+	spec rig.Spec,
+) string {
 	body, err := json.Marshal(spec)
 	s.Require().NoError(err)
 
@@ -223,7 +231,10 @@ func (s *RoundTripPublicTestSuite) marshal(spec rig.Spec) string {
 }
 
 // through lifts raw to a rig and lowers that rig into doc.
-func (s *RoundTripPublicTestSuite) through(raw []byte, doc *preset.Document) []byte {
+func (s *RoundTripPublicTestSuite) through(
+	raw []byte,
+	doc *preset.Document,
+) []byte {
 	from, err := preset.Read(bytes.NewReader(raw))
 	s.Require().NoError(err)
 
@@ -240,7 +251,9 @@ func (s *RoundTripPublicTestSuite) through(raw []byte, doc *preset.Document) []b
 
 // canonical re-encodes JSON with sorted keys and no whitespace, so two
 // documents saying the same thing compare equal whatever their layout.
-func (s *RoundTripPublicTestSuite) canonical(raw []byte) string {
+func (s *RoundTripPublicTestSuite) canonical(
+	raw []byte,
+) string {
 	var v any
 	s.Require().NoError(json.Unmarshal(raw, &v))
 
@@ -250,7 +263,9 @@ func (s *RoundTripPublicTestSuite) canonical(raw []byte) string {
 	return string(out)
 }
 
-func (s *RoundTripPublicTestSuite) read(path string) []byte {
+func (s *RoundTripPublicTestSuite) read(
+	path string,
+) []byte {
 	raw, err := os.ReadFile(path) //nolint:gosec // a path this suite walked
 	s.Require().NoError(err)
 
@@ -284,6 +299,8 @@ func (s *RoundTripPublicTestSuite) corpus() []string {
 	return found
 }
 
-func TestRoundTripPublicTestSuite(t *testing.T) {
+func TestRoundTripPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(RoundTripPublicTestSuite))
 }

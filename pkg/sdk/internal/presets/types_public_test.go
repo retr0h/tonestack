@@ -51,7 +51,9 @@ func (s *TypesPublicTestSuite) SetupTest() { s.ctrl = gomock.NewController(s.T()
 func (s *TypesPublicTestSuite) TearDownTest() { s.ctrl.Finish() }
 
 // options names a build that would succeed on the real collaborators.
-func (s *TypesPublicTestSuite) options(deps presets.Deps) presets.MakeOptions {
+func (s *TypesPublicTestSuite) options(
+	deps presets.Deps,
+) presets.MakeOptions {
 	return presets.MakeOptions{
 		Deps:       deps,
 		RecipeID:   "mike-dirnt",
@@ -97,6 +99,8 @@ func (s *TypesPublicTestSuite) TestCompiler() {
 	s.Require().ErrorIs(err, want)
 }
 
-func TestTypesPublicTestSuite(t *testing.T) {
+func TestTypesPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(TypesPublicTestSuite))
 }

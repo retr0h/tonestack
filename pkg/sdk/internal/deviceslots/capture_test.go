@@ -147,6 +147,8 @@ func (s *CaptureTestSuite) TestDump() {
 }
 
 // TestDescribe says what arrived when nothing here can decode it.
-func TestCaptureTestSuite(t *testing.T) {
+func TestCaptureTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(CaptureTestSuite))
 }

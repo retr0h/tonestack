@@ -113,7 +113,9 @@ func Make(
 
 // openStats reads measured statistics, falling back to the ones in this
 // binary.
-func openStats(path string) (*corpus.Stats, error) {
+func openStats(
+	path string,
+) (*corpus.Stats, error) {
 	if path == "" {
 		return corpus.BuiltIn()
 	}
@@ -135,7 +137,10 @@ func openStats(path string) (*corpus.Stats, error) {
 // device expects inputs, outputs, a split and a join around a chain, and
 // 98.6% of real presets carry them. One built without them is unlike anything
 // the hardware has ever written.
-func build(deviceID int, spec chain.Chain) *preset.Document {
+func build(
+	deviceID int,
+	spec chain.Chain,
+) *preset.Document {
 	// The blank is embedded and covered by its own test, so reading it cannot
 	// fail here. SetSpec refuses a parameter named like a block attribute,
 	// and a resolved chain cannot hold one because the catalog excludes them.
@@ -170,7 +175,9 @@ func write(
 // the preset nothing, and a build that stopped over a word would be refusing
 // somebody the right to describe a sound in their own words. The rigs this
 // project ships are held to the list by a test instead.
-func unfamiliar(rec rig.Spec) []result.Unfamiliar {
+func unfamiliar(
+	rec rig.Spec,
+) []result.Unfamiliar {
 	unknown := compile.CheckCharacter(rec)
 
 	out := make([]result.Unfamiliar, 0, len(unknown))
@@ -182,7 +189,9 @@ func unfamiliar(rec rig.Spec) []result.Unfamiliar {
 }
 
 // addedFrom says what went into the chain that the recipe did not name.
-func addedFrom(added []compile.Added) []result.Added {
+func addedFrom(
+	added []compile.Added,
+) []result.Added {
 	out := make([]result.Added, 0, len(added))
 	for _, a := range added {
 		out = append(out, result.Added{
@@ -196,7 +205,9 @@ func addedFrom(added []compile.Added) []result.Added {
 }
 
 // movedFrom says which words turned which knobs.
-func movedFrom(moved []compile.Moved) []result.Moved {
+func movedFrom(
+	moved []compile.Moved,
+) []result.Moved {
 	out := make([]result.Moved, 0, len(moved))
 	for _, m := range moved {
 		out = append(out, result.Moved{

@@ -292,6 +292,8 @@ func (s *BackupPublicTestSuite) TestKeep() {
 	}
 }
 
-func TestBackupPublicTestSuite(t *testing.T) {
+func TestBackupPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(BackupPublicTestSuite))
 }

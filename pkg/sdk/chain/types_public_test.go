@@ -78,6 +78,8 @@ func (s *RigPublicTestSuite) TestHXStompLimitsAreTheDocumentedCeilings() {
 		"the ceiling is a percentage, matching how Line 6 states a block's cost")
 }
 
-func TestRigPublicTestSuite(t *testing.T) {
+func TestRigPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(RigPublicTestSuite))
 }

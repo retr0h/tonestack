@@ -111,6 +111,8 @@ func (s *FormatPublicTestSuite) TestFlag() {
 	}
 }
 
-func TestFormatPublicTestSuite(t *testing.T) {
+func TestFormatPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(FormatPublicTestSuite))
 }

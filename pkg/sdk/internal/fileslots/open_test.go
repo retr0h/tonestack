@@ -69,6 +69,8 @@ func (s *OpenTestSuite) TestSave() {
 	}
 }
 
-func TestOpenTestSuite(t *testing.T) {
+func TestOpenTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(OpenTestSuite))
 }

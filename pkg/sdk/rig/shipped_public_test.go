@@ -85,6 +85,8 @@ func (s *ShippedPublicTestSuite) TestEveryExampleLoads() {
 	}
 }
 
-func TestShippedPublicTestSuite(t *testing.T) {
+func TestShippedPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(ShippedPublicTestSuite))
 }

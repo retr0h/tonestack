@@ -54,7 +54,9 @@ type Refreshed struct {
 // The directory itself is committed, holding the script that fetches the
 // presets and the list of where they come from. So an empty one is the usual
 // case on a fresh checkout, and skips the same as a missing one.
-func Refresh(opts Options) (Refreshed, error) {
+func Refresh(
+	opts Options,
+) (Refreshed, error) {
 	skipped := Refreshed{
 		Path:    opts.OutputPath,
 		Skipped: "no corpus presets in " + opts.CorpusDir + ", run resources/schemas/corpus/fetch.sh",

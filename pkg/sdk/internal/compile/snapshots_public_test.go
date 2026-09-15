@@ -48,7 +48,9 @@ func (s *SnapshotsPublicTestSuite) SetupSuite() {
 }
 
 // presetWith returns a document holding the given tone entries.
-func (s *SnapshotsPublicTestSuite) presetWith(entries map[string]string) *preset.Document {
+func (s *SnapshotsPublicTestSuite) presetWith(
+	entries map[string]string,
+) *preset.Document {
 	doc, err := preset.Blank()
 	s.Require().NoError(err)
 
@@ -206,6 +208,8 @@ func (s *SnapshotsPublicTestSuite) TestLowerSnapshots() {
 	}
 }
 
-func TestSnapshotsPublicTestSuite(t *testing.T) {
+func TestSnapshotsPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(SnapshotsPublicTestSuite))
 }

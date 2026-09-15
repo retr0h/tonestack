@@ -89,6 +89,8 @@ func (s *MatchPublicTestSuite) TestAModelThatEmulatesNothingStillMatchesByName()
 	s.Require().True(b.Matches("Line 6 Original"))
 }
 
-func TestMatchPublicTestSuite(t *testing.T) {
+func TestMatchPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(MatchPublicTestSuite))
 }

@@ -47,7 +47,10 @@ func (s *LiftPublicTestSuite) SetupSuite() {
 }
 
 // preset builds a document holding one block of the given model.
-func (s *LiftPublicTestSuite) preset(name string, models ...catalog.ModelID) *preset.Document {
+func (s *LiftPublicTestSuite) preset(
+	name string,
+	models ...catalog.ModelID,
+) *preset.Document {
 	blocks := make([]chain.Block, 0, len(models))
 	for i, m := range models {
 		blocks = append(blocks, chain.Block{Model: m, Pos: i, Enabled: true})
@@ -73,7 +76,11 @@ func (s *LiftPublicTestSuite) catalogOf(
 }
 
 // rigOf returns a valid rig naming one piece of gear.
-func rigOf(id, gear string, inst rig.Instrument, params *map[string]any) rig.Spec {
+func rigOf(
+	id, gear string,
+	inst rig.Instrument,
+	params *map[string]any,
+) rig.Spec {
 	return rig.Spec{
 		Schema:     rig.SchemaName,
 		ID:         id,
@@ -250,7 +257,10 @@ func (s *LiftPublicTestSuite) TestLift() {
 }
 
 // withSwitch puts one footswitch on a rig, lit the given colour.
-func withSwitch(spec rig.Spec, led string) rig.Spec {
+func withSwitch(
+	spec rig.Spec,
+	led string,
+) rig.Spec {
 	spec.Footswitches = &[]rig.Footswitch{{Led: &led}}
 
 	return spec
@@ -258,7 +268,10 @@ func withSwitch(spec rig.Spec, led string) rig.Spec {
 
 // TestLower writes a rig into a preset.
 // substituted says what to put in place of the gear a rig names.
-func substituted(spec rig.Spec, instead string) rig.Spec {
+func substituted(
+	spec rig.Spec,
+	instead string,
+) rig.Spec {
 	spec.Chain[0].Substitute = &rig.Substitute{Gear: instead}
 
 	return spec
@@ -494,6 +507,8 @@ func (s *LiftPublicTestSuite) TestLowerPicksTheSameModelEveryTime() {
 	s.Require().Equal(catalog.CategoryAmp, b.Category)
 }
 
-func TestLiftPublicTestSuite(t *testing.T) {
+func TestLiftPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(LiftPublicTestSuite))
 }

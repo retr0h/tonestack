@@ -71,7 +71,9 @@ func (s *WirePublicTestSuite) TestEncodeEnvelope() {
 }
 
 // strip removes the spaces used to group a hex fixture.
-func strip(in string) string {
+func strip(
+	in string,
+) string {
 	out := make([]byte, 0, len(in))
 
 	for i := range len(in) {
@@ -221,6 +223,8 @@ func (s *WirePublicTestSuite) TestReadEnvelope() {
 	}
 }
 
-func TestWirePublicTestSuite(t *testing.T) {
+func TestWirePublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(WirePublicTestSuite))
 }

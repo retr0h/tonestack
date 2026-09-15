@@ -154,7 +154,9 @@ func (s *EditDevicePublicTestSuite) elsewhere() []wire.Preset {
 }
 
 // backupDir returns somewhere a backup can go, or somewhere it cannot.
-func (s *EditDevicePublicTestSuite) backupDir(bad bool) string {
+func (s *EditDevicePublicTestSuite) backupDir(
+	bad bool,
+) string {
 	dir := s.T().TempDir()
 	if !bad {
 		return dir
@@ -169,7 +171,10 @@ func (s *EditDevicePublicTestSuite) backupDir(bad bool) string {
 }
 
 // expectListing sets up the listing every edit starts from.
-func (s *EditDevicePublicTestSuite) expectListing(reader *mocks.MockEditor, ok bool) {
+func (s *EditDevicePublicTestSuite) expectListing(
+	reader *mocks.MockEditor,
+	ok bool,
+) {
 	if !ok {
 		reader.EXPECT().Presets(gomock.Any(), 0).Return(nil, errors.New("boom"))
 
@@ -652,6 +657,8 @@ func (s *EditDevicePublicTestSuite) TestSwap() {
 	}
 }
 
-func TestEditDevicePublicTestSuite(t *testing.T) {
+func TestEditDevicePublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(EditDevicePublicTestSuite))
 }

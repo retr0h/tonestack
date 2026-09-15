@@ -48,7 +48,9 @@ const DefaultDir = "pkg/sdk/rigs"
 //
 // A file that does not satisfy the contract stops the walk: a half-read
 // knowledge base is worse than a clear complaint about the file to fix.
-func Load(dir string) ([]rig.Spec, error) {
+func Load(
+	dir string,
+) ([]rig.Spec, error) {
 	// No directory means the recipes that ship in the binary, which is the
 	// case for anyone who has not written their own.
 	if dir == "" {
@@ -60,7 +62,10 @@ func Load(dir string) ([]rig.Spec, error) {
 
 // loadFS reads every rig under root, wherever that filesystem comes from.
 // name says where that is, for a directory that cannot be read.
-func loadFS(fsys fs.FS, root, name string) ([]rig.Spec, error) {
+func loadFS(
+	fsys fs.FS,
+	root, name string,
+) ([]rig.Spec, error) {
 	// Glob drops a directory it cannot read, which would make one nobody may
 	// open look like one holding no recipes. A directory that is not there is
 	// different: nobody has written a recipe into it yet.
@@ -94,7 +99,10 @@ func loadFS(fsys fs.FS, root, name string) ([]rig.Spec, error) {
 
 // decode parses one rig, naming the file it came from when it will not parse.
 // A recipe is hand-written, so the name is the useful half of the message.
-func decode(raw []byte, name string) (rig.Spec, error) {
+func decode(
+	raw []byte,
+	name string,
+) (rig.Spec, error) {
 	spec, err := rig.Load(bytes.NewReader(raw))
 	if err != nil {
 		return rig.Spec{}, fmt.Errorf("%s: %w", filepath.Base(name), err)
@@ -104,7 +112,9 @@ func decode(raw []byte, name string) (rig.Spec, error) {
 }
 
 // Find returns the rig with the given identifier, or one of its aliases.
-func Find(dir, id string) (rig.Spec, error) {
+func Find(
+	dir, id string,
+) (rig.Spec, error) {
 	all, err := Load(dir)
 	if err != nil {
 		return rig.Spec{}, err
@@ -114,7 +124,10 @@ func Find(dir, id string) (rig.Spec, error) {
 }
 
 // find picks one rig out of a set already read.
-func find(all []rig.Spec, id string) (rig.Spec, error) {
+func find(
+	all []rig.Spec,
+	id string,
+) (rig.Spec, error) {
 	for _, spec := range all {
 		if strings.EqualFold(spec.ID, id) || matchesAlias(spec, id) {
 			return spec, nil
@@ -125,7 +138,10 @@ func find(all []rig.Spec, id string) (rig.Spec, error) {
 }
 
 // matchesAlias reports whether id is one of the rig's other names.
-func matchesAlias(spec rig.Spec, id string) bool {
+func matchesAlias(
+	spec rig.Spec,
+	id string,
+) bool {
 	if spec.Aliases == nil {
 		return false
 	}
@@ -146,7 +162,10 @@ func matchesAlias(spec rig.Spec, id string) bool {
 // a spine they may not share. A rig that genuinely is a small change says so
 // with `extends`, and this is the other end of that link: reading the
 // characteristic rig should show what departs from it.
-func departures(all []rig.Spec, spec rig.Spec) []result.Variant {
+func departures(
+	all []rig.Spec,
+	spec rig.Spec,
+) []result.Variant {
 	out := []result.Variant(nil)
 
 	for _, other := range all {
@@ -161,7 +180,9 @@ func departures(all []rig.Spec, spec rig.Spec) []result.Variant {
 }
 
 // List reads every rig under dir.
-func List(dir string) (result.Recipes, error) {
+func List(
+	dir string,
+) (result.Recipes, error) {
 	all, err := Load(dir)
 	if err != nil {
 		return result.Recipes{}, err
@@ -171,7 +192,9 @@ func List(dir string) (result.Recipes, error) {
 }
 
 // Show reads one rig, and what the rest of the set says about it.
-func Show(dir, id string) (result.Recipe, error) {
+func Show(
+	dir, id string,
+) (result.Recipe, error) {
 	all, err := Load(dir)
 	if err != nil {
 		return result.Recipe{}, err

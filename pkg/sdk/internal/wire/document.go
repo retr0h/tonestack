@@ -68,7 +68,9 @@ type Document struct {
 }
 
 // decodeDocument reads a preset without interpreting it.
-func decodeDocument(raw []byte) (*Document, error) {
+func decodeDocument(
+	raw []byte,
+) (*Document, error) {
 	dec := msgpack.NewDecoder(bytes.NewReader(raw))
 
 	magic, err := decodeRawString(dec)
@@ -112,7 +114,9 @@ func decodeDocument(raw []byte) (*Document, error) {
 }
 
 // Section returns one section's bytes, or nothing when the preset has none.
-func (d *Document) Section(key int8) (msgpack.RawMessage, bool) {
+func (d *Document) Section(
+	key int8,
+) (msgpack.RawMessage, bool) {
 	body, ok := d.sections[key]
 
 	return body, ok
@@ -122,7 +126,10 @@ func (d *Document) Section(key int8) (msgpack.RawMessage, bool) {
 //
 // A section the preset did not have is added at the end, which is where a
 // device puts one it did not have either.
-func (d *Document) SetSection(key int8, body msgpack.RawMessage) {
+func (d *Document) SetSection(
+	key int8,
+	body msgpack.RawMessage,
+) {
 	if _, ok := d.sections[key]; !ok {
 		d.order = append(d.order, key)
 	}
@@ -160,7 +167,10 @@ func (d *Document) Encode() []byte {
 }
 
 // offsets builds the table pointing at where each section landed.
-func (d *Document) offsets(at map[int8]int, start, size int) []byte {
+func (d *Document) offsets(
+	at map[int8]int,
+	start, size int,
+) []byte {
 	table := make([]byte, len(d.table))
 
 	// The first offset is the map itself, and the last two are the end.
@@ -181,12 +191,17 @@ func (d *Document) offsets(at map[int8]int, start, size int) []byte {
 }
 
 // put writes one offset.
-func put(table []byte, i, v int) {
+func put(
+	table []byte,
+	i, v int,
+) {
 	binary.LittleEndian.PutUint32(table[i*4:], uint32(v))
 }
 
 // header renders the two values a preset opens with.
-func header(magic, table []byte) []byte {
+func header(
+	magic, table []byte,
+) []byte {
 	var out bytes.Buffer
 
 	out.Write(strHeader(len(magic)))
@@ -205,7 +220,9 @@ const magicHeader = "l6-helix\x00"
 // A preset's magic and offset table are carried in MessagePack's string type
 // and neither is text. Decoding them as strings would mangle every byte above
 // 0x7f.
-func decodeRawString(dec *msgpack.Decoder) ([]byte, error) {
+func decodeRawString(
+	dec *msgpack.Decoder,
+) ([]byte, error) {
 	raw, err := dec.DecodeRaw()
 	if err != nil {
 		return nil, err
@@ -229,7 +246,9 @@ func decodeRawString(dec *msgpack.Decoder) ([]byte, error) {
 // Only two strings go through here: the nine-byte magic, which is a fixstr,
 // and the 48-byte offset table, which the device writes as a str16 where an
 // encoder would choose str8. One byte of difference there moves every offset.
-func strHeader(n int) []byte {
+func strHeader(
+	n int,
+) []byte {
 	if n < 32 {
 		return []byte{byte(0xa0 | n)}
 	}
@@ -238,7 +257,9 @@ func strHeader(n int) []byte {
 }
 
 // mapHeader renders a map's length the way the device writes it.
-func mapHeader(n int) []byte {
+func mapHeader(
+	n int,
+) []byte {
 	if n < 16 {
 		return []byte{byte(0x80 | n)}
 	}

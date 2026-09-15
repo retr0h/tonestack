@@ -42,6 +42,8 @@ func (s *ErrorsPublicTestSuite) TestNotAPresetError() {
 	s.Require().ErrorIs(err, preset.ErrNotAPreset)
 }
 
-func TestErrorsPublicTestSuite(t *testing.T) {
+func TestErrorsPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(ErrorsPublicTestSuite))
 }

@@ -37,7 +37,9 @@ type ScaffoldPublicTestSuite struct {
 }
 
 // parent writes a rig for a copy to be made from.
-func (s *ScaffoldPublicTestSuite) parent(dir string) {
+func (s *ScaffoldPublicTestSuite) parent(
+	dir string,
+) {
 	artists := filepath.Join(dir, "artists")
 	s.Require().NoError(os.MkdirAll(artists, 0o750))
 	s.Require().NoError(os.WriteFile(
@@ -204,6 +206,8 @@ func (s *ScaffoldPublicTestSuite) TestNewFrom() {
 	}
 }
 
-func TestScaffoldPublicTestSuite(t *testing.T) {
+func TestScaffoldPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(ScaffoldPublicTestSuite))
 }

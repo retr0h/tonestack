@@ -165,6 +165,8 @@ func (s *WritesPublicTestSuite) TestPresetsSwap() {
 	})
 }
 
-func TestWritesPublicTestSuite(t *testing.T) {
+func TestWritesPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(WritesPublicTestSuite))
 }

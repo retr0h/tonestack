@@ -39,7 +39,10 @@ type Lister interface {
 
 // ListWith reports every device the lister returns and this package
 // recognises. Taking the lister makes this testable without hardware.
-func ListWith(ctx context.Context, l Lister) (result.Attached, error) {
+func ListWith(
+	ctx context.Context,
+	l Lister,
+) (result.Attached, error) {
 	found, err := device.Devices(ctx, l)
 	if err != nil {
 		return result.Attached{}, fmt.Errorf("finding devices: %w", err)

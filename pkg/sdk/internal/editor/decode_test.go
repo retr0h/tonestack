@@ -235,7 +235,10 @@ func (s *DecodeTestSuite) TestChainOf() {
 }
 
 // indexOf finds where a model sits in the device's own table.
-func indexOf(cat *catalog.Catalog, id catalog.ModelID) int {
+func indexOf(
+	cat *catalog.Catalog,
+	id catalog.ModelID,
+) int {
 	for i, sym := range cat.Symbols {
 		if sym.ID == id {
 			return i
@@ -283,6 +286,8 @@ func (s *DecodeTestSuite) TestMicAttr() {
 	}
 }
 
-func TestDecodeTestSuite(t *testing.T) {
+func TestDecodeTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(DecodeTestSuite))
 }

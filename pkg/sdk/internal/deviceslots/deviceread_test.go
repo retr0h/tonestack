@@ -338,6 +338,8 @@ func (s *DeviceReadTestSuite) TestARigReadOffTheDeviceRebuildsItsRouting() {
 	s.Require().Contains(got, `"@model": "HD2_AppDSPFlowJoin"`)
 }
 
-func TestDeviceReadTestSuite(t *testing.T) {
+func TestDeviceReadTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(DeviceReadTestSuite))
 }

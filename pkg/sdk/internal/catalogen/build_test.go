@@ -300,6 +300,8 @@ func (s *BuildTestSuite) TestBuildReportsWhatItCannotRead() {
 	}
 }
 
-func TestBuildTestSuite(t *testing.T) {
+func TestBuildTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(BuildTestSuite))
 }

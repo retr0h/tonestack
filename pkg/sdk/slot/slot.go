@@ -35,7 +35,9 @@ import (
 const perBank = 3
 
 // Label renders a position the way the hardware labels it — 01A through 42C.
-func Label(slot int) string {
+func Label(
+	slot int,
+) string {
 	return fmt.Sprintf("%02d%c", slot/perBank+1, rune('A'+slot%perBank))
 }
 
@@ -44,7 +46,9 @@ func Label(slot int) string {
 // A label is what somebody has in front of them, and it is what this project
 // prints, so refusing it would mean printing addresses nothing accepts. A bare
 // number stays valid because scripts count.
-func parse(s string) (int, error) {
+func parse(
+	s string,
+) (int, error) {
 	s = strings.TrimSpace(s)
 	if s == "" {
 		return 0, fmt.Errorf("%w: no slot given", ErrBadSlot)

@@ -192,6 +192,8 @@ func (s *ValidateBudgetPublicTestSuite) TestCostAndCeilingShareUnits() {
 		"the ceiling must admit at least one amp")
 }
 
-func TestValidateBudgetPublicTestSuite(t *testing.T) {
+func TestValidateBudgetPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(ValidateBudgetPublicTestSuite))
 }

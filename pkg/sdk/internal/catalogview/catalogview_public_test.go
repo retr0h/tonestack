@@ -279,6 +279,8 @@ func (s *CatalogViewPublicTestSuite) TestNotFoundError() {
 	s.Require().ErrorIs(err, catalogview.ErrNotFound)
 }
 
-func TestCatalogViewPublicTestSuite(t *testing.T) {
+func TestCatalogViewPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(CatalogViewPublicTestSuite))
 }

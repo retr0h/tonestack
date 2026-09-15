@@ -53,7 +53,10 @@ func (s *SelectPublicTestSuite) SetupTest() {
 }
 
 // status is the device answering with one status and nothing else.
-func (s *SelectPublicTestSuite) status(txn uint64, status int) []byte {
+func (s *SelectPublicTestSuite) status(
+	txn uint64,
+	status int,
+) []byte {
 	var buf bytes.Buffer
 
 	enc := msgpack.NewEncoder(&buf)
@@ -67,7 +70,10 @@ func (s *SelectPublicTestSuite) status(txn uint64, status int) []byte {
 }
 
 // document is the device answering with a preset.
-func (s *SelectPublicTestSuite) document(txn uint64, body string) []byte {
+func (s *SelectPublicTestSuite) document(
+	txn uint64,
+	body string,
+) []byte {
 	var buf bytes.Buffer
 
 	enc := msgpack.NewEncoder(&buf)
@@ -83,7 +89,9 @@ func (s *SelectPublicTestSuite) document(txn uint64, body string) []byte {
 }
 
 // took is the device saying it has taken a request.
-func (s *SelectPublicTestSuite) took(txn uint64) []byte {
+func (s *SelectPublicTestSuite) took(
+	txn uint64,
+) []byte {
 	var buf bytes.Buffer
 
 	enc := msgpack.NewEncoder(&buf)
@@ -97,7 +105,10 @@ func (s *SelectPublicTestSuite) took(txn uint64) []byte {
 }
 
 // playing is the device saying which preset it has loaded.
-func (s *SelectPublicTestSuite) playing(txn uint64, setlist, slot int) []byte {
+func (s *SelectPublicTestSuite) playing(
+	txn uint64,
+	setlist, slot int,
+) []byte {
 	var buf bytes.Buffer
 
 	enc := msgpack.NewEncoder(&buf)
@@ -346,6 +357,8 @@ func (s *SelectPublicTestSuite) TestReadCurrent() {
 	}
 }
 
-func TestSelectTestSuite(t *testing.T) {
+func TestSelectTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(SelectPublicTestSuite))
 }

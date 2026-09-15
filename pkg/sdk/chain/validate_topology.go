@@ -32,7 +32,10 @@ import (
 // processor that are not the contiguous run 0..n-1.
 //
 // It needs no catalog — every question it answers is about the rig alone.
-func ValidateTopology(s Chain, lim Limits) error {
+func ValidateTopology(
+	s Chain,
+	lim Limits,
+) error {
 	if len(s.Blocks) == 0 {
 		return &TopologyError{Reason: "rig has no blocks"}
 	}
@@ -92,7 +95,9 @@ func ValidateTopology(s Chain, lim Limits) error {
 	return validateSnapshots(s)
 }
 
-func validateSnapshots(s Chain) error {
+func validateSnapshots(
+	s Chain,
+) error {
 	if len(s.Snapshots) == 0 {
 		return nil
 	}

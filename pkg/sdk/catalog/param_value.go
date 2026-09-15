@@ -28,16 +28,32 @@ import (
 )
 
 // Float returns a ParamValue holding v.
-func Float(v float64) ParamValue { return ParamValue{typ: ParamFloat, f: v} }
+func Float(
+	v float64,
+) ParamValue {
+	return ParamValue{typ: ParamFloat, f: v}
+}
 
 // Int returns a ParamValue holding v.
-func Int(v int64) ParamValue { return ParamValue{typ: ParamInt, i: v} }
+func Int(
+	v int64,
+) ParamValue {
+	return ParamValue{typ: ParamInt, i: v}
+}
 
 // Bool returns a ParamValue holding v.
-func Bool(v bool) ParamValue { return ParamValue{typ: ParamBool, b: v} }
+func Bool(
+	v bool,
+) ParamValue {
+	return ParamValue{typ: ParamBool, b: v}
+}
 
 // Enum returns a ParamValue holding the enumerated member v.
-func Enum(v string) ParamValue { return ParamValue{typ: ParamEnum, s: v} }
+func Enum(
+	v string,
+) ParamValue {
+	return ParamValue{typ: ParamEnum, s: v}
+}
 
 // Type reports the kind held, or the empty ParamType for a zero value.
 func (v ParamValue) Type() ParamType { return v.typ }
@@ -108,7 +124,9 @@ func (v ParamValue) MarshalJSON() ([]byte, error) {
 // UnmarshalJSON infers the kind from the JSON literal. A number whose literal
 // carries no '.', 'e' or 'E' is an integer; any other number is a float. JSON
 // alone cannot distinguish 5 from 5.0 once decoded, so the literal decides.
-func (v *ParamValue) UnmarshalJSON(b []byte) error {
+func (v *ParamValue) UnmarshalJSON(
+	b []byte,
+) error {
 	s := strings.TrimSpace(string(b))
 	if s == "" {
 		return fmt.Errorf("%w: empty value", ErrBadParam)
@@ -139,7 +157,10 @@ func (v *ParamValue) UnmarshalJSON(b []byte) error {
 	}
 }
 
-func (v *ParamValue) unmarshalNumber(b []byte, lit string) error {
+func (v *ParamValue) unmarshalNumber(
+	b []byte,
+	lit string,
+) error {
 	if !strings.ContainsAny(lit, ".eE") {
 		var i int64
 		if err := json.Unmarshal(b, &i); err != nil {

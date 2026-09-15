@@ -38,7 +38,9 @@ type RecipePublicTestSuite struct {
 
 // rig builds a rig carrying everything a person can write down, so a test
 // about rendering one is not also a test about what a rig must hold.
-func rigWith(mutate func(*rig.Spec)) rig.Spec {
+func rigWith(
+	mutate func(*rig.Spec),
+) rig.Spec {
 	v := rig.SpecVersion(2)
 	band := "Green Day"
 	era := "Dookie through American Idiot"
@@ -327,6 +329,8 @@ func (s *RecipePublicTestSuite) TestScaffolded() {
 	}
 }
 
-func TestRecipePublicTestSuite(t *testing.T) {
+func TestRecipePublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(RecipePublicTestSuite))
 }

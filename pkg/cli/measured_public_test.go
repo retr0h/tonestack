@@ -203,6 +203,8 @@ func (s *MeasuredPublicTestSuite) TestMeasuredDoesNotShuffle() {
 	}
 }
 
-func TestMeasuredPublicTestSuite(t *testing.T) {
+func TestMeasuredPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(MeasuredPublicTestSuite))
 }

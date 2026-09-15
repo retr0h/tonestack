@@ -30,10 +30,16 @@ type Value struct {
 }
 
 // NewValue returns a flag writing into target.
-func NewValue(target *int) *Value { return &Value{target: target} }
+func NewValue(
+	target *int,
+) *Value {
+	return &Value{target: target}
+}
 
 // Set parses a label or an index.
-func (v *Value) Set(s string) error {
+func (v *Value) Set(
+	s string,
+) error {
 	n, err := parse(s)
 	if err != nil {
 		return err

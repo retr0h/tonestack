@@ -36,7 +36,9 @@ import (
 // A .hls and a .hlb differ only in what the payload holds, so both arrive as
 // a Document carrying one or more setlists and callers address a slot the
 // same way either way.
-func Read(r io.Reader) (*Document, error) {
+func Read(
+	r io.Reader,
+) (*Document, error) {
 	var env envelope
 	if err := json.NewDecoder(r).Decode(&env); err != nil {
 		return nil, fmt.Errorf("decoding setlist: %w", err)
@@ -67,7 +69,9 @@ func Read(r io.Reader) (*Document, error) {
 // The check is worth making: a truncated download decompresses to something
 // that fails to parse thousands of lines later, and the error it produces
 // names a JSON offset rather than the actual problem.
-func decodePayload(env envelope) ([]byte, error) {
+func decodePayload(
+	env envelope,
+) ([]byte, error) {
 	packed, err := base64.StdEncoding.DecodeString(env.EncodedData)
 	if err != nil {
 		return nil, fmt.Errorf("decoding encoded_data: %w", err)
@@ -109,7 +113,10 @@ func decodePayload(env envelope) ([]byte, error) {
 }
 
 // decodeSetlists parses the payload according to the schema that wrapped it.
-func decodeSetlists(schema string, raw []byte) ([]Setlist, error) {
+func decodeSetlists(
+	schema string,
+	raw []byte,
+) ([]Setlist, error) {
 	if schema == schemaBundle {
 		var p payloadBundle
 		if err := json.Unmarshal(raw, &p); err != nil {
@@ -135,7 +142,9 @@ func decodeSetlists(schema string, raw []byte) ([]Setlist, error) {
 // Slot returns the preset at an address.
 //
 // Slots are addressed the way the device numbers them, from zero.
-func (d *Document) Slot(setlist, slot int) (*preset.Data, error) {
+func (d *Document) Slot(
+	setlist, slot int,
+) (*preset.Data, error) {
 	if setlist < 0 || setlist >= len(d.Setlists) {
 		return nil, &NoSuchSlotError{
 			Setlist: setlist, Slot: slot, Have: 0,

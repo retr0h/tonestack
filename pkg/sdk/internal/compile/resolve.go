@@ -165,7 +165,9 @@ func character(
 // catalog it is Line 6's residual bucket. Reading the first as the second
 // would search a handful of blocks for gear that is almost certainly filed
 // somewhere else, so an unnamed role searches everything.
-func categoryFor(role rig.Role) catalog.Category {
+func categoryFor(
+	role rig.Role,
+) catalog.Category {
 	if role == "" || role == rig.RoleOther {
 		return ""
 	}
@@ -178,7 +180,10 @@ func categoryFor(role rig.Role) catalog.Category {
 // Line 6 state a cablink for most amps: the cabinet the model was voiced
 // with. A chain that ended up without a cabinet is better served by that than
 // by whatever the catalog happens to list first.
-func impliedCab(cat *catalog.Catalog, blocks []catalog.Block) *catalog.Block {
+func impliedCab(
+	cat *catalog.Catalog,
+	blocks []catalog.Block,
+) *catalog.Block {
 	for _, b := range blocks {
 		if b.Category == catalog.CategoryCab {
 			return nil
@@ -263,7 +268,9 @@ func findGear(
 // The chosen block is reported when a preset is built, so an ambiguity a
 // person cares about is visible and can be settled by naming the channel in
 // the recipe.
-func closer(a, b catalog.Block) bool {
+func closer(
+	a, b catalog.Block,
+) bool {
 	if len(a.BasedOn) != len(b.BasedOn) {
 		return len(a.BasedOn) < len(b.BasedOn)
 	}
@@ -272,7 +279,12 @@ func closer(a, b catalog.Block) bool {
 }
 
 // eligible reports whether a block could be the gear being looked for.
-func eligible(b catalog.Block, want string, category catalog.Category, instrument string) bool {
+func eligible(
+	b catalog.Block,
+	want string,
+	category catalog.Category,
+	instrument string,
+) bool {
 	if catalog.NeedsUserIR(b.ID) {
 		return false
 	}
@@ -296,12 +308,16 @@ func eligible(b catalog.Block, want string, category catalog.Category, instrumen
 
 // isInstrumentTag reports whether a subcategory names an instrument rather
 // than a routing shape such as "Mono, Stereo".
-func isInstrumentTag(sub string) bool {
+func isInstrumentTag(
+	sub string,
+) bool {
 	return strings.EqualFold(sub, "guitar") || strings.EqualFold(sub, "bass")
 }
 
 // kindOf names a category for an error message.
-func kindOf(c catalog.Category) string {
+func kindOf(
+	c catalog.Category,
+) string {
 	if c == "" {
 		return "block"
 	}
@@ -338,7 +354,11 @@ func specFor(
 //
 // Line 6 states each block's cost as a percentage of one processor, so a chain
 // that overflows is not a preset anyone can load.
-func Fit(spec chain.Chain, cat *catalog.Catalog, lim chain.Limits) chain.Chain {
+func Fit(
+	spec chain.Chain,
+	cat *catalog.Catalog,
+	lim chain.Limits,
+) chain.Chain {
 	used := 0.0
 
 	for i := range spec.Blocks {
@@ -371,7 +391,9 @@ func Fit(spec chain.Chain, cat *catalog.Catalog, lim chain.Limits) chain.Chain {
 }
 
 // renumber gives each processor a contiguous run of positions.
-func renumber(spec chain.Chain) chain.Chain {
+func renumber(
+	spec chain.Chain,
+) chain.Chain {
 	next := map[int]int{}
 
 	for i := range spec.Blocks {

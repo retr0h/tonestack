@@ -229,6 +229,8 @@ func (s *RegisterPublicTestSuite) TestRegister() {
 	}
 }
 
-func TestRegisterPublicTestSuite(t *testing.T) {
+func TestRegisterPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(RegisterPublicTestSuite))
 }

@@ -30,7 +30,10 @@ import (
 )
 
 // Write encodes a preset file.
-func Write(w io.Writer, d *Document) error {
+func Write(
+	w io.Writer,
+	d *Document,
+) error {
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
 
@@ -106,7 +109,9 @@ const processorPrefix = "dsp"
 
 // isBlockKey reports whether a tone entry is a chain block rather than
 // routing.
-func isBlockKey(k string) bool {
+func isBlockKey(
+	k string,
+) bool {
 	if len(k) <= len("block") || k[:len("block")] != "block" {
 		return false
 	}
@@ -118,7 +123,9 @@ func isBlockKey(k string) bool {
 
 // encodeBlock renders one block as the device writes it: @-prefixed
 // attributes alongside parameters, each parameter in its own kind.
-func encodeBlock(b chain.Block) (json.RawMessage, error) {
+func encodeBlock(
+	b chain.Block,
+) (json.RawMessage, error) {
 	fields := map[string]any{
 		attrModel:   string(b.Model),
 		attrEnabled: b.Enabled,
@@ -158,7 +165,10 @@ func encodeBlock(b chain.Block) (json.RawMessage, error) {
 }
 
 // New returns a document for a device, carrying spec.
-func New(deviceID int, spec chain.Chain) (*Document, error) {
+func New(
+	deviceID int,
+	spec chain.Chain,
+) (*Document, error) {
 	d := &Document{
 		Schema:  Schema,
 		Version: Version,

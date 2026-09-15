@@ -35,7 +35,9 @@ type ReadPublicTestSuite struct {
 	suite.Suite
 }
 
-func (s *ReadPublicTestSuite) read(name string) (*setlist.Document, error) {
+func (s *ReadPublicTestSuite) read(
+	name string,
+) (*setlist.Document, error) {
 	f, err := os.Open(filepath.Join("testdata", name)) //nolint:gosec // a test fixture
 	s.Require().NoError(err)
 
@@ -222,6 +224,8 @@ func (s *ReadPublicTestSuite) TestRoundTrip() {
 	}
 }
 
-func TestReadPublicTestSuite(t *testing.T) {
+func TestReadPublicTestSuite(
+	t *testing.T,
+) {
 	suite.Run(t, new(ReadPublicTestSuite))
 }
