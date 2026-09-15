@@ -1,6 +1,9 @@
 # An MCP server
 
-**Status:** accepted, built\
+**Status:** accepted, built. Superseded in part by
+[SDK sessions and options](2026-09-14-sdk-sessions-and-options-design.md): one
+device call at a time is now the Session's lock, and the server holds a Session
+between calls.\
 **Scope:** `pkg/mcp`, `pkg/mcp/internal`, and a `tonestack mcp` command\
 **Builds on:**
 [The SDK is the library](2026-09-10-the-sdk-is-the-library-design.md)

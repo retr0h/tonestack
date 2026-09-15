@@ -38,6 +38,22 @@ type bus interface {
 	Close() error
 }
 
+// buses is where an Opener gets a bus from.
+//
+// A field of the Opener rather than a package variable, so a test hands one
+// its own bus instead of swapping the only line that reaches hardware.
+type buses interface {
+	// Bus returns a bus to look at.
+	Bus() bus
+}
+
+// usbBuses is the source that reaches hardware.
+type usbBuses struct{}
+
+// Bus is the only line in this package that reaches hardware; everything
+// below takes what it was given.
+func (usbBuses) Bus() bus { return openUSB() }
+
 // handle is one open device.
 type handle interface {
 	// Descriptor is what the device says it is, without opening anything.
@@ -56,20 +72,17 @@ type endpoints interface {
 	In() (receiver, error)
 }
 
-// newBus is how a bus is obtained, so a test can stand in for it.
-//
-// The only line in this package that reaches hardware; everything below takes
-// what it was given.
-var newBus = openUSB
-
 // open starts a session over the given bus, tracing its frames to trace.
 //
 // The bus is closed on failure and handed to the session on success, because
-// a session holds it open for as long as it is talking.
+// a session holds it open for as long as it is talking. The loop starts after
+// the claim and before the handshake, so a read is posted before the device
+// is first spoken to.
 func open(
 	ctx context.Context,
 	b bus,
 	trace io.Writer,
+	budgets budgets,
 ) (Editor, error) {
 	dev, model, err := findDevice(b)
 	if err != nil {
@@ -79,21 +92,23 @@ func open(
 		return nil, err
 	}
 
-	s := &session{
-		holds: []releaser{dev, b},
-		trace: trace,
-		model: model,
-		chans: map[string]*channel{},
-	}
+	s := newSession(nil, nil, trace, model, budgets)
+	s.holds = []releaser{dev, b}
 
 	if err := s.claim(dev); err != nil {
-		s.Close()
+		// Nothing was said and the loop never started, so Close only gives
+		// back what was taken, and has no loop error to report.
+		_ = s.Close()
 
 		return nil, err
 	}
 
+	s.start()
+
 	if err := s.handshake(ctx); err != nil {
-		s.Close()
+		// The handshake's failure is what the caller needs. Whatever Close
+		// adds is the same bus failing again, and the trace carries it.
+		_ = s.Close()
 
 		return nil, err
 	}
@@ -159,7 +174,9 @@ func findDevice(
 // like startup noise until reconnecting without it fails on roughly every
 // other attempt: the device carries channel state across connections, and the
 // release is what clears it.
-func (s *session) claim(dev handle) error {
+func (s *session) claim(
+	dev handle,
+) error {
 	_, release, err := claimOnce(dev)
 	if err != nil {
 		return err
@@ -186,7 +203,9 @@ func (s *session) claim(dev handle) error {
 }
 
 // claimOnce takes the interface, waiting while it is busy.
-func claimOnce(dev handle) (endpoints, func(), error) {
+func claimOnce(
+	dev handle,
+) (endpoints, func(), error) {
 	var (
 		ends    endpoints
 		release func()

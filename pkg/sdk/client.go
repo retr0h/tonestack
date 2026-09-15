@@ -52,6 +52,10 @@ type Client struct {
 	// mu guards cat, the catalog opened on first use.
 	mu  sync.Mutex
 	cat *catalog.Catalog
+
+	// claim is held by the Session this Client has open. One slot: a
+	// second Open waits for it.
+	claim chan struct{}
 }
 
 // options are what New was given.
@@ -149,7 +153,7 @@ func New(
 		o.devices = device.NewUSB(o.trace)
 	}
 
-	return &Client{opts: o}
+	return &Client{opts: o, claim: make(chan struct{}, 1)}
 }
 
 // Catalog is the catalog this Client names gear against.

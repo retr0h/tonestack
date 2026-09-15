@@ -36,7 +36,6 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk/internal/device"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/device/mocks"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/slots"
-	slotmocks "github.com/retr0h/tonestack/pkg/sdk/internal/slots/mocks"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/wire"
 	"github.com/retr0h/tonestack/pkg/sdk/preset"
 )
@@ -59,7 +58,7 @@ type writable struct {
 	*mocks.MockWriter
 }
 
-func (w *writable) Close() {}
+func (w *writable) Close() error { return nil }
 
 func (s *ImportDevicePublicTestSuite) SetupTest() {
 	s.ctrl = gomock.NewController(s.T())
@@ -323,63 +322,6 @@ func (s *ImportDevicePublicTestSuite) TestImportWith() {
 			s.Require().NotEmpty(got.Blocks, "the file's chain reached the device")
 			s.Require().Len(got.Snapshots, 3, "and the snapshots came with it")
 			s.Require().NotEmpty(got.Routing, "and the routing the blank carried")
-		})
-	}
-}
-
-// TestImportDevice covers the entry point somebody actually runs.
-//
-// One line: find a session, hand it on, release it. The only line in this
-// file that needs hardware, so the session is stood in for.
-func (s *ImportDevicePublicTestSuite) TestImportDevice() {
-	tests := []struct {
-		name     string
-		attached bool
-		contains string
-		errText  string
-	}{
-		{name: "a device on the bus", attached: true, contains: "written"},
-		{name: "nothing on the bus", errText: "nothing on the bus"},
-	}
-
-	for _, tt := range tests {
-		s.Run(tt.name, func() {
-			devices := slotmocks.NewMockOpener(s.ctrl)
-
-			if tt.attached {
-				// The destination is named and read first, so what it held
-				// is kept under the name it had.
-				s.dev.MockEditor.EXPECT().Presets(gomock.Any(), 0).
-					Return(nil, nil)
-				s.dev.MockEditor.EXPECT().
-					ReadPreset(gomock.Any(), 0, 7).
-					Return(nil, nil)
-
-				s.dev.MockWriter.EXPECT().
-					WriteNamedPreset(
-						gomock.Any(), gomock.Any(), gomock.Any(),
-						gomock.Any(), gomock.Any()).
-					Return(nil)
-
-				devices.EXPECT().Open(gomock.Any()).Return(s.dev, nil)
-			} else {
-				devices.EXPECT().Open(gomock.Any()).
-					Return(nil, errors.New("nothing on the bus"))
-			}
-
-			change, err := slots.ImportDevice(s.T().Context(), devices,
-				slots.ImportOptions{
-					File: s.preset(), Slot: 7, BackupDir: s.T().TempDir(),
-				})
-
-			if tt.errText != "" {
-				s.Require().ErrorContains(err, tt.errText)
-
-				return
-			}
-
-			s.Require().NoError(err)
-			s.Require().Contains(did(change), tt.contains)
 		})
 	}
 }

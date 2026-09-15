@@ -29,22 +29,6 @@ import (
 	slotpkg "github.com/retr0h/tonestack/pkg/sdk/slot"
 )
 
-// SelectDevice makes one preset the active one on an attached device.
-func SelectDevice(
-	ctx context.Context,
-	devices Opener,
-	opts DeviceOptions,
-) (result.Change, error) {
-	s, err := devices.Open(ctx)
-	if err != nil {
-		return result.Change{}, err
-	}
-
-	defer s.Close()
-
-	return SelectWith(ctx, s, opts)
-}
-
 // SelectWith makes one preset the active one on the given session.
 //
 // The device loads it and starts making that sound. Nothing is written: a

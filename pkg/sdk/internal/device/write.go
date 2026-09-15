@@ -24,7 +24,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/retr0h/tonestack/pkg/sdk/internal/wire"
 )
@@ -57,13 +56,10 @@ const (
 // cycled.
 const streamChunk = 256
 
-// commitBudget is how long a device is given to finish a write.
-//
-// A write answers immediately to say it was accepted and reports finishing
-// later. Treating the first answer as the end races the next write against a
-// commit still running, which a device tolerates about a dozen times before
-// it stops accepting writes.
-var commitBudget = 10 * time.Second
+// errUnacked is a chunk the device never acknowledged: the pace budget ran
+// out waiting for its own channel's acknowledgement count to move, so
+// nothing more of the message was sent.
+var errUnacked = errors.New("the device did not acknowledge the chunk")
 
 // WritePreset puts a document into a slot.
 //
@@ -112,47 +108,29 @@ func (s *session) write(
 	opcode uint64,
 	args []wire.Arg,
 ) error {
-	// Before anything is sent. Afterwards the message is finished whatever
-	// happens: a device fed half a message and then a burst is the stall
-	// docs/protocol.md describes.
+	// Before anything is sent. Afterwards a caller who stops waiting does not
+	// stop it: only the device does, by taking each chunk or by going quiet
+	// long enough that pace ends the session, so this call's tail never
+	// overlaps the next one's head.
 	if err := ctx.Err(); err != nil {
 		return err
 	}
 
-	c, ok := s.chans[channelData]
-	if !ok {
-		return fmt.Errorf("no %s channel", channelData)
-	}
-
-	txn := c.txn
-	c.txn++
-
-	body := wire.EncodeEnvelope(wire.Envelope{
-		Originator: wire.FromHost,
-		Service:    2,
-		Body:       wire.EncodeRequest(wire.Request{Txn: txn, Opcode: opcode, Args: args}),
-	})
-
-	// A write that has started finishes, and its answer is read, whoever
-	// stops waiting; the next operation is the one that sees the
-	// cancellation. The message itself carries no deadline at all: a budget
-	// that ran out between chunks would leave the device holding half of it.
-	// It is finite regardless, one bounded read per chunk.
-	if err := s.stream(context.WithoutCancel(ctx), c, body); err != nil {
+	c, err := s.channel(channelData)
+	if err != nil {
 		return err
 	}
 
-	// The commit budget bounds the wait for the answer, and only that. A call
-	// gets the shorter reply budget; a write answers once it has committed,
-	// and giving up sooner races the next write against a commit still
-	// running.
-	if _, err := s.awaitReply(
-		context.WithoutCancel(ctx), c, txn, opcode, commitBudget); err != nil {
-		// Detached from the caller, so silence here is the budget running out.
-		if errors.Is(err, errNoReply) {
-			return fmt.Errorf("%w, the commit budget: %w", err, context.DeadlineExceeded)
-		}
+	// In flight from the first chunk through the flash pause, so the idle
+	// acknowledgement sends nothing on any channel inside the window a device
+	// punishes.
+	if err := s.begin(); err != nil {
+		return err
+	}
 
+	defer s.finish()
+
+	if err := s.commit(ctx, c, opcode, args); err != nil {
 		return err
 	}
 
@@ -162,12 +140,54 @@ func (s *session) write(
 	// answers nothing for ten seconds while the preset it just wrote sits in
 	// the slot. tonepush sends the same message as a plain request and sleeps
 	// for the flash, which is what settle is.
-	//
-	// Both 0 and 1 have been seen for a write that landed, and neither says
-	// anything about the erase, so either is success. Any other status fails
-	// in awaitReply, which reads it through wire.Response.Err: 255 is a
-	// refusal, and anything else is a status nobody has seen.
-	settle()
+	s.settle()
+
+	return nil
+}
+
+// commit is the exchange a write is: the message, then its answer.
+//
+// Both 0 and 1 have been seen for a write that landed, and neither says
+// anything about the erase, so either is success. Any other status fails in
+// awaitReply, which reads it through wire.Response.Err: 255 is a refusal, and
+// anything else is a status nobody has seen.
+func (s *session) commit(
+	ctx context.Context,
+	c *channel,
+	opcode uint64,
+	args []wire.Arg,
+) error {
+	txn := s.nextTxn(c)
+
+	body := wire.EncodeEnvelope(wire.Envelope{
+		Originator: wire.FromHost,
+		Service:    2,
+		Body:       wire.EncodeRequest(wire.Request{Txn: txn, Opcode: opcode, Args: args}),
+	})
+
+	// A write that has started finishes, and its answer is read, whoever
+	// stops waiting; the next operation is the one that sees the
+	// cancellation. Between chunks the message is bounded regardless: the
+	// pace budget is what stops it if the device goes quiet, and running out
+	// ends the session rather than leave the data channel holding half a
+	// message for a later call to feed a fresh request into.
+	if err := s.stream(c, body); err != nil {
+		return err
+	}
+
+	// The commit budget bounds the wait for the answer, and only that. A call
+	// gets the shorter reply budget; a write answers once it has committed,
+	// and giving up sooner races the next write against a commit still
+	// running.
+	if _, err := s.awaitReply(
+		context.WithoutCancel(ctx), c, txn, opcode, s.budgets.commit); err != nil {
+		// Detached from the caller, so silence here is the budget running out.
+		if errors.Is(err, errNoReply) {
+			return fmt.Errorf("%w, the commit budget: %w", err, context.DeadlineExceeded)
+		}
+
+		return err
+	}
 
 	return nil
 }
@@ -178,38 +198,47 @@ func (s *session) write(
 // and program that follow are not on the wire at all. A second write landing
 // inside that window stacks its commit on the first. tonepush waits the same
 // 750ms, and a restore writes preset after preset without it going wrong.
-func settle() { time.Sleep(flashBudget) }
-
-// flashBudget is how long that takes.
-var flashBudget = 750 * time.Millisecond
-
-// stream sends a message in the size a device takes, reading between frames
-// so it can pace the sender.
 //
-// Only a failed send stops it. See the read below.
+// A wait on a timer, not a sleep of the only reader: the loop goes on reading
+// throughout.
+func (s *session) settle() {
+	<-s.after(s.budgets.flash)
+}
+
+// stream sends a message in the size a device takes, waiting for the
+// device's own acknowledgement between frames so it can pace the sender.
+//
+// Between frames, not after the last one: a device that has more to say says
+// it now, and one with nothing to say costs the pace budget. No chunk goes
+// out without the device's acknowledgement of the one before it: a hardware
+// trace showed a chunk released by a frame on another channel, not its own
+// acknowledgement, and every chunk sent after it stalled the endpoint. So a
+// pace that cannot get one stops the message where it is, rather than
+// sending the rest blind.
 func (s *session) stream(
-	ctx context.Context,
 	c *channel,
 	body []byte,
 ) error {
+	total := len(body)
+	sent := 0
+
 	for len(body) > 0 {
 		n := min(len(body), streamChunk)
+		mark := c.acked()
 
 		if err := s.send(c, wire.MsgData, body[:n]); err != nil {
 			return err
 		}
 
+		sent += n
 		body = body[n:]
 
-		// Between frames, not after the last one: a device that has more to
-		// say says it now, and one with nothing to say costs a timeout.
-		//
-		// A failed read is ignored. The read only paces the sender, and a
-		// message that has started must go out whole: a device left holding
-		// half of one is the stall docs/protocol.md describes. A bus that has
-		// really gone fails the next send, which does stop the message.
 		if len(body) > 0 {
-			_, _ = s.receive(ctx, replyReadWait)
+			if err := s.pace(c, mark); err != nil {
+				return fmt.Errorf(
+					"the device stopped taking the message after %d of %d bytes: %w",
+					sent, total, err)
+			}
 		}
 	}
 

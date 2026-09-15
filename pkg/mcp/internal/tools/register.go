@@ -23,7 +23,9 @@ package tools
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"reflect"
+	"time"
 
 	"github.com/google/jsonschema-go/jsonschema"
 	gomcp "github.com/modelcontextprotocol/go-sdk/mcp"
@@ -35,9 +37,9 @@ import (
 // handlers holds what every tool shares.
 type handlers struct {
 	client Client
-	// device is taken by any tool that reaches the pedal, so two calls
-	// never claim the editor interface at once.
-	device chan struct{}
+	// pedal holds a Session across the tools that reach the pedal, and
+	// keeps two calls from claiming the editor interface at once.
+	pedal *pedal
 	// allowWrites is whether the server was started with --allow-writes. It
 	// decides which tools are offered, and whether a file already on disk
 	// may be written over.
@@ -49,12 +51,26 @@ type handlers struct {
 // The tools that write to a pedal are added only when allowWrites is true, and
 // without it no tool writes over a file already on disk. A device has no undo,
 // nor does a file, and whoever starts the server decides.
+//
+// It returns what holds the pedal between device calls. Closing it lets the
+// pedal go, and whoever runs the server closes it when the server stops.
 func Register(
 	s *gomcp.Server,
 	c Client,
 	allowWrites bool,
-) {
-	h := &handlers{client: c, device: make(chan struct{}, 1), allowWrites: allowWrites}
+) io.Closer {
+	return register(s, c, allowWrites, idleClose)
+}
+
+// register is Register, with how long the pedal stays held after a device
+// call.
+func register(
+	s *gomcp.Server,
+	c Client,
+	allowWrites bool,
+	idle time.Duration,
+) io.Closer {
+	h := &handlers{client: c, pedal: newPedal(c, idle), allowWrites: allowWrites}
 
 	gomcp.AddTool(s, &gomcp.Tool{
 		Name:         "catalog_search",
@@ -124,7 +140,7 @@ func Register(
 	}, h.presetSelect)
 
 	if !allowWrites {
-		return
+		return h.pedal
 	}
 
 	gomcp.AddTool(s, &gomcp.Tool{
@@ -145,6 +161,8 @@ func Register(
 		Annotations:  destructive(),
 		OutputSchema: mustOutputSchema[sdk.Change](),
 	}, h.presetsSwap)
+
+	return h.pedal
 }
 
 // mustOutputSchema infers T's output schema, correcting the types whose JSON

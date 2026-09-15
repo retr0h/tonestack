@@ -26,23 +26,24 @@ import (
 	gomcp "github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/retr0h/tonestack/pkg/sdk"
+	"github.com/retr0h/tonestack/pkg/sdk/slot"
 )
 
 // slotsOf reads both ends of a copy or a swap.
 func slotsOf(
 	in Move,
-) (int, int, error) {
+) (slot.Address, slot.Address, error) {
 	from, err := slotOf(in.From)
 	if err != nil {
-		return 0, 0, err
+		return slot.Address{}, slot.Address{}, err
 	}
 
 	to, err := slotOf(in.To)
 	if err != nil {
-		return 0, 0, err
+		return slot.Address{}, slot.Address{}, err
 	}
 
-	return from, to, nil
+	return slot.Address{Slot: from}, slot.Address{Slot: to}, nil
 }
 
 func (h *handlers) presetImport(
@@ -55,11 +56,9 @@ func (h *handlers) presetImport(
 		return nil, sdk.Change{}, err
 	}
 
-	change, err := onDevice(
-		ctx,
-		h,
-		func() (sdk.Change, error) { return h.client.Import(ctx, sdk.Put{File: in.Preset, Slot: n}) },
-	)
+	change, err := onPedal(ctx, h.pedal, func(s Session) (sdk.Change, error) {
+		return s.Import(ctx, in.Preset, slot.Address{Slot: n})
+	})
 	if err != nil {
 		return nil, sdk.Change{}, err
 	}
@@ -77,11 +76,9 @@ func (h *handlers) presetsCopy(
 		return nil, sdk.Change{}, err
 	}
 
-	change, err := onDevice(
-		ctx,
-		h,
-		func() (sdk.Change, error) { return h.client.Copy(ctx, sdk.Edit{FromSlot: from, ToSlot: to}) },
-	)
+	change, err := onPedal(ctx, h.pedal, func(s Session) (sdk.Change, error) {
+		return s.Copy(ctx, from, to)
+	})
 	if err != nil {
 		return nil, sdk.Change{}, err
 	}
@@ -99,11 +96,9 @@ func (h *handlers) presetsSwap(
 		return nil, sdk.Change{}, err
 	}
 
-	change, err := onDevice(
-		ctx,
-		h,
-		func() (sdk.Change, error) { return h.client.Swap(ctx, sdk.Edit{FromSlot: from, ToSlot: to}) },
-	)
+	change, err := onPedal(ctx, h.pedal, func(s Session) (sdk.Change, error) {
+		return s.Swap(ctx, from, to)
+	})
 	if err != nil {
 		return nil, sdk.Change{}, err
 	}

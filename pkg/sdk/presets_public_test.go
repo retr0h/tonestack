@@ -23,14 +23,18 @@ package sdk_test
 import (
 	"context"
 	"errors"
+	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/mock/gomock"
 
 	"github.com/retr0h/tonestack/pkg/sdk"
+	"github.com/retr0h/tonestack/pkg/sdk/internal/device"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/device/mocks"
+	"github.com/retr0h/tonestack/pkg/sdk/internal/wire"
 )
 
 // PresetsPublicTestSuite covers the operations a wrapper reaches through the
@@ -58,6 +62,32 @@ func (s *PresetsPublicTestSuite) client() *sdk.Client {
 	b.EXPECT().Open(gomock.Any()).Return(nil, errors.New("no device found")).AnyTimes()
 
 	return sdk.New(sdk.WithCatalog(fixture("catalog.json")), sdk.WithDevices(b))
+}
+
+// attachedTo is a Client over a pedal that holds a real preset in every slot,
+// takes every write and every switch, and is let go once per call.
+func (s *PresetsPublicTestSuite) attachedTo() *sdk.Client {
+	body, err := os.ReadFile(filepath.Join("internal", "wire", "testdata", "preset.bin"))
+	s.Require().NoError(err)
+
+	dev := &attached{
+		MockEditor:   mocks.NewMockEditor(s.ctrl),
+		MockWriter:   mocks.NewMockWriter(s.ctrl),
+		MockSelector: mocks.NewMockSelector(s.ctrl),
+	}
+	dev.MockEditor.EXPECT().Model().Return(device.Model{Name: "HX Stomp"}).AnyTimes()
+	dev.MockEditor.EXPECT().Presets(gomock.Any(), 0).Return(listing(), nil).AnyTimes()
+	dev.MockEditor.EXPECT().ReadPreset(gomock.Any(), 0, gomock.Any()).Return(body, nil).AnyTimes()
+	dev.MockEditor.EXPECT().Close().Return(nil)
+	dev.MockWriter.EXPECT().
+		WriteNamedPreset(gomock.Any(), 0, gomock.Any(), gomock.Any(), gomock.Any()).
+		Return(nil).AnyTimes()
+	dev.MockSelector.EXPECT().SelectPreset(gomock.Any(), 0, gomock.Any()).Return(nil).AnyTimes()
+
+	bus := mocks.NewMockOpener(s.ctrl)
+	bus.EXPECT().Open(gomock.Any()).Return(dev, nil)
+
+	return sdk.New(sdk.WithDevices(bus), sdk.WithBackupDir(s.T().TempDir()))
 }
 
 // refusing is a Client whose bus fails the test if a call reaches for a device
@@ -107,6 +137,43 @@ func (s *PresetsPublicTestSuite) TestPresets() {
 	s.Run("off a device that is not there", func() {
 		_, err := s.client().Presets(context.Background(), sdk.Where{})
 		s.Require().ErrorContains(err, "no device found")
+	})
+
+	s.Run("off a device, in a Session of its own", func() {
+		got, err := s.attachedTo().Presets(context.Background(), sdk.Where{})
+		s.Require().NoError(err)
+		s.Require().Len(got.Slots, 2)
+	})
+
+	s.Run("off a device, when the flow panics", func() {
+		dev := &attached{
+			MockEditor:   mocks.NewMockEditor(s.ctrl),
+			MockWriter:   mocks.NewMockWriter(s.ctrl),
+			MockSelector: mocks.NewMockSelector(s.ctrl),
+		}
+		dev.MockEditor.EXPECT().Presets(gomock.Any(), 0).DoAndReturn(
+			func(context.Context, int) ([]wire.Preset, error) {
+				panic("a bug inside a flow")
+			})
+		dev.MockEditor.EXPECT().Close().Return(nil).Times(2)
+
+		bus := mocks.NewMockOpener(s.ctrl)
+		bus.EXPECT().Open(gomock.Any()).Return(dev, nil).Times(2)
+
+		client := sdk.New(sdk.WithDevices(bus))
+
+		s.Require().Panics(func() {
+			_, _ = client.Presets(context.Background(), sdk.Where{})
+		})
+
+		// The pedal was let go on the way up, so the Client opens it again
+		// rather than waiting on a claim nobody will give back.
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		again, err := client.Open(ctx)
+		s.Require().NoError(err)
+		s.Require().NoError(again.Close())
 	})
 }
 
@@ -162,6 +229,14 @@ func (s *PresetsPublicTestSuite) TestExport() {
 		})
 		s.Require().ErrorContains(err, "no device found")
 	})
+
+	s.Run("off a device, in a Session of its own", func() {
+		out := filepath.Join(s.T().TempDir(), "one.yaml")
+
+		got, err := s.attachedTo().Export(context.Background(), sdk.Export{OutputPath: out})
+		s.Require().NoError(err)
+		s.Require().Equal(out, got.Path)
+	})
 }
 
 // TestImport covers putting a preset file into a slot.
@@ -183,6 +258,15 @@ func (s *PresetsPublicTestSuite) TestImport() {
 			File: fixture("preset.hlx"),
 		})
 		s.Require().ErrorContains(err, "no device found")
+	})
+
+	s.Run("onto a device, in a Session of its own", func() {
+		got, err := s.attachedTo().Import(context.Background(), sdk.Put{
+			File: filepath.Join("internal", "compile", "testdata", "preset0.hlx"),
+			Slot: 1,
+		})
+		s.Require().NoError(err)
+		s.Require().Equal(sdk.Imported, got.Action)
 	})
 }
 
@@ -226,6 +310,12 @@ func (s *PresetsPublicTestSuite) TestCopyAndSwap() {
 			s.Require().ErrorContains(err, "no device found")
 		})
 
+		s.Run(tt.name+" on a device, in a Session of its own", func() {
+			got, err := tt.call(s.attachedTo(), sdk.Edit{ToSlot: 1})
+			s.Require().NoError(err)
+			s.Require().Equal(tt.want, got.Action)
+		})
+
 		s.Run(tt.name+" names a setlist on Where", func() {
 			// Edit already has FromSetlist and ToSetlist, one per side of
 			// the move. Where.Setlist has no side to belong to and would
@@ -241,6 +331,12 @@ func (s *PresetsPublicTestSuite) TestSelect() {
 	s.Run("off a device that is not there", func() {
 		_, err := s.client().Select(context.Background(), sdk.Read{Slot: 4})
 		s.Require().ErrorContains(err, "no device found")
+	})
+
+	s.Run("on a device, in a Session of its own", func() {
+		got, err := s.attachedTo().Select(context.Background(), sdk.Read{Slot: 1})
+		s.Require().NoError(err)
+		s.Require().Equal(sdk.Selected, got.Action)
 	})
 
 	// A slot is only ever selected on the device that plays it. Naming a

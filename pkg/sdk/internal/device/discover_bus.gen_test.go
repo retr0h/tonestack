@@ -68,6 +68,44 @@ func (mr *MockbusMockRecorder) Devices(match any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Devices", reflect.TypeOf((*Mockbus)(nil).Devices), match)
 }
 
+// Mockbuses is a mock of buses interface.
+type Mockbuses struct {
+	ctrl     *gomock.Controller
+	recorder *MockbusesMockRecorder
+	isgomock struct{}
+}
+
+// MockbusesMockRecorder is the mock recorder for Mockbuses.
+type MockbusesMockRecorder struct {
+	mock *Mockbuses
+}
+
+// NewMockbuses creates a new mock instance.
+func NewMockbuses(ctrl *gomock.Controller) *Mockbuses {
+	mock := &Mockbuses{ctrl: ctrl}
+	mock.recorder = &MockbusesMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *Mockbuses) EXPECT() *MockbusesMockRecorder {
+	return m.recorder
+}
+
+// Bus mocks base method.
+func (m *Mockbuses) Bus() bus {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Bus")
+	ret0, _ := ret[0].(bus)
+	return ret0
+}
+
+// Bus indicates an expected call of Bus.
+func (mr *MockbusesMockRecorder) Bus() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Bus", reflect.TypeOf((*Mockbuses)(nil).Bus))
+}
+
 // Mockhandle is a mock of handle interface.
 type Mockhandle struct {
 	ctrl     *gomock.Controller

@@ -147,6 +147,7 @@ type Editor interface {
 	// ReadPreset fetches one slot without loading it. No bytes and no error
 	// is a slot holding no preset.
 	ReadPreset(ctx context.Context, setlist, slot int) ([]byte, error)
-	// Close releases the device.
-	Close()
+	// Close releases the device, and returns the error that ended the
+	// session's read loop, if one did.
+	Close() error
 }

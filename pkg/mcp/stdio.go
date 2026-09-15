@@ -43,7 +43,16 @@ func (s *Server) run(
 	in := &hangup{ReadCloser: r}
 
 	err := s.Serve(ctx, &gomcp.IOTransport{Reader: in, Writer: nopWriteCloser{w}})
-	if err != nil && !errors.Is(err, context.Canceled) && in.ended.Load() {
+
+	// A context that has ended is why the session stopped, even when the input
+	// ran out in the same moment and the library reported that instead. Which
+	// one it saw first is a race, and the command tells a stop from a failure
+	// by the context's error.
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		return errors.Join(ctxErr, err)
+	}
+
+	if in.ended.Load() {
 		return nil
 	}
 

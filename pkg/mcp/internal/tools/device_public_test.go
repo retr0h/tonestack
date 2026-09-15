@@ -26,6 +26,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -36,28 +37,46 @@ import (
 	"github.com/retr0h/tonestack/pkg/mcp/internal/tools"
 	"github.com/retr0h/tonestack/pkg/mcp/internal/tools/mocks"
 	"github.com/retr0h/tonestack/pkg/sdk"
+	"github.com/retr0h/tonestack/pkg/sdk/slot"
 )
 
 type DevicePublicTestSuite struct {
 	suite.Suite
+	ctrl   *gomock.Controller
 	client *mocks.MockClient
 }
 
 func (s *DevicePublicTestSuite) SetupSubTest() {
-	s.client = mocks.NewMockClient(gomock.NewController(s.T()))
+	s.ctrl = gomock.NewController(s.T())
+	s.client = mocks.NewMockClient(s.ctrl)
 }
 
 // deviceRow is one call and what it should come back with. check reads the
 // structured answer of a call that succeeded.
 type deviceRow struct {
-	name  string
-	args  any
-	setup func(c *mocks.MockClient)
+	name string
+	args any
+	// setup says what the call expects of the client, and of the Session the
+	// tools hold on the pedal.
+	setup func(c *mocks.MockClient, pedal *mocks.MockSession)
 	want  string
 	err   bool
 	check func(s *DevicePublicTestSuite, res *gomcp.CallToolResult)
 	// allowWrites starts the server the way --allow-writes does.
 	allowWrites bool
+}
+
+// held lets the tools open the pedal once, onto pedal, and close it when they
+// let it go.
+//
+// Set after a row's own expectations, which gomock matches first, so a row
+// can make opening fail instead.
+func held(
+	c *mocks.MockClient,
+	pedal *mocks.MockSession,
+) {
+	c.EXPECT().Open(gomock.Any()).Return(pedal, nil).MaxTimes(1)
+	pedal.EXPECT().Close().Return(nil).MaxTimes(1)
 }
 
 func (s *DevicePublicTestSuite) run(
@@ -66,9 +85,13 @@ func (s *DevicePublicTestSuite) run(
 ) {
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
+			pedal := mocks.NewMockSession(s.ctrl)
+
 			if tt.setup != nil {
-				tt.setup(s.client)
+				tt.setup(s.client, pedal)
 			}
+
+			held(s.client, pedal)
 
 			res := call(s.T(), connect(s.T(), s.client, tt.allowWrites), tool, tt.args)
 
@@ -84,13 +107,21 @@ func (s *DevicePublicTestSuite) run(
 
 var errHXEdit = errors.New("the editor interface is in use, quit HX Edit")
 
+// hxEdit is HX Edit holding the pedal, so the tools cannot open it.
+func hxEdit(
+	c *mocks.MockClient,
+	_ *mocks.MockSession,
+) {
+	c.EXPECT().Open(gomock.Any()).Return(nil, errHXEdit)
+}
+
 // TestDevicesList covers what is attached, and one call at a time.
 func (s *DevicePublicTestSuite) TestDevicesList() {
 	s.run("devices_list", []deviceRow{
 		{
 			name: "a pedal attached",
 			args: tools.None{},
-			setup: func(c *mocks.MockClient) {
+			setup: func(c *mocks.MockClient, _ *mocks.MockSession) {
 				c.EXPECT().Devices(gomock.Any()).
 					Return(sdk.Attached{Devices: []sdk.Attachment{{Model: "HX Stomp"}}}, nil)
 			},
@@ -104,7 +135,7 @@ func (s *DevicePublicTestSuite) TestDevicesList() {
 		{
 			name: "a bus that will not answer",
 			args: tools.None{},
-			setup: func(c *mocks.MockClient) {
+			setup: func(c *mocks.MockClient, _ *mocks.MockSession) {
 				c.EXPECT().
 					Devices(gomock.Any()).
 					Return(sdk.Attached{}, errors.New("bus unavailable"))
@@ -115,14 +146,26 @@ func (s *DevicePublicTestSuite) TestDevicesList() {
 	})
 
 	s.Run("two calls at once", func() {
-		// A barrier rather than a sleep: the first call holds the device
-		// until the test lets it go, so the second has every chance to get
-		// in and must not.
+		// A barrier and a counter rather than a sleep: the first call holds
+		// the device until the test lets it go, and how many calls were ever
+		// inside at once is read after both have finished.
+		var inside, most atomic.Int32
+
 		entered := make(chan struct{}, 2)
 		release := make(chan struct{})
 
 		s.client.EXPECT().Devices(gomock.Any()).Times(2).DoAndReturn(
 			func(context.Context) (sdk.Attached, error) {
+				now := inside.Add(1)
+				defer inside.Add(-1)
+
+				for {
+					seen := most.Load()
+					if now <= seen || most.CompareAndSwap(seen, now) {
+						break
+					}
+				}
+
 				entered <- struct{}{}
 				<-release
 
@@ -137,7 +180,6 @@ func (s *DevicePublicTestSuite) TestDevicesList() {
 		}
 
 		var wg sync.WaitGroup
-		defer wg.Wait()
 
 		wg.Go(devices)
 
@@ -145,22 +187,16 @@ func (s *DevicePublicTestSuite) TestDevicesList() {
 		case <-entered:
 		case <-time.After(5 * time.Second):
 			close(release)
+			wg.Wait()
 			s.FailNow("the first call never reached the device")
 		}
 
 		wg.Go(devices)
-
-		select {
-		case <-entered:
-			close(release)
-			s.FailNow("the second call reached the device while the first held it")
-		case <-time.After(200 * time.Millisecond):
-		}
-
 		close(release)
 		wg.Wait()
 
-		s.Len(entered, 1, "the second call reached the device once the first let go")
+		s.Len(entered, 1, "the second call reached the device too")
+		s.Equal(int32(1), most.Load(), "never two calls inside at once")
 	})
 }
 
@@ -170,8 +206,8 @@ func (s *DevicePublicTestSuite) TestPresetsList() {
 		{
 			name: "a setlist",
 			args: tools.None{},
-			setup: func(c *mocks.MockClient) {
-				c.EXPECT().Presets(gomock.Any(), sdk.Where{}).
+			setup: func(_ *mocks.MockClient, pedal *mocks.MockSession) {
+				pedal.EXPECT().Presets(gomock.Any(), 0).
 					Return(sdk.Listing{Slots: []sdk.Held{{}, {}}}, nil)
 			},
 			want: "of 2 slots",
@@ -182,13 +218,11 @@ func (s *DevicePublicTestSuite) TestPresetsList() {
 			},
 		},
 		{
-			name: "HX Edit holding the pedal",
-			args: tools.None{},
-			setup: func(c *mocks.MockClient) {
-				c.EXPECT().Presets(gomock.Any(), sdk.Where{}).Return(sdk.Listing{}, errHXEdit)
-			},
-			want: "quit HX Edit",
-			err:  true,
+			name:  "HX Edit holding the pedal",
+			args:  tools.None{},
+			setup: hxEdit,
+			want:  "quit HX Edit",
+			err:   true,
 		},
 	})
 }
@@ -199,8 +233,8 @@ func (s *DevicePublicTestSuite) TestPresetShow() {
 		{
 			name: "a slot by its label",
 			args: tools.Slot{Slot: "01B"},
-			setup: func(c *mocks.MockClient) {
-				c.EXPECT().Preset(gomock.Any(), sdk.Read{Slot: 1}).
+			setup: func(_ *mocks.MockClient, pedal *mocks.MockSession) {
+				pedal.EXPECT().Preset(gomock.Any(), slot.Address{Slot: 1}).
 					Return(sdk.Reading{Name: "Chunky Monkey"}, nil)
 			},
 			want: "01B holds Chunky Monkey",
@@ -212,19 +246,17 @@ func (s *DevicePublicTestSuite) TestPresetShow() {
 		},
 		{
 			// "99Z" fails to parse: no bank has a letter past C, so
-			// slot.Value.Set refuses it before the client is ever called.
+			// slot.Value.Set refuses it before the pedal is ever opened.
 			name: "a label the pedal does not have",
 			args: tools.Slot{Slot: "99Z"},
 			err:  true,
 		},
 		{
-			name: "HX Edit holding the pedal",
-			args: tools.Slot{Slot: "01A"},
-			setup: func(c *mocks.MockClient) {
-				c.EXPECT().Preset(gomock.Any(), sdk.Read{Slot: 0}).Return(sdk.Reading{}, errHXEdit)
-			},
-			want: "quit HX Edit",
-			err:  true,
+			name:  "HX Edit holding the pedal",
+			args:  tools.Slot{Slot: "01A"},
+			setup: hxEdit,
+			want:  "quit HX Edit",
+			err:   true,
 		},
 	})
 }
@@ -233,42 +265,42 @@ func (s *DevicePublicTestSuite) TestPresetShow() {
 func (s *DevicePublicTestSuite) TestPresetExport() {
 	dir := s.T().TempDir()
 	fresh := filepath.Join(dir, "fresh.yaml")
-	held := filepath.Join(dir, "held.yaml")
-	s.Require().NoError(os.WriteFile(held, []byte("somebody's rig"), 0o600))
+	taken := filepath.Join(dir, "held.yaml")
+	s.Require().NoError(os.WriteFile(taken, []byte("somebody's rig"), 0o600))
 
 	s.run("preset_export", []deviceRow{
 		{
 			name: "a path nothing is at",
 			args: tools.Export{Slot: "01A", Out: fresh},
-			setup: func(c *mocks.MockClient) {
-				c.EXPECT().Export(gomock.Any(), sdk.Export{Slot: 0, OutputPath: fresh}).
+			setup: func(_ *mocks.MockClient, pedal *mocks.MockSession) {
+				pedal.EXPECT().Export(gomock.Any(), slot.Address{}, fresh, "").
 					Return(sdk.Written{Path: fresh}, nil)
 			},
 			want: "wrote " + fresh,
 		},
 		{
-			// No client call is expected, so reaching the device fails the
+			// No Session call is expected, so reaching the device fails the
 			// row.
 			name: "a path a file is at, with writes off",
-			args: tools.Export{Slot: "01A", Out: held},
-			want: tools.ErrWouldOverwrite.Error() + ": " + held,
+			args: tools.Export{Slot: "01A", Out: taken},
+			want: tools.ErrWouldOverwrite.Error() + ": " + taken,
 			err:  true,
 		},
 		{
 			name: "a path a file is at, with writes on",
-			args: tools.Export{Slot: "01A", Out: held},
-			setup: func(c *mocks.MockClient) {
-				c.EXPECT().Export(gomock.Any(), sdk.Export{Slot: 0, OutputPath: held}).
-					Return(sdk.Written{Path: held}, nil)
+			args: tools.Export{Slot: "01A", Out: taken},
+			setup: func(_ *mocks.MockClient, pedal *mocks.MockSession) {
+				pedal.EXPECT().Export(gomock.Any(), slot.Address{}, taken, "").
+					Return(sdk.Written{Path: taken}, nil)
 			},
-			want:        "wrote " + held,
+			want:        "wrote " + taken,
 			allowWrites: true,
 		},
 		{
 			name: "a slot as a rig",
 			args: tools.Export{Slot: "01A", Out: "a.yaml"},
-			setup: func(c *mocks.MockClient) {
-				c.EXPECT().Export(gomock.Any(), sdk.Export{Slot: 0, OutputPath: "a.yaml"}).
+			setup: func(_ *mocks.MockClient, pedal *mocks.MockSession) {
+				pedal.EXPECT().Export(gomock.Any(), slot.Address{}, "a.yaml", "").
 					Return(sdk.Written{Path: "a.yaml"}, nil)
 			},
 			want: "wrote a.yaml from 01A",
@@ -279,23 +311,28 @@ func (s *DevicePublicTestSuite) TestPresetExport() {
 			},
 		},
 		{
+			name: "the device's own file",
+			args: tools.Export{Slot: "01A", Out: "a.hlx", As: "hlx"},
+			setup: func(_ *mocks.MockClient, pedal *mocks.MockSession) {
+				pedal.EXPECT().Export(gomock.Any(), slot.Address{}, "a.hlx", "hlx").
+					Return(sdk.Written{Path: "a.hlx"}, nil)
+			},
+			want: "wrote a.hlx from 01A",
+		},
+		{
 			// "nope" fails to parse: its trailing letter, E, is past the
 			// last bank letter C, so slot.Value.Set refuses it before the
-			// client is ever called.
+			// pedal is ever opened.
 			name: "a label the pedal does not have",
 			args: tools.Export{Slot: "nope", Out: "a.yaml"},
 			err:  true,
 		},
 		{
-			name: "HX Edit holding the pedal",
-			args: tools.Export{Slot: "01A", Out: "a.hlx", As: "hlx"},
-			setup: func(c *mocks.MockClient) {
-				c.EXPECT().
-					Export(gomock.Any(), sdk.Export{Slot: 0, OutputPath: "a.hlx", As: "hlx"}).
-					Return(sdk.Written{}, errHXEdit)
-			},
-			want: "quit HX Edit",
-			err:  true,
+			name:  "HX Edit holding the pedal",
+			args:  tools.Export{Slot: "01A", Out: "a.hlx", As: "hlx"},
+			setup: hxEdit,
+			want:  "quit HX Edit",
+			err:   true,
 		},
 	})
 }
@@ -306,8 +343,8 @@ func (s *DevicePublicTestSuite) TestPresetSelect() {
 		{
 			name: "a slot by its label",
 			args: tools.Slot{Slot: "07A"},
-			setup: func(c *mocks.MockClient) {
-				c.EXPECT().Select(gomock.Any(), sdk.Read{Slot: 18}).
+			setup: func(_ *mocks.MockClient, pedal *mocks.MockSession) {
+				pedal.EXPECT().Select(gomock.Any(), slot.Address{Slot: 18}).
 					Return(sdk.Change{Action: sdk.Selected, To: sdk.At{Slot: 18, Name: "Chunky Monkey"}}, nil)
 			},
 			want: "loaded 07A",
@@ -319,8 +356,8 @@ func (s *DevicePublicTestSuite) TestPresetSelect() {
 		},
 		{
 			// "0A" fails to parse: there is no bank zero, banks count from
-			// one, so slot.Value.Set refuses it before the client is ever
-			// called. ("43A" was tried first, but a bank number carries no
+			// one, so slot.Value.Set refuses it before the pedal is ever
+			// opened. ("43A" was tried first, but a bank number carries no
 			// upper bound in slot.parse, so it decodes to a slot index
 			// rather than failing.)
 			name: "a label the pedal does not have",
@@ -328,13 +365,11 @@ func (s *DevicePublicTestSuite) TestPresetSelect() {
 			err:  true,
 		},
 		{
-			name: "HX Edit holding the pedal",
-			args: tools.Slot{Slot: "07A"},
-			setup: func(c *mocks.MockClient) {
-				c.EXPECT().Select(gomock.Any(), gomock.Any()).Return(sdk.Change{}, errHXEdit)
-			},
-			want: "quit HX Edit",
-			err:  true,
+			name:  "HX Edit holding the pedal",
+			args:  tools.Slot{Slot: "07A"},
+			setup: hxEdit,
+			want:  "quit HX Edit",
+			err:   true,
 		},
 	})
 }

@@ -177,6 +177,10 @@ takes a `context.Context` first. The library reads no environment variable
 except `XDG_STATE_HOME`, so a program that wants `TONESTACK_USB_DUMP` or
 `TONESTACK_USB_DEBUG` reads them itself and passes a writer in, as `cmd` does.
 
+The Client's device methods each claim the pedal, handshake and let it go. For
+several operations in a row, `Client.Open` returns a `Session` that holds one
+claim until `Close`. A Client has one Session open at a time.
+
 How each operation is done lives in `pkg/sdk/internal/`, where nothing outside
 the library can reach it. That is what keeps this list short, and what lets the
 implementation change without breaking a caller.

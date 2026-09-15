@@ -22,44 +22,12 @@ package tools
 
 import (
 	"context"
-	"fmt"
 
 	gomcp "github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/retr0h/tonestack/pkg/sdk"
 	"github.com/retr0h/tonestack/pkg/sdk/slot"
 )
-
-// claim takes the pedal for one call, or gives up when the call does.
-//
-// A USB editor interface serves one session. Two calls claiming it at once
-// is the failure docs/protocol.md warns leaves a pedal needing a power cycle.
-func (h *handlers) claim(
-	ctx context.Context,
-) (func(), error) {
-	select {
-	case h.device <- struct{}{}:
-		return func() { <-h.device }, nil
-	case <-ctx.Done():
-		return nil, fmt.Errorf("waiting for the device: %w", ctx.Err())
-	}
-}
-
-// onDevice runs call while holding the pedal, or gives up when ctx does.
-func onDevice[T any](
-	ctx context.Context,
-	h *handlers,
-	call func() (T, error),
-) (T, error) {
-	release, err := h.claim(ctx)
-	if err != nil {
-		var zero T
-		return zero, err
-	}
-	defer release()
-
-	return call()
-}
 
 // slotOf reads a slot the way the pedal labels it.
 func slotOf(
@@ -78,7 +46,9 @@ func (h *handlers) devicesList(
 	_ *gomcp.CallToolRequest,
 	_ None,
 ) (*gomcp.CallToolResult, sdk.Attached, error) {
-	found, err := onDevice(ctx, h, func() (sdk.Attached, error) { return h.client.Devices(ctx) })
+	found, err := locked(ctx, h.pedal, func() (sdk.Attached, error) {
+		return h.client.Devices(ctx)
+	})
 	if err != nil {
 		return nil, sdk.Attached{}, err
 	}
@@ -91,9 +61,9 @@ func (h *handlers) presetsList(
 	_ *gomcp.CallToolRequest,
 	_ None,
 ) (*gomcp.CallToolResult, sdk.Listing, error) {
-	listing, err := onDevice(
-		ctx, h, func() (sdk.Listing, error) { return h.client.Presets(ctx, sdk.Where{}) },
-	)
+	listing, err := onPedal(ctx, h.pedal, func(s Session) (sdk.Listing, error) {
+		return s.Presets(ctx, 0)
+	})
 	if err != nil {
 		return nil, sdk.Listing{}, err
 	}
@@ -111,9 +81,9 @@ func (h *handlers) presetShow(
 		return nil, Shown{}, err
 	}
 
-	reading, err := onDevice(
-		ctx, h, func() (sdk.Reading, error) { return h.client.Preset(ctx, sdk.Read{Slot: n}) },
-	)
+	reading, err := onPedal(ctx, h.pedal, func(s Session) (sdk.Reading, error) {
+		return s.Preset(ctx, slot.Address{Slot: n})
+	})
 	if err != nil {
 		return nil, Shown{}, err
 	}
@@ -138,8 +108,8 @@ func (h *handlers) presetExport(
 		return nil, sdk.Written{}, err
 	}
 
-	written, err := onDevice(ctx, h, func() (sdk.Written, error) {
-		return h.client.Export(ctx, sdk.Export{Slot: n, OutputPath: in.Out, As: in.As})
+	written, err := onPedal(ctx, h.pedal, func(s Session) (sdk.Written, error) {
+		return s.Export(ctx, slot.Address{Slot: n}, in.Out, in.As)
 	})
 	if err != nil {
 		return nil, sdk.Written{}, err
@@ -158,9 +128,9 @@ func (h *handlers) presetSelect(
 		return nil, sdk.Change{}, err
 	}
 
-	change, err := onDevice(
-		ctx, h, func() (sdk.Change, error) { return h.client.Select(ctx, sdk.Read{Slot: n}) },
-	)
+	change, err := onPedal(ctx, h.pedal, func(s Session) (sdk.Change, error) {
+		return s.Select(ctx, slot.Address{Slot: n})
+	})
 	if err != nil {
 		return nil, sdk.Change{}, err
 	}

@@ -24,6 +24,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -68,21 +69,11 @@ func (s *WritePublicTestSuite) completes() *deviceDouble {
 	)
 }
 
-// SetupTest drops the flash settle, which is a real wait on hardware and dead
-// time here.
-//
-// The commit budget is left at what TestMain gives it. A write waits that
-// long for its answer, not the reply budget a call gets, so it must outlast
-// the reply budget as it does on hardware.
+// SetupTest makes the controller. The test budgets drop the flash settle,
+// which is a real wait on hardware and dead time here, and give a write a
+// commit budget that outlasts the reply budget, as on hardware.
 func (s *WritePublicTestSuite) SetupTest() {
 	s.ctrl = gomock.NewController(s.T())
-
-	flash := *device.FlashBudget
-	*device.FlashBudget = 0
-
-	s.T().Cleanup(func() {
-		*device.FlashBudget = flash
-	})
 }
 
 // stream puts back together the message a session sent, from the data frames
@@ -92,7 +83,7 @@ func (s *WritePublicTestSuite) stream(
 ) []byte {
 	var joined []byte
 
-	for _, raw := range d.sent {
+	for _, raw := range d.frames() {
 		f, _, err := wire.DecodeFrame(raw)
 		s.Require().NoError(err)
 
@@ -111,7 +102,7 @@ func (s *WritePublicTestSuite) stream(
 func (s *WritePublicTestSuite) session(
 	d *deviceDouble,
 ) *device.Session {
-	out := device.NewTestSession(d.out, d.in)
+	out := device.NewTestSession(s.T(), d.out, d.in)
 	out.OpenChannels()
 
 	return out
@@ -133,6 +124,9 @@ func (s *WritePublicTestSuite) TestWritePreset() {
 		// once the first chunk has gone.
 		cancelled      bool
 		cancelsOnWrite bool
+		// dead is a session whose read loop has already ended when the write
+		// is asked for.
+		dead bool
 		// nothing reached the device, or all of the message did.
 		nothingSent bool
 		whole       bool
@@ -150,7 +144,7 @@ func (s *WritePublicTestSuite) TestWritePreset() {
 			// write exists to prevent.
 			name: "a commit budget that runs out while the message is going out",
 			device: func() *deviceDouble {
-				return paused(s.ctrl, 10*time.Millisecond)
+				return answers(s.ctrl)
 			},
 			document:     large,
 			commitBudget: 20 * time.Millisecond,
@@ -168,6 +162,16 @@ func (s *WritePublicTestSuite) TestWritePreset() {
 			is:          context.Canceled,
 		},
 		{
+			// No read is posted to catch the answer, so not one chunk goes
+			// out, and the error that ended the loop is what the write says.
+			name:        "a session the bus has already ended",
+			device:      func() *deviceDouble { return readFails(s.ctrl, errors.New("the bus went away")) },
+			dead:        true,
+			nothingSent: true,
+			is:          device.ErrBus,
+			says:        "reading from the device",
+		},
+		{
 			// A device fed half a message and then a burst is the stall that
 			// needs a power cycle. Once the first chunk is out, the message
 			// is finished and its answer read, whoever stopped waiting.
@@ -178,16 +182,17 @@ func (s *WritePublicTestSuite) TestWritePreset() {
 			whole:          true,
 		},
 		{
-			// A read between chunks only paces the sender. One that fails
-			// does not stop a message that has started: the device is owed
-			// the rest of it, and a bus that has really gone fails the send.
-			// What is reported is the wait for the answer.
+			// A read between chunks is what paces the sender, so one that
+			// fails stops the message where it is: the device is owed
+			// nothing more once nothing is left to pace it, and a chunk sent
+			// unpaced into a pedal that stopped answering is the stall a
+			// hardware trace showed.
 			name: "a bus that cannot be read from partway through",
 			device: func() *deviceDouble {
-				return readFails(s.ctrl, errors.New("the bus went away"))
+				return readFailsAfter(s.ctrl, errors.New("the bus went away"), 1)
 			},
 			document: large,
-			whole:    true,
+			is:       device.ErrBus,
 			says:     "reading from the device",
 		},
 		{
@@ -196,9 +201,10 @@ func (s *WritePublicTestSuite) TestWritePreset() {
 			// up on it at the reply budget races the next write against it.
 			name: "a device that answers after a call would have given up",
 			device: func() *deviceDouble {
-				return late(s.ctrl, 100*time.Millisecond, s.answer(device.FirstTxn, 0))
+				return late(s.ctrl, 300*time.Millisecond, s.answer(device.FirstTxn, 0))
 			},
-			replyBudget: 20 * time.Millisecond,
+			replyBudget:  20 * time.Millisecond,
+			commitBudget: time.Minute,
 		},
 		{
 			name:   "a device that takes it and gets on with the erase",
@@ -260,18 +266,14 @@ func (s *WritePublicTestSuite) TestWritePreset() {
 				d.onWrite = cancel
 			}
 
-			if tt.commitBudget > 0 {
-				was := *device.CommitBudget
-				*device.CommitBudget = tt.commitBudget
+			b := device.ShortBudgets()
 
-				defer func() { *device.CommitBudget = was }()
+			if tt.commitBudget > 0 {
+				b.Commit = tt.commitBudget
 			}
 
 			if tt.replyBudget > 0 {
-				was := *device.ReplyBudget
-				*device.ReplyBudget = tt.replyBudget
-
-				defer func() { *device.ReplyBudget = was }()
+				b.Reply = tt.replyBudget
 			}
 
 			document := tt.document
@@ -279,14 +281,21 @@ func (s *WritePublicTestSuite) TestWritePreset() {
 				document = []byte{0x01}
 			}
 
-			err := s.session(d).WritePreset(ctx, 0, 3, document)
+			session := device.NewTestSessionWith(s.T(), d.out, d.in, b)
+			session.OpenChannels()
+
+			if tt.dead {
+				ended(s.T(), session)
+			}
+
+			err := session.WritePreset(ctx, 0, 3, document)
 
 			if tt.nothingSent {
-				s.Require().Empty(d.sent, "nothing reaches the device")
+				s.Require().Empty(d.frames(), "nothing reaches the device")
 			}
 
 			if tt.whole {
-				s.Require().Empty(d.replies, "the answer was read")
+				s.Require().Zero(d.pending(), "the answer was read")
 				s.Require().Contains(string(s.stream(d)), string(document),
 					"every chunk of the message went out")
 			}
@@ -327,12 +336,116 @@ func (s *WritePublicTestSuite) TestAMessageGoesOutInPiecesADeviceCanPace() {
 
 	// Two thousand bytes of document, plus the envelope around it, in pieces
 	// of 256.
-	s.Require().GreaterOrEqual(len(d.sent), 2000/device.StreamChunk,
+	sent := d.frames()
+
+	s.Require().GreaterOrEqual(len(sent), 2000/device.StreamChunk,
 		"one frame would not have fitted")
 
-	for i, frame := range d.sent {
+	for i, frame := range sent {
 		s.Require().LessOrEqual(len(frame), device.StreamChunk+wire.FrameSize+wire.ChannelSize,
 			"frame %d is larger than the device takes", i)
+	}
+}
+
+// TestAChunkTheDeviceNeverAcksStopsTheMessage reproduces what stalled a
+// pedal's USB endpoint on hardware: a chunk released by a frame on another
+// channel rather than its own acknowledgement, and nothing acking after it.
+// docs/protocol.md cites the trace.
+//
+// A timeout here does not merely fail the write. The data channel would be
+// left holding half a message, and a later call feeding it a fresh request
+// is the held-session stall all over again, so the timeout ends the session:
+// the error matches ErrBus, the next call sends nothing, and Close still
+// attempts the closing hellos.
+func (s *WritePublicTestSuite) TestAChunkTheDeviceNeverAcksStopsTheMessage() {
+	d := answers(s.ctrl)
+	d.stopAckingAfter(device.DataChannel, 4)
+	d.insteadOfAck(device.DataChannel,
+		device.FrameFor(device.ControlChannel, wire.MsgData, []byte("something else")))
+
+	b := device.ShortBudgets()
+	b.Pace = 20 * time.Millisecond
+
+	session := device.NewTestSessionWith(s.T(), d.out, d.in, b)
+	session.OpenChannels()
+
+	err := session.WritePreset(
+		context.Background(), 0, 3, bytes.Repeat([]byte{0x2a}, 2000))
+
+	s.Require().Error(err)
+	s.Require().ErrorIs(err, device.ErrBus)
+	s.Require().ErrorIs(err, device.ErrUnacked)
+	s.Require().ErrorIs(err, context.DeadlineExceeded)
+	s.Require().ErrorContains(err, "stopped taking the message")
+
+	chunks := 0
+
+	for _, raw := range d.frames() {
+		if kind, _ := device.MessageKind(raw); kind == wire.MsgData {
+			chunks++
+		}
+	}
+
+	s.Require().LessOrEqual(chunks, 5, "nothing went out after the unacked chunk")
+
+	before := len(d.frames())
+
+	_, err = session.Call(context.Background(), device.ControlChannel, 1, nil)
+	s.Require().ErrorIs(err, device.ErrBus)
+	s.Require().Len(d.frames(), before, "nothing is asked of a session the timeout ended")
+
+	s.Require().ErrorIs(session.Close(), device.ErrBus)
+
+	hellos := 0
+
+	for _, raw := range d.frames()[before:] {
+		if kind, _ := device.MessageKind(raw); kind == wire.MsgHello {
+			hellos++
+		}
+	}
+
+	s.Require().Equal(len(device.ChannelNames()), hellos, "the farewell was attempted")
+}
+
+// TestAnUnrelatedFrameDoesNotReleaseTheNextChunk covers a notification that
+// arrives on another channel while a message paces: pace waits for its own
+// channel's acknowledgement, not any transfer.
+//
+// A count of chunks that all eventually went out would pass on the old logic
+// too, which released a chunk on any transfer, the unrelated frame included.
+// What proves the fix is the order: chunk N+1 is never written until chunk
+// N's own acknowledgement has been served, never merely a frame on some other
+// channel.
+func (s *WritePublicTestSuite) TestAnUnrelatedFrameDoesNotReleaseTheNextChunk() {
+	d := s.completes()
+
+	var once sync.Once
+
+	d.onWrite = func() {
+		once.Do(func() {
+			d.tell(device.FrameFor(device.ControlChannel, wire.MsgData, []byte("unasked")))
+		})
+	}
+
+	err := s.session(d).WritePreset(
+		context.Background(), 0, 3, bytes.Repeat([]byte{0x2a}, 2000))
+
+	s.Require().NoError(err)
+
+	events := d.eventLog()
+
+	s.Require().GreaterOrEqual(len(events), 2, "more than one chunk went out")
+
+	want := "write"
+
+	for i, e := range events {
+		s.Require().Equal(want, e, "event %d out of order: %v", i, events)
+
+		if want == "write" {
+			want = "ack"
+		} else {
+			want = "write"
+		}
 	}
 }
 
@@ -342,15 +455,17 @@ func (s *WritePublicTestSuite) TestAMessageGoesOutInPiecesADeviceCanPace() {
 // write landing on the first stacks its commit. The pause is the only thing
 // keeping them apart.
 func (s *WritePublicTestSuite) TestAWriteIsPacedForTheFlash() {
-	was := *device.FlashBudget
-	*device.FlashBudget = 40 * time.Millisecond
+	b := device.ShortBudgets()
+	b.Flash = 40 * time.Millisecond
 
-	defer func() { *device.FlashBudget = was }()
+	d := answers(s.ctrl, s.answer(device.FirstTxn, 0))
+
+	session := device.NewTestSessionWith(s.T(), d.out, d.in, b)
+	session.OpenChannels()
 
 	started := time.Now()
 
-	s.Require().NoError(s.session(answers(s.ctrl, s.answer(device.FirstTxn, 0))).
-		WritePreset(context.Background(), 0, 3, []byte{0x01}))
+	s.Require().NoError(session.WritePreset(context.Background(), 0, 3, []byte{0x01}))
 
 	s.Require().GreaterOrEqual(time.Since(started), 40*time.Millisecond)
 }
@@ -365,7 +480,7 @@ func (s *WritePublicTestSuite) TestWriteNamedPreset() {
 	s.Require().NoError(s.session(d).WriteNamedPreset(
 		context.Background(), 0, 3, "Mike Dirnt", []byte{0x01}))
 
-	s.Require().Contains(string(bytes.Join(d.sent, nil)), "Mike Dirnt\x00",
+	s.Require().Contains(string(bytes.Join(d.frames(), nil)), "Mike Dirnt\x00",
 		"a device reads an unterminated name as running into what follows")
 }
 
@@ -373,7 +488,7 @@ func (s *WritePublicTestSuite) TestWriteNamedPreset() {
 func (s *WritePublicTestSuite) TestAWriteOnAChannelNobodyOpened() {
 	d := s.completes()
 
-	err := device.NewTestSession(d.out, d.in).Write(context.Background(), 5, nil)
+	err := device.NewTestSession(s.T(), d.out, d.in).Write(context.Background(), 5, nil)
 
 	s.Require().ErrorContains(err, "no data channel")
 }

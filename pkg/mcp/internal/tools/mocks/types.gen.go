@@ -13,8 +13,10 @@ import (
 	context "context"
 	reflect "reflect"
 
+	tools "github.com/retr0h/tonestack/pkg/mcp/internal/tools"
 	sdk "github.com/retr0h/tonestack/pkg/sdk"
 	catalog "github.com/retr0h/tonestack/pkg/sdk/catalog"
+	slot "github.com/retr0h/tonestack/pkg/sdk/slot"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -102,21 +104,6 @@ func (mr *MockClientMockRecorder) Compile(ctx, in any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Compile", reflect.TypeOf((*MockClient)(nil).Compile), ctx, in)
 }
 
-// Copy mocks base method.
-func (m *MockClient) Copy(ctx context.Context, in sdk.Edit) (sdk.Change, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Copy", ctx, in)
-	ret0, _ := ret[0].(sdk.Change)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// Copy indicates an expected call of Copy.
-func (mr *MockClientMockRecorder) Copy(ctx, in any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Copy", reflect.TypeOf((*MockClient)(nil).Copy), ctx, in)
-}
-
 // Devices mocks base method.
 func (m *MockClient) Devices(ctx context.Context) (sdk.Attached, error) {
 	m.ctrl.T.Helper()
@@ -130,36 +117,6 @@ func (m *MockClient) Devices(ctx context.Context) (sdk.Attached, error) {
 func (mr *MockClientMockRecorder) Devices(ctx any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Devices", reflect.TypeOf((*MockClient)(nil).Devices), ctx)
-}
-
-// Export mocks base method.
-func (m *MockClient) Export(ctx context.Context, in sdk.Export) (sdk.Written, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Export", ctx, in)
-	ret0, _ := ret[0].(sdk.Written)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// Export indicates an expected call of Export.
-func (mr *MockClientMockRecorder) Export(ctx, in any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Export", reflect.TypeOf((*MockClient)(nil).Export), ctx, in)
-}
-
-// Import mocks base method.
-func (m *MockClient) Import(ctx context.Context, in sdk.Put) (sdk.Change, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Import", ctx, in)
-	ret0, _ := ret[0].(sdk.Change)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// Import indicates an expected call of Import.
-func (mr *MockClientMockRecorder) Import(ctx, in any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Import", reflect.TypeOf((*MockClient)(nil).Import), ctx, in)
 }
 
 // Measurements mocks base method.
@@ -177,34 +134,19 @@ func (mr *MockClientMockRecorder) Measurements(ctx, in any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Measurements", reflect.TypeOf((*MockClient)(nil).Measurements), ctx, in)
 }
 
-// Preset mocks base method.
-func (m *MockClient) Preset(ctx context.Context, in sdk.Read) (sdk.Reading, error) {
+// Open mocks base method.
+func (m *MockClient) Open(ctx context.Context) (tools.Session, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Preset", ctx, in)
-	ret0, _ := ret[0].(sdk.Reading)
+	ret := m.ctrl.Call(m, "Open", ctx)
+	ret0, _ := ret[0].(tools.Session)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// Preset indicates an expected call of Preset.
-func (mr *MockClientMockRecorder) Preset(ctx, in any) *gomock.Call {
+// Open indicates an expected call of Open.
+func (mr *MockClientMockRecorder) Open(ctx any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Preset", reflect.TypeOf((*MockClient)(nil).Preset), ctx, in)
-}
-
-// Presets mocks base method.
-func (m *MockClient) Presets(ctx context.Context, in sdk.Where) (sdk.Listing, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Presets", ctx, in)
-	ret0, _ := ret[0].(sdk.Listing)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// Presets indicates an expected call of Presets.
-func (mr *MockClientMockRecorder) Presets(ctx, in any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Presets", reflect.TypeOf((*MockClient)(nil).Presets), ctx, in)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Open", reflect.TypeOf((*MockClient)(nil).Open), ctx)
 }
 
 // Recipe mocks base method.
@@ -237,32 +179,145 @@ func (mr *MockClientMockRecorder) Recipes(ctx any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Recipes", reflect.TypeOf((*MockClient)(nil).Recipes), ctx)
 }
 
-// Select mocks base method.
-func (m *MockClient) Select(ctx context.Context, in sdk.Read) (sdk.Change, error) {
+// MockSession is a mock of Session interface.
+type MockSession struct {
+	ctrl     *gomock.Controller
+	recorder *MockSessionMockRecorder
+	isgomock struct{}
+}
+
+// MockSessionMockRecorder is the mock recorder for MockSession.
+type MockSessionMockRecorder struct {
+	mock *MockSession
+}
+
+// NewMockSession creates a new mock instance.
+func NewMockSession(ctrl *gomock.Controller) *MockSession {
+	mock := &MockSession{ctrl: ctrl}
+	mock.recorder = &MockSessionMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockSession) EXPECT() *MockSessionMockRecorder {
+	return m.recorder
+}
+
+// Close mocks base method.
+func (m *MockSession) Close() error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Select", ctx, in)
+	ret := m.ctrl.Call(m, "Close")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Close indicates an expected call of Close.
+func (mr *MockSessionMockRecorder) Close() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockSession)(nil).Close))
+}
+
+// Copy mocks base method.
+func (m *MockSession) Copy(ctx context.Context, from, to slot.Address) (sdk.Change, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Copy", ctx, from, to)
+	ret0, _ := ret[0].(sdk.Change)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Copy indicates an expected call of Copy.
+func (mr *MockSessionMockRecorder) Copy(ctx, from, to any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Copy", reflect.TypeOf((*MockSession)(nil).Copy), ctx, from, to)
+}
+
+// Export mocks base method.
+func (m *MockSession) Export(ctx context.Context, at slot.Address, out, as string) (sdk.Written, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Export", ctx, at, out, as)
+	ret0, _ := ret[0].(sdk.Written)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Export indicates an expected call of Export.
+func (mr *MockSessionMockRecorder) Export(ctx, at, out, as any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Export", reflect.TypeOf((*MockSession)(nil).Export), ctx, at, out, as)
+}
+
+// Import mocks base method.
+func (m *MockSession) Import(ctx context.Context, file string, at slot.Address) (sdk.Change, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Import", ctx, file, at)
+	ret0, _ := ret[0].(sdk.Change)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Import indicates an expected call of Import.
+func (mr *MockSessionMockRecorder) Import(ctx, file, at any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Import", reflect.TypeOf((*MockSession)(nil).Import), ctx, file, at)
+}
+
+// Preset mocks base method.
+func (m *MockSession) Preset(ctx context.Context, at slot.Address) (sdk.Reading, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Preset", ctx, at)
+	ret0, _ := ret[0].(sdk.Reading)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Preset indicates an expected call of Preset.
+func (mr *MockSessionMockRecorder) Preset(ctx, at any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Preset", reflect.TypeOf((*MockSession)(nil).Preset), ctx, at)
+}
+
+// Presets mocks base method.
+func (m *MockSession) Presets(ctx context.Context, setlist int) (sdk.Listing, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Presets", ctx, setlist)
+	ret0, _ := ret[0].(sdk.Listing)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Presets indicates an expected call of Presets.
+func (mr *MockSessionMockRecorder) Presets(ctx, setlist any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Presets", reflect.TypeOf((*MockSession)(nil).Presets), ctx, setlist)
+}
+
+// Select mocks base method.
+func (m *MockSession) Select(ctx context.Context, at slot.Address) (sdk.Change, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Select", ctx, at)
 	ret0, _ := ret[0].(sdk.Change)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Select indicates an expected call of Select.
-func (mr *MockClientMockRecorder) Select(ctx, in any) *gomock.Call {
+func (mr *MockSessionMockRecorder) Select(ctx, at any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Select", reflect.TypeOf((*MockClient)(nil).Select), ctx, in)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Select", reflect.TypeOf((*MockSession)(nil).Select), ctx, at)
 }
 
 // Swap mocks base method.
-func (m *MockClient) Swap(ctx context.Context, in sdk.Edit) (sdk.Change, error) {
+func (m *MockSession) Swap(ctx context.Context, a, b slot.Address) (sdk.Change, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Swap", ctx, in)
+	ret := m.ctrl.Call(m, "Swap", ctx, a, b)
 	ret0, _ := ret[0].(sdk.Change)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Swap indicates an expected call of Swap.
-func (mr *MockClientMockRecorder) Swap(ctx, in any) *gomock.Call {
+func (mr *MockSessionMockRecorder) Swap(ctx, a, b any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Swap", reflect.TypeOf((*MockClient)(nil).Swap), ctx, in)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Swap", reflect.TypeOf((*MockSession)(nil).Swap), ctx, a, b)
 }

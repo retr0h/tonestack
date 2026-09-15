@@ -52,37 +52,11 @@ type DeviceOptions struct {
 	CatalogPath string
 }
 
-// ShowDevice reads one slot off an attached device.
-//
-// Read-only: the device hands back the preset and goes on playing whatever it
-// was. Nothing is selected, loaded or written.
-func ShowDevice(
-	ctx context.Context,
-	devices Opener,
-	opts DeviceOptions,
-) (result.Reading, error) {
-	s, err := devices.Open(ctx)
-	if err != nil {
-		return result.Reading{}, err
-	}
-
-	defer s.Close()
-
-	// Somebody who asked to look at a slot is answered that it holds nothing.
-	// Somebody exporting one gets the error, because there is no file to
-	// write.
-	read, err := ShowWith(ctx, s, opts)
-	if errors.Is(err, ErrEmptySlot) {
-		return result.Reading{Name: slotpkg.Label(opts.Slot)}, nil
-	}
-
-	return read, err
-}
-
 // ShowWith reads one slot off the given session.
 //
-// Taking the session makes reading a device testable without one attached,
-// which is the only part of this that needs hardware.
+// Read-only: the device hands back the preset and goes on playing whatever it
+// was. Nothing is selected, loaded or written. Taking the session makes
+// reading a device testable without one attached.
 func ShowWith(
 	ctx context.Context,
 	s device.Editor,
@@ -158,26 +132,10 @@ func nameOf(found []wire.Preset, slot int) string {
 	return ""
 }
 
-// ExportDevice writes one slot off an attached device to a file.
+// ExportWith writes one slot off the given session to a file.
 //
 // The same rig `presets show` prints, which is the point: a slot read off the
 // hardware and one read out of a backup are the same document.
-func ExportDevice(
-	ctx context.Context,
-	devices Opener,
-	opts ExportOptions,
-) (result.Written, error) {
-	s, err := devices.Open(ctx)
-	if err != nil {
-		return result.Written{}, err
-	}
-
-	defer s.Close()
-
-	return ExportWith(ctx, s, opts)
-}
-
-// ExportWith writes one slot off the given session to a file.
 func ExportWith(
 	ctx context.Context,
 	s device.Editor,
@@ -197,26 +155,10 @@ func ExportWith(
 	return write(read, opts)
 }
 
-// ListDevice prints what an attached device holds.
+// ListWith returns what the given session holds.
 //
 // Read-only: it asks the device to describe a setlist and nothing more.
 // Nothing is selected, loaded or written.
-func ListDevice(
-	ctx context.Context,
-	devices Opener,
-	opts DeviceOptions,
-) (result.Listing, error) {
-	s, err := devices.Open(ctx)
-	if err != nil {
-		return result.Listing{}, err
-	}
-
-	defer s.Close()
-
-	return ListWith(ctx, s, opts)
-}
-
-// ListWith returns what the given session holds.
 func ListWith(
 	ctx context.Context,
 	s device.Editor,

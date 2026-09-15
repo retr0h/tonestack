@@ -18,27 +18,44 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-package device_test
+package tools
 
 import (
-	"testing"
-	"time"
+	"context"
 
-	"github.com/retr0h/tonestack/pkg/sdk/internal/device"
+	"github.com/retr0h/tonestack/pkg/sdk"
 )
 
-// TestMain shortens every wait this package spends on hardware, since nothing
-// here is talking to any.
-//
-// The ordering is the one a device has: a commit outlasts a reply, and a
-// write is waited on for the commit budget. A test that needs a different
-// figure sets its own and puts this one back.
-func TestMain(m *testing.M) {
-	*device.ReplyBudget = 50 * time.Millisecond
-	*device.DrainBudget = 50 * time.Millisecond
-	*device.CommitBudget = 500 * time.Millisecond
-	*device.FlashBudget = 0
-	*device.CloseBudget = 500 * time.Millisecond
+// sdkClient is an *sdk.Client whose Open answers the Session the tools hold.
+type sdkClient struct {
+	*sdk.Client
+}
 
-	m.Run()
+// FromSDK is the Client the tools call, over the SDK's own.
+func FromSDK(
+	c *sdk.Client,
+) Client {
+	return sdkClient{Client: c}
+}
+
+// Open claims the pedal.
+func (c sdkClient) Open(
+	ctx context.Context,
+) (Session, error) {
+	return opened(c.Client.Open(ctx))
+}
+
+// opened hands on a Session the SDK opened, or why it could not.
+//
+// Never a nil *sdk.Session inside a non-nil interface: a holder checking for
+// no Session would take that for one, and call it.
+func opened(
+	s *sdk.Session,
+	err error,
+) (Session, error) {
+	if err != nil {
+		return nil, err
+	}
+
+	return s, nil
 }

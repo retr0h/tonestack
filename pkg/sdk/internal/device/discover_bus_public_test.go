@@ -228,11 +228,11 @@ func (s *DiscoverBusPublicTestSuite) TestOpenOver() {
 			says: "reading from the device",
 		},
 		{
-			// Three quiet reads drain the device; the fourth is the first
-			// read after a channel opening.
+			// The drain reads a quiet device; the read that fails is the
+			// one waiting on an answer to the channel's opening frame.
 			name: "one whose reads fail after the opening frame",
 			bus: func() *busDouble {
-				return s.bus(nil, s.helix(readFailsAfter(s.ctrl, errors.New("boom"), 3)))
+				return s.bus(nil, s.helix(readFailsAfter(s.ctrl, errors.New("boom"), 1)))
 			},
 			err:  true,
 			says: "reading from the device",
@@ -240,16 +240,17 @@ func (s *DiscoverBusPublicTestSuite) TestOpenOver() {
 		{
 			name: "one whose reads fail after a service is asked for",
 			bus: func() *busDouble {
-				return s.bus(nil, s.helix(readFailsAfter(s.ctrl, errors.New("boom"), 4)))
+				return s.bus(nil, s.helix(readFailsAfter(s.ctrl, errors.New("boom"), 2)))
 			},
 			err:  true,
 			says: "reading from the device",
 		},
 		{
-			// The read between closing a channel and reopening it.
+			// The wait between closing a channel and reopening it: the
+			// opening, the service, its acknowledgement, then the close.
 			name: "one whose reads fail after a channel is closed",
 			bus: func() *busDouble {
-				return s.bus(nil, s.helix(readFailsAfter(s.ctrl, errors.New("boom"), 5)))
+				return s.bus(nil, s.helix(readFailsAfter(s.ctrl, errors.New("boom"), 4)))
 			},
 			err:  true,
 			says: "reading from the device",
@@ -355,6 +356,11 @@ func (s *DiscoverBusPublicTestSuite) TestOpenOver() {
 			b := tt.bus()
 
 			got, err := device.OpenOver(context.Background(), b.mock)
+			if got != nil {
+				// After the assertions below, which count what the open
+				// itself gave back.
+				s.T().Cleanup(func() { _ = got.Close() })
+			}
 
 			if tt.err {
 				s.Require().Error(err)
@@ -412,23 +418,29 @@ func (s *DiscoverBusPublicTestSuite) TestOpenOver() {
 // TestOpenFindsItsOwnBus covers the one line in this package that reaches
 // hardware.
 func (s *DiscoverBusPublicTestSuite) TestOpenFindsItsOwnBus() {
-	restore := *device.NewBus
-	defer func() { *device.NewBus = restore }()
-
-	*device.NewBus = func() device.TestBus {
-		return s.bus(nil, s.helix(answers(s.ctrl))).mock
-	}
+	source := device.NewMockbuses(s.ctrl)
+	source.EXPECT().Bus().Return(s.bus(nil, s.helix(answers(s.ctrl))).mock)
 
 	var trace bytes.Buffer
 
-	got, err := device.NewUSB(&trace).Open(context.Background())
+	got, err := device.NewUSBOver(&trace, source).Open(context.Background())
 
 	s.Require().NoError(err)
 	s.Require().NotNil(got)
+	s.Require().NoError(got.Close())
 
-	// The trace NewUSB was given reaches the session it opens: the handshake
-	// goes out through it.
+	// The trace the opener was given reaches the session it opens: the
+	// handshake goes out through it.
 	s.Require().Contains(trace.String(), "OUT ")
+}
+
+// TestUSBBus covers where NewUSB gets its bus. Opening one reads nothing;
+// only looking for devices on it does.
+func (s *DiscoverBusPublicTestSuite) TestUSBBus() {
+	b := device.USBBus()
+
+	s.Require().NotNil(b)
+	s.Require().NoError(b.Close())
 }
 
 func TestDiscoverBusTestSuite(t *testing.T) {

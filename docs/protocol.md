@@ -151,6 +151,27 @@ and then jumps to **2, not 1**; the device stops answering a client that sends
 a stream byte is the envelope including its own header. Sending a bare count
 instead makes the device stop responding.
 
+That formula is the host's own. The device's acknowledgements do not share it. A
+session compares them only for change, never against a computed byte count.
+
+A session also acknowledges bytes nobody asked for. A channel that received
+stream bytes outside an exchange gets one acknowledgement once it has been quiet
+for 300ms, and any whole envelopes it holds are dropped. The events channel gets
+these, because nothing reads it. So does a control or data channel that heard
+from the device between operations. None is sent, on any channel, while an
+exchange, a write or a channel opening is under way. A write counts from its
+first chunk through its answer and the 750ms flash pause, because that is the
+window a device punishes.
+
+No chunk of a write goes out without the device's acknowledgement of the one
+before it. A read that fails while a message is going out ends the read loop the
+same way any other bus failure does, and the chunk waiting on that
+acknowledgement fails with it. A pace that never gets one ends the session too,
+rather than leave the data channel holding half a message for a later call to
+feed a fresh request into. Closing a session whose loop has ended still sends a
+bare acknowledgement on every channel and then the closing hellos, as it did
+before sessions had a read loop, though nothing reads what the device answers.
+
 ## Remote calls
 
 Three shapes, all MessagePack maps with integer keys:
@@ -417,9 +438,21 @@ device accepts the write and then reads the preset as empty. `wire.Document` is
 what keeps that from happening.
 
 **A message goes out in pieces.** A device takes 256 bytes of stream data per
-frame and paces the sender with acknowledgements. Sending a whole preset at once
-fills its receive window and stalls the endpoint: the transfer times out, and
-the interface will not be claimed again until the device is power cycled.
+frame and paces the sender with acknowledgements. The host waits for the
+device's own acknowledgement on the data channel before sending the next chunk.
+Going too long without one stops the message rather than send it unpaced, and
+ends the session doing it, which is better than a data channel left holding half
+a message for a later call to feed a fresh request into. Sending a whole preset
+at once works against that pacing the same way. It fills the device's receive
+window and stalls the endpoint. The transfer times out, and the interface will
+not be claimed again until the device is power cycled.
+
+A trace from a session that held a device across two writes, with a read between
+them, shows why pace waits for that channel's own acknowledgement rather than
+any transfer. The device acked four chunks in turn. For the fifth, a frame on
+the control channel arrived instead of an acknowledgement, and the chunks sent
+after it went out unpaced. Those unpaced chunks are what stalled the endpoint.
+The pedal needed a power cycle.
 
 **A write is not finished when it is accepted.** The reply carries status 1,
 meaning the device took it, and completion arrives later as a notification
@@ -530,7 +563,10 @@ needs its power supply physically pulled.
    back without a physical unplug.
 2. **Always have a read posted.** The device sends notifications unasked. With
    nothing draining the IN endpoint its outgoing queue fills, at which point it
-   stops draining the incoming endpoint too and the next write times out.
+   stops draining the incoming endpoint too and the next write times out. A
+   session keeps this with one goroutine that reads from the claim until
+   `Close`, between operations, through the 750ms flash pause and while a switch
+   is polled. Everything else waits on what that goroutine routes.
 3. **Pace deferred work on the completion notification.** Racing commits is
    tolerated about a dozen times and then writes stop being accepted.
 4. **Handshake once per session.** Repeating it on an open channel wedges the

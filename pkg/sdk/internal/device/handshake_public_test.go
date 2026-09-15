@@ -25,7 +25,6 @@ import (
 	"context"
 	"errors"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/suite"
 	"github.com/vmihailenco/msgpack/v5"
@@ -77,7 +76,7 @@ func (s *HandshakePublicTestSuite) replyOnData(txn uint64, status int, result an
 func (s *HandshakePublicTestSuite) session(
 	d *deviceDouble,
 ) *device.Session {
-	out := device.NewTestSession(d.out, d.in)
+	out := device.NewTestSession(s.T(), d.out, d.in)
 	out.OpenChannels()
 
 	return out
@@ -91,12 +90,9 @@ func (s *HandshakePublicTestSuite) TestCall() {
 		channel   string
 		device    func() (*deviceDouble, device.TestSender)
 		cancelled bool
-		// wait out the whole budget rather than cancelling, shortened so the
-		// test does not spend six seconds on it.
-		silent  bool
-		want    any
-		err     error
-		message string
+		want      any
+		err       error
+		message   string
 		// how many reads the call took, when that is the point.
 		reads int
 	}{
@@ -157,7 +153,6 @@ func (s *HandshakePublicTestSuite) TestCall() {
 
 				return d, d.out
 			},
-			silent:  true,
 			message: "no reply to opcode 1",
 		},
 		{
@@ -252,7 +247,7 @@ func (s *HandshakePublicTestSuite) TestCall() {
 		s.Run(tc.name, func() {
 			in, out := tc.device()
 
-			session := device.NewTestSession(out, in.in)
+			session := device.NewTestSession(s.T(), out, in.in)
 			session.OpenChannels()
 
 			ctx, cancel := context.WithCancel(context.Background())
@@ -260,13 +255,6 @@ func (s *HandshakePublicTestSuite) TestCall() {
 
 			if tc.cancelled {
 				cancel()
-			}
-
-			if tc.silent {
-				was := *device.ReplyBudget
-				*device.ReplyBudget = 50 * time.Millisecond
-
-				defer func() { *device.ReplyBudget = was }()
 			}
 
 			got, err := session.Call(ctx, tc.channel, 1, nil)
@@ -287,7 +275,7 @@ func (s *HandshakePublicTestSuite) TestCall() {
 			}
 
 			if tc.reads > 0 {
-				s.Require().Equal(tc.reads, in.reads, "within one read")
+				s.Require().Equal(tc.reads, in.readCount(), "within one read")
 				s.Require().NotContains(err.Error(), "no reply")
 			}
 		})
@@ -302,10 +290,19 @@ func (s *HandshakePublicTestSuite) TestHandshake() {
 		name string
 		// how many frames the bus takes before it refuses the rest. Negative
 		// means it takes them all.
-		sendsOK int
-		says    string
+		sendsOK   int
+		cancelled bool
+		says      string
 	}{
 		{name: "a device that takes every frame", sendsOK: -1},
+		{
+			// Somebody who stopped waiting is told so at the first pause,
+			// rather than the channels being opened for nobody.
+			name:      "a caller who stopped waiting",
+			sendsOK:   -1,
+			cancelled: true,
+			says:      "context canceled",
+		},
 		{
 			// The hello goes out, and the frame that names the service does
 			// not.
@@ -332,7 +329,14 @@ func (s *HandshakePublicTestSuite) TestHandshake() {
 				out = &device.FailAfter{Sender: d.out, OK: tt.sendsOK, Err: errors.New("boom")}
 			}
 
-			err := device.NewTestSession(out, d.in).Handshake(context.Background())
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			if tt.cancelled {
+				cancel()
+			}
+
+			err := device.NewTestSession(s.T(), out, d.in).Handshake(ctx)
 
 			if tt.says == "" {
 				s.Require().NoError(err)

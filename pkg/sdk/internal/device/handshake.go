@@ -39,41 +39,79 @@ func (s *session) handshake(
 ) error {
 	s.drain(ctx)
 
+	// A bus that failed during the drain is not one to open channels on.
+	if err := s.ended(); err != nil {
+		return err
+	}
+
 	for _, spec := range channelSpecs {
-		c := &channel{
-			name: spec.name, device: spec.device, host: spec.host,
-			txn: wire.FirstTxn,
-		}
-		s.chans[spec.name] = c
-
-		for i, service := range spec.services {
-			// A channel serving two services is opened twice, from scratch,
-			// with the first closed in between. Multiplexing them onto one
-			// open channel silently breaks every channel.
-			if i > 0 {
-				if err := s.closeChannel(c); err != nil {
-					return err
-				}
-
-				// The device answers the close before it will answer a new
-				// opening. Reopening without reading first leaves it talking
-				// about the channel that just went away.
-				if _, err := s.receive(ctx, openReadWait); err != nil {
-					return err
-				}
-
-				c.seq = 0
-				c.rxBytes = 0
-				c.buf = nil
-			}
-
-			if err := s.openService(ctx, c, service); err != nil {
-				return err
-			}
+		if err := s.openChannel(ctx, s.chans[spec.name], spec.services); err != nil {
+			return err
 		}
 	}
 
 	return nil
+}
+
+// openChannel brings up every service a channel serves.
+//
+// The channel is busy for the length of it, so the idle acknowledgement stays
+// out of an opening.
+func (s *session) openChannel(
+	ctx context.Context,
+	c *channel,
+	services []uint16,
+) error {
+	s.rxMu.Lock()
+	c.open = true
+	s.inflight++
+	s.rxMu.Unlock()
+
+	defer s.finish()
+
+	for i, service := range services {
+		// A channel serving two services is opened twice, from scratch, with
+		// the first closed in between. Multiplexing them onto one open channel
+		// silently breaks every channel.
+		if i > 0 {
+			mark := s.progress().transfers
+
+			if err := s.closeChannel(c); err != nil {
+				return err
+			}
+
+			// The device answers the close before it will answer a new
+			// opening. Reopening without waiting first leaves it talking about
+			// the channel that just went away.
+			if err := s.pause(ctx, mark, s.budgets.open); err != nil {
+				return err
+			}
+
+			s.reopen(c)
+		}
+
+		if err := s.openService(ctx, c, service); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// reopen puts a channel's counters back where a new opening starts them.
+func (s *session) reopen(
+	c *channel,
+) {
+	s.sendMu.Lock()
+	c.seq = 0
+	s.sendMu.Unlock()
+
+	s.rxMu.Lock()
+	defer s.rxMu.Unlock()
+
+	c.rxBytes.Store(0)
+	c.ackSent.Store(0)
+	c.buf = nil
 }
 
 // openService performs the three frames that bring one service up.
@@ -82,18 +120,22 @@ func (s *session) openService(
 	c *channel,
 	service uint16,
 ) error {
+	mark := s.progress().transfers
+
 	if err := s.send(c, wire.MsgHello, helloTail); err != nil {
 		return err
 	}
 
 	// HX Edit's counter jumps from zero straight to two here, and the device
 	// stops answering a client that sends one.
+	s.sendMu.Lock()
 	c.seq = firstSeq
+	s.sendMu.Unlock()
 
-	// The device answers some openings and not others. A timeout here is not
-	// a failure; the first request is what proves the session is alive. A
-	// read that fails outright is, and a handshake is not retried.
-	if _, err := s.receive(ctx, openReadWait); err != nil {
+	// The device answers some openings and not others. Silence here is not a
+	// failure; the first request is what proves the session is alive. A bus
+	// that fails is, and a handshake is not retried.
+	if err := s.pause(ctx, mark, s.budgets.open); err != nil {
 		return err
 	}
 
@@ -102,11 +144,13 @@ func (s *session) openService(
 		Body: []byte{byte(service)},
 	})
 
+	mark = s.progress().transfers
+
 	if err := s.send(c, wire.MsgData, body); err != nil {
 		return err
 	}
 
-	if _, err := s.receive(ctx, openReadWait); err != nil {
+	if err := s.pause(ctx, mark, s.budgets.open); err != nil {
 		return err
 	}
 
@@ -116,7 +160,9 @@ func (s *session) openService(
 // closeChannel sends the bare frame that releases a service.
 //
 // The device will not answer on a new service without it.
-func (s *session) closeChannel(c *channel) error {
+func (s *session) closeChannel(
+	c *channel,
+) error {
 	return s.send(c, wire.MsgHello, nil)
 }
 
@@ -132,27 +178,31 @@ func (s *session) Call(
 	opcode uint64,
 	args []wire.Arg,
 ) (wire.Response, error) {
-	c, ok := s.chans[channelName]
-	if !ok {
-		return wire.Response{}, fmt.Errorf("no %s channel", channelName)
+	c, err := s.channel(channelName)
+	if err != nil {
+		return wire.Response{}, err
 	}
 
-	txn := c.txn
-	c.txn++
+	if err := s.begin(); err != nil {
+		return wire.Response{}, err
+	}
 
+	defer s.finish()
+
+	txn := s.nextTxn(c)
 	body := wire.EncodeRequest(wire.Request{Txn: txn, Opcode: opcode, Args: args})
 
-	err := s.send(c, wire.MsgData, wire.EncodeEnvelope(wire.Envelope{
+	err = s.send(c, wire.MsgData, wire.EncodeEnvelope(wire.Envelope{
 		Originator: wire.FromHost, Service: 2, Body: body,
 	}))
 	if err != nil {
 		return wire.Response{}, err
 	}
 
-	return s.awaitReply(ctx, c, txn, opcode, replyBudget)
+	return s.awaitReply(ctx, c, txn, opcode, s.budgets.reply)
 }
 
-// awaitReply reads until the reply to one transaction arrives, or budget runs
+// awaitReply waits for the reply to one transaction, or for budget to run
 // out.
 //
 // The budget is the caller's: a call is answered within the reply budget, and
@@ -163,59 +213,74 @@ func (s *session) awaitReply(
 	txn, opcode uint64,
 	budget time.Duration,
 ) (wire.Response, error) {
-	deadline := time.Now().Add(budget)
+	timer := time.NewTimer(budget)
+	defer timer.Stop()
 
-	for time.Now().Before(deadline) {
-		// Checked before reading as well as by receive, which only sees a
-		// cancelled context when the read fails. A read that returns at once
-		// with nothing turns this into a spin, and the caller is told the
-		// device never answered rather than that they stopped waiting.
+	for {
+		// Before the buffer, so somebody who stopped waiting is told that
+		// rather than handed an answer they no longer want.
 		if err := ctx.Err(); err != nil {
 			return wire.Response{}, err
 		}
 
-		got, err := s.receive(ctx, replyReadWait)
-		if err != nil {
-			return wire.Response{}, err
+		if resp, ok, err := s.reply(c, txn, opcode); ok {
+			return resp, err
 		}
 
-		for {
-			body, ok := message(c)
-			if !ok {
-				break
-			}
-
-			resp, err := wire.DecodeResponse(body)
-			if err != nil {
-				continue
-			}
-
-			// A notification carries no transaction and is not anybody's
-			// reply. Letting one be mistaken for this reply would answer the
-			// wrong question.
-			if resp.Txn != txn {
-				continue
-			}
-
-			if err := resp.Err(opcode); err != nil {
-				return resp, err
-			}
-
-			return resp, nil
+		// After the buffer, so an answer routed just before the bus failed is
+		// still read.
+		if err := s.ended(); err != nil {
+			return wire.Response{}, err
 		}
 
 		// Only when bytes actually arrived: the device sends empty transfers
 		// when it has nothing to say, and acknowledging one burns a sequence
 		// number and stalls the transfer.
-		if got {
+		if c.owed() {
 			if err := s.send(c, wire.MsgAck, nil); err != nil {
 				return wire.Response{}, err
 			}
 		}
+
+		select {
+		case <-c.arrived:
+		case <-s.dead:
+		case <-ctx.Done():
+		case <-timer.C:
+			return wire.Response{}, fmt.Errorf(
+				"%w to opcode %d within %s", errNoReply, opcode, budget)
+		}
+	}
+}
+
+// reply takes envelopes off a channel's buffer until one answers txn.
+//
+// Reports whether it found one, and what that answer says.
+func (s *session) reply(
+	c *channel,
+	txn, opcode uint64,
+) (wire.Response, bool, error) {
+	s.rxMu.Lock()
+	defer s.rxMu.Unlock()
+
+	for body, ok := message(c); ok; body, ok = message(c) {
+		resp, err := wire.DecodeResponse(body)
+		if err != nil {
+			continue
+		}
+
+		// A notification carries no transaction and is not anybody's reply.
+		// Letting one be mistaken for this reply would answer the wrong
+		// question. A late reply to a call somebody gave up on is skipped the
+		// same way.
+		if resp.Txn != txn {
+			continue
+		}
+
+		return resp, true, resp.Err(opcode)
 	}
 
-	return wire.Response{}, fmt.Errorf(
-		"%w to opcode %d within %s", errNoReply, opcode, budget)
+	return wire.Response{}, false, nil
 }
 
 // errNoReply is a device that stayed silent for the whole of its budget.
@@ -225,7 +290,10 @@ func (s *session) awaitReply(
 var errNoReply = errors.New("no reply")
 
 // Presets lists what the device holds.
-func (s *session) Presets(ctx context.Context, setlist int) ([]wire.Preset, error) {
+func (s *session) Presets(
+	ctx context.Context,
+	setlist int,
+) ([]wire.Preset, error) {
 	resp, err := s.Call(ctx, channelControl, opListPresets, []wire.Arg{
 		{Key: argSetlist, Value: uint64(setlist)},
 		{Key: argListKind, Value: listKind},

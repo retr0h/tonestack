@@ -37,14 +37,10 @@ const (
 	opLoaded = 23
 )
 
-// How long a switch is given, and how often the device is asked.
-var (
-	selectBudget = 10 * time.Second
-	selectPoll   = 150 * time.Millisecond
-)
-
 // Loaded reports which preset the device is playing.
-func (s *session) Loaded(ctx context.Context) (wire.Loaded, error) {
+func (s *session) Loaded(
+	ctx context.Context,
+) (wire.Loaded, error) {
 	resp, err := s.Call(ctx, channelData, opLoaded, nil)
 	if err != nil {
 		return wire.Loaded{}, err
@@ -93,11 +89,14 @@ func (s *session) SelectPreset(
 // failure until the budget runs out. Anything else, a bus that has gone or a
 // caller who stopped waiting, ends the wait at once: polled on, it surfaced
 // only at the end of the budget as a switch that never finished.
+//
+// The loop goes on reading between questions, so what the device says while
+// it switches is taken off the bus rather than left to fill its queue.
 func (s *session) awaitLoaded(
 	ctx context.Context,
 	setlist, slot int,
 ) error {
-	deadline := time.Now().Add(selectBudget)
+	deadline := time.Now().Add(s.budgets.selecting)
 
 	for {
 		got, err := s.Loaded(ctx)
@@ -117,13 +116,13 @@ func (s *session) awaitLoaded(
 		if time.Now().After(deadline) {
 			return fmt.Errorf(
 				"the device did not finish switching to slot %d within %s",
-				slot, selectBudget)
+				slot, s.budgets.selecting)
 		}
 
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-time.After(selectPoll):
+		case <-s.after(s.budgets.poll):
 		}
 	}
 }
