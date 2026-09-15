@@ -106,6 +106,8 @@ func exported(
 	at := slot.Address{Setlist: presetsExportSetlist, Slot: presetsExportSlot}
 
 	if presetsExportFile == "" {
+		pedal.claim()
+
 		return client.Export(cmd.Context(), at, presetsExportOut, presetsExportAs)
 	}
 

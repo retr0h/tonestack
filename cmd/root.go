@@ -76,11 +76,35 @@ func Execute() {
 	// dies where it stands, the interface is released by teardown rather
 	// than by the session that claimed it, and the pedal is left needing a
 	// power cycle. See docs/protocol.md.
-	ctx, stop := signal.NotifyContext(
-		context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
+	//
+	// Cancelling does not end a device command at once: a write that has
+	// started finishes and the session closes, which waits on the pedal. So
+	// every interrupt is answered, not only the first, and a command holding
+	// the device says what it is waiting for. See cli.Interrupts.
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-	if err := rootCmd.ExecuteContext(ctx); err != nil {
+	// Room for all three interrupts cli.Interrupts counts, so presses in quick
+	// succession are not dropped.
+	signals := make(chan os.Signal, 3)
+	signal.Notify(signals, os.Interrupt, syscall.SIGTERM)
+
+	answered := make(chan struct{})
+
+	go func() {
+		defer close(answered)
+
+		cli.Interrupts(signals, os.Stderr, &pedal, process{cancel: cancel})
+	}()
+
+	err := rootCmd.ExecuteContext(ctx)
+
+	// Stop guarantees nothing more is delivered, so closing is safe.
+	signal.Stop(signals)
+	close(signals)
+	<-answered
+
+	if err != nil {
 		os.Exit(1)
 	}
 }

@@ -110,6 +110,8 @@ func reading(
 	case presetsShowFile != "":
 		return client.Setlist(presetsShowFile).Preset(cmd.Context(), at)
 	default:
+		pedal.claim()
+
 		return client.Preset(cmd.Context(), at)
 	}
 }
