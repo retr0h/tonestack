@@ -146,7 +146,7 @@ Devices are enumerated by descriptor only — none is opened — so this needs n
 special privileges and cannot disturb a device in use by other software.
 
 ```text
-tonestack devices list
+tonestack devices list [flags]
 ```
 
 ## tonestack mcp
@@ -453,7 +453,7 @@ tonestack recipes <command> [flags]
 List available recipes
 
 ```text
-tonestack recipes list
+tonestack recipes list [flags]
 ```
 
 ## tonestack recipes new
