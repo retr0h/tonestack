@@ -37,11 +37,32 @@ type ScaffoldPublicTestSuite struct {
 	suite.Suite
 }
 
+// nextLine, lineSep and paraSep end a line for a YAML parser, the way a
+// newline does. Written as runes so the source stays readable.
+var (
+	nextLine = string(rune(0x0085))
+	lineSep  = string(rune(0x2028))
+	paraSep  = string(rune(0x2029))
+)
+
 // subjectBlock is the parent's subject as most rigs write it.
 const subjectBlock = `subject:
   kind: artist
   name: Parent Player
   band: A Band
+`
+
+// requiresAndEvidence is what a rig needs and what it rests on, written as
+// rigs marshalled by machine write them: the keys after the first in each
+// entry sit at the indent a subject's own keys sit at.
+const requiresAndEvidence = `requires:
+- name: My IR Pack
+  kind: ir
+
+evidence:
+- url: https://example.test/b
+  kind: cited
+
 `
 
 // meteor is a rig read off a device. Its keys are in marshalled order, so
@@ -50,20 +71,26 @@ const subjectBlock = `subject:
 var meteor = filepath.Join(
 	"..", "..", "..", "..", "examples", "rigspec", "dir-angl-meteor.yaml")
 
-// parent writes a rig for a copy to be made from, with subject as its
-// subject block.
-func (s *ScaffoldPublicTestSuite) parent(
-	dir string,
-	subject string,
-) {
-	artists := filepath.Join(dir, "artists")
-	s.Require().NoError(os.MkdirAll(artists, 0o750))
-	s.Require().NoError(os.WriteFile(
-		filepath.Join(
-			artists,
-			"parent.yaml",
-		),
-		[]byte(`# A header describing the parent, which the copy does not inherit.
+// parentRig is the rig a copy is made from, in the shapes a rig comes in.
+type parentRig struct {
+	// subject replaces the parent's subject block.
+	subject string
+	// extra is written between the instrument and the chain.
+	extra string
+	// lead is written above the subject.
+	lead string
+	// breaks is what ends a line, where that is not a newline.
+	breaks string
+}
+
+// text writes the parent out.
+func (p parentRig) text() string {
+	subject := subjectBlock
+	if p.subject != "" {
+		subject = p.subject
+	}
+
+	body := `# A header describing the parent, which the copy does not inherit.
 #
 # More of it.
 
@@ -73,10 +100,10 @@ id: parent
 aliases: [other-name]
 default: true
 
-`+subject+`
+` + p.lead + subject + `
 instrument: bass
 
-chain:
+` + p.extra + `chain:
   - role: amp
     gear: Ampeg SVT
     evidence:
@@ -85,9 +112,24 @@ chain:
     confidence: high
 
 confidence: medium
-`),
-		0o600,
-	))
+`
+
+	if p.breaks != "" {
+		body = strings.ReplaceAll(body, "\n", p.breaks)
+	}
+
+	return body
+}
+
+// parent writes a rig for a copy to be made from.
+func (s *ScaffoldPublicTestSuite) parent(
+	dir string,
+	rig parentRig,
+) {
+	artists := filepath.Join(dir, "artists")
+	s.Require().NoError(os.MkdirAll(artists, 0o750))
+	s.Require().NoError(os.WriteFile(
+		filepath.Join(artists, "parent.yaml"), []byte(rig.text()), 0o600))
 }
 
 // example writes the meteor rig beside the parent.
@@ -103,12 +145,12 @@ func (s *ScaffoldPublicTestSuite) example(
 // copyOf makes the copy a row asks for, in a directory of its own, and
 // returns the directory it went to.
 func (s *ScaffoldPublicTestSuite) copyOf(
-	subject string,
+	rig parentRig,
 	withExample bool,
 	opts recipes.NewOptions,
 ) (string, error) {
 	dir := s.T().TempDir()
-	s.parent(dir, subject)
+	s.parent(dir, rig)
 
 	if withExample {
 		s.example(dir)
@@ -148,15 +190,16 @@ func (s *ScaffoldPublicTestSuite) TestNewFrom() {
 		noPedals bool
 		// base is the directory beneath, or empty for the rigs that ship.
 		base string
-		// subject replaces the parent's subject block.
-		subject string
+		// rig is the shape of the rig copied from.
+		rig parentRig
 		// withExample writes the meteor rig beside the parent.
 		withExample bool
 		// compare makes the same copy without the name as well, and
 		// requires the two files to differ in the subject's name alone.
 		compare bool
-		// loads is the name the copy has once read back.
-		loads string
+		// loads and loadsKind are what the copy says it is once read back.
+		loads     string
+		loadsKind string
 	}{
 		{
 			// Nobody named the copy, so it keeps the parent's name, and the
@@ -183,16 +226,36 @@ func (s *ScaffoldPublicTestSuite) TestNewFrom() {
 			},
 		},
 		{
-			name:  "a copy that is one song rather than a player",
-			from:  "parent",
-			kind:  "song",
-			who:   "One Song",
-			named: "One Song",
-			amp:   "Ampeg SVT",
-			loads: "One Song",
-			want:  []string{"kind: song", "name: One Song", "band: A Band"},
+			name:      "a copy that is one song rather than a player",
+			from:      "parent",
+			kind:      "song",
+			who:       "One Song",
+			named:     "One Song",
+			amp:       "Ampeg SVT",
+			loads:     "One Song",
+			loadsKind: "song",
+			want:      []string{"kind: song", "name: One Song", "band: A Band"},
 			// The band survives, because the song is still by them.
 			absent: []string{"kind: artist", "name: Parent Player"},
+		},
+		{
+			// `kind` is the subject's, and a rig says what it requires and
+			// what it rests on in the same word at the same indent.
+			name:      "a copy of a rig that says what it requires",
+			from:      "parent",
+			kind:      "song",
+			rig:       parentRig{extra: requiresAndEvidence},
+			loadsKind: "song",
+			want:      []string{"kind: ir", "kind: cited", "  kind: song"},
+		},
+		{
+			// Nothing matched a flow subject's kind, so asking for one was
+			// taken and then ignored.
+			name:      "a copy of a rig whose subject is a flow, made one song",
+			from:      "parent",
+			kind:      "song",
+			rig:       parentRig{subject: "subject: { kind: artist, name: Parent Player }\n"},
+			loadsKind: "song",
 		},
 		{
 			name: "a copy of a rig that ships in the binary",
@@ -270,77 +333,185 @@ func (s *ScaffoldPublicTestSuite) TestNewFrom() {
 			loads: `Bob's: "live"`,
 		},
 		{
-			// Bare, a comma and a brace end the value inside a flow.
-			name:    "a name with flow syntax, in a subject written as a flow",
-			from:    "parent",
-			subject: "subject: { kind: artist, name: Parent Player, band: A Band }\n",
-			who:     "a, b}",
-			loads:   "a, b}",
-			want:    []string{"band: A Band }"},
+			// The loader reads YAML 1.1, where a bare Yes is a boolean and a
+			// rig's name has to be a string. Yes and No are band names.
+			name:  "a name that is a word for yes",
+			from:  "parent",
+			who:   "Yes",
+			loads: "Yes",
+		},
+		{
+			name:  "a name that is a word for no",
+			from:  "parent",
+			who:   "No",
+			loads: "No",
+		},
+		{
+			name:  "a name that is a switch position",
+			from:  "parent",
+			who:   "on",
+			loads: "on",
+		},
+		{
+			name:  "a name that is a letter for no",
+			from:  "parent",
+			who:   "n",
+			loads: "n",
+		},
+		{
+			name:  "a name that is a letter for yes",
+			from:  "parent",
+			who:   "y",
+			loads: "y",
+		},
+		{
+			name:  "a name that is a word for true",
+			from:  "parent",
+			who:   "true",
+			loads: "true",
+		},
+		{
+			name:  "a name that is a number",
+			from:  "parent",
+			who:   "123",
+			loads: "123",
+		},
+		{
+			name:  "a name that is a word for nothing",
+			from:  "parent",
+			who:   "~",
+			loads: "~",
+		},
+		{
+			name: "a name with flow syntax, in a subject written as a flow",
+			from: "parent",
+			rig: parentRig{
+				subject: "subject: { kind: artist, name: Parent Player, band: A Band }\n",
+			},
+			who:   "a, b}",
+			loads: "a, b}",
+			want:  []string{"band: A Band }"},
 		},
 		{
 			// The comment is the parent's, about the line and not the name.
-			name:    "a name with a comment after it",
-			from:    "parent",
-			subject: "subject:\n  kind: artist\n  name: Parent Player # who it is\n",
-			who:     "Someone Else",
-			loads:   "Someone Else",
-			want:    []string{"# who it is"},
+			name: "a name with a comment after it",
+			from: "parent",
+			rig: parentRig{
+				subject: "subject:\n  kind: artist\n  name: Parent Player # who it is\n",
+			},
+			who:   "Someone Else",
+			loads: "Someone Else",
+			want:  []string{"# who it is"},
 		},
 		{
-			name:    "a name the parent quoted",
-			from:    "parent",
-			subject: "subject:\n  kind: artist\n  name: 'Parent '' Player'\n",
-			who:     "it's",
-			loads:   "it's",
-			absent:  []string{"Parent"},
+			name:   "a name the parent quoted",
+			from:   "parent",
+			rig:    parentRig{subject: "subject:\n  kind: artist\n  name: 'Parent '' Player'\n"},
+			who:    `it's: "live"`,
+			loads:  `it's: "live"`,
+			absent: []string{"Parent"},
 		},
 		{
-			name:    "a name the parent double quoted",
-			from:    "parent",
-			subject: "subject:\n  kind: artist\n  name: \"Parent \\\" Player\"\n",
-			who:     "Two\nLines",
-			loads:   "Two\nLines",
-			absent:  []string{"Parent"},
+			name: "a name the parent double quoted",
+			from: "parent",
+			rig: parentRig{
+				subject: "subject:\n  kind: artist\n  name: \"Parent \\\" Player\"\n",
+			},
+			who:    "Two\nLines",
+			loads:  "Two\nLines",
+			absent: []string{"Parent"},
 		},
 		{
 			// A name spread over lines cannot be replaced where it stands,
 			// so the document is written out again.
-			name:    "a name the parent wrote over several lines",
-			from:    "parent",
-			subject: "subject:\n  kind: artist\n  name: >-\n    Parent\n    Player\n",
-			who:     "a: b",
-			loads:   "a: b",
-			absent:  []string{"Parent"},
-			want:    []string{"url: https://example.test/a"},
+			name: "a name the parent wrote over several lines",
+			from: "parent",
+			rig: parentRig{
+				subject: "subject:\n  kind: artist\n  name: >-\n    Parent\n    Player\n",
+			},
+			who:    "a: b",
+			loads:  "a: b",
+			absent: []string{"Parent"},
+			want:   []string{"url: https://example.test/a"},
 		},
 		{
-			name:    "a quoted name the parent closed on a later line",
-			from:    "parent",
-			subject: "subject:\n  kind: artist\n  name: \"Parent\n    Player\"\n",
-			who:     "a: b",
-			loads:   "a: b",
-			absent:  []string{"Parent"},
+			name: "a quoted name the parent closed on a later line",
+			from: "parent",
+			rig: parentRig{
+				subject: "subject:\n  kind: artist\n  name: \"Parent\n    Player\"\n",
+			},
+			who:    "a: b",
+			loads:  "a: b",
+			absent: []string{"Parent"},
 		},
 		{
 			// Replaced where it starts, the rest of the old name would be
 			// left on the next line, so it is not replaced there.
-			name:    "a bare name the parent carried onto a second line",
-			from:    "parent",
-			subject: "subject:\n  kind: artist\n  name: Parent\n    Player\n",
-			who:     "a: b",
-			loads:   "a: b",
-			absent:  []string{"Parent"},
+			name:   "a bare name the parent carried onto a second line",
+			from:   "parent",
+			rig:    parentRig{subject: "subject:\n  kind: artist\n  name: Parent\n    Player\n"},
+			who:    "a: b",
+			loads:  "a: b",
+			absent: []string{"Parent"},
 		},
 		{
-			// Replacing the text after `name: ` would drop the anchor with
-			// the name, so the document is written out again instead.
-			name:    "a name the parent anchored",
-			from:    "parent",
-			subject: "subject:\n  kind: artist\n  name: &who Parent Player\n",
-			who:     "Someone Else",
-			loads:   "Someone Else",
-			absent:  []string{"&who", "Parent Player"},
+			// The anchor is the name's, and the band is written as whatever
+			// the name is, so dropping the anchor leaves a rig that has lost
+			// a value nothing can supply.
+			name: "a name the parent anchored and pointed at",
+			from: "parent",
+			rig: parentRig{
+				subject: "subject:\n  kind: artist\n  name: &who Parent Player\n  band: *who\n",
+			},
+			who:    "Someone Else",
+			loads:  "Someone Else",
+			absent: []string{"Parent Player"},
+		},
+		{
+			// A parser ends a line at any of these, so a file written with
+			// them holds more lines than counting newlines finds.
+			name:  "a rig whose lines end in carriage returns",
+			from:  "parent",
+			rig:   parentRig{breaks: "\r"},
+			who:   "Someone Else",
+			loads: "Someone Else",
+			want:  []string{"gear: Ampeg SVT"},
+		},
+		{
+			name:  "a rig whose lines end in next-line characters",
+			from:  "parent",
+			rig:   parentRig{breaks: nextLine},
+			who:   "Someone Else",
+			loads: "Someone Else",
+		},
+		{
+			name:  "a rig whose lines end in line separators",
+			from:  "parent",
+			rig:   parentRig{breaks: lineSep},
+			who:   "Someone Else",
+			loads: "Someone Else",
+		},
+		{
+			name:  "a rig whose lines end in paragraph separators",
+			from:  "parent",
+			rig:   parentRig{breaks: paraSep},
+			who:   "Someone Else",
+			loads: "Someone Else",
+		},
+		{
+			// The separator ends the comment, so the parser counts two lines
+			// where counting newlines finds one, and everything below it is
+			// a line further down than it looks. Renaming to the name that
+			// is already there is the case a comparison cannot catch.
+			name:  "a comment above the name carrying a line separator",
+			from:  "parent",
+			rig:   parentRig{lead: "# a note" + lineSep + "# and more of it\n"},
+			who:   "Parent Player",
+			loads: "Parent Player",
+			want: []string{
+				"# a note" + lineSep + "# and more of it",
+				"  name: Parent Player",
+			},
 		},
 		{
 			// The rigs beneath are read whole, the way a lookup reads them.
@@ -386,13 +557,8 @@ func (s *ScaffoldPublicTestSuite) TestNewFrom() {
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			subject := subjectBlock
-			if tt.subject != "" {
-				subject = tt.subject
-			}
-
 			dir := s.T().TempDir()
-			s.parent(dir, subject)
+			s.parent(dir, tt.rig)
 
 			if tt.withExample {
 				s.example(dir)
@@ -469,7 +635,7 @@ func (s *ScaffoldPublicTestSuite) TestNewFrom() {
 				unnamed := opts
 				unnamed.Name = ""
 
-				other, err := s.copyOf(subject, tt.withExample, unnamed)
+				other, err := s.copyOf(tt.rig, tt.withExample, unnamed)
 				s.Require().NoError(err)
 
 				plain, err := os.ReadFile(filepath.Join(other, "artists", "copy.yaml"))
@@ -498,9 +664,86 @@ func (s *ScaffoldPublicTestSuite) TestNewFrom() {
 				if tt.loads != "" {
 					s.Require().Equal(tt.loads, spec.Subject.Name)
 				}
+
+				if tt.loadsKind != "" {
+					s.Require().Equal(tt.loadsKind, string(spec.Subject.Kind))
+				}
 			}
 
 			s.Require().True(found, "the copy loads")
+		})
+	}
+}
+
+// TestReplaceSubject covers replacing a subject's field in a rig's own text.
+//
+// New cannot reach these: it rewrites a rig that loaded, and a rig that
+// loaded has a subject carrying both fields, because the contract requires
+// them. This is its own helper with its own contract, and what it does with
+// a document that has no such field is part of that contract.
+func (s *ScaffoldPublicTestSuite) TestReplaceSubject() {
+	tests := []struct {
+		name  string
+		body  string
+		key   string
+		value string
+		want  string
+		// errText is what rewriting fails with, and nothing is returned.
+		errText string
+	}{
+		{
+			name:  "a rig with a name to replace",
+			body:  "schema: RigSpec\nsubject:\n  kind: artist\n  name: Parent Player\n",
+			key:   "name",
+			value: "Someone Else",
+			want:  "  name: Someone Else\n",
+		},
+		{
+			name:  "a rig with a kind to replace",
+			body:  "schema: RigSpec\nsubject:\n  kind: artist\n  name: Parent Player\n",
+			key:   "kind",
+			value: "song",
+			want:  "  kind: song\n",
+		},
+		{
+			name:    "a document that is not YAML",
+			body:    "subject: [\n  unclosed\n",
+			key:     "name",
+			errText: "rewriting the copy's subject",
+		},
+		{
+			name:    "a rig with no subject",
+			body:    "schema: RigSpec\nid: parent\n",
+			key:     "name",
+			errText: "no such field to replace",
+		},
+		{
+			name:    "a subject that holds no name",
+			body:    "schema: RigSpec\nsubject:\n  kind: artist\n",
+			key:     "name",
+			errText: "no such field to replace",
+		},
+		{
+			name:    "a subject that is not a mapping",
+			body:    "schema: RigSpec\nsubject: Parent Player\n",
+			key:     "name",
+			errText: "no such field to replace",
+		},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			got, err := recipes.ReplaceSubject(tt.body, tt.key, tt.value)
+
+			if tt.errText != "" {
+				s.Require().ErrorContains(err, tt.errText)
+				s.Require().Empty(got)
+
+				return
+			}
+
+			s.Require().NoError(err)
+			s.Require().Contains(got, tt.want)
 		})
 	}
 }

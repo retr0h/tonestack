@@ -29,26 +29,19 @@ import (
 	"strings"
 
 	"go.yaml.in/yaml/v3"
+	loader "sigs.k8s.io/yaml"
 )
 
-// idLine, aliasesLine, defaultLine and subjectKind find the lines a copy has
-// to change.
+// lineBreak is what a parser counts as the end of a line.
 //
-// The parent is copied as text rather than parsed and re-marshalled, because
-// marshalling loses the comments and the comments are most of what a rig
-// carries. Every citation comes across with it, which is the point and also
-// the hazard: see the header the copy is given.
-var (
-	idLine      = regexp.MustCompile(`(?m)^id: .*$`)
-	aliasesLine = regexp.MustCompile(`(?m)^aliases: .*\n`)
-	defaultLine = regexp.MustCompile(`(?m)^default: .*\n`)
-	subjectKind = regexp.MustCompile(`(?m)^  kind: .*$`)
-	// firstKey is the first line that is neither blank nor a comment.
-	firstKey = regexp.MustCompile(`(?m)^[^#\s]`)
-)
+// Counting newlines alone finds fewer lines than the parser did in a file
+// written on a classic Mac, or one holding a separator a word processor left
+// behind, and every line after the first of those is then a line further down
+// than it looks.
+var lineBreak = regexp.MustCompile(`\r\n|[\n\r\x{0085}\x{2028}\x{2029}]`)
 
-// errNoSubjectName reports a rig to copy with no subject name to replace.
-var errNoSubjectName = errors.New("the rig to copy has no subject name to replace")
+// errNoSubjectField reports a rig to copy whose subject has no such field.
+var errNoSubjectField = errors.New("the rig to copy has no such field to replace")
 
 // scaffold writes a copy of one rig as the start of another.
 //
@@ -64,64 +57,116 @@ func scaffold(
 ) (string, error) {
 	body := parent
 
-	var err error
+	var kindErr, nameErr error
 
-	// First, while the text is still the rig that loaded: the lines removed
-	// below are only removed whole where they are one line long.
-	if opts.Name != "" {
-		body, err = rename(body, opts.Name)
-	}
-
-	body = aliasesLine.ReplaceAllString(body, "")
-	body = defaultLine.ReplaceAllString(body, "")
-	body = idLine.ReplaceAllString(body,
-		fmt.Sprintf("id: %s\nextends: %s", opts.ID, from))
-
+	// Both belong to the subject, and both are replaced first, while the
+	// text is still the rig that loaded: the lines removed below are only
+	// removed whole where they are one line long.
 	if opts.Kind != "" {
-		body = subjectKind.ReplaceAllString(body, "  kind: "+opts.Kind)
+		body, kindErr = replaceSubject(body, "kind", opts.Kind)
 	}
 
-	// The comments above the first key are the parent's own header, and they
-	// describe the parent. Not everything above `schema`: a rig read off a
-	// device has its keys in marshalled order, and `schema` comes late.
-	if at := firstKey.FindStringIndex(body); at != nil {
-		body = body[at[0]:]
+	if opts.Name != "" {
+		body, nameErr = replaceSubject(body, "name", opts.Name)
 	}
 
-	return header(from, opts) + body, err
+	return header(from, opts) + asCopy(body, from, opts), errors.Join(kindErr, nameErr)
 }
 
-// rename sets the subject's name in a rig's text and leaves every other byte
-// as it was.
+// asCopy writes the copy's own identity over the parent's.
 //
-// A rig has other `name:` keys, a device's and each snapshot's among them,
-// so the name is found by parsing rather than by matching a line. The value
-// is then replaced where it stands, encoded as YAML so a name like `a: b`
-// stays a name, and the result is decoded to prove nothing else moved.
+// The parent is copied as text rather than parsed and re-marshalled, because
+// marshalling loses the comments and the comments are most of what a rig
+// carries. Every citation comes across with it, which is the point and also
+// the hazard: see the header the copy is given.
+//
+// What goes is what belongs to the parent alone: the identifier, replaced by
+// the copy's own and the link back to it, the aliases and the default, which
+// name the parent to a reader asking for it, and the header comments, which
+// describe the parent. Each is a whole line at the top level, so each is
+// matched as one. The subject's own fields are not, and are found by parsing.
+//
+// Not everything above `schema` is a header: a rig read off a device has its
+// keys in marshalled order, and `schema` comes late.
+func asCopy(
+	body, from string,
+	opts NewOptions,
+) string {
+	var out []string
+
+	header := true
+
+	for _, line := range breakLines(body) {
+		text, ends := lineText(line)
+
+		switch {
+		case strings.HasPrefix(text, "aliases: "), strings.HasPrefix(text, "default: "):
+		case strings.HasPrefix(text, "id: "):
+			header = false
+
+			out = append(out, "id: "+opts.ID+ends, "extends: "+from+ends)
+		case header && (text == "" || strings.HasPrefix(text, "#")):
+		default:
+			header = false
+
+			out = append(out, line)
+		}
+	}
+
+	return strings.Join(out, "")
+}
+
+// lineText splits a line into what it says and what ends it.
+func lineText(
+	line string,
+) (string, string) {
+	if at := lineBreak.FindStringIndex(line); at != nil {
+		return line[:at[0]], line[at[0]:]
+	}
+
+	return line, ""
+}
+
+// replaceSubject sets one of a rig's subject fields in the rig's own text and
+// leaves every other byte as it was.
+//
+// A rig names `kind` and `name` in other places at the same indent, a
+// device's name and each snapshot's among them, so the field is found by
+// parsing rather than by matching a line. The value is then replaced where it
+// stands, encoded as YAML so a name like `a: b` stays a name, and the result
+// is decoded to prove nothing else moved.
 //
 // Where the value cannot be replaced in place, because it spans lines or
-// carries an anchor or a tag, the whole document is encoded again. That keeps
-// the comments and the key order but not the layout: blank lines go, and
-// indentation and flow collections take the encoder's spacing.
-func rename(
-	body, name string,
+// carries a tag, the whole document is encoded again. That keeps the comments
+// and the key order but not the layout: blank lines go, and indentation and
+// flow collections take the encoder's spacing.
+func replaceSubject(
+	body, key, value string,
 ) (string, error) {
 	var doc yaml.Node
 
 	err := yaml.Unmarshal([]byte(body), &doc)
-	value, flow := subjectName(&doc)
+	field, flow := subjectField(&doc, key)
 
-	// A rig that loaded has a subject with a name, since the contract
-	// requires one, so this is a rig that did not load.
-	if err != nil || value.Kind == 0 {
-		return "", fmt.Errorf("renaming the copy: %w", errors.Join(errNoSubjectName, err))
+	// A rig that loaded has a subject carrying both fields, since the
+	// contract requires them, so this is a rig that did not load.
+	if err != nil || field.Kind == 0 {
+		return "", fmt.Errorf("rewriting the copy's subject %s: %w", key,
+			errors.Join(errNoSubjectField, err))
 	}
 
-	if spliced, ok := splice(body, value, flow, name); ok {
+	if spliced, ok := splice(body, field, flow, key, value); ok {
 		return spliced, nil
 	}
 
-	*value = yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: name}
+	field.Kind = yaml.ScalarNode
+	field.Tag = "!!str"
+	field.Value = value
+	field.Style = styleFor(value, 0, false)
+	field.Content = nil
+	// The anchor stays with the field. Something else in the rig may be
+	// written as whatever this field says, and dropping it would leave that
+	// pointing at nothing.
 
 	var out bytes.Buffer
 
@@ -132,11 +177,12 @@ func rename(
 	return out.String(), errors.Join(err, enc.Close())
 }
 
-// subjectName finds the node holding the subject's name, or an empty node,
-// and whether it sits inside a flow collection, where a comma or a brace ends
-// a bare value.
-func subjectName(
+// subjectField finds the node holding one of the subject's fields, or an
+// empty node, and whether it sits inside a flow collection, where a comma or
+// a brace ends a bare value.
+func subjectField(
 	doc *yaml.Node,
+	key string,
 ) (*yaml.Node, bool) {
 	top := &yaml.Node{}
 	if len(doc.Content) > 0 {
@@ -146,7 +192,7 @@ func subjectName(
 	subject := valueOf(top, "subject")
 	flow := top.Style&yaml.FlowStyle != 0 || subject.Style&yaml.FlowStyle != 0
 
-	return valueOf(subject, "name"), flow
+	return valueOf(subject, key), flow
 }
 
 // valueOf returns the value a mapping holds under key, or an empty node.
@@ -170,23 +216,51 @@ func valueOf(
 // changed.
 func splice(
 	body string,
-	value *yaml.Node,
+	field *yaml.Node,
 	flow bool,
-	name string,
+	key, value string,
 ) (string, bool) {
-	lines := strings.SplitAfter(body, "\n")
-	line := lines[value.Line-1]
+	lines := breakLines(body)
+	// Held inside the document rather than trusted: a line counted here and
+	// not by the parser, or the other way about, would put the edit on the
+	// wrong line, which is what the comparison below is for.
+	at := min(max(field.Line-1, 0), len(lines)-1)
+	line := lines[at]
 
-	start, end, ok := valueSpan(line, value.Column, value.Style, flow)
+	start, end, ok := valueSpan(line, field.Column, field.Style, flow)
 	if !ok {
 		return "", false
 	}
 
-	encoded, err := encodeName(name, value.Style, flow)
-	lines[value.Line-1] = line[:start] + encoded + line[end:]
+	encoded, err := encodeScalar(value, styleFor(value, field.Style, flow))
+	lines[at] = line[:start] + encoded + line[end:]
 	out := strings.Join(lines, "")
 
-	return out, err == nil && onlyNameChanged(body, out, name)
+	return out, err == nil && onlyFieldChanged(body, out, key, value)
+}
+
+// breakLines splits a document where its parser ends a line, keeping the
+// break on the end of the line it ends.
+func breakLines(
+	body string,
+) []string {
+	var lines []string
+
+	at := 0
+
+	for _, where := range lineBreak.FindAllStringIndex(body, -1) {
+		lines = append(lines, body[at:where[1]])
+		at = where[1]
+	}
+
+	return append(lines, body[at:])
+}
+
+// isBreak reports whether a parser ends a line at this character.
+func isBreak(
+	r rune,
+) bool {
+	return r == '\n' || r == '\r' || r == 0x0085 || r == 0x2028 || r == 0x2029
 }
 
 // valueSpan finds where a scalar written on one line starts and ends, as byte
@@ -225,7 +299,7 @@ func valueSpan(
 	end := len(rest)
 
 	for i, r := range rest {
-		if r == '\n' || r == '\r' ||
+		if isBreak(r) ||
 			(r == '#' && i > 0 && (rest[i-1] == ' ' || rest[i-1] == '\t')) ||
 			(flow && strings.ContainsRune(",[]{}", r)) {
 			end = i
@@ -258,43 +332,84 @@ func quotedSpan(
 	return 0, 0, false
 }
 
-// encodeName writes a name as a YAML scalar that fits on the line it replaces.
+// styleFor decides how a value has to be written for the rig to read back as
+// the value it is.
 //
-// It keeps the quoting the parent chose where that can hold the name, and
-// double quotes it where nothing else stays on one line or survives inside a
-// flow collection.
-func encodeName(
-	name string,
+// Two YAML libraries see this file. The document is parsed and written here
+// by one that reads YAML 1.2, where `Yes` is the string "Yes"; a rig is
+// loaded by another that reads 1.1, where `Yes` is a boolean and a subject's
+// name has to be a string. So the encoded value is put through the loader's
+// own decoder and quoted when it does not come back, which keeps the two
+// from disagreeing again over some other word.
+func styleFor(
+	value string,
 	style yaml.Style,
 	flow bool,
-) (string, error) {
-	if flow || strings.ContainsAny(name, "\n\r") {
+) yaml.Style {
+	if strings.IndexFunc(value, isBreak) >= 0 {
+		// Nothing written over several lines fits on the line it replaces.
 		style = yaml.DoubleQuotedStyle
 	}
 
+	encoded, err := encodeScalar(value, style)
+	if err == nil && loaderReads(encoded, flow) == value {
+		return style
+	}
+
+	return yaml.DoubleQuotedStyle
+}
+
+// encodeScalar writes one value as YAML, in the style asked for.
+func encodeScalar(
+	value string,
+	style yaml.Style,
+) (string, error) {
 	out, err := yaml.Marshal(&yaml.Node{
 		Kind:  yaml.ScalarNode,
 		Tag:   "!!str",
-		Value: name,
+		Value: value,
 		Style: style,
 	})
 
 	return strings.TrimSuffix(string(out), "\n"), err
 }
 
-// onlyNameChanged reports whether after decodes to before with the subject's
-// name set to name, and to nothing else.
-func onlyNameChanged(
-	before, after, name string,
+// loaderReads is what the decoder a rig is loaded through makes of an encoded
+// value, written where it is about to be written.
+func loaderReads(
+	encoded string,
+	flow bool,
+) any {
+	doc := "name: " + encoded + "\n"
+	if flow {
+		doc = "{name: " + encoded + "}\n"
+	}
+
+	var held map[string]any
+
+	// A value the loader cannot read at all is not the value it was asked
+	// to hold, which is what the caller does with the answer.
+	_ = loader.Unmarshal([]byte(doc), &held)
+
+	return held["name"]
+}
+
+// onlyFieldChanged reports whether after loads as before does with one of the
+// subject's fields set to value, and with nothing else about it changed.
+//
+// Read by the decoder a rig is loaded through, so that what is compared is
+// what a reader of the copy will get.
+func onlyFieldChanged(
+	before, after, key, value string,
 ) bool {
 	var was, now map[string]any
 
-	errWas := yaml.Unmarshal([]byte(before), &was)
-	errNow := yaml.Unmarshal([]byte(after), &now)
+	errWas := loader.Unmarshal([]byte(before), &was)
+	errNow := loader.Unmarshal([]byte(after), &now)
 
 	subject, ok := was["subject"].(map[string]any)
 	if ok {
-		subject["name"] = name
+		subject[key] = value
 	}
 
 	return errWas == nil && errNow == nil && ok && reflect.DeepEqual(was, now)

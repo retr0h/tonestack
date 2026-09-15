@@ -286,10 +286,12 @@ func scaffoldFor(
 		// The rig's own identifier, not whatever was typed. An alias belongs
 		// to the parent and `extends` is matched against an id, so recording
 		// the alias would leave a link that never resolves.
+		//
+		// The error is handed back with the report rather than instead of it.
+		// A rig that loaded carries the subject name scaffold rewrites, so
+		// only a rig that did not load fails here, and New has already
+		// refused that.
 		body, err := scaffold(string(parent.raw), parent.spec.ID, opts)
-		if err != nil {
-			return "", result.Scaffolded{}, err
-		}
 
 		// scaffold rewrites the subject's name only when one was asked for,
 		// and copies the chain as it stands.
@@ -304,7 +306,7 @@ func scaffoldFor(
 			Amp:        rig.GearName(parent.spec, rig.RoleAmp),
 			Cab:        rig.GearName(parent.spec, rig.RoleCab),
 			Pedals:     pedals(parent.spec),
-		}, nil
+		}, err
 	}
 
 	cat, err := opts.Catalogs.Catalog(ctx)

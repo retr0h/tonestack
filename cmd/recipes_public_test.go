@@ -413,6 +413,13 @@ func (s *RecipesPublicTestSuite) TestNewFlags() {
 			args: []string{"--from", "flea", "--name", `a: "b" #c`},
 			body: `name: 'a: "b" #c'`,
 		},
+		{
+			// Written bare, a rig loads this name as the boolean true and
+			// refuses the file. Yes is a band.
+			name: "a copy named for a band called Yes",
+			args: []string{"--from", "flea", "--name", "Yes"},
+			body: `name: "Yes"`,
+		},
 	}
 
 	for _, tt := range tests {
