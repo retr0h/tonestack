@@ -97,6 +97,15 @@ func (s *HandshakePublicTestSuite) session(
 func (s *HandshakePublicTestSuite) TestCall() {
 	broken := errors.New("the bus went away")
 
+	// One answer too long for a transfer, split in three the way a device
+	// sends it.
+	long := string(bytes.Repeat([]byte("a long answer "), 50))
+	envelope := wire.EncodeEnvelope(wire.Envelope{
+		Originator: wire.FromDevice, Service: 2, Body: s.answer(device.FirstTxn, 0, long),
+	})
+	third := len(envelope) / 3
+	parts := [][]byte{envelope[:third], envelope[third : 2*third], envelope[2*third:]}
+
 	tests := []struct {
 		name      string
 		channel   string
@@ -107,6 +116,9 @@ func (s *HandshakePublicTestSuite) TestCall() {
 		message   string
 		// how many reads the call took, when that is the point.
 		reads int
+		// acks is what every acknowledgement the call sent on its channel
+		// carried, in order, when that is the point.
+		acks []uint32
 	}{
 		{
 			// A bus that has gone is not a device with nothing to say. Read
@@ -176,6 +188,29 @@ func (s *HandshakePublicTestSuite) TestCall() {
 				return d, d.out
 			},
 			want: "done",
+		},
+		{
+			// A long answer arrives a transfer at a time, and the device sends
+			// the next only once the host has acknowledged the last: the
+			// double releases one part per frame the session writes. The
+			// last part completes the answer, so nothing acknowledges it
+			// inside the call.
+			name:    "an answer split across three transfers",
+			channel: device.ControlChannel,
+			device: func() (*deviceDouble, device.TestSender) {
+				d := answers(s.ctrl,
+					device.FrameFor(device.ControlChannel, wire.MsgData, parts[0]),
+					device.FrameFor(device.ControlChannel, wire.MsgData, parts[1]),
+					device.FrameFor(device.ControlChannel, wire.MsgData, parts[2]),
+				)
+
+				return d, d.out
+			},
+			want: long,
+			acks: []uint32{
+				wire.AckBase + uint32(len(parts[0])),
+				wire.AckBase + uint32(len(parts[0])+len(parts[1])),
+			},
 		},
 		{
 			// A notification carries no transaction and is not anybody's
@@ -275,6 +310,11 @@ func (s *HandshakePublicTestSuite) TestCall() {
 				s.Require().NoError(err)
 				s.Require().Equal(tc.want, got.Result)
 				s.Require().Equal(uint64(device.FirstTxn), got.Txn)
+
+				if tc.acks != nil {
+					s.Require().Equal(tc.acks, ackValues(in, tc.channel),
+						"each part acknowledged before the next, and the last not at all")
+				}
 
 				return
 			}

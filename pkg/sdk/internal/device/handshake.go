@@ -223,8 +223,13 @@ func (s *session) awaitReply(
 			return wire.Response{}, err
 		}
 
-		if resp, ok, err := s.reply(c, txn, opcode); ok {
-			return resp, err
+		answer, found, owed, refused := s.reply(c, txn, opcode)
+		if found {
+			return answer, refused
+		}
+
+		if s.unanswered != nil {
+			s.unanswered()
 		}
 
 		// After the buffer, so an answer routed just before the bus failed is
@@ -236,7 +241,18 @@ func (s *session) awaitReply(
 		// Only when bytes actually arrived: the device sends empty transfers
 		// when it has nothing to say, and acknowledging one burns a sequence
 		// number and stalls the transfer.
-		if c.owed() {
+		//
+		// Owed as the buffer was read, not as it is now. An answer routed
+		// since is acknowledged by nobody here: the next look finds it, and a
+		// write's answer is then settled once the flash pause is over rather
+		// than inside the write.
+		//
+		// A channel that already owed bytes is the exception. If a write's
+		// answer lands between that look and this send, owed is still true,
+		// and an acknowledgement's value is read as it goes out, so this one
+		// covers the answer as well. It goes out just before the flash pause,
+		// not during it. That was so before owed was read with the buffer.
+		if owed {
 			if err := s.send(c, wire.MsgAck, nil); err != nil {
 				return wire.Response{}, err
 			}
@@ -255,17 +271,19 @@ func (s *session) awaitReply(
 
 // reply takes envelopes off a channel's buffer until one answers txn.
 //
-// Reports whether it found one, and what that answer says.
+// Reports whether it found one, and what that answer says. When it found
+// none, owed says whether bytes it looked through are owed an
+// acknowledgement, read under the same lock as the buffer so the two agree.
 func (s *session) reply(
 	c *channel,
 	txn, opcode uint64,
-) (wire.Response, bool, error) {
+) (resp wire.Response, found, owed bool, err error) {
 	s.rxMu.Lock()
 	defer s.rxMu.Unlock()
 
 	for body, ok := message(c); ok; body, ok = message(c) {
-		resp, err := wire.DecodeResponse(body)
-		if err != nil {
+		decoded, decodeErr := wire.DecodeResponse(body)
+		if decodeErr != nil {
 			continue
 		}
 
@@ -273,14 +291,14 @@ func (s *session) reply(
 		// Letting one be mistaken for this reply would answer the wrong
 		// question. A late reply to a call somebody gave up on is skipped the
 		// same way.
-		if resp.Txn != txn {
+		if decoded.Txn != txn {
 			continue
 		}
 
-		return resp, true, resp.Err(opcode)
+		return decoded, true, false, decoded.Err(opcode)
 	}
 
-	return wire.Response{}, false, nil
+	return wire.Response{}, false, c.owed(), nil
 }
 
 // errNoReply is a device that stayed silent for the whole of its budget.
