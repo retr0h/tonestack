@@ -50,9 +50,9 @@ func section(
 ) {
 	fmt.Fprintf(b, "\n## %s\n\n%s\n", c.CommandPath(), strings.TrimSpace(description(c)))
 
-	rows := flags(c)
+	fmt.Fprintf(b, "\n```text\n%s\n```\n", usage(c))
 
-	fmt.Fprintf(b, "\n```text\n%s\n```\n", usage(c, len(rows) > 0))
+	rows := flags(c)
 
 	subs := available(c)
 	if len(subs) > 0 {
@@ -76,16 +76,14 @@ func section(
 	}
 }
 
-// usage is the line a command is invoked by. A group names the command it
-// expects; anything else says [flags] only where it has flags of its own.
+// usage is the line a command is invoked by, as its --help prints it. A group
+// names the command it expects; anything else is cobra's UseLine.
 //
-// Not cobra's UseLine: that asks whether the command has flags, and the answer
-// changes once a parent's persistent flags are merged into it, which reading
-// LocalFlags does. The same tree then rendered one page the first time and
-// another the second.
+// Not UseLine itself: that answers from the command's merged flag set, which
+// holds whatever reading the tree has merged into it so far. The same tree
+// then rendered one page the first time and another the second.
 func usage(
 	c *cobra.Command,
-	hasFlags bool,
 ) string {
 	if c.HasAvailableSubCommands() {
 		return c.CommandPath() + " <command> [flags]"
@@ -96,11 +94,42 @@ func usage(
 		line = c.Parent().CommandPath() + " " + line
 	}
 
-	if hasFlags && !c.DisableFlagsInUseLine && !strings.Contains(line, "[flags]") {
+	if !c.DisableFlagsInUseLine && helpShowsFlags(c) && !strings.Contains(line, "[flags]") {
 		line += " [flags]"
 	}
 
 	return line
+}
+
+// helpShowsFlags is whether --help finds a flag it would list for c.
+//
+// It reads every set cobra merges before answering, and merges none of them:
+// c's own flags, the persistent flags of c and each parent, and pflag's
+// CommandLine, which cobra folds into the root. By the time --help answers,
+// cobra has added a visible --help unless one is already declared, so only a
+// command whose declared --help is hidden, with nothing else visible, has
+// none. The answer is the same before a merge and after one, because a merge
+// only copies flags from one of these sets into another.
+func helpShowsFlags(
+	c *cobra.Command,
+) bool {
+	visible, help := false, false
+
+	see := func(fs *pflag.FlagSet) {
+		fs.VisitAll(func(f *pflag.Flag) {
+			help = help || f.Name == "help"
+			visible = visible || !f.Hidden
+		})
+	}
+
+	see(c.Flags())
+	see(pflag.CommandLine)
+
+	for p := c; p != nil; p = p.Parent() {
+		see(p.PersistentFlags())
+	}
+
+	return visible || !help
 }
 
 // description prefers the long form, the way --help does.

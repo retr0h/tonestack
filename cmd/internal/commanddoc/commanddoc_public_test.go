@@ -21,7 +21,10 @@ package commanddoc_test
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
+	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -30,6 +33,28 @@ import (
 	"github.com/retr0h/tonestack/cmd"
 	"github.com/retr0h/tonestack/cmd/internal/commanddoc"
 )
+
+// asTonestack, when set, makes the test binary run as tonestack itself with
+// these arguments, separated by newlines.
+const asTonestack = "COMMANDDOC_AS_TONESTACK"
+
+// TestMain lets a test run the real CLI in a process of its own.
+//
+// --help has to be asked of what somebody actually runs: cmd.Execute, with
+// the help renderer it installs. Executing the tree in this process instead
+// would add cobra's help and completion commands to the tree the page is
+// rendered from.
+func TestMain(
+	m *testing.M,
+) {
+	if args, ok := os.LookupEnv(asTonestack); ok {
+		os.Args = append([]string{"tonestack"}, strings.Split(args, "\n")...)
+		cmd.Execute()
+		os.Exit(0)
+	}
+
+	os.Exit(m.Run())
+}
 
 // CommanddocPublicTestSuite covers the page the CLI generates.
 type CommanddocPublicTestSuite struct {
@@ -59,7 +84,22 @@ func (s *CommanddocPublicTestSuite) tree() *cobra.Command {
 
 	group.PersistentFlags().String("where", "", "where they are")
 	group.AddCommand(build, hidden, list)
-	root.AddCommand(group)
+
+	// No flags anywhere above it: --help is still one.
+	status := &cobra.Command{Use: "status", Short: "say how it is", Run: run}
+
+	// Asks for no [flags] in its usage.
+	plain := &cobra.Command{
+		Use: "plain", Short: "no flags shown", Run: run, DisableFlagsInUseLine: true,
+	}
+	plain.Flags().String("mode", "", "which way")
+
+	// Its own --help, hidden, so cobra adds none and nothing is left to show.
+	quiet := &cobra.Command{Use: "quiet", Short: "hides its help", Run: run}
+	quiet.Flags().Bool("help", false, "not listed")
+	_ = quiet.Flags().MarkHidden("help")
+
+	root.AddCommand(group, status, plain, quiet)
 
 	return root
 }
@@ -77,13 +117,25 @@ func (s *CommanddocPublicTestSuite) TestRender() {
 		},
 		{
 			name:     "a command's usage says [flags] where it has flags of its own",
-			contains: []string{"tool thing make [flags]\n"},
+			contains: []string{"```text\ntool thing make [flags]\n```"},
 		},
 		{
 			// Rendering merges a group's persistent flags into the commands
-			// beneath it, which once added [flags] here on a second render.
-			name:     "a command with only inherited flags takes none in its usage",
-			contains: []string{"```text\ntool thing list\n```"},
+			// beneath it, which once changed this line on a second render.
+			name:     "a command with only inherited flags says [flags], as --help does",
+			contains: []string{"```text\ntool thing list [flags]\n```"},
+		},
+		{
+			name:     "a command with no flags at all says [flags] for its --help",
+			contains: []string{"```text\ntool status [flags]\n```"},
+		},
+		{
+			name:     "a command that turns [flags] off in its usage",
+			contains: []string{"```text\ntool plain\n```"},
+		},
+		{
+			name:     "a command whose only flag is a hidden --help",
+			contains: []string{"```text\ntool quiet\n```"},
 		},
 		{
 			name: "a group names its usage and links each command it holds",
@@ -138,6 +190,103 @@ func (s *CommanddocPublicTestSuite) TestRender() {
 	s.Run("the same tree renders the same page every time", func() {
 		s.Require().Equal(first, second)
 	})
+
+	// --help adds itself to the command it is asked of before answering.
+	s.Run("the same page after --help has been asked of every command", func() {
+		var visit func(*cobra.Command)
+
+		visit = func(c *cobra.Command) {
+			c.InitDefaultHelpFlag()
+
+			for _, sub := range c.Commands() {
+				visit(sub)
+			}
+		}
+
+		visit(tree)
+
+		s.Require().Equal(first, string(commanddoc.Render(tree)))
+	})
+}
+
+// TestUsageMatchesHelp keeps each usage line on the page the one --help
+// prints for that command, so the two cannot drift apart again.
+func (s *CommanddocPublicTestSuite) TestUsageMatchesHelp() {
+	page := string(commanddoc.Render(cmd.Root()))
+
+	self, err := os.Executable()
+	s.Require().NoError(err)
+
+	var paths [][]string
+
+	var walk func(*cobra.Command, []string)
+
+	walk = func(c *cobra.Command, path []string) {
+		paths = append(paths, path)
+
+		for _, sub := range c.Commands() {
+			if sub.IsAvailableCommand() {
+				walk(sub, append(append([]string{}, path...), sub.Name()))
+			}
+		}
+	}
+
+	walk(cmd.Root(), nil)
+
+	for _, path := range paths {
+		name := strings.Join(append([]string{"tonestack"}, path...), " ")
+
+		s.Run(name, func() {
+			run := exec.CommandContext( //nolint:gosec // this test's own binary
+				s.T().Context(), self)
+			run.Env = append(os.Environ(),
+				asTonestack+"="+strings.Join(append(path, "--help"), "\n"),
+				"NO_COLOR=1")
+
+			out, err := run.Output()
+			s.Require().NoError(err)
+
+			want := helpUsage(string(out))
+			s.Require().NotEmpty(want, "--help printed no usage line:\n%s", out)
+
+			s.Require().Equal(want, pageUsage(page, name),
+				"docs/commands.md and --help disagree on how %s is invoked", name)
+		})
+	}
+}
+
+// escape matches a terminal colour sequence.
+var escape = regexp.MustCompile("\x1b\\[[0-9;]*m")
+
+// helpUsage is the first line under USAGE in what --help printed.
+func helpUsage(
+	out string,
+) string {
+	lines := strings.Split(escape.ReplaceAllString(out, ""), "\n")
+
+	for i, line := range lines {
+		if strings.TrimSpace(line) == "USAGE" && i+1 < len(lines) {
+			return strings.TrimSpace(lines[i+1])
+		}
+	}
+
+	return ""
+}
+
+// pageUsage is the usage line under a command's heading on the page.
+func pageUsage(
+	page string,
+	name string,
+) string {
+	_, section, found := strings.Cut(page, "\n## "+name+"\n")
+	if !found {
+		return ""
+	}
+
+	_, block, _ := strings.Cut(section, "```text\n")
+	line, _, _ := strings.Cut(block, "\n")
+
+	return line
 }
 
 // TestTheShippedPageIsCurrent keeps the committed page honest.
