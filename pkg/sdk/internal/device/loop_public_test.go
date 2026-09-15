@@ -291,14 +291,12 @@ func (s *LoopPublicTestSuite) TestLoop() {
 			},
 		},
 		{
-			// The message still goes out whole, the loop goes on posting reads
-			// while it does, and the session ends once it is out. Close still
-			// tells the device the editor has gone.
+			// No chunk goes out without the device's acknowledgement of the
+			// one before it, so a read that fails ends the loop the ordinary
+			// way and the write stops there rather than sending the rest
+			// blind. Close still tells the device the editor has gone.
 			name:   "a bus that fails while a message goes out",
 			device: func() *deviceDouble { return readFailsAfter(s.ctrl, broken, 1) },
-			// Long enough between chunks that a read retried without waiting
-			// a window would be retried thousands of times.
-			budgets: func(b *device.Budgets) { b.Pace = 20 * time.Millisecond },
 			run: func(session *device.Session, d *deviceDouble, _ *clock) {
 				err := session.WritePreset(
 					context.Background(),
@@ -308,19 +306,6 @@ func (s *LoopPublicTestSuite) TestLoop() {
 				)
 				s.Require().ErrorIs(err, broken)
 				s.Require().ErrorIs(err, device.ErrBus)
-
-				chunks := 0
-
-				for _, raw := range d.frames() {
-					if kind, _ := device.MessageKind(raw); kind == wire.MsgData {
-						chunks++
-					}
-				}
-
-				s.Require().GreaterOrEqual(chunks, 2000/device.StreamChunk, "every chunk went out")
-				s.Require().Greater(d.readCount(), 2, "reads were posted again while it went out")
-				s.Require().Less(d.readCount(), 500,
-					"a read retried after a failure waits a window rather than spinning")
 
 				before := len(d.frames())
 
@@ -400,6 +385,46 @@ func (s *LoopPublicTestSuite) TestLoop() {
 			tt.run(session, d, clk)
 		})
 	}
+}
+
+// TestPaceEndsWhenTheBusDiesWhileWaiting covers a chunk's pace already
+// waiting, not just the check before it starts: a loop that ends while pace
+// is blocked in its own select wakes it directly, on the same signal a bus
+// failure discovered between two reads uses.
+func (s *LoopPublicTestSuite) TestPaceEndsWhenTheBusDiesWhileWaiting() {
+	broken := errors.New("the bus went away")
+
+	d := answers(s.ctrl)
+	// The chunk goes out and earns nothing: pace has only the gated budget
+	// and the bus itself to wake it.
+	d.stopAckingAfter(device.DataChannel, 0)
+
+	clk := s.newClock()
+
+	b := device.ShortBudgets()
+	b.After = clk.after
+
+	session := device.NewOpenTestSession(s.T(), d.out, d.in, b)
+
+	done := make(chan error, 1)
+
+	go func() {
+		done <- session.WritePreset(
+			context.Background(), 0, 3, bytes.Repeat([]byte{0x2a}, 2000))
+	}()
+
+	// Pace is now waiting on the gated budget for the first chunk's
+	// acknowledgement, which never comes.
+	<-clk.entered
+
+	d.mu.Lock()
+	d.readErr, d.failAfter = broken, 0
+	d.mu.Unlock()
+	d.signal()
+
+	err := <-done
+	s.Require().ErrorIs(err, broken)
+	s.Require().ErrorIs(err, device.ErrBus)
 }
 
 // acks counts the acknowledgements a session sent on a channel, and says what

@@ -24,6 +24,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -181,16 +182,17 @@ func (s *WritePublicTestSuite) TestWritePreset() {
 			whole:          true,
 		},
 		{
-			// A read between chunks only paces the sender. One that fails
-			// does not stop a message that has started: the device is owed
-			// the rest of it, and a bus that has really gone fails the send.
-			// What is reported is the wait for the answer.
+			// A read between chunks is what paces the sender, so one that
+			// fails stops the message where it is: the device is owed
+			// nothing more once nothing is left to pace it, and a chunk sent
+			// unpaced into a pedal that stopped answering is the stall a
+			// hardware trace showed.
 			name: "a bus that cannot be read from partway through",
 			device: func() *deviceDouble {
 				return readFailsAfter(s.ctrl, errors.New("the bus went away"), 1)
 			},
 			document: large,
-			whole:    true,
+			is:       device.ErrBus,
 			says:     "reading from the device",
 		},
 		{
@@ -343,6 +345,70 @@ func (s *WritePublicTestSuite) TestAMessageGoesOutInPiecesADeviceCanPace() {
 		s.Require().LessOrEqual(len(frame), device.StreamChunk+wire.FrameSize+wire.ChannelSize,
 			"frame %d is larger than the device takes", i)
 	}
+}
+
+// TestAChunkTheDeviceNeverAcksStopsTheMessage reproduces what stalled a
+// pedal's USB endpoint on hardware: a chunk released by a frame on another
+// channel rather than its own acknowledgement, and nothing acking after it.
+// docs/protocol.md cites the trace.
+func (s *WritePublicTestSuite) TestAChunkTheDeviceNeverAcksStopsTheMessage() {
+	d := answers(s.ctrl)
+	d.stopAckingAfter(device.DataChannel, 4)
+	d.insteadOfAck(device.DataChannel,
+		device.FrameFor(device.ControlChannel, wire.MsgData, []byte("something else")))
+
+	b := device.ShortBudgets()
+	b.Pace = 20 * time.Millisecond
+
+	session := device.NewTestSessionWith(s.T(), d.out, d.in, b)
+	session.OpenChannels()
+
+	err := session.WritePreset(
+		context.Background(), 0, 3, bytes.Repeat([]byte{0x2a}, 2000))
+
+	s.Require().Error(err)
+	s.Require().ErrorIs(err, context.DeadlineExceeded)
+	s.Require().ErrorContains(err, "stopped taking the message")
+
+	chunks := 0
+
+	for _, raw := range d.frames() {
+		if kind, _ := device.MessageKind(raw); kind == wire.MsgData {
+			chunks++
+		}
+	}
+
+	s.Require().LessOrEqual(chunks, 5, "nothing went out after the unacked chunk")
+}
+
+// TestAnUnrelatedFrameDoesNotReleaseTheNextChunk covers a notification that
+// arrives on another channel while a message paces: pace waits for its own
+// channel's acknowledgement, not any transfer.
+func (s *WritePublicTestSuite) TestAnUnrelatedFrameDoesNotReleaseTheNextChunk() {
+	d := s.completes()
+
+	var once sync.Once
+
+	d.onWrite = func() {
+		once.Do(func() {
+			d.tell(device.FrameFor(device.ControlChannel, wire.MsgData, []byte("unasked")))
+		})
+	}
+
+	err := s.session(d).WritePreset(
+		context.Background(), 0, 3, bytes.Repeat([]byte{0x2a}, 2000))
+
+	s.Require().NoError(err)
+
+	chunks := 0
+
+	for _, raw := range d.frames() {
+		if kind, _ := device.MessageKind(raw); kind == wire.MsgData {
+			chunks++
+		}
+	}
+
+	s.Require().GreaterOrEqual(chunks, 2000/device.StreamChunk, "every chunk went out")
 }
 
 // TestAWriteIsPacedForTheFlash covers the wait that is real.

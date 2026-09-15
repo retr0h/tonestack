@@ -46,8 +46,12 @@ const (
 // session's budgets, so a test shortens its own rather than a package
 // variable.
 const (
-	openReadWait   = 800 * time.Millisecond
-	replyReadWait  = 300 * time.Millisecond
+	openReadWait  = 800 * time.Millisecond
+	replyReadWait = 300 * time.Millisecond
+	// paceReadWait is the longest a chunk waits for the device to
+	// acknowledge the one before it. The pedal acks within one read; this is
+	// a device that has stopped taking the message, not one still thinking.
+	paceReadWait   = 2 * time.Second
 	drainReadWait  = 150 * time.Millisecond
 	drainQuietRuns = 3
 	claimAttempts  = 7
@@ -109,7 +113,7 @@ func defaultBudgets() budgets {
 		selecting: 10 * time.Second,
 		poll:      150 * time.Millisecond,
 		open:      openReadWait,
-		pace:      replyReadWait,
+		pace:      paceReadWait,
 		idle:      replyReadWait,
 		window:    drainReadWait,
 	}
@@ -180,9 +184,9 @@ const firstSeq = 2
 
 // channel is one conversation with the device.
 //
-// seq and txn change only under the session's send lock, and buf, open
-// and lastRx only under its receive lock. rxBytes and ackSent are read from
-// both sides, so they are atomic.
+// seq and txn change only under the session's send lock, and buf, open,
+// lastRx, lastAck and ackSeen only under its receive lock. rxBytes, ackSent
+// and rxAcks are read from both sides, so they are atomic.
 type channel struct {
 	name   string
 	device uint16
@@ -193,6 +197,14 @@ type channel struct {
 	// acknowledgement this host sent on the channel said it had.
 	rxBytes atomic.Uint32
 	ackSent atomic.Uint32
+	// rxAcks counts the device's own acknowledgements on this channel that
+	// carried a value different from the one before, which is what a chunk's
+	// pace waits to pass. lastAck is that value and ackSeen whether one has
+	// arrived yet; the device's ack base has no relation to wire.AckBase, so
+	// only a change is ever compared, never a computed byte count.
+	rxAcks  atomic.Uint64
+	lastAck uint32
+	ackSeen bool
 	buf     []byte
 	// open is whether the handshake has reached this channel. A frame on a
 	// channel nobody opened is not anybody's business.
@@ -207,6 +219,10 @@ type channel struct {
 // owed reports bytes that arrived since this host last acknowledged the
 // channel.
 func (c *channel) owed() bool { return c.rxBytes.Load() != c.ackSent.Load() }
+
+// acked is how many of the device's own acknowledgements have moved on this
+// channel.
+func (c *channel) acked() uint64 { return c.rxAcks.Load() }
 
 // session is an open conversation with a device.
 //
@@ -255,11 +271,6 @@ type session struct {
 	// inflight counts exchanges, writes and channel openings under way. While
 	// any is, the idle acknowledgement sends nothing on any channel.
 	inflight int
-	// streaming counts messages going out chunk by chunk, and readErr is the
-	// first read failure seen while one was. It is noted rather than ending
-	// the session, so a read stays posted until the message is out.
-	streaming int
-	readErr   error
 	// passes counts the acknowledger's rounds, so a test can wait for it to
 	// have looked rather than for time to pass.
 	passes atomic.Uint64

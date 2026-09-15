@@ -29,7 +29,14 @@ import (
 	"go.uber.org/mock/gomock"
 
 	"github.com/retr0h/tonestack/pkg/sdk/internal/device"
+	"github.com/retr0h/tonestack/pkg/sdk/internal/wire"
 )
+
+// ackBase is where the scripted device's acknowledgements start counting
+// from. Any base works; this one matches a hardware trace, and the point of
+// using one that differs from wire.AckBase is that nothing here should ever
+// compare an ack to a computed byte count.
+const ackBase uint32 = 0x0fd8
 
 // The scripted device every suite in this package talks to. It answers what
 // it was told to answer and records what it was sent, so the protocol can be
@@ -74,6 +81,22 @@ type deviceDouble struct {
 	// onWrite runs after every write the device took, so a test can act
 	// partway through a message.
 	onWrite func()
+	// ackValue is the last acknowledgement value handed out on a channel, and
+	// acked how many of its data frames have earned one, so it can advance by
+	// each payload's length and stop counting once a limit is scripted.
+	ackValue map[string]uint32
+	acked    map[string]int
+	// ackLimit caps how many of a channel's data frames earn an automatic
+	// acknowledgement; a channel absent from the map earns one for every
+	// frame. ackDivert is what the first frame past the limit gets instead of
+	// silence, when one is scripted.
+	ackLimit  map[string]int
+	ackDivert map[string][]byte
+	// autoAcked is what the device answers a data frame with automatically,
+	// served after ready. Never counted by pending: it is not a scripted
+	// reply, and a test that waits for scripted replies to drain must not see
+	// pacing as one still outstanding.
+	autoAcked [][]byte
 	// noisy is handed back on every read with nothing ready: a device that
 	// never goes quiet.
 	noisy []byte
@@ -101,8 +124,8 @@ func newDeviceDouble(
 	return d
 }
 
-// write records what the session sent, fails it when writeErr is set, and
-// lets the next reply go.
+// write records what the session sent, fails it when writeErr is set, paces
+// it the way a device does, and lets the next reply go.
 func (d *deviceDouble) write(
 	p []byte,
 ) (int, error) {
@@ -116,6 +139,7 @@ func (d *deviceDouble) write(
 	}
 
 	d.sent = append(d.sent, append([]byte(nil), p...))
+	d.autoAck(p)
 
 	if len(d.replies) > 0 {
 		d.ready = append(d.ready, d.replies[0])
@@ -132,6 +156,98 @@ func (d *deviceDouble) write(
 	}
 
 	return len(p), nil
+}
+
+// autoAck makes ready the device's own answer to a chunk of a write the
+// session sent: an acknowledgement on the data channel whose value advances
+// by the payload's length, the way a real device paces the sender. A channel
+// scripted with stopAckingAfter earns that many and then goes quiet, saying
+// insteadOfAck once first when one is scripted. The caller holds mu.
+//
+// Only the data channel: pacing is a property of the write stream, which
+// always goes out there, and a bare call elsewhere waits on its reply, not on
+// an acknowledgement. Acking one too would answer a request nobody scripted a
+// reply for, and cost it a read that no test expects.
+func (d *deviceDouble) autoAck(
+	p []byte,
+) {
+	f, _, err := wire.DecodeFrame(p)
+	if err != nil || !f.CarriesData() || len(f.Payload) == 0 {
+		return
+	}
+
+	name := device.ChannelOf(f)
+	if name != device.DataChannel {
+		return
+	}
+
+	if d.acked == nil {
+		d.acked = map[string]int{}
+	}
+
+	n := d.acked[name]
+
+	if limit, capped := d.ackLimit[name]; capped && n >= limit {
+		if n == limit {
+			if frame := d.ackDivert[name]; frame != nil {
+				d.autoAcked = append(d.autoAcked, frame)
+			}
+
+			d.acked[name] = limit + 1
+		}
+
+		return
+	}
+
+	d.acked[name] = n + 1
+
+	if d.ackValue == nil {
+		d.ackValue = map[string]uint32{}
+	}
+
+	value := d.ackValue[name]
+	if value == 0 {
+		value = ackBase
+	}
+
+	value += uint32(len(f.Payload))
+	d.ackValue[name] = value
+
+	d.autoAcked = append(d.autoAcked, device.AckFrameFor(name, value))
+}
+
+// stopAckingAfter makes a channel go quiet once it has acknowledged n of its
+// data frames: a pedal whose receive window has filled.
+func (d *deviceDouble) stopAckingAfter(
+	channel string,
+	n int,
+) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	if d.ackLimit == nil {
+		d.ackLimit = map[string]int{}
+	}
+
+	d.ackLimit[channel] = n
+}
+
+// insteadOfAck makes the first data frame past a channel's ack limit answered
+// with frame rather than silence: a chunk released by something that was not
+// its own acknowledgement, the way a hardware trace showed a control-channel
+// frame doing.
+func (d *deviceDouble) insteadOfAck(
+	channel string,
+	frame []byte,
+) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	if d.ackDivert == nil {
+		d.ackDivert = map[string][]byte{}
+	}
+
+	d.ackDivert[channel] = frame
 }
 
 // read hands back what is ready, or waits the way a real endpoint does: until
@@ -171,11 +287,20 @@ func (d *deviceDouble) next(
 
 	held := d.holdFor - time.Since(d.first)
 
-	if len(d.ready) > 0 && held <= 0 {
-		frame := d.ready[0]
-		d.ready = d.ready[1:]
+	if held <= 0 {
+		if len(d.ready) > 0 {
+			frame := d.ready[0]
+			d.ready = d.ready[1:]
 
-		return copy(p, frame), 0, true, d.partial
+			return copy(p, frame), 0, true, d.partial
+		}
+
+		if len(d.autoAcked) > 0 {
+			frame := d.autoAcked[0]
+			d.autoAcked = d.autoAcked[1:]
+
+			return copy(p, frame), 0, true, d.partial
+		}
 	}
 
 	if d.readErr != nil && len(d.sent) >= d.failAfter {

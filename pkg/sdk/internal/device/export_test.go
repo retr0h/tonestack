@@ -269,6 +269,29 @@ func FrameFor(
 	return nil
 }
 
+// AckFrameFor renders a bare acknowledgement the way a device would send it
+// on a channel, carrying the given value.
+func AckFrameFor(
+	name string,
+	ack uint32,
+) []byte {
+	for _, spec := range channelSpecs {
+		if spec.name != name {
+			continue
+		}
+
+		return wire.EncodeFrame(wire.Frame{
+			Flags:      wire.FlagNormal,
+			DeviceNode: spec.host,
+			HostNode:   spec.device,
+			Type:       wire.MsgAck,
+			Ack:        ack,
+		})
+	}
+
+	return nil
+}
+
 // ChannelOf names the channel a frame the host sent went out on.
 func ChannelOf(
 	f wire.Frame,

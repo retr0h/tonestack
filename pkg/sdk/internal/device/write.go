@@ -56,6 +56,11 @@ const (
 // cycled.
 const streamChunk = 256
 
+// errUnacked is a chunk the device never acknowledged: the pace budget ran
+// out waiting for its own channel's acknowledgement count to move, so
+// nothing more of the message was sent.
+var errUnacked = errors.New("the device did not acknowledge the chunk")
+
 // WritePreset puts a document into a slot.
 //
 // The document must be the bytes a device would have written. A preset is
@@ -103,9 +108,9 @@ func (s *session) write(
 	opcode uint64,
 	args []wire.Arg,
 ) error {
-	// Before anything is sent. Afterwards the message is finished whatever
-	// happens: a device fed half a message and then a burst is the stall
-	// docs/protocol.md describes.
+	// Before anything is sent. Afterwards a caller who stops waiting does not
+	// stop it: the message goes on until the device does, so this call's tail
+	// never overlaps the next one's head.
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -198,35 +203,40 @@ func (s *session) settle() {
 	<-s.after(s.budgets.flash)
 }
 
-// stream sends a message in the size a device takes, pausing between frames
-// so it can pace the sender.
+// stream sends a message in the size a device takes, waiting for the
+// device's own acknowledgement between frames so it can pace the sender.
 //
-// Only a failed send stops it. Between frames, not after the last one: a
-// device that has more to say says it now, and one with nothing to say costs
-// the pace budget. A read that fails does not stop it either, because a
-// message that has started must go out whole: a device left holding half of
-// one is the stall docs/protocol.md describes. The loop goes on reading and
-// reports the failure once the last chunk is out. A bus that has really gone
-// fails the next send, which does stop the message.
+// Between frames, not after the last one: a device that has more to say says
+// it now, and one with nothing to say costs the pace budget. No chunk goes
+// out without the device's acknowledgement of the one before it: a hardware
+// trace showed a chunk released by a frame on another channel, not its own
+// acknowledgement, and every chunk sent after it stalled the endpoint. So a
+// pace that cannot get one stops the message where it is, rather than
+// sending the rest blind.
 func (s *session) stream(
 	c *channel,
 	body []byte,
 ) error {
-	s.streamStart()
-	defer s.streamEnd()
+	total := len(body)
+	sent := 0
 
 	for len(body) > 0 {
 		n := min(len(body), streamChunk)
-		mark := s.progress().transfers
+		mark := c.acked()
 
 		if err := s.send(c, wire.MsgData, body[:n]); err != nil {
 			return err
 		}
 
+		sent += n
 		body = body[n:]
 
 		if len(body) > 0 {
-			s.pace(mark)
+			if err := s.pace(c, mark); err != nil {
+				return fmt.Errorf(
+					"the device stopped taking the message after %d of %d bytes: %w",
+					sent, total, err)
+			}
 		}
 	}
 

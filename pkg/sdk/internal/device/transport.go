@@ -109,12 +109,15 @@ func (s *session) route(
 	s.tick(true, s.deliver(transfer))
 }
 
-// deliver appends each frame's payload to its channel, and reports whether
-// any stream bytes arrived.
+// deliver appends each frame's payload to its channel, records the device's
+// own acknowledgements, and reports whether any stream bytes arrived.
 //
-// A frame without stream bytes is not counted: the device sends empty
-// transfers when it has nothing to say, and acknowledging one burns a
-// sequence number and desynchronises the channel.
+// A frame without stream bytes is not counted as a transfer's payload: the
+// device sends empty transfers when it has nothing to say, and acknowledging
+// one burns a sequence number and desynchronises the channel. An
+// acknowledgement is recorded whether or not it carries data, but never
+// treated as data itself: acknowledging one would desynchronise the channel
+// the same way.
 func (s *session) deliver(
 	transfer []byte,
 ) bool {
@@ -134,12 +137,21 @@ func (s *session) deliver(
 
 		rest = remainder
 
-		if !f.CarriesData() || len(f.Payload) == 0 {
+		c := s.channelFor(f)
+		if c == nil {
 			continue
 		}
 
-		c := s.channelFor(f)
-		if c == nil {
+		// The device's ack base has no relation to wire.AckBase, so only a
+		// change is ever compared, never a computed byte count. What moves
+		// is what a chunk's pace waits on.
+		if f.Type&wire.MsgAck != 0 && (!c.ackSeen || f.Ack != c.lastAck) {
+			c.lastAck = f.Ack
+			c.ackSeen = true
+			c.rxAcks.Add(1)
+		}
+
+		if !f.CarriesData() || len(f.Payload) == 0 {
 			continue
 		}
 
@@ -215,33 +227,6 @@ func (s *session) finish() {
 	defer s.rxMu.Unlock()
 
 	s.inflight--
-}
-
-// streamStart marks a message going out chunk by chunk.
-func (s *session) streamStart() {
-	s.rxMu.Lock()
-	defer s.rxMu.Unlock()
-
-	s.streaming++
-}
-
-// streamEnd marks the message out, and ends the session with the read
-// failure that was noted while it went, if there was one.
-func (s *session) streamEnd() {
-	s.rxMu.Lock()
-
-	s.streaming--
-
-	var err error
-	if s.streaming == 0 {
-		err = s.readErr
-	}
-
-	s.rxMu.Unlock()
-
-	if err != nil {
-		s.end(err)
-	}
 }
 
 // message takes one complete envelope out of a channel's buffer. The caller

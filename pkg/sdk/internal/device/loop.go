@@ -53,10 +53,11 @@ func (s *session) start() {
 
 // loop reads until ctx ends or the bus fails.
 //
-// A read that fails while a message is going out does not end it. The read
-// is posted again a window later, and the failure is reported once the last
-// chunk has gone, because a device left holding half a message is the stall
-// docs/protocol.md describes.
+// A read that fails while a message is going out ends the loop the same way
+// any other read failure does. No chunk goes out without the device's
+// acknowledgement of the one before it, so a bus that has stopped answering
+// is not a device to keep feeding: pace reports the failure, and stream sends
+// nothing more.
 func (s *session) loop(
 	ctx context.Context,
 ) {
@@ -70,25 +71,11 @@ func (s *session) loop(
 	buf := make([]byte, readBuffer)
 
 	for ctx.Err() == nil {
-		err := s.readOnce(ctx, buf)
-		if err == nil {
-			continue
-		}
-
-		if !s.tolerate(err) {
+		if err := s.readOnce(ctx, buf); err != nil {
 			s.end(err)
 
 			return
 		}
-
-		// A bus failing at once would spin the loop, so the next read waits a
-		// window.
-		select {
-		case <-ctx.Done():
-		case <-time.After(s.budgets.window):
-		}
-
-		s.tick(false, false)
 	}
 }
 
@@ -136,25 +123,6 @@ func (s *session) readOnce(
 	}
 
 	return nil
-}
-
-// tolerate notes a read failure while a message is going out, and reports
-// whether the loop should read on.
-func (s *session) tolerate(
-	err error,
-) bool {
-	s.rxMu.Lock()
-	defer s.rxMu.Unlock()
-
-	if s.streaming == 0 {
-		return false
-	}
-
-	if s.readErr == nil {
-		s.readErr = err
-	}
-
-	return true
 }
 
 // tick records a finished read and wakes whoever is waiting on one.
@@ -370,26 +338,40 @@ func (s *session) pause(
 	}
 }
 
-// pace waits between two chunks of a message for the device to say
-// something, for at most the pace budget.
+// pace waits between two chunks of a message for the device to acknowledge
+// the one just sent on c, for at most the pace budget.
 //
-// Nothing ends it early but the device. A loop that ended leaves the full
-// budget to wait out, so a message never goes out in a burst.
+// Waits for c's own acknowledgement count to pass mark, not any transfer: a
+// frame arriving on another channel between chunks is not the device taking
+// the one it was just sent, and releasing the next chunk on the strength of
+// it is the stall a hardware trace showed, a chunk dropped and every chunk
+// after it going out into a pedal that had stopped consuming. If the loop
+// has already ended, its error is returned at once rather than waiting out
+// the budget on a bus that is gone. If the budget runs out first, nothing
+// more is sent: an unpaced chunk into a pedal that is not acknowledging is
+// the stall itself.
 func (s *session) pace(
+	c *channel,
 	mark uint64,
-) {
+) error {
 	budget := s.after(s.budgets.pace)
 
 	for {
+		if err := s.ended(); err != nil {
+			return err
+		}
+
 		at := s.progress()
-		if at.transfers > mark {
-			return
+		if c.acked() > mark {
+			return nil
 		}
 
 		select {
 		case <-at.next:
 		case <-budget:
-			return
+			return fmt.Errorf("%w: %w", errUnacked, context.DeadlineExceeded)
+		case <-s.dead:
+			return s.endErr
 		}
 	}
 }
