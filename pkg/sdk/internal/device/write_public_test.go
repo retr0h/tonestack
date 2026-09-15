@@ -123,6 +123,9 @@ func (s *WritePublicTestSuite) TestWritePreset() {
 		// once the first chunk has gone.
 		cancelled      bool
 		cancelsOnWrite bool
+		// dead is a session whose read loop has already ended when the write
+		// is asked for.
+		dead bool
 		// nothing reached the device, or all of the message did.
 		nothingSent bool
 		whole       bool
@@ -156,6 +159,16 @@ func (s *WritePublicTestSuite) TestWritePreset() {
 			cancelled:   true,
 			nothingSent: true,
 			is:          context.Canceled,
+		},
+		{
+			// No read is posted to catch the answer, so not one chunk goes
+			// out, and the error that ended the loop is what the write says.
+			name:        "a session the bus has already ended",
+			device:      func() *deviceDouble { return readFails(s.ctrl, errors.New("the bus went away")) },
+			dead:        true,
+			nothingSent: true,
+			is:          device.ErrBus,
+			says:        "reading from the device",
 		},
 		{
 			// A device fed half a message and then a burst is the stall that
@@ -268,6 +281,10 @@ func (s *WritePublicTestSuite) TestWritePreset() {
 
 			session := device.NewTestSessionWith(s.T(), d.out, d.in, b)
 			session.OpenChannels()
+
+			if tt.dead {
+				ended(s.T(), session)
+			}
 
 			err := session.WritePreset(ctx, 0, 3, document)
 
