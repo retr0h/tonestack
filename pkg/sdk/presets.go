@@ -23,6 +23,7 @@ package sdk
 import (
 	"context"
 
+	"github.com/retr0h/tonestack/pkg/sdk/internal/presets"
 	"github.com/retr0h/tonestack/pkg/sdk/slot"
 )
 
@@ -158,7 +159,7 @@ func (c *Client) PresetFile(
 	ctx context.Context,
 	path string,
 ) (Reading, error) {
-	return c.operations().ShowFile(ctx, path)
+	return c.fileOperations().ShowFile(ctx, path)
 }
 
 // Compile says what rig to build, what to build it into, and where the preset
@@ -181,5 +182,10 @@ func (c *Client) Compile(
 	ctx context.Context,
 	in Compile,
 ) (Built, error) {
-	return c.operations().Compile(ctx, in.Rig, in.Template, in.Out)
+	return presets.Compile(ctx, presets.CompileOptions{
+		Deps:         presets.Deps{Catalogs: c},
+		RigPath:      in.Rig,
+		TemplatePath: in.Template,
+		OutputPath:   in.Out,
+	})
 }

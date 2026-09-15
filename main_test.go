@@ -141,6 +141,27 @@ func (s *MainTestSuite) TestTheSDKTakesNothingElseWithIt() {
 	}
 }
 
+// TestBackupsDoNotReachTheDevice holds the backup policy apart from the
+// transport.
+//
+// What gets kept before a write, in which format and where, is a decision
+// about somebody's presets, not about USB. It reads a device's answer through
+// a Decoder the device flows hand in, so the day it imports the device or its
+// wire is the day the policy starts changing when the transport does.
+func (s *MainTestSuite) TestBackupsDoNotReachTheDevice() {
+	out, err := exec.Command(
+		"go", "list", "-deps", "./pkg/sdk/internal/backup").Output()
+	s.Require().NoError(err)
+
+	for _, dep := range strings.Fields(string(out)) {
+		switch dep {
+		case mod + "pkg/sdk/internal/device", mod + "pkg/sdk/internal/wire":
+			s.Require().Fail("reaches the transport",
+				"pkg/sdk/internal/backup reaches %s; hand it a Decoder instead", dep)
+		}
+	}
+}
+
 // TestTheSDKStandsAlone asserts that pkg/sdk needs nothing outside itself.
 //
 // The question this answers is whether the library is usable if somebody

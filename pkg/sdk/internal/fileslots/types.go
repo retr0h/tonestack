@@ -18,84 +18,65 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-package presets
+package fileslots
 
 import (
 	"context"
 
 	"github.com/retr0h/tonestack/pkg/sdk/catalog"
-	"github.com/retr0h/tonestack/pkg/sdk/chain"
-	"github.com/retr0h/tonestack/pkg/sdk/corpus"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/compile"
-	"github.com/retr0h/tonestack/pkg/sdk/internal/recipes"
 	"github.com/retr0h/tonestack/pkg/sdk/preset"
 	"github.com/retr0h/tonestack/pkg/sdk/rig"
 )
 
-// Catalogs hands over the catalog a rig is built against. The sdk Client
+// Catalogs hands over the catalog model names are read out of. The sdk Client
 // satisfies it, and keeps the catalog it opened.
 type Catalogs interface {
 	// Catalog returns the catalog, opening it on first use.
 	Catalog(ctx context.Context) (*catalog.Catalog, error)
 }
 
-// Recipes finds the curated rig a build starts from.
-type Recipes interface {
-	// Find returns the rig with the given identifier.
-	Find(dir, id string) (rig.Spec, error)
-}
-
-// Compiler turns a rig into a preset a device has room for.
+// Compiler reads a preset into a rig.
 //
-// Three of the four methods pkg/compile carries. Resolve and Fit build a chain
-// from a recipe, and Lower writes a rig into a preset. Lift reads a slot
-// rather than building one, so it is not named here.
+// One of the four methods pkg/compile carries, because lifting what a slot
+// holds is all this package does with it.
 type Compiler interface {
-	// Resolve turns a rig and a catalog into a chain.
-	Resolve(
-		spec rig.Spec, cat *catalog.Catalog, stats *corpus.Stats,
-	) (chain.Chain, []compile.Added, []compile.Moved, error)
-	// Fit drops what a device has no room for.
-	Fit(spec chain.Chain, cat *catalog.Catalog, lim chain.Limits) chain.Chain
-	// Lower writes a rig into a preset.
-	Lower(doc *preset.Document, spec rig.Spec, cat *catalog.Catalog) error
+	// Lift reads a preset into a rig.
+	Lift(doc *preset.Document, cat *catalog.Catalog) (rig.Spec, error)
 }
 
-// Deps are the collaborators building a preset works through.
+// Flows are the operations on a slot of a file, and what they were configured
+// with.
 //
-// Every field optional: a zero value reaches the real thing, so a caller
-// names only what it wants to stand something else in for.
-type Deps struct {
+// Built once by whoever owns the configuration, which is the sdk Client. Each
+// flow is a method taking only what differs between two calls: a path, an
+// address and, for an edit, where the result goes.
+//
+// Every collaborator is optional: a nil one reaches the real thing, so a test
+// names only what it stands something else in for. This is the shape net/http
+// gives a Client, whose nil Transport means the default one.
+type Flows struct {
 	// Catalogs hands over the catalog. Nil reads the one built into this
 	// binary.
 	Catalogs Catalogs
-	// Recipes finds curated rigs. Nil reads the ones in the binary.
-	Recipes Recipes
-	// Compiler turns a rig into a chain. Nil uses pkg/compile.
+	// Compiler moves a preset into a rig. Nil uses pkg/compile.
 	Compiler Compiler
 }
 
-func (d Deps) catalog(
+// catalog is the catalog these flows name gear against.
+func (f *Flows) catalog(
 	ctx context.Context,
 ) (*catalog.Catalog, error) {
-	if d.Catalogs != nil {
-		return d.Catalogs.Catalog(ctx)
+	if f.Catalogs != nil {
+		return f.Catalogs.Catalog(ctx)
 	}
 
 	return catalog.BuiltIn()
 }
 
-func (d Deps) recipes() Recipes {
-	if d.Recipes != nil {
-		return d.Recipes
-	}
-
-	return recipes.Store{}
-}
-
-func (d Deps) compiler() Compiler {
-	if d.Compiler != nil {
-		return d.Compiler
+func (f *Flows) compiler() Compiler {
+	if f.Compiler != nil {
+		return f.Compiler
 	}
 
 	return compile.New()
