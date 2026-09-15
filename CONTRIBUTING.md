@@ -101,8 +101,10 @@ pkg/sdk/corpus/      what real presets say about a device, measured
 pkg/sdk/preset/      read and write a .hlx preset file
 pkg/sdk/slot/        addressing, 01A to 42C
 pkg/sdk/internal/    how the operations are done. Invisible outside pkg/sdk.
-  slots/             reading and writing what a device holds
-  presets/  recipes/ building a preset, and the rigs to build from
+  fileslots/         reading and editing the slots in a .hls, .hlb or .hlx
+  deviceslots/       reading and editing the slots on an attached device
+  backup/            what a device slot held, kept before a write replaces it
+  presets/  recipes/ building and compiling a preset, and the rigs to build from
   attached/          listing what is on the bus
   catalogview/  corpusview/    reading the catalog and the measurements
   catalogen/  corpusgen/       generating the catalog and the measurements
@@ -212,7 +214,9 @@ device library that could not say which slot it meant would be missing the noun.
 The compiler keeps each `internal/` private to its owner. `main_test.go` keeps
 the owners from leaning on each other: nothing under `pkg/sdk` reaches anything
 in the module outside it, the CLI reaches only `cmd`, `pkg/cli`, `pkg/mcp` and
-`pkg/sdk`, and the MCP server only `pkg/mcp` and `pkg/sdk`.
+`pkg/sdk`, and the MCP server only `pkg/mcp` and `pkg/sdk`. Inside the library,
+`pkg/sdk/internal/backup` reaches neither `device` nor `wire`, so the policy for
+what a write keeps cannot come to depend on the transport.
 
 ## How the system works
 
@@ -308,6 +312,14 @@ func Name() string {
 
 Adding a parameter then shows as one added line rather than a rewritten
 signature.
+
+The rule covers every function and method declaration, test files included. Two
+kinds are exempt. A function literal is usually a one-line callback, and an
+interface method lists a shape rather than code anybody diffs. Generated files
+are exempt too, because nobody writes them.
+
+No linter checks the rule, because `lll` and `golines` only measure length.
+`TestEverySignatureTakesALinePerParameter` in `main_test.go` checks it instead.
 
 ### File naming
 
@@ -408,16 +420,22 @@ are the package-level functions of the same name. The type exists only so a
 caller can name what it depends on, the way `net/http` gives you a `Client`
 alongside `Get`.
 
-A caller then declares what it needs. `internal/slots` wants `Lift` and `Lower`;
-`internal/presets` wants `Resolve` and `Fit`. Two interfaces, four methods
-between them, over one struct that has all four.
+A caller then declares what it needs. `internal/fileslots` and
+`internal/deviceslots` each want `Lift`; `internal/presets` wants `Resolve`,
+`Fit` and `Lower`. Three interfaces over one struct that has all four methods,
+each as small as its use.
 
 In `internal/presets` the collaborators live in a `Deps` struct embedded in the
-options. In `internal/slots` they are fields of `Flows`, the struct the Client
-builds once and whose methods are the operations, so a call passes only
-addresses and paths. Either way every field is optional: a zero value reaches
-the real thing. A caller names only what it wants to stand something else in
-for, which is what `net/http` does with a nil `Transport`.
+options. In `internal/fileslots` and `internal/deviceslots` they are fields of
+`Flows`, the struct the Client builds once and whose methods are the operations,
+so a call passes only addresses and paths. Either way every field is optional: a
+zero value reaches the real thing. A caller names only what it wants to stand
+something else in for, which is what `net/http` does with a nil `Transport`.
+
+`internal/backup` decides what a device slot held is kept as. It declares a
+`Decoder` interface and reads the device's answer through it, so it imports
+neither `device` nor `wire`. `internal/deviceslots` hands one in, and asks its
+`Backups` before any write.
 
 `pkg/sdk` looks like the exception and is not one. `sdk.Open` returns the
 `Editor` interface because the concrete type behind it is unexported and

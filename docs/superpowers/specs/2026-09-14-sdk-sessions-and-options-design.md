@@ -1,6 +1,7 @@
 # SDK sessions and options
 
-**Status:** proposed\
+**Status:** implemented, in chunks 49.4 to 49.7. The last of them is the `slots`
+split and signatures.\
 **Scope:** `pkg/sdk`, `pkg/sdk/internal/device`, `pkg/sdk/internal/slots`,
 `pkg/mcp/internal/tools`, the `cmd/` presets and devices commands, and
 `main_test.go`\
