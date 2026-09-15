@@ -27,6 +27,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/retr0h/tonestack/cmd"
@@ -38,9 +40,6 @@ type RecipesPublicTestSuite struct {
 }
 
 // run executes the command tree with args and returns what it printed.
-//
-// Flags hold their values between runs, so every call names each directory
-// flag it depends on, empty where the default is meant.
 func (s *RecipesPublicTestSuite) run(
 	args ...string,
 ) string {
@@ -58,6 +57,7 @@ func (s *RecipesPublicTestSuite) try(
 	var out bytes.Buffer
 
 	root := cmd.Root()
+	reset(root)
 	root.SetOut(&out)
 	root.SetErr(&out)
 	root.SetArgs(args)
@@ -65,6 +65,32 @@ func (s *RecipesPublicTestSuite) try(
 	err := root.ExecuteContext(context.Background())
 
 	return out.String(), err
+}
+
+// reset puts every flag in the tree back to its default and unset.
+//
+// The tree is one value shared by every run, and a flag keeps both what it
+// was given and that it was given it. Left alone, --amp from one run and
+// --from from the next would be refused as naming both.
+func reset(
+	c *cobra.Command,
+) {
+	for _, flags := range []*pflag.FlagSet{c.Flags(), c.PersistentFlags()} {
+		flags.VisitAll(func(f *pflag.Flag) {
+			// Setting a flag's own default cannot fail.
+			if list, ok := f.Value.(pflag.SliceValue); ok {
+				_ = list.Replace(nil)
+			} else {
+				_ = f.Value.Set(f.DefValue)
+			}
+
+			f.Changed = false
+		})
+	}
+
+	for _, sub := range c.Commands() {
+		reset(sub)
+	}
 }
 
 // theirs is a recipe of somebody's own, for the subject "Their Player".
@@ -107,8 +133,27 @@ func (s *RecipesPublicTestSuite) TestTheirsBesideTheShippedOnes() {
 		locked bool
 		// want is the subject every command answers mike-dirnt with.
 		want string
-		err  bool
+		// variant is a rig show must name as departing from mike-dirnt.
+		variant string
+		// listErr is what list alone fails with, while show and make work.
+		listErr string
+		err     bool
 	}{
+		{
+			// Variants are read across both, so the copy shows under the
+			// shipped rig it was made from.
+			name:    "a rig of theirs made from a shipped one",
+			rig:     theirs("mike-dirnt-live", "extends: mike-dirnt"),
+			want:    "Mike Dirnt",
+			variant: "mike-dirnt-live",
+		},
+		{
+			// One mistake of theirs does not stop a shipped rig building.
+			name:    "a file of theirs that is not a rig",
+			rig:     "schema: RigSpec\nid: broken\n",
+			want:    "Mike Dirnt",
+			listErr: "theirs.yaml",
+		},
 		{
 			name: "the same identifier as a shipped rig",
 			rig:  theirs("mike-dirnt", ""),
@@ -191,13 +236,23 @@ func (s *RecipesPublicTestSuite) TestTheirsBesideTheShippedOnes() {
 				return
 			}
 
-			s.Require().NoError(listErr, listed)
 			s.Require().NoError(showErr, shown)
 			s.Require().NoError(makeErr, made)
-
-			s.Require().Contains(listed, tt.want)
 			s.Require().Contains(shown, tt.want)
 			s.Require().Contains(made, tt.want)
+
+			if tt.variant != "" {
+				s.Require().Contains(shown, tt.variant)
+			}
+
+			if tt.listErr != "" {
+				s.Require().ErrorContains(listErr, tt.listErr)
+
+				return
+			}
+
+			s.Require().NoError(listErr, listed)
+			s.Require().Contains(listed, tt.want)
 
 			if tt.want != "Mike Dirnt" {
 				s.Require().NotContains(listed, "Mike Dirnt",
@@ -272,18 +327,85 @@ func (s *RecipesPublicTestSuite) TestNew() {
 				"--id", "test-player", "--out", hlx)
 			s.Require().FileExists(hlx)
 
-			if flag != "" {
-				return
-			}
-
 			// A directory of your own adds to the rigs that ship rather
-			// than hiding them.
+			// than hiding them, whether it is yours or one --dir names.
 			s.Require().Contains(listed, "mike-dirnt")
 
 			shipped := filepath.Join(s.T().TempDir(), "mike-dirnt.hlx")
-			s.run("presets", "make", "--recipes=",
+			s.run("presets", "make", "--recipes="+flag,
 				"--id", "mike-dirnt", "--out", shipped)
 			s.Require().FileExists(shipped)
+		})
+	}
+}
+
+// TestNewFlags covers what recipes new does with --kind and --instrument
+// beside --from.
+func (s *RecipesPublicTestSuite) TestNewFlags() {
+	tests := []struct {
+		name string
+		args []string
+		// err is what the command fails with, and nothing is written.
+		err string
+		// out must be in what it printed, and absent must not.
+		out    string
+		absent string
+		// body must be in the file written.
+		body string
+	}{
+		{
+			// --kind names what a copy is attributed to, and a rig from gear
+			// is always an artist, so taking it silently would be a lie.
+			name: "--kind without --from",
+			args: []string{"--amp", "Ampeg SVT", "--kind", "song"},
+			err:  "--kind says what a copy is attributed to, so it needs --from",
+		},
+		{
+			name: "--kind with --from",
+			args: []string{"--from", "mike-dirnt", "--kind", "song"},
+			body: "  kind: song",
+		},
+		{
+			// The copy is played on what the copied rig is, whatever the
+			// flag a copy does not read says.
+			name:   "a copy reports the copied rig's instrument",
+			args:   []string{"--from", "mike-dirnt", "--instrument", "guitar"},
+			out:    "bass",
+			absent: "guitar",
+		},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			dir := s.T().TempDir()
+			s.T().Setenv("XDG_DATA_HOME", s.T().TempDir())
+
+			args := append([]string{"recipes", "new", "--dir", dir, "--id", "the-copy"}, tt.args...)
+			out, err := s.try(args...)
+			path := filepath.Join(dir, "artists", "the-copy.yaml")
+
+			if tt.err != "" {
+				s.Require().ErrorContains(err, tt.err)
+				s.Require().NoFileExists(path)
+
+				return
+			}
+
+			s.Require().NoError(err, out)
+
+			if tt.out != "" {
+				s.Require().Contains(out, tt.out)
+			}
+
+			if tt.absent != "" {
+				s.Require().NotContains(out, tt.absent)
+			}
+
+			if tt.body != "" {
+				body, err := os.ReadFile(path)
+				s.Require().NoError(err)
+				s.Require().Contains(string(body), tt.body)
+			}
 		})
 	}
 }

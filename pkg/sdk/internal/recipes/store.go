@@ -29,9 +29,10 @@ import "github.com/retr0h/tonestack/pkg/sdk/rig"
 // this package.
 type Store struct{}
 
-// Find returns the rig with the given identifier.
+// Find returns the rig with the given identifier, from where src says.
 func (Store) Find(
-	dir, id string,
+	src Source,
+	id string,
 ) (rig.Spec, error) {
-	return Find(dir, id)
+	return Find(src, id)
 }

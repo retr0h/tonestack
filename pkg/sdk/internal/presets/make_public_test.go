@@ -62,7 +62,7 @@ func (s *MakePublicTestSuite) opts(
 	return presets.MakeOptions{
 		Deps:       presets.Deps{Catalogs: s.catalogs(filepath.Join("testdata", "catalog.json"))},
 		RecipeID:   id,
-		RecipesDir: filepath.Join("testdata", "recipes"),
+		Rigs:       recipes.Source{Dir: filepath.Join("testdata", "recipes")},
 		OutputPath: out,
 	}
 }

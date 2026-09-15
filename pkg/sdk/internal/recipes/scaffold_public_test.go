@@ -91,10 +91,15 @@ func (s *ScaffoldPublicTestSuite) TestNewFrom() {
 		// unreadable puts a directory where the walk expects a file.
 		unreadable bool
 		errText    string
+		// instrument is what the report says the copy is played on.
+		instrument string
+		// base is the directory beneath, or empty for the rigs that ship.
+		base string
 	}{
 		{
-			name: "a copy of a rig in the same directory",
-			from: "parent",
+			name:       "a copy of a rig in the same directory",
+			from:       "parent",
+			instrument: "bass",
 			want: []string{
 				"id: copy\nextends: parent",
 				// The citation comes across, which is the point and the
@@ -133,25 +138,44 @@ func (s *ScaffoldPublicTestSuite) TestNewFrom() {
 			absent: []string{"extends: dirnt"},
 		},
 		{
+			// The rigs beneath are read whole, the way a lookup reads them.
+			name:    "a directory beneath that will not load",
+			from:    "parent",
+			base:    "testdata",
+			errText: "broken.yaml",
+		},
+		{
 			name:    "a copy of a rig nobody has",
 			from:    "nobody-at-all",
 			errText: "no such recipe",
 		},
 		{
-			// Looking for the parent reads every rig beside it, so a broken
-			// one is found on the way past.
-			name:    "a directory holding a rig that is not one",
-			from:    "parent",
+			// A broken rig beside the parent is not the parent, so it does
+			// not stop the copy.
+			name:   "a rig that is not one, beside the parent",
+			from:   "parent",
+			broken: true,
+			want:   []string{"id: copy\nextends: parent"},
+		},
+		{
+			name:    "a rig that is not one, asked for",
+			from:    "broken",
 			broken:  true,
 			errText: "not a valid rig",
 		},
 		{
 			// A directory named like a rig: the glob matches it and reading
 			// it cannot work.
-			name:       "a directory wearing a rig's name",
-			from:       "parent",
+			name:       "a directory wearing a rig's name, asked for",
+			from:       "adir",
 			unreadable: true,
 			errText:    "opening",
+		},
+		{
+			name:       "a directory wearing a rig's name, beside the parent",
+			from:       "parent",
+			unreadable: true,
+			want:       []string{"extends: parent"},
 		},
 	}
 
@@ -171,8 +195,9 @@ func (s *ScaffoldPublicTestSuite) TestNewFrom() {
 					filepath.Join(dir, "artists", "adir.yaml"), 0o750))
 			}
 
-			_, err := recipes.New(context.Background(), recipes.NewOptions{
+			got, err := recipes.New(context.Background(), recipes.NewOptions{
 				Dir:  dir,
+				Base: tt.base,
 				ID:   "copy",
 				From: tt.from,
 				Kind: tt.kind,
@@ -187,6 +212,10 @@ func (s *ScaffoldPublicTestSuite) TestNewFrom() {
 
 			s.Require().NoError(err)
 
+			if tt.instrument != "" {
+				s.Require().Equal(tt.instrument, got.Instrument)
+			}
+
 			body, err := os.ReadFile(filepath.Join(dir, "artists", "copy.yaml"))
 			s.Require().NoError(err)
 
@@ -196,6 +225,10 @@ func (s *ScaffoldPublicTestSuite) TestNewFrom() {
 
 			for _, absent := range tt.absent {
 				s.Require().NotContains(string(body), absent)
+			}
+
+			if tt.broken || tt.unreadable {
+				return
 			}
 
 			// A copy is a whole rig, so it loads on its own.

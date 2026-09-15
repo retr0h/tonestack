@@ -41,14 +41,17 @@ An agent starts this itself. For Claude Code:
 
   claude mcp add tonestack -- tonestack mcp start
 
+Your own recipes are offered beside the built-in ones, as recipes list shows
+them.
+
 Tools that overwrite what a pedal holds (import, copy, swap) are offered only
 with --allow-writes. Each still saves what it replaces to a file first.`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		err := mcp.New(newClient(), mcp.Options{
+		err := mcp.New(newClient(ownRecipes("")), mcp.Options{
 			Version:     version,
 			AllowWrites: mcpStartAllowWrites,
-		}).Run(cmd.Context())
+		}).RunOver(cmd.Context(), cmd.InOrStdin(), cmd.OutOrStdout())
 
 		// Ctrl-C and SIGTERM are how this is meant to stop, not a failure.
 		if errors.Is(err, context.Canceled) {

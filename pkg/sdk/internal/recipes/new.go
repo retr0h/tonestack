@@ -120,6 +120,9 @@ type NewOptions struct {
 	// From is a rig to copy, by identifier. The copy is a whole rig and
 	// records where it came from in `extends`; nothing merges the two.
 	From string
+	// Base is where From is found beneath Dir: a directory, or empty for the
+	// rigs that ship. From is looked for in Dir first, layered over Base.
+	Base string
 	// Kind is what the new rig is attributed to: artist, band, song, genre
 	// or sound. Only read when copying, since a scaffold from nothing is an
 	// artist.
@@ -143,7 +146,7 @@ func New(
 		return result.Scaffolded{}, ErrNoDir
 	}
 
-	body, err := scaffoldFor(ctx, opts)
+	body, instrument, err := scaffoldFor(ctx, opts)
 	if err != nil {
 		return result.Scaffolded{}, err
 	}
@@ -169,7 +172,7 @@ func New(
 	return result.Scaffolded{
 		ID:         opts.ID,
 		Name:       opts.Name,
-		Instrument: opts.Instrument,
+		Instrument: instrument,
 		Amp:        opts.Amp,
 		Cab:        opts.Cab,
 		Pedals:     opts.Pedals,
@@ -269,27 +272,35 @@ func near(
 // resolved when it was written and the copy has not changed any gear yet.
 // Scaffolding from flags checks every name against the catalog, which is the
 // only moment a typo is cheap to fix.
+//
+// The instrument is the one the new rig is played on: the copied rig's for a
+// copy, which names none of its own, and the one asked for otherwise.
 func scaffoldFor(
 	ctx context.Context,
 	opts NewOptions,
-) (string, error) {
+) (string, string, error) {
 	if opts.From != "" {
-		parent, from, err := findFile(opts.Dir, opts.From)
+		parent, err := findFile(Source{Dir: opts.Base, User: opts.Dir}, opts.From)
 		if err != nil {
-			return "", err
+			return "", "", err
 		}
 
-		return scaffold(parent, from, opts), nil
+		// The rig's own identifier, not whatever was typed. An alias belongs
+		// to the parent and `extends` is matched against an id, so recording
+		// the alias would leave a link that never resolves.
+		body := scaffold(string(parent.raw), parent.spec.ID, opts)
+
+		return body, string(parent.spec.Instrument), nil
 	}
 
 	cat, err := opts.Catalogs.Catalog(ctx)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
 	if err := checkGear(cat, opts); err != nil {
-		return "", err
+		return "", "", err
 	}
 
-	return render(opts), nil
+	return render(opts), opts.Instrument, nil
 }

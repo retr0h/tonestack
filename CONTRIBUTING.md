@@ -84,7 +84,7 @@ main.go              a single call into cmd
 cmd/                 cobra wiring: flags to a Client call to a renderer
 pkg/cli/             how results look: theme, tables, detail, help
 pkg/cli/internal/    the primitives every renderer shares. Invisible outside pkg/cli.
-pkg/mcp/             the MCP server an agent runs: New and Run
+pkg/mcp/             the MCP server an agent runs: New, Run and RunOver
 pkg/mcp/internal/    one handler per tool. Invisible outside pkg/mcp.
 pkg/sdk/             the library. One directory, and the one that leaves.
 pkg/sdk/client.go    the Client every wrapper rallies around
@@ -174,10 +174,13 @@ packages are the nouns it takes and hands back.
 `sdk.New()` with no options uses the built-in catalog and statistics, the rigs
 that ship, and whatever device is on the USB bus. Anything that describes the
 Client rather than one call is an option: `WithCatalog`, `WithStats`,
-`WithRecipes`, `WithBackupDir`, `WithCapture` and `WithTrace`. Every method
-takes a `context.Context` first. The library reads no environment variable
-except `XDG_STATE_HOME`, so a program that wants `TONESTACK_USB_DUMP` or
-`TONESTACK_USB_DEBUG` reads them itself and passes a writer in, as `cmd` does.
+`WithRecipes`, `WithUserRecipes`, `WithBackupDir`, `WithCapture` and
+`WithTrace`. `WithUserRecipes` layers a directory over the rigs that ship, and
+the program resolves where that directory is, as `cmd` does from
+`XDG_DATA_HOME`. Every method takes a `context.Context` first. The library reads
+no environment variable except `XDG_STATE_HOME`, so a program that wants
+`TONESTACK_USB_DUMP` or `TONESTACK_USB_DEBUG` reads them itself and passes a
+writer in, as `cmd` does.
 
 The Client's device methods each claim the pedal, handshake and let it go. For
 several operations in a row, `Client.Open` returns a `Session` that holds one

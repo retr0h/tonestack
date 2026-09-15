@@ -91,7 +91,25 @@ func New(
 func (s *Server) Run(
 	ctx context.Context,
 ) error {
-	return s.run(ctx, os.Stdin, os.Stdout)
+	return s.RunOver(ctx, os.Stdin, os.Stdout)
+}
+
+// RunOver serves over r and w the way Run serves over stdin and stdout, so a
+// program that owns its streams, such as a command handed them by its caller,
+// serves over those.
+//
+// r is closed when the session ends if it is an io.ReadCloser, as stdin is.
+func (s *Server) RunOver(
+	ctx context.Context,
+	r io.Reader,
+	w io.Writer,
+) error {
+	rc, ok := r.(io.ReadCloser)
+	if !ok {
+		rc = io.NopCloser(r)
+	}
+
+	return s.run(ctx, rc, w)
 }
 
 // Serve serves over any transport until ctx ends or the agent disconnects.

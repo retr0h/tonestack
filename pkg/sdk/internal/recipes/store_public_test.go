@@ -52,7 +52,7 @@ func (s *StorePublicTestSuite) TestFind() {
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			got, err := recipes.Store{}.Find(tt.dir, tt.id)
+			got, err := recipes.Store{}.Find(recipes.Source{Dir: tt.dir}, tt.id)
 
 			if !tt.ok {
 				s.Require().Error(err)
@@ -60,7 +60,7 @@ func (s *StorePublicTestSuite) TestFind() {
 				return
 			}
 
-			want, err := recipes.Find(tt.dir, tt.id)
+			want, err := recipes.Find(recipes.Source{Dir: tt.dir}, tt.id)
 			s.Require().NoError(err)
 			s.Require().Equal(want, got)
 		})

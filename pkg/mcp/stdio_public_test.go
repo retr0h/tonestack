@@ -27,6 +27,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"testing/iotest"
 	"time"
 
 	"github.com/stretchr/testify/suite"
@@ -90,6 +91,9 @@ func (w *afterHangUp) Write(
 // errRefused is what refuses says to every write.
 var errRefused = errors.New("refused")
 
+// errBrokenInput is what a stdin that breaks says.
+var errBrokenInput = errors.New("input broken")
+
 // refuses stands in for a stdout that has gone.
 type refuses struct{}
 
@@ -104,7 +108,7 @@ func (refuses) Write(
 func (s *StdioPublicTestSuite) TestRunOver() {
 	tests := []struct {
 		name    string
-		streams func() (io.ReadCloser, io.Writer)
+		streams func() (io.Reader, io.Writer)
 		cancel  bool
 		err     error
 	}{
@@ -113,7 +117,7 @@ func (s *StdioPublicTestSuite) TestRunOver() {
 			// the way piping a request into `tonestack mcp start` does. The
 			// client is gone, so the session is over rather than broken.
 			name: "a client that hangs up while its reply is written",
-			streams: func() (io.ReadCloser, io.Writer) {
+			streams: func() (io.Reader, io.Writer) {
 				ended := make(chan struct{})
 
 				return &hangsUp{in: strings.NewReader(initialize), ended: ended},
@@ -121,10 +125,18 @@ func (s *StdioPublicTestSuite) TestRunOver() {
 			},
 		},
 		{
+			// A caller's own stream that has nothing to close, such as a
+			// command's input. It ends by running out, the same as stdin.
+			name: "an input that cannot be closed",
+			streams: func() (io.Reader, io.Writer) {
+				return io.MultiReader(strings.NewReader(initialize)), io.Discard
+			},
+		},
+		{
 			// Ctrl-C with a client still connected is a stop, reported as the
 			// context ending so the command can tell it from a failure.
 			name: "a session stopped by its context",
-			streams: func() (io.ReadCloser, io.Writer) {
+			streams: func() (io.Reader, io.Writer) {
 				r, _ := io.Pipe()
 
 				return r, io.Discard
@@ -136,13 +148,22 @@ func (s *StdioPublicTestSuite) TestRunOver() {
 			// A client still connected whose replies can't be written. That
 			// is a failure, not a hang-up.
 			name: "a client whose output fails",
-			streams: func() (io.ReadCloser, io.Writer) {
+			streams: func() (io.Reader, io.Writer) {
 				r, w := io.Pipe()
 				go func() { _, _ = io.WriteString(w, initialize) }()
 
 				return r, refuses{}
 			},
 			err: errRefused,
+		},
+		{
+			// An input that breaks rather than ends. Nothing was written and
+			// nothing hung up, so what the library reports is the failure.
+			name: "a client whose input fails",
+			streams: func() (io.Reader, io.Writer) {
+				return iotest.ErrReader(errBrokenInput), io.Discard
+			},
+			err: errBrokenInput,
 		},
 	}
 

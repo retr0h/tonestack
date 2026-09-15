@@ -78,45 +78,6 @@ func (s *OpenPublicTestSuite) TestOpen() {
 	}
 }
 
-// TestFilesOpen covers reading one through the value a caller is given when
-// it says nothing about where catalogs come from.
-func (s *OpenPublicTestSuite) TestFilesOpen() {
-	tests := []struct {
-		name string
-		path string
-		ok   bool
-	}{
-		{name: "the catalog in the binary", path: "", ok: true},
-		{
-			name: "one on disk",
-			path: filepath.Join("testdata", "minimal.json"),
-			ok:   true,
-		},
-		{name: "one that is not there", path: filepath.Join("testdata", "nope.json")},
-	}
-
-	for _, tt := range tests {
-		s.Run(tt.name, func() {
-			got, err := catalog.Files{}.Open(tt.path)
-
-			if !tt.ok {
-				s.Require().Error(err)
-				s.Require().Nil(got)
-
-				return
-			}
-
-			s.Require().NoError(err)
-
-			// The same catalog either way; the value is a seam, not a
-			// second way of reading one.
-			want, err := catalog.Open(tt.path)
-			s.Require().NoError(err)
-			s.Require().Equal(want, got)
-		})
-	}
-}
-
 // TestDefaultPathIsWhereTheCatalogLives pins where a generated catalog goes.
 func (s *OpenPublicTestSuite) TestDefaultPathIsWhereTheCatalogLives() {
 	s.Require().Equal(

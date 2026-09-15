@@ -56,16 +56,3 @@ func Open(
 
 	return c, nil
 }
-
-// Files reads catalogs from disk.
-//
-// The value a caller gets when it says nothing about where catalogs come
-// from, and the seam a test replaces when it wants to say.
-type Files struct{}
-
-// Open reads the catalog at path, or the built-in one when path is empty.
-func (Files) Open(
-	path string,
-) (*Catalog, error) {
-	return Open(path)
-}

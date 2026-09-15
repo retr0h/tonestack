@@ -90,7 +90,7 @@ func (h *handlers) rigsList(
 		return nil, sdk.Recipes{}, err
 	}
 
-	return said("%d rigs ship with tonestack", len(found.Rigs)), found, nil
+	return said("%d rigs to build from", len(found.Rigs)), found, nil
 }
 
 func (h *handlers) rigShow(
