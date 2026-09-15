@@ -25,7 +25,7 @@
 // truncated file where a good one used to be, so the bytes go to a temporary
 // file beside the target first, are synced to disk, and are moved into place
 // in one step. The directory is synced afterwards so the new name survives a
-// crash too.
+// crash too, on every platform but Windows, which cannot sync a directory.
 package atomicfile
 
 import (
@@ -43,6 +43,17 @@ import (
 // A variable so a test can stand in a filesystem that has no hard links,
 // which no temporary directory provides.
 var link = os.Link
+
+// dirSyncs is whether this platform can sync a directory at all.
+//
+// Windows cannot: a directory there is not something a program flushes, and
+// asking fails whatever state the directory is in. So on Windows no directory
+// sync is attempted, and a new name's durability is up to the filesystem.
+// Everywhere else the sync is attempted and a failure is reported, except the
+// two answers that mean the filesystem cannot do it either. See unsynced.
+//
+// A variable so a test on another platform can take the Windows path.
+var dirSyncs = runtime.GOOS != "windows"
 
 // Write puts data at path, replacing whatever is there.
 //
@@ -80,12 +91,18 @@ func Write(
 // WriteNew puts data at path only if nothing is there yet.
 //
 // The whole file appears at once or not at all, and an existing file is left
-// alone: os.Link refuses to replace its target.
+// alone: os.Link refuses to replace its target. A file already there is
+// refused with an error matching fs.ErrExist, and no other failure matches it.
 //
-// A filesystem with no hard links, FAT and exFAT among them, gets the file
-// created in place instead. It is still never written over an existing one,
-// but it is not atomic there: a crash partway can leave a partial file at
-// path.
+// A failure leaves nothing at path, a failed directory sync included. The link
+// has landed by then, but a name nobody can count on surviving a crash is not
+// a finished write, and one left behind would make the caller's retry fail as
+// though somebody else's file were there. The name is removed, so the error is
+// the sync's own and a retry starts clean. Only when that removal fails too is
+// the file left, and both failures are returned.
+//
+// A filesystem with no hard links, FAT and exFAT among them, gets the name
+// claimed in place instead. See place.
 func WriteNew(
 	path string,
 	data []byte,
@@ -96,58 +113,74 @@ func WriteNew(
 		return err
 	}
 
-	// A spare name once linked, and the error that matters is returned either way.
+	// Gone once linked or renamed, and the error that matters is returned
+	// either way.
 	defer func() { _ = os.Remove(tmp) }()
 
 	err = link(tmp, path)
 	if linkless(err) {
-		return create(path, data, perm)
+		err = place(tmp, path, perm)
 	}
 
 	if err != nil {
 		return fmt.Errorf("writing %s: %w", path, err)
 	}
 
-	return syncDir(path)
+	err = syncDir(path)
+	if err == nil {
+		return nil
+	}
+
+	if rmErr := os.Remove(path); rmErr != nil {
+		return errors.Join(err, fmt.Errorf("writing %s: removing it after: %w", path, rmErr))
+	}
+
+	return err
 }
 
 // linkless reports a link refused because the filesystem has no hard links.
 //
 // Unsupported where the platform says so, and a permission error where Linux
 // answers FAT that way. Falling back on a permission error that meant
-// something else costs nothing: create refuses an existing file too, and
-// fails on a directory it cannot write into.
+// something else costs nothing: place refuses an existing file too, and fails
+// on a directory it cannot write into.
 func linkless(
 	err error,
 ) bool {
 	return errors.Is(err, errors.ErrUnsupported) || errors.Is(err, fs.ErrPermission)
 }
 
-// create writes path directly, for a filesystem with no hard links.
+// place moves tmp to path on a filesystem with no hard links, refusing a file
+// already there.
 //
-// O_EXCL refuses a file already there, as a link would. A file that could not
-// be written in full is removed, but a crash before then leaves it partial.
-func create(
+// The name is claimed with an empty file first, and O_EXCL refuses a file
+// already there as a link would. The temporary file, already written and
+// synced, is then renamed over the claim. So the data is written once, and
+// what lands at path is the file temp synced.
+//
+// It is not atomic. Until the rename, path holds an empty file, and a crash in
+// between leaves it empty; never partial, and never over somebody's file. A
+// claim the rename could not replace is removed.
+func place(
+	tmp string,
 	path string,
-	data []byte,
 	perm os.FileMode,
 ) error {
 	f, err := os.OpenFile( //nolint:gosec // the path is the caller's own file
 		path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, perm)
 	if err != nil {
-		return fmt.Errorf("writing %s: %w", path, err)
+		return err
 	}
 
-	_, err = f.Write(data)
-
-	if err := errors.Join(err, f.Sync(), f.Close()); err != nil {
-		// Best effort: the write error is the one returned.
+	if err := errors.Join(f.Close(), os.Rename(tmp, path)); err != nil {
+		// Best effort: the claim is this write's own, and the error that
+		// stopped it is the one returned.
 		_ = os.Remove(path)
 
-		return fmt.Errorf("writing %s: %w", path, err)
+		return err
 	}
 
-	return syncDir(path)
+	return nil
 }
 
 // temp writes data to a new file beside path and returns its name.
@@ -187,10 +220,14 @@ func temp(
 }
 
 // syncDir syncs the directory holding path, so a new name in it survives a
-// crash.
+// crash. On a platform that cannot sync a directory it does nothing.
 func syncDir(
 	path string,
 ) error {
+	if !dirSyncs {
+		return nil
+	}
+
 	d, err := os.Open(filepath.Dir(path))
 	if err != nil {
 		return unsynced(path, err)
@@ -201,17 +238,17 @@ func syncDir(
 
 // unsynced reports a directory that could not be synced.
 //
-// A platform or filesystem that cannot sync a directory at all is not a
-// failure: Windows cannot flush one, and some filesystems answer EINVAL. The
-// file is in place either way; only its durability is up to the system.
+// A filesystem that cannot sync a directory at all is not a failure: it
+// answers unsupported or EINVAL, and the file is in place either way, with its
+// durability up to the system. Every other failure is reported, on every
+// platform that attempts the sync. Windows does not attempt it; see dirSyncs.
 func unsynced(
 	path string,
 	err error,
 ) error {
 	if err == nil ||
 		errors.Is(err, errors.ErrUnsupported) ||
-		errors.Is(err, syscall.EINVAL) ||
-		runtime.GOOS == "windows" {
+		errors.Is(err, syscall.EINVAL) {
 		return nil
 	}
 

@@ -248,6 +248,8 @@ func (s *AtomicfilePublicTestSuite) TestWriteNew() {
 		setup
 		is      error
 		errText string
+		// the same write, tried again once the directory is fixed, succeeds.
+		retry bool
 	}{
 		{name: "a new file"},
 		{
@@ -262,9 +264,12 @@ func (s *AtomicfilePublicTestSuite) TestWriteNew() {
 			errText: "writing",
 		},
 		{
+			// The link landed and the sync did not. Nothing is left at the
+			// path, so the error is not a clash and a retry writes the file.
 			name:    "a directory it cannot sync",
 			setup:   setup{writeOnly: true},
 			errText: "syncing its directory",
+			retry:   true,
 		},
 		{
 			name:    "a write that stops partway",
@@ -290,16 +295,22 @@ func (s *AtomicfilePublicTestSuite) TestWriteNew() {
 
 				if tt.errText != "" {
 					s.Require().ErrorContains(err, tt.errText)
+					s.Require().NotErrorIs(err, fs.ErrExist)
 				}
 
 				if tt.existing {
 					got, readErr := os.ReadFile(path) //nolint:gosec // a path this test chose
 					s.Require().NoError(readErr)
 					s.Require().Equal("old", string(got))
+
+					return
 				}
 
-				if !tt.existing && !tt.writeOnly {
-					s.Require().NoFileExists(path)
+				s.Require().NoFileExists(path)
+
+				if tt.retry {
+					s.Require().NoError(atomicfile.WriteNew(path, []byte("new"), 0o600),
+						"a retry is not refused as a clash")
 				}
 
 				return
