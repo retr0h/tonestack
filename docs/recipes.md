@@ -12,11 +12,20 @@ written by hand.
 The rigs that ship live under `pkg/sdk/rigs/`. `tonestack recipes new` writes
 yours to `$XDG_DATA_HOME/tonestack/recipes/artists/`, or to
 `~/.local/share/tonestack/recipes/artists/` when that variable is unset.
-`recipes list`, `recipes show` and `presets make` read that directory beside the
-rigs that ship. A rig of yours takes the place of a shipped one when the two
-share a name, whether that is the `id` or one of the `aliases`, in any case.
-`--dir`, or `--recipes` on `presets make`, names a different directory, and the
-command reads that one instead of both.
+`recipes list`, `recipes show`, `presets make` and the MCP server read that
+directory beside the rigs that ship. A rig of yours takes the place of a shipped
+one when the two share a name, whether that is the `id` or one of the `aliases`,
+in any case. A rig of yours that `extends` a shipped one shows under it in
+`recipes show`. `--dir`, or `--recipes` on `presets make`, names a different
+directory to read in place of yours, and the rigs that ship are still read
+beside it.
+
+A directory that is not there holds no rigs. One that cannot be read is an
+error. A file in it that is not a valid rig makes `recipes list` fail and name
+the file, but it does not stop a shipped rig building. The exception is a file
+whose filename, `id` or `aliases` match the rig you asked for. `recipes show`
+and `presets make` report that file rather than build the shipped rig you wrote
+it to replace.
 
 This page is how to write one. For what each field may say, read
 [`docs/rigspec.md`](rigspec.md), which is generated from the contract and lists

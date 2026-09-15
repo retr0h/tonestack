@@ -30,6 +30,7 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk/corpus"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/atomicfile"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/compile"
+	"github.com/retr0h/tonestack/pkg/sdk/internal/recipes"
 	"github.com/retr0h/tonestack/pkg/sdk/preset"
 	"github.com/retr0h/tonestack/pkg/sdk/result"
 	"github.com/retr0h/tonestack/pkg/sdk/rig"
@@ -42,8 +43,8 @@ type MakeOptions struct {
 
 	// RecipeID names the curated knowledge to build from.
 	RecipeID string
-	// RecipesDir is where recipes live.
-	RecipesDir string
+	// Rigs is where recipes live. The zero value is the rigs that ship.
+	Rigs recipes.Source
 	// StatsPath is measured corpus statistics. Empty means the ones built
 	// into this binary.
 	StatsPath string
@@ -64,7 +65,7 @@ func Make(
 		return result.Made{}, err
 	}
 
-	rec, err := opts.recipes().Find(opts.RecipesDir, opts.RecipeID)
+	rec, err := opts.recipes().Find(opts.Rigs, opts.RecipeID)
 	if err != nil {
 		return result.Made{}, err
 	}

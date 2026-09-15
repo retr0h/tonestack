@@ -34,7 +34,6 @@ import (
 	"path"
 	"path/filepath"
 	"sort"
-	"strings"
 
 	"github.com/retr0h/tonestack/pkg/sdk/result"
 	"github.com/retr0h/tonestack/pkg/sdk/rig"
@@ -51,50 +50,84 @@ const DefaultDir = "pkg/sdk/rigs"
 func Load(
 	dir string,
 ) ([]rig.Spec, error) {
-	// No directory means the recipes that ship in the binary, which is the
-	// case for anyone who has not written their own.
-	if dir == "" {
-		return loadFS(rigs.FS, ".", "the built-in recipes")
+	all, err := readBase(dir)
+	if err != nil {
+		return nil, err
 	}
 
-	return loadFS(os.DirFS(dir), ".", dir)
+	return specs(all), nil
 }
 
-// loadFS reads every rig under root, wherever that filesystem comes from.
-// name says where that is, for a directory that cannot be read.
-func loadFS(
+// readBase reads the rigs a layer sits on, refusing any file that is not a
+// rig.
+func readBase(
+	dir string,
+) ([]stored, error) {
+	// No directory means the recipes that ship in the binary, which is the
+	// case for anyone who has not written their own.
+	fsys, name := fs.FS(rigs.FS), "the built-in recipes"
+	if dir != "" {
+		fsys, name = os.DirFS(dir), dir
+	}
+
+	all, broken, err := readFS(fsys, name)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(broken) > 0 {
+		return nil, broken[0].err
+	}
+
+	return all, nil
+}
+
+// readFS reads every rig under the root of fsys, wherever that filesystem
+// comes from. name says where that is, for a directory that cannot be read.
+//
+// A file that will not open or will not decode is handed back rather than
+// stopping the walk, so the caller decides what one costs.
+func readFS(
 	fsys fs.FS,
-	root, name string,
-) ([]rig.Spec, error) {
+	name string,
+) ([]stored, []brokenFile, error) {
 	// Glob drops a directory it cannot read, which would make one nobody may
 	// open look like one holding no recipes. A directory that is not there is
 	// different: nobody has written a recipe into it yet.
-	if _, err := fs.ReadDir(fsys, root); err != nil && !errors.Is(err, fs.ErrNotExist) {
-		return nil, fmt.Errorf("reading %s: %w", name, err)
+	if _, err := fs.ReadDir(fsys, "."); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return nil, nil, fmt.Errorf("reading %s: %w", name, err)
 	}
 
 	// The pattern is a constant, so it cannot be malformed.
-	paths, _ := fs.Glob(fsys, path.Join(root, "*", "*.yaml"))
+	paths, _ := fs.Glob(fsys, path.Join("*", "*.yaml"))
 
-	out := make([]rig.Spec, 0, len(paths))
+	out := make([]stored, 0, len(paths))
+	broken := []brokenFile(nil)
 
 	for _, p := range paths {
 		raw, err := fs.ReadFile(fsys, p)
 		if err != nil {
-			return nil, fmt.Errorf("opening %s: %w", path.Base(p), err)
+			broken = append(broken, brokenFile{
+				names: claimed(p, nil),
+				err:   fmt.Errorf("opening %s: %w", path.Base(p), err),
+			})
+
+			continue
 		}
 
 		spec, err := decode(raw, p)
 		if err != nil {
-			return nil, err
+			broken = append(broken, brokenFile{names: claimed(p, raw), err: err})
+
+			continue
 		}
 
-		out = append(out, spec)
+		out = append(out, stored{spec: spec, raw: raw})
 	}
 
-	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
+	sortEntries(out)
 
-	return out, nil
+	return out, broken, nil
 }
 
 // decode parses one rig, naming the file it came from when it will not parse.
@@ -111,48 +144,93 @@ func decode(
 	return spec, nil
 }
 
+// read reads every rig a Source holds.
+func read(
+	src Source,
+) (set, error) {
+	base, err := readBase(src.Dir)
+	if err != nil {
+		return set{}, err
+	}
+
+	if src.User == "" {
+		return set{base: base}, nil
+	}
+
+	user, broken, err := readFS(os.DirFS(src.User), src.User)
+	if err != nil {
+		return set{}, err
+	}
+
+	return set{user: user, base: base, broken: broken}, nil
+}
+
+// List reads every rig a Source holds.
+//
+// A file of somebody's own that is not a rig is reported here, every one of
+// them, because a listing is where somebody looks for what they wrote.
+func List(
+	src Source,
+) (result.Recipes, error) {
+	all, err := read(src)
+	if err != nil {
+		return result.Recipes{}, err
+	}
+
+	if len(all.broken) > 0 {
+		errs := make([]error, 0, len(all.broken))
+		for _, b := range all.broken {
+			errs = append(errs, b.err)
+		}
+
+		return result.Recipes{}, errors.Join(errs...)
+	}
+
+	dir := src.Dir
+	if src.User != "" {
+		dir = src.User
+	}
+
+	return result.Recipes{Dir: dir, Rigs: specs(all.merged())}, nil
+}
+
 // Find returns the rig with the given identifier, or one of its aliases.
 func Find(
-	dir, id string,
+	src Source,
+	id string,
 ) (rig.Spec, error) {
-	all, err := Load(dir)
+	all, err := read(src)
 	if err != nil {
 		return rig.Spec{}, err
 	}
 
-	return find(all, id)
+	found, err := all.find(id)
+	if err != nil {
+		return rig.Spec{}, err
+	}
+
+	return found.spec, nil
 }
 
-// find picks one rig out of a set already read.
-func find(
-	all []rig.Spec,
+// Show reads one rig, and what the rest of the set says about it.
+func Show(
+	src Source,
 	id string,
-) (rig.Spec, error) {
-	for _, spec := range all {
-		if strings.EqualFold(spec.ID, id) || matchesAlias(spec, id) {
-			return spec, nil
-		}
+) (result.Recipe, error) {
+	all, err := read(src)
+	if err != nil {
+		return result.Recipe{}, err
 	}
 
-	return rig.Spec{}, &NotFoundError{ID: id, Known: len(all)}
-}
-
-// matchesAlias reports whether id is one of the rig's other names.
-func matchesAlias(
-	spec rig.Spec,
-	id string,
-) bool {
-	if spec.Aliases == nil {
-		return false
+	found, err := all.find(id)
+	if err != nil {
+		return result.Recipe{}, err
 	}
 
-	for _, a := range *spec.Aliases {
-		if strings.EqualFold(a, id) {
-			return true
-		}
-	}
-
-	return false
+	return result.Recipe{
+		Rig:      found.spec,
+		Variants: departures(specs(all.merged()), found.spec),
+	}, nil
 }
 
 // departures names the rigs that are a small change on this one.
@@ -179,31 +257,21 @@ func departures(
 	return out
 }
 
-// List reads every rig under dir.
-func List(
-	dir string,
-) (result.Recipes, error) {
-	all, err := Load(dir)
-	if err != nil {
-		return result.Recipes{}, err
+// specs are the rigs of a set of entries, in the same order.
+func specs(
+	all []stored,
+) []rig.Spec {
+	out := make([]rig.Spec, 0, len(all))
+	for _, e := range all {
+		out = append(out, e.spec)
 	}
 
-	return result.Recipes{Dir: dir, Rigs: all}, nil
+	return out
 }
 
-// Show reads one rig, and what the rest of the set says about it.
-func Show(
-	dir, id string,
-) (result.Recipe, error) {
-	all, err := Load(dir)
-	if err != nil {
-		return result.Recipe{}, err
-	}
-
-	spec, err := find(all, id)
-	if err != nil {
-		return result.Recipe{}, err
-	}
-
-	return result.Recipe{Rig: spec, Variants: departures(all, spec)}, nil
+// sortEntries puts entries in identifier order.
+func sortEntries(
+	all []stored,
+) {
+	sort.SliceStable(all, func(i, j int) bool { return all[i].spec.ID < all[j].spec.ID })
 }

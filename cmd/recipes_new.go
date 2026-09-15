@@ -22,12 +22,17 @@ package cmd
 
 import (
 	"context"
+	"errors"
 
 	"github.com/spf13/cobra"
 
 	"github.com/retr0h/tonestack/pkg/cli"
 	"github.com/retr0h/tonestack/pkg/sdk"
 )
+
+// errKindWithoutFrom refuses --kind on a recipe that is not a copy.
+var errKindWithoutFrom = errors.New(
+	"--kind says what a copy is attributed to, so it needs --from")
 
 var (
 	recipesNewOptions sdk.NewRecipe
@@ -57,6 +62,13 @@ presets make find it, unless --dir names another. The output says which file
 it wrote.`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
+		// --kind is what a copy is attributed to. A rig scaffolded from gear
+		// is always an artist, so without --from there is nothing for it to
+		// change, and taking it without a word would say it had.
+		if recipesNewKind != "" && recipesNewFrom == "" {
+			return errKindWithoutFrom
+		}
+
 		dir := recipesDir
 		if dir == "" {
 			own, err := userRecipesDir()
@@ -67,7 +79,7 @@ it wrote.`,
 			dir = own
 		}
 
-		client := newClient(sdk.WithRecipes(dir), sdk.WithCatalog(recipesNewCatalog))
+		client := newClient(sdk.WithUserRecipes(dir), sdk.WithCatalog(recipesNewCatalog))
 
 		made, err := scaffolded(cmd.Context(), client)
 		if err != nil {
@@ -121,19 +133,12 @@ func scaffolded(
 		return client.Scaffold(ctx, recipesNewOptions)
 	}
 
-	made, err := client.Extend(ctx, sdk.ExtendRecipe{
+	// The report names the copied rig's instrument, which the copy is played
+	// on, rather than the --instrument flag, which a copy does not read.
+	return client.Extend(ctx, sdk.ExtendRecipe{
 		From: recipesNewFrom,
 		ID:   recipesNewOptions.ID,
 		Name: recipesNewOptions.Name,
 		Kind: recipesNewKind,
 	})
-	if err != nil {
-		return sdk.Scaffolded{}, err
-	}
-
-	// A copy reads no instrument, but this report has always shown the
-	// --instrument flag beside one. Kept, so the command says what it said.
-	made.Instrument = recipesNewOptions.Instrument
-
-	return made, nil
 }

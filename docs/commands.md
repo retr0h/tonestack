@@ -174,6 +174,9 @@ An agent starts this itself. For Claude Code:
 
   claude mcp add tonestack -- tonestack mcp start
 
+Your own recipes are offered beside the built-in ones, as recipes list shows
+them.
+
 Tools that overwrite what a pedal holds (import, copy, swap) are offered only
 with --allow-writes. Each still saves what it replaces to a file first.
 
@@ -347,7 +350,7 @@ tonestack presets make [flags]
 | `--catalog` | string |  | a generated catalog to use instead of the built-in one |
 | `--id` | string |  | recipe to build from |
 | `--out` | string |  | where to write the preset |
-| `--recipes` | string |  | a directory of recipes to use instead of yours and the built-in ones |
+| `--recipes` | string |  | a directory of recipes to use instead of yours, beside the built-in ones |
 | `--stats` | string |  | measured corpus statistics to use instead of the built-in ones |
 
 ## tonestack presets select
@@ -418,7 +421,7 @@ tonestack presets swap [flags]
 ## tonestack recipes
 
 A recipe says which gear a player or style uses, and how it should
-sound. Recipes name real-world gear — "Ampeg SVT" — never a device model
+sound. Recipes name real-world gear, "Ampeg SVT", never a device model
 identifier, so one recipe serves every Helix device.
 
 This is the only knowledge here that is ours. A device catalog is generated
@@ -426,10 +429,10 @@ from Line 6's files; recipes are written by people.
 
 Your own recipes live in $XDG_DATA_HOME/tonestack/recipes, or in
 ~/.local/share/tonestack/recipes when that variable is unset. recipes new
-writes there, and recipes list, recipes show and presets make read them beside
-the built-in ones. One sharing an identifier or alias with a built-in recipe is
-used in its place. --dir names another directory, which is read instead of
-both.
+writes there, and recipes list, recipes show, presets make and the MCP server
+read them beside the built-in ones. One sharing an identifier or alias with a
+built-in recipe is used in its place. --dir names another directory, which is
+read in place of yours, still beside the built-in ones.
 
 ```text
 tonestack recipes <command> [flags]
@@ -443,7 +446,7 @@ tonestack recipes <command> [flags]
 
 | flag | takes | default | what it does |
 | --- | --- | --- | --- |
-| `--dir` | string |  | a directory of recipes to use instead of yours and the built-in ones |
+| `--dir` | string |  | a directory of recipes to use instead of yours, beside the built-in ones |
 
 ## tonestack recipes list
 

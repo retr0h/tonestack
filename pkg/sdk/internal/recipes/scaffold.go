@@ -22,13 +22,8 @@ package recipes
 
 import (
 	"fmt"
-	"io/fs"
-	"os"
-	"path"
 	"regexp"
 	"strings"
-
-	"github.com/retr0h/tonestack/pkg/sdk/rigs"
 )
 
 // idLine, subjectKind and subjectName find the lines a copy has to change.
@@ -100,52 +95,21 @@ func header(
 	return b.String()
 }
 
-// findFile returns the text of one rig, from a directory or from the binary.
+// findFile returns one rig as read, with its text, found the way a lookup
+// finds it.
 //
-// The text rather than the decoded rig, because a copy keeps the comments and
-// decoding drops them.
+// Somebody's own directory over the rigs beneath it. Copying a shipped rig
+// into a directory of your own is the common case, and it would not work if
+// the parent had to live beside the copy. The text rather than only the
+// decoded rig, because a copy keeps the comments and decoding drops them.
 func findFile(
-	dir, id string,
-) (string, string, error) {
-	// Somebody's own directory first, then the ones in the binary. Copying a
-	// shipped rig into a directory of your own is the common case, and it
-	// would not work if the parent had to live beside the copy.
-	sources := []fs.FS{rigs.FS}
-	if dir != "" {
-		sources = []fs.FS{os.DirFS(dir), rigs.FS}
+	src Source,
+	id string,
+) (stored, error) {
+	all, err := read(src)
+	if err != nil {
+		return stored{}, err
 	}
 
-	seen := 0
-
-	for _, fsys := range sources {
-		// The pattern is a constant, so it cannot be malformed.
-		paths, _ := fs.Glob(fsys, path.Join(".", "*", "*.yaml"))
-
-		for _, p := range paths {
-			raw, err := fs.ReadFile(fsys, p)
-			if err != nil {
-				return "", "", fmt.Errorf("opening %s: %w", path.Base(p), err)
-			}
-
-			spec, err := decode(raw, p)
-			if err != nil {
-				return "", "", err
-			}
-
-			seen++
-
-			if strings.EqualFold(spec.ID, id) || matchesAlias(spec, id) {
-				// The rig's own identifier, not whatever was typed. An alias
-				// belongs to the parent and `extends` is matched against an
-				// id, so recording the alias would leave a link that never
-				// resolves.
-				return string(raw), spec.ID, nil
-			}
-		}
-	}
-
-	// The same complaint a lookup gives, so a mistyped parent reads like a
-	// mistyped recipe. Counted while walking rather than by loading
-	// everything a second time.
-	return "", "", &NotFoundError{ID: id, Known: seen}
+	return all.find(id)
 }

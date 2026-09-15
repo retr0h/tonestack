@@ -60,14 +60,16 @@ type clientFlags struct {
 	backupDir string
 }
 
-// client builds the Client these flags describe.
-func (f *clientFlags) client() *sdk.Client {
-	return newClient(
+// client builds the Client these flags describe, and whatever else opts say.
+func (f *clientFlags) client(
+	opts ...sdk.Option,
+) *sdk.Client {
+	return newClient(append([]sdk.Option{
 		sdk.WithCatalog(f.catalog),
 		sdk.WithStats(f.stats),
 		sdk.WithRecipes(f.recipes),
 		sdk.WithBackupDir(f.backupDir),
-	)
+	}, opts...)...)
 }
 
 // dumpFile is where a device's answer is kept.

@@ -26,9 +26,10 @@ import (
 )
 
 var (
-	presetsMakeID     string
-	presetsMakeOut    string
-	presetsMakeClient clientFlags
+	presetsMakeID      string
+	presetsMakeOut     string
+	presetsMakeClient  clientFlags
+	presetsMakeRecipes string
 )
 
 // presetsMakeCmd represents the presets make command.
@@ -42,18 +43,9 @@ parameter is set to what Line 6 states as its default — a recipe's character
 words then move the controls they name.`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		dir, id, err := recipeFor(cmd.Context(), presetsMakeClient.recipes, presetsMakeID)
-		if err != nil {
-			return cli.Hint(err)
-		}
+		client := presetsMakeClient.client(ownRecipes(presetsMakeRecipes))
 
-		// A copy, so the flags keep what was typed rather than what it
-		// resolved to.
-		flags := presetsMakeClient
-		flags.recipes = dir
-		client := flags.client()
-
-		made, err := client.Build(cmd.Context(), id, presetsMakeOut)
+		made, err := client.Build(cmd.Context(), presetsMakeID, presetsMakeOut)
 		if err != nil {
 			return cli.Hint(err)
 		}
@@ -73,10 +65,10 @@ func init() {
 	f := presetsMakeCmd.Flags()
 	f.StringVar(&presetsMakeID, "id", "", "recipe to build from")
 	f.StringVar(
-		&presetsMakeClient.recipes,
+		&presetsMakeRecipes,
 		"recipes",
 		"",
-		"a directory of recipes to use instead of yours and the built-in ones",
+		"a directory of recipes to use instead of yours, beside the built-in ones",
 	)
 	f.StringVar(&presetsMakeClient.catalog, "catalog", "",
 		"a generated catalog to use instead of the built-in one")

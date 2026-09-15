@@ -23,6 +23,7 @@ package mcp_test
 import (
 	"context"
 	"encoding/json"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -163,6 +164,119 @@ func (s *MCPPublicTestSuite) TestServe() {
 			s.ErrorIs(<-served, context.Canceled)
 		})
 	}
+}
+
+// TestUserRecipes covers an agent reaching somebody's own rigs, beside the
+// ones that ship, through the tools that read and build rigs.
+func (s *MCPPublicTestSuite) TestUserRecipes() {
+	dir := s.T().TempDir()
+	s.Require().NoError(os.MkdirAll(filepath.Join(dir, "artists"), 0o750))
+	s.Require().
+		NoError(os.WriteFile(filepath.Join(dir, "artists", "their-player.yaml"), []byte(`schema: RigSpec
+version: 2
+id: their-player
+extends: mike-dirnt
+
+subject:
+  kind: artist
+  name: Their Player
+
+instrument: bass
+
+chain:
+  - role: amp
+    gear: Aguilar DB51
+    evidence:
+      - { kind: cited, note: "a test says so" }
+    confidence: high
+
+confidence: high
+`), 0o600))
+
+	serverEnd, clientEnd := gomcp.NewInMemoryTransports()
+	ctx, cancel := context.WithCancel(context.Background())
+
+	served := make(chan error, 1)
+	go func() {
+		served <- mcp.New(sdk.New(sdk.WithUserRecipes(dir)), mcp.Options{}).Serve(ctx, serverEnd)
+	}()
+
+	session, err := gomcp.NewClient(
+		&gomcp.Implementation{Name: "test", Version: "test"}, nil,
+	).Connect(context.Background(), clientEnd, nil)
+	s.Require().NoError(err)
+
+	out := filepath.Join(s.T().TempDir(), "theirs.hlx")
+
+	calls := []struct {
+		name  string
+		tool  string
+		args  map[string]string
+		check func(res *gomcp.CallToolResult)
+	}{
+		{
+			name: "rigs_list shows theirs beside the ones that ship",
+			tool: "rigs_list",
+			args: map[string]string{},
+			check: func(res *gomcp.CallToolResult) {
+				var got sdk.Recipes
+				s.decode(res, &got)
+
+				listed := make([]string, 0, len(got.Rigs))
+				for _, r := range got.Rigs {
+					listed = append(listed, r.ID)
+				}
+
+				s.Contains(listed, "their-player")
+				s.Contains(listed, "mike-dirnt")
+			},
+		},
+		{
+			name: "rig_show reads theirs",
+			tool: "rig_show",
+			args: map[string]string{"id": "their-player"},
+			check: func(res *gomcp.CallToolResult) {
+				var got sdk.Recipe
+				s.decode(res, &got)
+				s.Equal("Their Player", got.Rig.Subject.Name)
+			},
+		},
+		{
+			name: "rig_show names theirs under the shipped rig it extends",
+			tool: "rig_show",
+			args: map[string]string{"id": "mike-dirnt"},
+			check: func(res *gomcp.CallToolResult) {
+				var got sdk.Recipe
+				s.decode(res, &got)
+				s.Require().Len(got.Variants, 1)
+				s.Equal("their-player", got.Variants[0].ID)
+			},
+		},
+		{
+			name: "preset_build builds theirs",
+			tool: "preset_build",
+			args: map[string]string{"recipe_id": "their-player", "out": out},
+			check: func(res *gomcp.CallToolResult) {
+				var got built
+				s.decode(res, &got)
+				s.Require().NotNil(got.FromRecipe)
+				s.Equal(out, got.FromRecipe.Path)
+			},
+		},
+	}
+
+	for _, c := range calls {
+		res, err := session.CallTool(context.Background(), &gomcp.CallToolParams{
+			Name:      c.tool,
+			Arguments: c.args,
+		})
+		s.Require().NoError(err, c.name)
+		s.Require().False(res.IsError, "%s: %v", c.name, res.Content)
+		c.check(res)
+	}
+
+	cancel()
+	s.ErrorIs(<-served, context.Canceled)
 }
 
 // built is preset_build's answer as an agent reads it.

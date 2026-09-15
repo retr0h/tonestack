@@ -182,7 +182,7 @@ func (s *RecipesPublicTestSuite) TestFind() {
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			got, err := recipes.Find(tt.dir, tt.id)
+			got, err := recipes.Find(recipes.Source{Dir: tt.dir}, tt.id)
 
 			if tt.errs != nil {
 				s.Require().Error(err)
@@ -229,7 +229,7 @@ func (s *RecipesPublicTestSuite) TestList() {
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			all, err := recipes.List(tt.dir)
+			all, err := recipes.List(recipes.Source{Dir: tt.dir})
 
 			if tt.err {
 				s.Require().Error(err)
@@ -296,7 +296,7 @@ func (s *RecipesPublicTestSuite) TestShow() {
 
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			one, err := recipes.Show(tt.dir, tt.id)
+			one, err := recipes.Show(recipes.Source{Dir: tt.dir}, tt.id)
 
 			if tt.err {
 				s.Require().Error(err)

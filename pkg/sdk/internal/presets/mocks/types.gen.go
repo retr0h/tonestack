@@ -17,6 +17,7 @@ import (
 	chain "github.com/retr0h/tonestack/pkg/sdk/chain"
 	corpus "github.com/retr0h/tonestack/pkg/sdk/corpus"
 	compile "github.com/retr0h/tonestack/pkg/sdk/internal/compile"
+	recipes "github.com/retr0h/tonestack/pkg/sdk/internal/recipes"
 	preset "github.com/retr0h/tonestack/pkg/sdk/preset"
 	rig "github.com/retr0h/tonestack/pkg/sdk/rig"
 	gomock "go.uber.org/mock/gomock"
@@ -86,18 +87,18 @@ func (m *MockRecipes) EXPECT() *MockRecipesMockRecorder {
 }
 
 // Find mocks base method.
-func (m *MockRecipes) Find(dir, id string) (rig.Spec, error) {
+func (m *MockRecipes) Find(src recipes.Source, id string) (rig.Spec, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Find", dir, id)
+	ret := m.ctrl.Call(m, "Find", src, id)
 	ret0, _ := ret[0].(rig.Spec)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Find indicates an expected call of Find.
-func (mr *MockRecipesMockRecorder) Find(dir, id any) *gomock.Call {
+func (mr *MockRecipesMockRecorder) Find(src, id any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Find", reflect.TypeOf((*MockRecipes)(nil).Find), dir, id)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Find", reflect.TypeOf((*MockRecipes)(nil).Find), src, id)
 }
 
 // MockCompiler is a mock of Compiler interface.

@@ -32,6 +32,7 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk/chain"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/presets"
 	presetmocks "github.com/retr0h/tonestack/pkg/sdk/internal/presets/mocks"
+	"github.com/retr0h/tonestack/pkg/sdk/internal/recipes"
 	"github.com/retr0h/tonestack/pkg/sdk/rig"
 )
 
@@ -57,7 +58,7 @@ func (s *TypesPublicTestSuite) options(
 	return presets.MakeOptions{
 		Deps:       deps,
 		RecipeID:   "mike-dirnt",
-		RecipesDir: filepath.Join("..", "recipes", "testdata-good"),
+		Rigs:       recipes.Source{Dir: filepath.Join("..", "recipes", "testdata-good")},
 		OutputPath: filepath.Join(s.T().TempDir(), "out.hlx"),
 	}
 }

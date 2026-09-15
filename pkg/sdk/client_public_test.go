@@ -185,6 +185,230 @@ func (s *ClientPublicTestSuite) TestWithRecipes() {
 	s.Require().Empty(got.Rigs)
 }
 
+// ownRig is a rig of somebody's own, about "Their Player". extra is a line
+// such as aliases or extends, or empty.
+func ownRig(
+	id string,
+	extra string,
+	instrument string,
+) string {
+	return "schema: RigSpec\nversion: 2\nid: " + id + "\n" + extra + `
+
+subject:
+  kind: artist
+  name: Their Player
+
+instrument: ` + instrument + `
+
+chain:
+  - role: amp
+    gear: Aguilar DB51
+    evidence:
+      - { kind: cited, note: "a test says so" }
+    confidence: high
+
+confidence: high
+`
+}
+
+// rigsDir writes files under artists/ in a new directory, and returns it.
+func (s *ClientPublicTestSuite) rigsDir(
+	files map[string]string,
+) string {
+	dir := filepath.Join(s.T().TempDir(), "recipes")
+	s.Require().NoError(os.MkdirAll(filepath.Join(dir, "artists"), 0o750))
+
+	for name, body := range files {
+		s.Require().NoError(os.WriteFile(
+			filepath.Join(dir, "artists", name), []byte(body), 0o600))
+	}
+
+	return dir
+}
+
+// TestWithUserRecipes covers somebody's own rigs layered over the ones that
+// ship: what Recipes lists, and what Recipe and Build find.
+func (s *ClientPublicTestSuite) TestWithUserRecipes() {
+	tests := []struct {
+		name  string
+		files map[string]string
+		// missing names a directory that is not there.
+		missing bool
+		// locked leaves the directory unreadable.
+		locked bool
+		id     string
+		// want is the subject Recipe finds.
+		want    string
+		variant string
+		listErr string
+		findErr string
+	}{
+		{
+			name:  "a rig of theirs over a shipped one",
+			files: map[string]string{"mine.yaml": ownRig("mike-dirnt", "", "bass")},
+			id:    "mike-dirnt",
+			want:  "Their Player",
+		},
+		{
+			name: "an alias of theirs that is a shipped rig's alias",
+			files: map[string]string{
+				"mine.yaml": ownRig("their-player", "aliases: [DIRNT]", "bass"),
+			},
+			id:   "mike-dirnt",
+			want: "Their Player",
+		},
+		{
+			name: "a variant of theirs on a shipped rig",
+			files: map[string]string{
+				"mine.yaml": ownRig("mike-dirnt-live", "extends: mike-dirnt", "bass"),
+			},
+			id:      "mike-dirnt",
+			want:    "Mike Dirnt",
+			variant: "mike-dirnt-live",
+		},
+		{
+			name:    "a directory that cannot be read",
+			locked:  true,
+			id:      "mike-dirnt",
+			listErr: "reading",
+			findErr: "reading",
+		},
+		{
+			name:    "a directory that is not there",
+			missing: true,
+			id:      "mike-dirnt",
+			want:    "Mike Dirnt",
+		},
+		{
+			name:    "a file of theirs that is not a rig",
+			files:   map[string]string{"broken.yaml": "schema: RigSpec\nid: broken\n"},
+			id:      "mike-dirnt",
+			want:    "Mike Dirnt",
+			listErr: "broken.yaml",
+		},
+		{
+			name:    "a file of theirs that is not a rig, named for the one asked for",
+			files:   map[string]string{"mike-dirnt.yaml": "schema: RigSpec\n"},
+			id:      "mike-dirnt",
+			listErr: "mike-dirnt.yaml",
+			findErr: "mike-dirnt.yaml",
+		},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			if tt.locked && os.Geteuid() == 0 {
+				s.T().Skip("root reads a directory whatever its mode")
+			}
+
+			dir := s.rigsDir(tt.files)
+
+			if tt.missing {
+				dir = filepath.Join(dir, "not-there")
+			}
+
+			if tt.locked {
+				s.Require().NoError(os.Chmod(dir, 0o000))
+				s.T().Cleanup(func() { _ = os.Chmod(dir, 0o750) })
+			}
+
+			ctx := context.Background()
+			client := sdk.New(sdk.WithUserRecipes(dir))
+
+			listed, listErr := client.Recipes(ctx)
+			shown, showErr := client.Recipe(ctx, tt.id)
+			out := filepath.Join(s.T().TempDir(), "out.hlx")
+			_, buildErr := client.Build(ctx, tt.id, out)
+
+			if tt.listErr != "" {
+				s.Require().ErrorContains(listErr, tt.listErr)
+			} else {
+				s.Require().NoError(listErr)
+				s.Require().Equal(dir, listed.Dir)
+
+				listedIDs := make([]string, 0, len(listed.Rigs))
+				for _, r := range listed.Rigs {
+					listedIDs = append(listedIDs, r.ID)
+				}
+
+				s.Require().Contains(listedIDs, "flea", "the shipped rigs are still listed")
+			}
+
+			if tt.findErr != "" {
+				s.Require().ErrorContains(showErr, tt.findErr)
+				s.Require().ErrorContains(buildErr, tt.findErr)
+
+				return
+			}
+
+			s.Require().NoError(showErr)
+			s.Require().NoError(buildErr)
+			s.Require().Equal(tt.want, shown.Rig.Subject.Name)
+			s.Require().FileExists(out)
+
+			if tt.variant != "" {
+				s.Require().Len(shown.Variants, 1)
+				s.Require().Equal(tt.variant, shown.Variants[0].ID)
+			}
+		})
+	}
+}
+
+// TestUserRecipesAreWrittenTo covers where Scaffold and Extend write when a
+// Client has a directory of somebody's own, and what Extend copies from.
+func (s *ClientPublicTestSuite) TestUserRecipesAreWrittenTo() {
+	ctx := context.Background()
+	user := s.rigsDir(nil)
+	beneath := s.rigsDir(map[string]string{
+		"guitarist.yaml": ownRig("guitarist", "", "guitar"),
+	})
+
+	tests := []struct {
+		name string
+		do   func(c *sdk.Client) (sdk.Scaffolded, error)
+		opts []sdk.Option
+		// instrument is what the report says the new rig is played on.
+		instrument string
+	}{
+		{
+			name: "a rig scaffolded from gear",
+			opts: []sdk.Option{sdk.WithUserRecipes(user), sdk.WithRecipes(beneath)},
+			do: func(c *sdk.Client) (sdk.Scaffolded, error) {
+				return c.Scaffold(ctx, sdk.NewRecipe{
+					ID: "scaffolded", Name: "Somebody", Instrument: "bass", Amp: "Ampeg SVT",
+				})
+			},
+			instrument: "bass",
+		},
+		{
+			// The copied rig's instrument, since a copy names none.
+			name: "a copy of a shipped rig",
+			opts: []sdk.Option{sdk.WithUserRecipes(user)},
+			do: func(c *sdk.Client) (sdk.Scaffolded, error) {
+				return c.Extend(ctx, sdk.ExtendRecipe{From: "mike-dirnt", ID: "copied"})
+			},
+			instrument: "bass",
+		},
+		{
+			name: "a copy of a rig in the directory beneath theirs",
+			opts: []sdk.Option{sdk.WithUserRecipes(user), sdk.WithRecipes(beneath)},
+			do: func(c *sdk.Client) (sdk.Scaffolded, error) {
+				return c.Extend(ctx, sdk.ExtendRecipe{From: "guitarist", ID: "copied-guitar"})
+			},
+			instrument: "guitar",
+		},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			got, err := tt.do(sdk.New(tt.opts...))
+			s.Require().NoError(err)
+			s.Require().Equal(user, filepath.Dir(filepath.Dir(got.Path)))
+			s.Require().Equal(tt.instrument, got.Instrument)
+		})
+	}
+}
+
 // TestWithBackupDir covers where a device slot's old contents go.
 func (s *ClientPublicTestSuite) TestWithBackupDir() {
 	tests := []struct {

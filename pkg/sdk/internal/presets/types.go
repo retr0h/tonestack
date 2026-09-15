@@ -41,8 +41,8 @@ type Catalogs interface {
 
 // Recipes finds the curated rig a build starts from.
 type Recipes interface {
-	// Find returns the rig with the given identifier.
-	Find(dir, id string) (rig.Spec, error)
+	// Find returns the rig with the given identifier, from where src says.
+	Find(src recipes.Source, id string) (rig.Spec, error)
 }
 
 // Compiler turns a rig into a preset a device has room for.

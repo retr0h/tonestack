@@ -82,6 +82,9 @@ type options struct {
 	stats string
 	// recipes is a directory of rigs. Empty means the ones that ship.
 	recipes string
+	// userRecipes is somebody's own directory of rigs, layered over recipes.
+	// Empty layers nothing.
+	userRecipes string
 	// backupDir is where a slot's old contents go. Empty means the state
 	// directory.
 	backupDir string
@@ -112,12 +115,38 @@ func WithStats(
 
 // WithRecipes reads rigs from a directory instead of the ones that ship.
 //
-// Scaffold and Extend write there too, and need it: a new rig is not written
-// into wherever the program happened to run.
+// Scaffold and Extend write there too, unless WithUserRecipes names somewhere
+// else, and need one or the other: a new rig is not written into wherever the
+// program happened to run.
 func WithRecipes(
 	dir string,
 ) Option {
 	return func(o *options) { o.recipes = dir }
+}
+
+// WithUserRecipes layers somebody's own directory of rigs over the ones that
+// ship, or over the directory WithRecipes named.
+//
+// A rig of theirs takes the place of one beneath when the two share an
+// identifier or alias, in any case, so Recipes lists the rig Recipe and Build
+// find. Variants are read across both, so a rig of theirs made from a shipped
+// one with Extend shows under it. A directory that is not there holds no rigs;
+// one that cannot be read is an error.
+//
+// A file in it that is not a rig is reported by Recipes. It stops Recipe,
+// Build and Extend only when it may be the rig asked for: when its filename,
+// or the id or aliases it states, is the name asked for or a name of the rig
+// found. Otherwise one mistake in a directory of their own would stop every
+// shipped rig building, and a broken rig of theirs would never be quietly
+// passed over for the shipped one it was written to replace.
+//
+// Scaffold and Extend write here. The library reads no environment for this:
+// a program that keeps rigs under $XDG_DATA_HOME resolves that and passes the
+// directory in.
+func WithUserRecipes(
+	dir string,
+) Option {
+	return func(o *options) { o.userRecipes = dir }
 }
 
 // WithBackupDir is where a slot's old contents go before a device write.
@@ -307,7 +336,25 @@ func (c *Client) ChainMeasurements(
 	return corpusview.Chains(c.corpus(), instrument)
 }
 
+// rigs is where this Client reads rigs from.
+func (c *Client) rigs() recipes.Source {
+	return recipes.Source{Dir: c.opts.recipes, User: c.opts.userRecipes}
+}
+
+// recipesHome is where Scaffold and Extend write: the directory of somebody's
+// own when there is one, and the one WithRecipes named otherwise.
+func (c *Client) recipesHome() string {
+	if c.opts.userRecipes != "" {
+		return c.opts.userRecipes
+	}
+
+	return c.opts.recipes
+}
+
 // Recipes reads every rig this Client was given.
+//
+// Dir is the directory WithUserRecipes named where there is one, since that
+// is where somebody's own rigs are, and the one WithRecipes named otherwise.
 func (c *Client) Recipes(
 	ctx context.Context,
 ) (Recipes, error) {
@@ -315,7 +362,7 @@ func (c *Client) Recipes(
 		return Recipes{}, err
 	}
 
-	return recipes.List(c.opts.recipes)
+	return recipes.List(c.rigs())
 }
 
 // Recipe reads one rig, and what the rest of the set says about it.
@@ -327,7 +374,7 @@ func (c *Client) Recipe(
 		return Recipe{}, err
 	}
 
-	return recipes.Show(c.opts.recipes, id)
+	return recipes.Show(c.rigs(), id)
 }
 
 // NewRecipe describes a rig to scaffold from the gear it names.
@@ -355,8 +402,9 @@ type NewRecipe struct {
 // found out when somebody tries to build from it, and by then the name has
 // usually been copied somewhere else too.
 //
-// The rig is written into the directory WithRecipes named. A Client given
-// none is refused rather than writing wherever the program happened to run.
+// The rig is written into the directory WithUserRecipes named, or failing that
+// the one WithRecipes named. A Client given neither is refused rather than
+// writing wherever the program happened to run.
 func (c *Client) Scaffold(
 	ctx context.Context,
 	in NewRecipe,
@@ -366,7 +414,7 @@ func (c *Client) Scaffold(
 	}
 
 	return recipes.New(ctx, recipes.NewOptions{
-		Dir:        c.opts.recipes,
+		Dir:        c.recipesHome(),
 		ID:         in.ID,
 		Name:       in.Name,
 		Band:       in.Band,
@@ -399,8 +447,10 @@ type ExtendRecipe struct {
 // not touch the original. No gear is checked, because the rig it copies
 // already resolved when it was written.
 //
-// The rig is written into the directory WithRecipes named, the same as
-// Scaffold.
+// The rig is written where Scaffold writes. From is looked for there first,
+// then in the rigs beneath: the ones WithRecipes named when WithUserRecipes
+// was given too, and the ones that ship otherwise. The report's Instrument is
+// the copied rig's.
 func (c *Client) Extend(
 	ctx context.Context,
 	in ExtendRecipe,
@@ -415,8 +465,16 @@ func (c *Client) Extend(
 		return Scaffolded{}, fmt.Errorf("%w: name the rig to copy", ErrNoSuchRecipe)
 	}
 
+	// A directory WithRecipes named is where the copy goes when there is no
+	// directory of their own, so it cannot also be what that one sits on.
+	base := ""
+	if c.opts.userRecipes != "" {
+		base = c.opts.recipes
+	}
+
 	return recipes.New(ctx, recipes.NewOptions{
-		Dir:      c.opts.recipes,
+		Dir:      c.recipesHome(),
+		Base:     base,
 		From:     in.From,
 		ID:       in.ID,
 		Name:     in.Name,
@@ -439,7 +497,7 @@ func (c *Client) Build(
 	return presets.Make(ctx, presets.MakeOptions{
 		Deps:       presets.Deps{Catalogs: c},
 		RecipeID:   recipeID,
-		RecipesDir: c.opts.recipes,
+		Rigs:       c.rigs(),
 		StatsPath:  c.opts.stats,
 		OutputPath: out,
 	})
