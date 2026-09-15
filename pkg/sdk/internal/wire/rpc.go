@@ -121,14 +121,6 @@ func Blob(
 	return Arg{Key: key, Blob: v, Kind: ArgBlob}
 }
 
-// flag returns an argument carrying a boolean.
-func flag(
-	key int,
-	v bool,
-) Arg {
-	return Arg{Key: key, Flag: v, Kind: ArgFlag}
-}
-
 // Request is a call to make.
 type Request struct {
 	Txn    uint64

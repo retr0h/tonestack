@@ -496,7 +496,7 @@ func (s *WritePublicTestSuite) TestAWriteOnAChannelNobodyOpened() {
 	s.Require().ErrorContains(err, "no data channel")
 }
 
-func TestWriteTestSuite(
+func TestWritePublicTestSuite(
 	t *testing.T,
 ) {
 	suite.Run(t, new(WritePublicTestSuite))
