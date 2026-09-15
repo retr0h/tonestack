@@ -231,6 +231,11 @@ is still attached, and it may need its power unplugged to recover, as
 [protocol.md](protocol.md#rules-that-keep-a-device-alive) explains. Every
 command that talks to the device answers Ctrl-C this way, not only `import`.
 
+`tonestack mcp start` answers Ctrl-C the same way while it holds the pedal. It
+holds the pedal from an agent's device tool call until the agent has made none
+for 10 seconds. A Ctrl-C at any other time prints nothing, and the server stops
+straight away.
+
 A slot with no blocks is kept as a `.bin` file instead. It holds the bytes the
 device sent, so nothing is lost, but `presets import` can't read it yet.
 

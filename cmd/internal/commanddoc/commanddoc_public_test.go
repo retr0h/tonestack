@@ -20,6 +20,7 @@
 package commanddoc_test
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -34,9 +35,14 @@ import (
 	"github.com/retr0h/tonestack/cmd/internal/commanddoc"
 )
 
-// asTonestack, when set, makes the test binary run as tonestack itself with
-// these arguments, separated by newlines.
+// asTonestack, when set, makes the test binary run as tonestack itself and
+// ask --help of each command it names: one command per line, its words
+// separated by spaces, the root an empty line.
 const asTonestack = "COMMANDDOC_AS_TONESTACK"
+
+// record starts each command's help in what that run prints, followed by the
+// command's full path on a line of its own.
+const record = "\x1e"
 
 // TestMain lets a test run the real CLI in a process of its own.
 //
@@ -44,12 +50,26 @@ const asTonestack = "COMMANDDOC_AS_TONESTACK"
 // the help renderer it installs. Executing the tree in this process instead
 // would add cobra's help and completion commands to the tree the page is
 // rendered from.
+//
+// One process asks every command in turn rather than one process each, which
+// cost a second a command under -race. The answers are the ones a fresh
+// process gives: --help renders from the flags cobra has merged for the
+// command it is asked of, and merging again only copies the same flags, while
+// the help and completion commands cobra adds go under the root, which
+// already has commands, and are hidden or listed as help.
 func TestMain(
 	m *testing.M,
 ) {
-	if args, ok := os.LookupEnv(asTonestack); ok {
-		os.Args = append([]string{"tonestack"}, strings.Split(args, "\n")...)
-		cmd.Execute()
+	if paths, ok := os.LookupEnv(asTonestack); ok {
+		for _, path := range strings.Split(paths, "\n") {
+			words := strings.Fields(path)
+
+			fmt.Print(record + strings.Join(append([]string{"tonestack"}, words...), " ") + "\n")
+
+			os.Args = append(append([]string{"tonestack"}, words...), "--help")
+			cmd.Execute()
+		}
+
 		os.Exit(0)
 	}
 
@@ -217,12 +237,12 @@ func (s *CommanddocPublicTestSuite) TestUsageMatchesHelp() {
 	self, err := os.Executable()
 	s.Require().NoError(err)
 
-	var paths [][]string
+	var paths []string
 
 	var walk func(*cobra.Command, []string)
 
 	walk = func(c *cobra.Command, path []string) {
-		paths = append(paths, path)
+		paths = append(paths, strings.Join(path, " "))
 
 		for _, sub := range c.Commands() {
 			if sub.IsAvailableCommand() {
@@ -233,21 +253,33 @@ func (s *CommanddocPublicTestSuite) TestUsageMatchesHelp() {
 
 	walk(cmd.Root(), nil)
 
+	run := exec.CommandContext( //nolint:gosec // this test's own binary
+		s.T().Context(), self)
+	run.Env = append(os.Environ(),
+		asTonestack+"="+strings.Join(paths, "\n"),
+		"NO_COLOR=1")
+
+	out, err := run.Output()
+	s.Require().NoError(err)
+
+	helps := map[string]string{}
+
+	for _, rec := range strings.Split(string(out), record)[1:] {
+		name, help, _ := strings.Cut(rec, "\n")
+		helps[name] = help
+	}
+
+	s.Require().Len(helps, len(paths), "one help for every command asked")
+
 	for _, path := range paths {
-		name := strings.Join(append([]string{"tonestack"}, path...), " ")
+		name := strings.TrimSpace("tonestack " + path)
 
 		s.Run(name, func() {
-			run := exec.CommandContext( //nolint:gosec // this test's own binary
-				s.T().Context(), self)
-			run.Env = append(os.Environ(),
-				asTonestack+"="+strings.Join(append(path, "--help"), "\n"),
-				"NO_COLOR=1")
+			help, found := helps[name]
+			s.Require().True(found, "no help printed for %s", name)
 
-			out, err := run.Output()
-			s.Require().NoError(err)
-
-			want := helpUsage(string(out))
-			s.Require().NotEmpty(want, "--help printed no usage line:\n%s", out)
+			want := helpUsage(help)
+			s.Require().NotEmpty(want, "--help printed no usage line:\n%s", help)
 
 			s.Require().Equal(want, pageUsage(page, name),
 				"docs/commands.md and --help disagree on how %s is invoked", name)

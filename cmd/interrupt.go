@@ -24,6 +24,8 @@ import (
 	"context"
 	"os"
 	"sync/atomic"
+
+	"github.com/retr0h/tonestack/pkg/cli"
 )
 
 // pedal is whether this run has gone to the device.
@@ -32,16 +34,41 @@ import (
 // answering interrupts, so it is atomic.
 var pedal holding
 
-// holding is a cli.Holder a command sets once it goes to the device.
+// holding is a cli.Holder a command sets once it goes to the device, or
+// points at whatever holds the device on the command's behalf.
 type holding struct {
 	held atomic.Bool
+	// by is what holds the device for the command, if something does.
+	by atomic.Pointer[heldBy]
+}
+
+// heldBy is a cli.Holder behind a pointer, so it can be stored atomically.
+type heldBy struct {
+	cli.Holder
 }
 
 // claim records that the command is going to the device.
 func (h *holding) claim() { h.held.Store(true) }
 
-// Held reports whether claim was called.
-func (h *holding) Held() bool { return h.held.Load() }
+// follow answers Held from other as well, for a command such as mcp start
+// whose server decides call by call whether it holds the device.
+func (h *holding) follow(
+	other cli.Holder,
+) {
+	h.by.Store(&heldBy{Holder: other})
+}
+
+// Held reports whether claim was called, or whether what the command follows
+// holds the device now.
+func (h *holding) Held() bool {
+	if h.held.Load() {
+		return true
+	}
+
+	by := h.by.Load()
+
+	return by != nil && by.Held()
+}
 
 // process is the cli.Process this program is.
 type process struct {

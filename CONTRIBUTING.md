@@ -84,7 +84,8 @@ main.go              a single call into cmd
 cmd/                 cobra wiring: flags to a Client call to a renderer
 pkg/cli/             how results look: theme, tables, detail, help
 pkg/cli/internal/    the primitives every renderer shares. Invisible outside pkg/cli.
-pkg/mcp/             the MCP server an agent runs: New, Run and RunOver
+pkg/mcp/             the MCP server an agent runs: New, Run, RunOver, and Held for
+                     whether it holds the pedal at that moment
 pkg/mcp/internal/    one handler per tool. Invisible outside pkg/mcp.
 pkg/sdk/             the library. One directory, and the one that leaves.
 pkg/sdk/client.go    the Client every wrapper rallies around

@@ -17,24 +17,15 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
+package mcp
 
-package cli
+import "github.com/retr0h/tonestack/pkg/mcp/internal/tools"
 
-// Holder says whether the running command has gone to the device.
-type Holder interface {
-	// Held reports whether the command has claimed the device, or is on its
-	// way to. For a command running one operation, once true it stays true:
-	// a session that has started closes before the command returns, whoever
-	// stops waiting. A server that holds the device between calls and lets
-	// it go when idle answers for the moment it is asked.
-	Held() bool
-}
-
-// Process is what an interrupt can do to the running program.
-type Process interface {
-	// Stop cancels the running command's context, which is what the first
-	// interrupt has always done.
-	Stop()
-	// Exit ends the program with code, where it stands.
-	Exit(code int)
+// NewOver builds a server whose tools call c, so a test can stand a generated
+// double in for the pedal.
+func NewOver(
+	c tools.Client,
+	opts Options,
+) *Server {
+	return newServer(c, opts)
 }
