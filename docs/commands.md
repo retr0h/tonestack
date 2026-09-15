@@ -347,7 +347,7 @@ tonestack presets make [flags]
 | `--catalog` | string |  | a generated catalog to use instead of the built-in one |
 | `--id` | string |  | recipe to build from |
 | `--out` | string |  | where to write the preset |
-| `--recipes` | string |  | a directory of recipes to use instead of the built-in ones |
+| `--recipes` | string |  | a directory of recipes to use instead of yours and the built-in ones |
 | `--stats` | string |  | measured corpus statistics to use instead of the built-in ones |
 
 ## tonestack presets select
@@ -424,6 +424,12 @@ identifier, so one recipe serves every Helix device.
 This is the only knowledge here that is ours. A device catalog is generated
 from Line 6's files; recipes are written by people.
 
+Your own recipes live in $XDG_DATA_HOME/tonestack/recipes, or in
+~/.local/share/tonestack/recipes when that variable is unset. recipes new
+writes there, and recipes list, recipes show and presets make read them beside
+the built-in ones. One with the same identifier as a built-in recipe is used in
+its place. --dir names another directory, which is read instead of both.
+
 ```text
 tonestack recipes <command> [flags]
 ```
@@ -436,7 +442,7 @@ tonestack recipes <command> [flags]
 
 | flag | takes | default | what it does |
 | --- | --- | --- | --- |
-| `--dir` | string |  | a directory of recipes to use instead of the built-in ones |
+| `--dir` | string |  | a directory of recipes to use instead of yours and the built-in ones |
 
 ## tonestack recipes list
 
@@ -459,6 +465,10 @@ usually been copied somewhere else too.
 records where it came from in extends. Nothing merges the two: the copy is a
 whole rig and editing it does not touch the original. Use it for a rig that
 departs from another, such as one song played differently from the rest.
+
+The recipe is written to your own recipes directory, where recipes list and
+presets make find it, unless --dir names another. The output says which file
+it wrote.
 
 ```text
 tonestack recipes new [flags]

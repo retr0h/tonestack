@@ -42,7 +42,17 @@ parameter is set to what Line 6 states as its default — a recipe's character
 words then move the controls they name.`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		client := presetsMakeClient.client()
+		dir, err := recipesDirFor(
+			cmd.Context(), presetsMakeClient.recipes, presetsMakeOptions.RecipeID)
+		if err != nil {
+			return cli.Hint(err)
+		}
+
+		// A copy, so the flag keeps what was typed rather than what it
+		// resolved to.
+		flags := presetsMakeClient
+		flags.recipes = dir
+		client := flags.client()
 
 		made, err := client.Build(cmd.Context(), presetsMakeOptions)
 		if err != nil {
@@ -67,7 +77,7 @@ func init() {
 		&presetsMakeClient.recipes,
 		"recipes",
 		"",
-		"a directory of recipes to use instead of the built-in ones",
+		"a directory of recipes to use instead of yours and the built-in ones",
 	)
 	f.StringVar(&presetsMakeClient.catalog, "catalog", "",
 		"a generated catalog to use instead of the built-in one")

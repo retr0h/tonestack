@@ -5,9 +5,17 @@ How to describe what somebody plays, so this project can build it.
 A rig is written as a **RigSpec**, the project's only hand-authored format,
 defined in
 [`pkg/sdk/rig/data/rigspec.openapi.yaml`](../pkg/sdk/rig/data/rigspec.openapi.yaml).
-One is a YAML file under `pkg/sdk/rigs/`, and it is the only data here that is
-ours: the device catalog and the gear map are derived from Line 6's own files,
-while these are written by hand.
+One is a YAML file, and it is the only data here that is ours: the device
+catalog and the gear map are derived from Line 6's own files, while these are
+written by hand.
+
+The rigs that ship live under `pkg/sdk/rigs/`. `tonestack recipes new` writes
+yours to `$XDG_DATA_HOME/tonestack/recipes/artists/`, or to
+`~/.local/share/tonestack/recipes/artists/` when that variable is unset.
+`recipes list`, `recipes show` and `presets make` read that directory beside the
+rigs that ship, and a rig of yours with the same `id` as a shipped one takes its
+place. `--dir`, or `--recipes` on `presets make`, names a different directory,
+and the command reads that one instead of both.
 
 This page is how to write one. For what each field may say, read
 [`docs/rigspec.md`](rigspec.md), which is generated from the contract and lists
