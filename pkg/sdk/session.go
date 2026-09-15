@@ -170,14 +170,17 @@ func (s *Session) Preset(
 // hardware, and FormatPreset writes the device's own file, a faithful copy.
 // Any other Format, the zero one included, is refused with ErrUnknownFormat
 // before the device is asked anything.
+//
+// existing says what happens to a file already at out, as it does for Build.
 func (s *Session) Export(
 	ctx context.Context,
 	at slot.Address,
 	out string,
 	as Format,
+	existing Existing,
 ) (Written, error) {
 	return operation(ctx, s, func(f *deviceslots.Flows) (Written, error) {
-		return f.Export(ctx, s.editor, at, out, as)
+		return f.Export(ctx, s.editor, at, out, as, existing)
 	})
 }
 

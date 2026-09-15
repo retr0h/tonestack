@@ -85,6 +85,10 @@ type (
 
 	// Format is what an export is written as: FormatRig or FormatPreset.
 	Format = result.Format
+
+	// Existing is what a write does about a file already at its path:
+	// ReplaceExisting or KeepExisting.
+	Existing = result.Existing
 )
 
 // The formats an export can take.
@@ -94,6 +98,16 @@ const (
 	FormatRig = result.FormatRig
 	// FormatPreset is the device's own file, a faithful copy.
 	FormatPreset = result.FormatPreset
+)
+
+// What a write does about a file already there.
+const (
+	// ReplaceExisting puts the new file in its place. The zero value.
+	ReplaceExisting = result.ReplaceExisting
+	// KeepExisting leaves it, and the write fails with an error matching
+	// fs.ErrExist. The write itself refuses, so a file that appeared after
+	// the caller looked is refused too.
+	KeepExisting = result.KeepExisting
 )
 
 // What a write did, named so a caller can match on it.

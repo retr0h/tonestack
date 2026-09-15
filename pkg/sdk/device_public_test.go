@@ -109,7 +109,7 @@ func (s *DevicePublicTestSuite) TestRoundTrip() {
 	s.Require().NoError(err)
 
 	exported, err := session.Export(ctx, slot.Address{Slot: source},
-		filepath.Join(s.T().TempDir(), "source.hlx"), sdk.FormatPreset)
+		filepath.Join(s.T().TempDir(), "source.hlx"), sdk.FormatPreset, sdk.KeepExisting)
 	s.Require().NoError(err)
 
 	put, err := session.Import(ctx, exported.Path, slot.Address{Slot: scratch})

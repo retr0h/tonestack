@@ -190,7 +190,8 @@ func (s *SetlistPublicTestSuite) TestExport() {
 		s.Run(tt.name, func() {
 			out := filepath.Join(s.T().TempDir(), tt.file)
 
-			got, err := s.setlist(tt.path).Export(context.Background(), slot.Address{}, out, tt.as)
+			got, err := s.setlist(tt.path).
+				Export(context.Background(), slot.Address{}, out, tt.as, sdk.ReplaceExisting)
 
 			if tt.says != "" {
 				s.Require().ErrorContains(err, tt.says)

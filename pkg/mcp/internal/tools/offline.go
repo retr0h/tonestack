@@ -124,16 +124,20 @@ func (h *handlers) presetBuild(
 
 	switch {
 	case in.RecipeID != "":
-		made, err := h.client.Build(ctx, in.RecipeID, in.Out)
+		made, err := h.client.Build(ctx, in.RecipeID, in.Out, h.existing())
 		if err != nil {
-			return nil, Built{}, remedy(err)
+			return nil, Built{}, remedy(h.refused(in.Out, err))
 		}
 
 		return said("wrote %s from rig %s", in.Out, in.RecipeID), Built{FromRecipe: &made}, nil
 	default:
-		built, err := h.client.Compile(ctx, sdk.Compile{Rig: in.RigPath, Out: in.Out})
+		built, err := h.client.Compile(ctx, sdk.Compile{
+			Rig:      in.RigPath,
+			Out:      in.Out,
+			Existing: h.existing(),
+		})
 		if err != nil {
-			return nil, Built{}, err
+			return nil, Built{}, h.refused(in.Out, err)
 		}
 
 		return said("wrote %s from %s", in.Out, in.RigPath), Built{FromRig: &built}, nil

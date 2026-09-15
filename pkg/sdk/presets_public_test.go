@@ -23,6 +23,7 @@ package sdk_test
 import (
 	"context"
 	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"testing"
@@ -264,7 +265,8 @@ func (s *PresetsPublicTestSuite) TestExport() {
 		s.Run(tt.name, func() {
 			out := filepath.Join(s.T().TempDir(), tt.file)
 
-			got, err := tt.client().Export(context.Background(), slot.Address{}, out, tt.as)
+			got, err := tt.client().
+				Export(context.Background(), slot.Address{}, out, tt.as, sdk.ReplaceExisting)
 
 			if tt.says != "" {
 				s.Require().ErrorContains(err, tt.says)
@@ -462,7 +464,19 @@ func (s *PresetsPublicTestSuite) TestCompile() {
 		in    sdk.Compile
 		check func(got compiled)
 		says  string
+		is    error
 	}{
+		{
+			// base.hlx is already there, so keeping it refuses the write and
+			// leaves the preset the baseline wrote.
+			name: "Existing decides what happens to a file already there",
+			in: sdk.Compile{
+				Rig:      other,
+				Out:      filepath.Join(dir, "base.hlx"),
+				Existing: sdk.KeepExisting,
+			},
+			is: fs.ErrExist,
+		},
 		{
 			name: "Rig decides what is built",
 			in:   sdk.Compile{Rig: other, Out: filepath.Join(dir, "rig.hlx")},
@@ -515,6 +529,16 @@ func (s *PresetsPublicTestSuite) TestCompile() {
 			}
 
 			got, err := compile(ctx, tt.in)
+
+			if tt.is != nil {
+				s.Require().ErrorIs(err, tt.is)
+
+				body, readErr := os.ReadFile(tt.in.Out) //nolint:gosec // a path this test chose
+				s.Require().NoError(readErr)
+				s.Require().Equal(base.body, string(body))
+
+				return
+			}
 
 			if tt.says != "" {
 				s.Require().ErrorContains(err, tt.says)

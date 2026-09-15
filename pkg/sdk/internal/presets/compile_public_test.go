@@ -92,7 +92,8 @@ func (s *CompilePublicTestSuite) exported(
 
 	_, err := (&fileslots.Flows{Catalogs: s.catalogs(slotFixture("catalog.json"))}).
 		Export(context.Background(),
-			slotFixture("setlist.hls"), slot.Address{}, out, result.FormatRig)
+			slotFixture("setlist.hls"), slot.Address{}, out, result.FormatRig,
+			result.ReplaceExisting)
 	s.Require().NoError(err)
 
 	return out

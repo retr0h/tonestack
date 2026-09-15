@@ -24,6 +24,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sync/atomic"
@@ -401,9 +402,24 @@ func (s *SessionPublicTestSuite) TestExport() {
 		name string
 		as   sdk.Format
 		file string
+		// a file somebody already has at the path.
+		taken    bool
+		existing sdk.Existing
+		is       error
 	}{
 		{name: "as a rig", as: sdk.FormatRig, file: "one.yaml"},
 		{name: "as the device's own file", as: sdk.FormatPreset, file: "one.hlx"},
+		{name: "over a file, replaced", as: sdk.FormatRig, file: "one.yaml", taken: true},
+		{
+			// Refused by the write, after the device was read: whatever
+			// appeared at out while it was, is kept.
+			name:     "over a file, kept",
+			as:       sdk.FormatRig,
+			file:     "one.yaml",
+			taken:    true,
+			existing: sdk.KeepExisting,
+			is:       fs.ErrExist,
+		},
 	}
 
 	for _, tt := range tests {
@@ -414,7 +430,23 @@ func (s *SessionPublicTestSuite) TestExport() {
 
 			out := filepath.Join(s.T().TempDir(), tt.file)
 
-			got, err := s.open(dev).Export(context.Background(), slot.Address{}, out, tt.as)
+			if tt.taken {
+				s.Require().NoError(os.WriteFile(out, []byte("somebody's rig"), 0o600))
+			}
+
+			got, err := s.open(dev).
+				Export(context.Background(), slot.Address{}, out, tt.as, tt.existing)
+
+			if tt.is != nil {
+				s.Require().ErrorIs(err, tt.is)
+
+				body, readErr := os.ReadFile(out) //nolint:gosec // a path this test chose
+				s.Require().NoError(readErr)
+				s.Require().Equal("somebody's rig", string(body))
+
+				return
+			}
+
 			s.Require().NoError(err)
 			s.Require().Equal(out, got.Path)
 			s.Require().FileExists(out)
@@ -422,7 +454,8 @@ func (s *SessionPublicTestSuite) TestExport() {
 	}
 
 	s.Run("after Close", func() {
-		_, err := s.closed().Export(context.Background(), slot.Address{}, "one.yaml", sdk.FormatRig)
+		_, err := s.closed().Export(context.Background(), slot.Address{}, "one.yaml", sdk.FormatRig,
+			sdk.ReplaceExisting)
 		s.Require().ErrorIs(err, sdk.ErrClosed)
 	})
 }

@@ -21,6 +21,7 @@
 package tools_test
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -298,13 +299,14 @@ func (s *OfflinePublicTestSuite) TestPresetBuild() {
 	fresh := filepath.Join(dir, "fresh.hlx")
 	held := filepath.Join(dir, "held.hlx")
 	s.Require().NoError(os.WriteFile(held, []byte("somebody's preset"), 0o600))
+	racy := filepath.Join(dir, "racy.hlx")
 
 	s.run("preset_build", []row{
 		{
 			name: "a path nothing is at",
 			args: tools.Build{RecipeID: "mike-dirnt", Out: fresh},
 			setup: func(c *mocks.MockClient) {
-				c.EXPECT().Build(gomock.Any(), "mike-dirnt", fresh).
+				c.EXPECT().Build(gomock.Any(), "mike-dirnt", fresh, sdk.KeepExisting).
 					Return(sdk.Made{}, nil)
 			},
 			want: "wrote " + fresh,
@@ -320,18 +322,45 @@ func (s *OfflinePublicTestSuite) TestPresetBuild() {
 			name: "a path a file is at, with writes on",
 			args: tools.Build{RecipeID: "mike-dirnt", Out: held},
 			setup: func(c *mocks.MockClient) {
-				c.EXPECT().Build(gomock.Any(), "mike-dirnt", held).
+				c.EXPECT().Build(gomock.Any(), "mike-dirnt", held, sdk.ReplaceExisting).
 					Return(sdk.Made{}, nil)
 			},
 			want:        "wrote " + held,
 			allowWrites: true,
 		},
 		{
+			// Nothing is at the path when the tool decides, and somebody's
+			// preset is by the time the file is written. The hook lands it
+			// there and then builds for real, so what refuses it can only be
+			// the write itself.
+			name: "a file that appears between the decision and the write, with writes off",
+			args: tools.Build{RecipeID: "mike-dirnt", Out: racy},
+			setup: func(c *mocks.MockClient) {
+				c.EXPECT().Build(gomock.Any(), "mike-dirnt", racy, sdk.KeepExisting).
+					DoAndReturn(func(
+						ctx context.Context, id, out string, existing sdk.Existing,
+					) (sdk.Made, error) {
+						if err := os.WriteFile(out, []byte("somebody's preset"), 0o600); err != nil {
+							return sdk.Made{}, err
+						}
+
+						return sdk.New().Build(ctx, id, out, existing)
+					})
+			},
+			want: tools.ErrWouldOverwrite.Error() + ": " + racy,
+			err:  true,
+			check: func(s *OfflinePublicTestSuite, _ *gomcp.CallToolResult) {
+				got, err := os.ReadFile(racy) //nolint:gosec // a path this test chose
+				s.Require().NoError(err)
+				s.Require().Equal("somebody's preset", string(got))
+			},
+		},
+		{
 			name: "from a shipped rig",
 			args: tools.Build{RecipeID: "mike-dirnt", Out: "mike.hlx"},
 			setup: func(c *mocks.MockClient) {
 				c.EXPECT().
-					Build(gomock.Any(), "mike-dirnt", "mike.hlx").
+					Build(gomock.Any(), "mike-dirnt", "mike.hlx", sdk.KeepExisting).
 					Return(sdk.Made{}, nil)
 			},
 			want: "wrote mike.hlx from rig mike-dirnt",
@@ -347,7 +376,9 @@ func (s *OfflinePublicTestSuite) TestPresetBuild() {
 			args: tools.Build{RigPath: "mine.yaml", Out: "mine.hlx"},
 			setup: func(c *mocks.MockClient) {
 				c.EXPECT().
-					Compile(gomock.Any(), sdk.Compile{Rig: "mine.yaml", Out: "mine.hlx"}).
+					Compile(gomock.Any(), sdk.Compile{
+						Rig: "mine.yaml", Out: "mine.hlx", Existing: sdk.KeepExisting,
+					}).
 					Return(sdk.Built{}, nil)
 			},
 			want: "wrote mine.hlx from mine.yaml",
@@ -362,7 +393,7 @@ func (s *OfflinePublicTestSuite) TestPresetBuild() {
 			args: tools.Build{RecipeID: "mike-dirnt", Out: "mike.hlx"},
 			setup: func(c *mocks.MockClient) {
 				c.EXPECT().
-					Build(gomock.Any(), gomock.Any(), gomock.Any()).
+					Build(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(sdk.Made{}, errors.New("over budget"))
 			},
 			want: "over budget",
@@ -373,7 +404,7 @@ func (s *OfflinePublicTestSuite) TestPresetBuild() {
 			args: tools.Build{RecipeID: "nobody", Out: "nobody.hlx"},
 			setup: func(c *mocks.MockClient) {
 				c.EXPECT().
-					Build(gomock.Any(), gomock.Any(), gomock.Any()).
+					Build(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(sdk.Made{}, fmt.Errorf("%w %q", sdk.ErrNoSuchRecipe, "nobody"))
 			},
 			want: "call rigs_list",

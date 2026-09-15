@@ -548,7 +548,7 @@ func (s *DevicePublicTestSuite) TestExport() {
 			}
 
 			written, err := f.Export(context.Background(), s.dev,
-				slotpkg.Address{Slot: tt.slot}, path, formatFor(tt.as))
+				slotpkg.Address{Slot: tt.slot}, path, formatFor(tt.as), result.ReplaceExisting)
 
 			if tt.is != nil {
 				s.Require().ErrorIs(err, tt.is)

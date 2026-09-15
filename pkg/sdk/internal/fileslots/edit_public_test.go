@@ -344,7 +344,7 @@ func (s *EditPublicTestSuite) TestExport() {
 			}
 
 			written, err := flows(s.T(), tt.catalog).
-				Export(background(tt.ctx), path, tt.at, out, formatFor(tt.as))
+				Export(background(tt.ctx), path, tt.at, out, formatFor(tt.as), result.ReplaceExisting)
 
 			if tt.errText != "" {
 				s.Require().ErrorContains(err, tt.errText)
@@ -455,7 +455,8 @@ func (s *EditPublicTestSuite) TestImport() {
 			if tt.exported {
 				file = filepath.Join(dir, "one.hlx")
 				_, err := (&fileslots.Flows{}).Export(context.Background(),
-					fixture("setlist.hls"), slotpkg.Address{}, file, result.FormatPreset)
+					fixture("setlist.hls"), slotpkg.Address{}, file, result.FormatPreset,
+					result.ReplaceExisting)
 				s.Require().NoError(err)
 			}
 

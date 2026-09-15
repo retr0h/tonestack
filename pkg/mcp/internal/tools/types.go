@@ -40,7 +40,7 @@ type Client interface {
 	ModelMeasurements(ctx context.Context, model string) (sdk.Measured, error)
 	Recipes(ctx context.Context) (sdk.Recipes, error)
 	Recipe(ctx context.Context, id string) (sdk.Recipe, error)
-	Build(ctx context.Context, recipeID, out string) (sdk.Made, error)
+	Build(ctx context.Context, recipeID, out string, existing sdk.Existing) (sdk.Made, error)
 	Compile(ctx context.Context, in sdk.Compile) (sdk.Built, error)
 	Devices(ctx context.Context) (sdk.Attached, error)
 	// Open claims the pedal. The tools hold what it returns across calls.
@@ -52,7 +52,13 @@ type Client interface {
 type Session interface {
 	Presets(ctx context.Context, setlist int) (sdk.Listing, error)
 	Preset(ctx context.Context, at slot.Address) (sdk.Reading, error)
-	Export(ctx context.Context, at slot.Address, out string, as sdk.Format) (sdk.Written, error)
+	Export(
+		ctx context.Context,
+		at slot.Address,
+		out string,
+		as sdk.Format,
+		existing sdk.Existing,
+	) (sdk.Written, error)
 	Import(ctx context.Context, file string, at slot.Address) (sdk.Change, error)
 	Copy(ctx context.Context, from, to slot.Address) (sdk.Change, error)
 	Swap(ctx context.Context, a, b slot.Address) (sdk.Change, error)

@@ -23,6 +23,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/retr0h/tonestack/pkg/cli"
+	"github.com/retr0h/tonestack/pkg/sdk"
 )
 
 var (
@@ -45,7 +46,7 @@ words then move the controls they name.`,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		client := presetsMakeClient.client(ownRecipes(presetsMakeRecipes))
 
-		made, err := client.Build(cmd.Context(), presetsMakeID, presetsMakeOut)
+		made, err := client.Build(cmd.Context(), presetsMakeID, presetsMakeOut, sdk.ReplaceExisting)
 		if err != nil {
 			return cli.Hint(err)
 		}

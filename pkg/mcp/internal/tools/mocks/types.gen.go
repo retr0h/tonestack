@@ -75,18 +75,18 @@ func (mr *MockClientMockRecorder) Blocks(ctx, f any) *gomock.Call {
 }
 
 // Build mocks base method.
-func (m *MockClient) Build(ctx context.Context, recipeID, out string) (sdk.Made, error) {
+func (m *MockClient) Build(ctx context.Context, recipeID, out string, existing sdk.Existing) (sdk.Made, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Build", ctx, recipeID, out)
+	ret := m.ctrl.Call(m, "Build", ctx, recipeID, out, existing)
 	ret0, _ := ret[0].(sdk.Made)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Build indicates an expected call of Build.
-func (mr *MockClientMockRecorder) Build(ctx, recipeID, out any) *gomock.Call {
+func (mr *MockClientMockRecorder) Build(ctx, recipeID, out, existing any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Build", reflect.TypeOf((*MockClient)(nil).Build), ctx, recipeID, out)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Build", reflect.TypeOf((*MockClient)(nil).Build), ctx, recipeID, out, existing)
 }
 
 // Compile mocks base method.
@@ -233,18 +233,18 @@ func (mr *MockSessionMockRecorder) Copy(ctx, from, to any) *gomock.Call {
 }
 
 // Export mocks base method.
-func (m *MockSession) Export(ctx context.Context, at slot.Address, out string, as sdk.Format) (sdk.Written, error) {
+func (m *MockSession) Export(ctx context.Context, at slot.Address, out string, as sdk.Format, existing sdk.Existing) (sdk.Written, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Export", ctx, at, out, as)
+	ret := m.ctrl.Call(m, "Export", ctx, at, out, as, existing)
 	ret0, _ := ret[0].(sdk.Written)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Export indicates an expected call of Export.
-func (mr *MockSessionMockRecorder) Export(ctx, at, out, as any) *gomock.Call {
+func (mr *MockSessionMockRecorder) Export(ctx, at, out, as, existing any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Export", reflect.TypeOf((*MockSession)(nil).Export), ctx, at, out, as)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Export", reflect.TypeOf((*MockSession)(nil).Export), ctx, at, out, as, existing)
 }
 
 // Import mocks base method.

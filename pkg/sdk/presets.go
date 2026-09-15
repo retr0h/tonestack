@@ -81,14 +81,17 @@ func (c *Client) Preset(
 
 // Export writes one slot on the attached device out to a file, as a rig or as
 // the device's own file.
+//
+// existing says what happens to a file already at out, as it does for Build.
 func (c *Client) Export(
 	ctx context.Context,
 	at slot.Address,
 	out string,
 	as Format,
+	existing Existing,
 ) (Written, error) {
 	return once(ctx, c, func(s *Session) (Written, error) {
-		return s.Export(ctx, at, out, as)
+		return s.Export(ctx, at, out, as, existing)
 	})
 }
 
@@ -178,6 +181,10 @@ type Compile struct {
 	Template string
 	// Out is where the preset is written.
 	Out string
+	// Existing is what happens to a file already at Out. The zero value,
+	// ReplaceExisting, puts the preset in its place; KeepExisting refuses it
+	// with an error matching fs.ErrExist.
+	Existing Existing
 }
 
 // Compile builds a preset from a rig on disk.
@@ -190,5 +197,6 @@ func (c *Client) Compile(
 		RigPath:      in.Rig,
 		TemplatePath: in.Template,
 		OutputPath:   in.Out,
+		Existing:     in.Existing,
 	})
 }

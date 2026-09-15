@@ -220,7 +220,9 @@ tonestack presets import --preset mike.hlx --slot 07A
 
 A device has no undo, so whatever the slot held is read and saved first, and the
 output says where. Put it back with `presets import --preset` and that file.
-`--backup-dir` changes where they go.
+`--backup-dir` changes where they go. A backup never replaces a file already in
+that directory. One that can't be written in full, or whose directory can't be
+synced to disk, leaves no file behind, and nothing is written to the pedal.
 
 Ctrl-C does not cut a write off halfway, because a half-sent message stalls the
 pedal. The write finishes, then the command tells the pedal the session is over
@@ -362,6 +364,12 @@ That offers everything except writing to a pedal. To let the agent import, copy
 and swap slots, add it with `tonestack mcp start --allow-writes` instead. Each
 write still saves what it replaces to a file first. Selecting a slot works
 either way.
+
+The same flag decides whether `preset_build` and `preset_export` may write over
+a file already at the path the agent names. Without it they refuse, and the
+refusal is part of the write: a file that appears while a build or an export is
+running is kept too. With it they replace the file, as `presets make` and
+`presets export` always do.
 
 The agent sees the rigs `recipes list` shows, your own recipes beside the ones
 that ship. `rigs_list`, `rig_show` and `preset_build` reach a rig you wrote with

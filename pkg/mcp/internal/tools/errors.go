@@ -23,6 +23,7 @@ package tools
 import (
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 
 	"github.com/retr0h/tonestack/pkg/sdk"
@@ -49,6 +50,11 @@ var (
 //
 // An agent picks the path. One naming somebody's own preset would otherwise
 // replace it without anybody having agreed to that.
+//
+// This look is a courtesy: it refuses before a build runs or the pedal is
+// claimed. It is not what keeps the file. A file can appear between the look
+// and the write, so the write is told the same thing through existing, and
+// refuses whatever is there when it lands.
 func (h *handlers) mayWrite(
 	path string,
 ) error {
@@ -61,6 +67,30 @@ func (h *handlers) mayWrite(
 	}
 
 	return nil
+}
+
+// existing is what a write does about a file already at its path: replace it
+// on a server started with writes allowed, and keep it otherwise.
+func (h *handlers) existing() sdk.Existing {
+	if h.allowWrites {
+		return sdk.ReplaceExisting
+	}
+
+	return sdk.KeepExisting
+}
+
+// refused says a write the SDK refused for a file already at path the way
+// mayWrite says it, so an agent reads one refusal however late the file
+// appeared. Any other error comes back as it was.
+func (h *handlers) refused(
+	path string,
+	err error,
+) error {
+	if !h.allowWrites && errors.Is(err, fs.ErrExist) {
+		return fmt.Errorf("%w: %s", ErrWouldOverwrite, path)
+	}
+
+	return err
 }
 
 // notInCatalog wraps ErrNotInCatalog with the model id that could not be

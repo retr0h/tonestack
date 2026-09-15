@@ -18,53 +18,24 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-package presets
+package result
 
-import (
-	"encoding/json"
-	"path/filepath"
-	"testing"
+// Existing is what a write does about a file already at the path it was
+// given: ReplaceExisting or KeepExisting.
+//
+// It travels beside the output path, because it is a decision about that path
+// and nothing else. A caller who looks first and writes second leaves a gap
+// another program can create the file in; one who passes KeepExisting has the
+// write itself refuse the file, whenever it appeared.
+type Existing int
 
-	"github.com/stretchr/testify/suite"
-
-	"github.com/retr0h/tonestack/pkg/sdk/preset"
-	"github.com/retr0h/tonestack/pkg/sdk/result"
+// What a write does about a file already there.
+const (
+	// ReplaceExisting puts the new file in its place, whole, in one step. The
+	// zero value, so a caller who does not say gets what a write has always
+	// done.
+	ReplaceExisting Existing = iota
+	// KeepExisting leaves the file alone, and the write fails with an error
+	// matching fs.ErrExist. No other failure matches it.
+	KeepExisting
 )
-
-// MakeTestSuite covers putting a built preset on disk.
-type MakeTestSuite struct {
-	suite.Suite
-}
-
-// TestWrite covers a preset that will not encode, which is reported rather
-// than written as an empty file.
-func (s *MakeTestSuite) TestWrite() {
-	tests := []struct {
-		name    string
-		doc     *preset.Document
-		errText string
-	}{
-		{
-			name:    "a document that will not encode",
-			doc:     &preset.Document{Meta: json.RawMessage("{")},
-			errText: "encoding preset",
-		},
-	}
-
-	for _, tt := range tests {
-		s.Run(tt.name, func() {
-			path := filepath.Join(s.T().TempDir(), "out.hlx")
-
-			err := write(path, tt.doc, result.ReplaceExisting)
-
-			s.Require().ErrorContains(err, tt.errText)
-			s.Require().NoFileExists(path)
-		})
-	}
-}
-
-func TestMakeTestSuite(
-	t *testing.T,
-) {
-	suite.Run(t, new(MakeTestSuite))
-}
