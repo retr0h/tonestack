@@ -293,6 +293,10 @@ reaches the hardware. The chain goes into an unused slot the device itself
 wrote, so everything a chain does not describe is what the device expects to
 find there.
 
+A .bin backup goes back the other way. It holds what a device sent for a slot
+nothing could read a chain out of, so its bytes are written as they are, and
+the slot keeps the name it has: a .bin carries none.
+
 With --file it edits an HX Edit backup instead, for working without a device
 attached. Either way whatever the slot held is gone, and a device has no undo.
 
@@ -306,7 +310,7 @@ tonestack presets import [flags]
 | `--catalog` | string |  | a catalog to resolve models against, when writing to a device |
 | `--file` | string |  | a .hls setlist or .hlb backup written by HX Edit |
 | `--out` | string |  | where to write the edited setlist |
-| `--preset` | string |  | the .hlx preset to place |
+| `--preset` | string |  | the .hlx preset to place, or a .bin backup to put back |
 | `--setlist` | int |  | which setlist, when the file is a backup holding several |
 | `--slot` | slot | `01A` | which slot — a label the pedal shows such as 31A, or a number from zero |
 

@@ -239,7 +239,9 @@ for 10 seconds. A Ctrl-C at any other time prints nothing, and the server stops
 straight away.
 
 A slot with no blocks is kept as a `.bin` file instead. It holds the bytes the
-device sent, so nothing is lost, but `presets import` can't read it yet.
+device sent, so nothing is lost. `presets import --preset <file>.bin` puts one
+back: the bytes go to the slot exactly as they came off, and the slot keeps the
+name it has, because a `.bin` carries none.
 
 **Through HX Edit.** `HX Edit → Import` and choose the `.hlx`.
 

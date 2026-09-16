@@ -83,6 +83,15 @@ func (s *ImportDevicePublicTestSuite) preset() string {
 	return filepath.Join("..", "compile", "testdata", "preset0.hlx")
 }
 
+// kept writes a .bin backup: the device's own bytes for a slot, exactly as
+// the backup package keeps them when nothing can read a chain out of it.
+func (s *ImportDevicePublicTestSuite) kept() string {
+	path := filepath.Join(s.T().TempDir(), "07A-s0-20260916-000000.000000000.bin")
+	s.Require().NoError(os.WriteFile(path, s.answer(), 0o600))
+
+	return path
+}
+
 // unknownGear writes a preset naming a model no catalog carries.
 func (s *ImportDevicePublicTestSuite) unknownGear() string {
 	path := filepath.Join(s.T().TempDir(), "unknown.hlx")
@@ -157,6 +166,17 @@ func (s *ImportDevicePublicTestSuite) TestImport() {
 			writes:      true,
 			destination: "held",
 			keptAs:      "Minor Threat",
+		},
+		{
+			// A backup of a slot nothing could read a chain out of, put
+			// back. The bytes are the device's own, so they go out as they
+			// are rather than being rebuilt, and the slot keeps the name it
+			// has: a .bin carries none.
+			name:        "a .bin backup put back",
+			file:        "kept",
+			destination: "held",
+			keptAs:      "Minor Threat",
+			contains:    []string{"03B", "written", "Minor Threat"},
 		},
 		{
 			name:     "a destination it cannot name",
@@ -243,6 +263,16 @@ func (s *ImportDevicePublicTestSuite) TestImport() {
 				file = s.unknownGear()
 			case "crowded":
 				file = s.crowded()
+			case "kept":
+				file = s.kept()
+
+				// The whole of a raw restore: what the device is handed is
+				// the file, byte for byte, under the name the slot already
+				// has. Rebuilt or re-encoded bytes would leave the offset
+				// table pointing at the wrong places.
+				s.dev.MockWriter.EXPECT().
+					WriteNamedPreset(gomock.Any(), 0, 7, "Minor Threat", s.answer()).
+					Return(nil)
 			default:
 				file = tt.file
 			}
