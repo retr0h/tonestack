@@ -37,6 +37,7 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk/internal/device/mocks"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/deviceslots"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/wire"
+	"github.com/retr0h/tonestack/pkg/sdk/preset"
 	"github.com/retr0h/tonestack/pkg/sdk/result"
 	slotpkg "github.com/retr0h/tonestack/pkg/sdk/slot"
 )
@@ -68,6 +69,33 @@ func keepingIn(
 	f.Backups = backup.New(dir, deviceslots.NewDecoder(f))
 
 	return f
+}
+
+// halfDecoding reads the first slot it is asked about and refuses the second.
+//
+// The only way a swap's second backup fails while both slots are readable: a
+// slot whose bytes do not decode never reaches the backup at all, because a
+// swap decides what a slot holds as it reads it. What it leaves behind is the
+// first backup, on disk and named by nothing else, which is what the error
+// has to say.
+type halfDecoding struct {
+	real  deviceslots.Decoder
+	asked int
+}
+
+// Document answers for the first slot and fails for the second.
+func (d *halfDecoding) Document(
+	ctx context.Context,
+	body []byte,
+	at slotpkg.Address,
+	name string,
+) (*preset.Document, error) {
+	d.asked++
+	if d.asked > 1 {
+		return nil, errors.New("boom")
+	}
+
+	return d.real.Document(ctx, body, at, name)
 }
 
 // EditDevicePublicTestSuite covers moving a preset between slots on a device.
@@ -544,6 +572,8 @@ func (s *EditDevicePublicTestSuite) TestSwap() {
 		writeRefused bool
 		// the caller stops waiting while a move's write is going out.
 		cancelsOnMove bool
+		// the second of the two backups fails, with the first on disk.
+		secondKeepFails bool
 
 		contains string
 		// how many backups the error names.
@@ -611,6 +641,17 @@ func (s *EditDevicePublicTestSuite) TestSwap() {
 			listed:  true,
 			reads:   []string{"answered", "garbage"},
 			errText: "reading slot 02A",
+		},
+		{
+			// Both slots read, the first kept, and the second backup fails.
+			// The file already on disk is a copy of a preset nothing else
+			// names, so the error says where it is rather than removing it.
+			name:            "a second slot it cannot keep",
+			listed:          true,
+			reads:           []string{"answered", "answered"},
+			secondKeepFails: true,
+			keptInErr:       1,
+			errText:         "boom",
 		},
 		{
 			// Bytes that are not a preset, on the slot read first. What a
@@ -843,6 +884,17 @@ func (s *EditDevicePublicTestSuite) TestSwap() {
 
 			dir := s.backupDir(tt.badBackup)
 			f := keepingIn(&deviceslots.Flows{}, dir)
+
+			// A Keeper that writes the first slot and then fails, which is
+			// the one way the second of two backups goes wrong while both
+			// slots are readable. Nothing else can produce it: a slot whose
+			// bytes do not decode never reaches the backup, because a swap
+			// decides what a slot holds as it reads it.
+			if tt.secondKeepFails {
+				f.Backups = backup.New(dir, &halfDecoding{
+					real: deviceslots.NewDecoder(f),
+				})
+			}
 
 			change, err := f.Swap(ctx, dev,
 				slotpkg.Address{}, slotpkg.Address{Setlist: toSetlist, Slot: toSlot})
