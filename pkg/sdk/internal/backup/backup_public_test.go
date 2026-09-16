@@ -105,6 +105,9 @@ func (s *BackupPublicTestSuite) TestKeep() {
 		// how many files a failed Keep leaves behind, each still the preset
 		// it was written as.
 		intact int
+		// how many paths a failed Keep hands back, each a file it wrote
+		// before the failure.
+		orphans int
 	}{
 		{
 			// Rule 1. Nothing to lose, and a file saying so would only leave
@@ -173,6 +176,7 @@ func (s *BackupPublicTestSuite) TestKeep() {
 			pinned:  true,
 			is:      fs.ErrExist,
 			intact:  1,
+			orphans: 1,
 		},
 		{
 			// A swap replaces two, and one holding nothing is left out of the
@@ -207,6 +211,20 @@ func (s *BackupPublicTestSuite) TestKeep() {
 			held:    []backup.Held{{Body: body}, {Body: body}},
 			decodes: []decoded{{err: errors.New("boom")}},
 			errText: "boom",
+		},
+		{
+			// The first is on disk by the time the second fails, holding a
+			// preset nothing else names. It is handed back rather than
+			// removed: a backup nobody asked to delete should not vanish.
+			name: "two slots, the second of which will not read",
+			held: []backup.Held{
+				{Body: body, At: slot.Address{Slot: 3}},
+				{Body: body, At: slot.Address{Slot: 4}},
+			},
+			decodes: []decoded{{blank: true}, {err: errors.New("boom")}},
+			errText: "boom",
+			intact:  1,
+			orphans: 1,
 		},
 		{
 			name:    "nowhere to put it",
@@ -289,7 +307,12 @@ func (s *BackupPublicTestSuite) TestKeep() {
 					s.Require().ErrorIs(err, tt.is)
 				}
 
-				s.Require().Nil(got)
+				s.Require().Len(got, tt.orphans,
+					"what was kept before the failure is handed back, so it can be named")
+
+				for _, path := range got {
+					s.Require().FileExists(path)
+				}
 
 				if tt.intact == 0 {
 					return

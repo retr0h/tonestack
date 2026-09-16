@@ -22,18 +22,21 @@ package deviceslots
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/retr0h/tonestack/pkg/sdk/internal/backup"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/device"
+	"github.com/retr0h/tonestack/pkg/sdk/internal/fileslots"
 	"github.com/retr0h/tonestack/pkg/sdk/result"
 	slotpkg "github.com/retr0h/tonestack/pkg/sdk/slot"
 )
 
 // ErrSameSlot is a copy or a swap whose two slots are one slot.
-var ErrSameSlot = errors.New("the source and the destination are the same slot")
+//
+// The file flows' error, because they refuse it too and one behaviour is what
+// a caller wants. It is declared there because this package imports that one.
+var ErrSameSlot = fileslots.ErrSameSlot
 
 // EmptySwapError is a swap refused because a slot it names holds no preset.
 //
@@ -260,7 +263,10 @@ func (f *Flows) swapTwo(
 		backup.Held{Body: destination, At: to, Name: toName},
 		backup.Held{Body: source, At: from, Name: fromName})
 	if err != nil {
-		return edited{}, err
+		// The first of the two may be on disk already, and nothing else
+		// knows it is there. A backup nobody asked to delete is not this
+		// package's to remove, so the error says where it is instead.
+		return edited{}, keptError(err, kept)
 	}
 
 	if err := w.WriteNamedPreset(ctx, to.Setlist, to.Slot, fromName, source); err != nil {
