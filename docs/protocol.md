@@ -205,7 +205,8 @@ selecting preset 999 on a device holding 126 answers `1` and does nothing.
 | Session handshake                           | implemented, verified on hardware         |
 | List presets (opcode 1)                     | implemented, verified on hardware         |
 | Read a preset without loading it (opcode 4) | implemented, verified on hardware         |
-| Write a preset (opcodes 5, 8)               | implemented, never sent to hardware       |
+| Write a preset (opcodes 5, 8)               | implemented, verified on hardware         |
+| Empty a slot (opcode 16)                    | implemented, verified on hardware         |
 | Save from the edit buffer (opcode 71)       | not implemented                           |
 
 Verified means an HX Stomp on firmware 3.80 answered, not that a test asserts
@@ -413,6 +414,16 @@ a device answers successfully with nothing at all.
 when it has the document, and the erase and program that follow never appear on
 the wire. Waiting on a completion notification that is not coming is not the
 same as pacing, which is what the 750ms settle is for.
+
+**Emptying a slot is a plain request too.** On 15 September 2026 opcode 16 went
+to an HX Stomp, on the data channel, carrying `107` for the setlist and `108`
+for the slot and nothing else. The pedal answered status 0 with no error, and
+the slot, which had held a 2387-byte preset, then read back as no document at
+all: the same answer a slot nobody has ever written gives. The slot was put back
+afterwards and matched byte for byte. So nothing observed says a deferred commit
+follows an empty, and the 750ms afterwards is not for the empty itself but for
+whatever lands next, since what an empty does to flash is no more visible on the
+wire than what a write does.
 
 ## Writing a preset
 

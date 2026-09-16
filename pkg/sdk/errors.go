@@ -29,13 +29,13 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk/result"
 )
 
-// EmptySwapError is a swap refused because a slot it names holds no preset.
-// It matches ErrEmptySlot. Empty names the empty slots, and Full the one
-// holding a preset, or nil when neither does.
+// EmptySwapError is a swap refused because neither slot holds a preset. It
+// matches ErrEmptySlot, and First and Second name the two slots in the order
+// the swap named them.
 //
-// A swap with an empty slot would be a move, which has to leave the source as
-// empty as the device leaves an unused slot, and nothing here can write that.
-// Nothing is kept or written.
+// One empty side is a move and is carried out: the preset goes into the empty
+// slot and the slot it came from is emptied. Two empty sides is nothing to
+// move, so nothing is kept or written.
 type EmptySwapError = deviceslots.EmptySwapError
 
 // Errors a caller matches with errors.Is.
@@ -53,8 +53,8 @@ var (
 	ErrUnknownFormat = result.ErrUnknownFormat
 
 	// ErrEmptySlot reports a slot on the device holding no preset: one that
-	// cannot be the source of a copy, or one side of a swap. A refused swap
-	// carries an EmptySwapError naming the slots.
+	// cannot be the source of a copy, or both sides of a swap. A refused
+	// swap carries an EmptySwapError naming the slots.
 	ErrEmptySlot = deviceslots.ErrEmptySlot
 
 	// ErrClosed reports a Session method called after Close.

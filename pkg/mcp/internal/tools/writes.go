@@ -100,7 +100,14 @@ func (h *handlers) presetsSwap(
 		return s.Swap(ctx, from, to)
 	})
 	if err != nil {
-		return nil, sdk.Change{}, remedy(err)
+		return nil, sdk.Change{}, err
+	}
+
+	// A swap with one empty slot is carried out as a move, and says so. An
+	// agent that asked for an exchange got something else, and the next
+	// thing it does depends on knowing which.
+	if change.Action == sdk.MovedPreset {
+		return said("moved %s to %s", in.From, in.To), change, nil
 	}
 
 	return said("swapped %s and %s", in.From, in.To), change, nil

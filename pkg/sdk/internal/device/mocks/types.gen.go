@@ -188,6 +188,20 @@ func (m *MockWriter) EXPECT() *MockWriterMockRecorder {
 	return m.recorder
 }
 
+// EmptySlot mocks base method.
+func (m *MockWriter) EmptySlot(ctx context.Context, setlist, slot int) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "EmptySlot", ctx, setlist, slot)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// EmptySlot indicates an expected call of EmptySlot.
+func (mr *MockWriterMockRecorder) EmptySlot(ctx, setlist, slot any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EmptySlot", reflect.TypeOf((*MockWriter)(nil).EmptySlot), ctx, setlist, slot)
+}
+
 // WriteNamedPreset mocks base method.
 func (m *MockWriter) WriteNamedPreset(ctx context.Context, setlist, slot int, name string, document []byte) error {
 	m.ctrl.T.Helper()

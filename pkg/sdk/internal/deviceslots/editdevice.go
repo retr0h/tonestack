@@ -38,37 +38,25 @@ import (
 // a caller wants. It is declared there because this package imports that one.
 var ErrSameSlot = fileslots.ErrSameSlot
 
-// EmptySwapError is a swap refused because a slot it names holds no preset.
+// EmptySwapError is a swap refused because neither slot holds a preset.
 //
-// A swap with an empty slot would be a move, and a move has to leave the
-// source empty again. A device answers an empty slot with no document at all,
-// and nothing here can write that: the only empty preset this project holds,
-// wire.Blank, is a document with no blocks off another slot and another
-// firmware, so writing it would leave a slot the device never produced. The
-// swap is refused before anything is kept or written.
+// One empty side is not refused: it is a move. The preset goes into the empty
+// slot and the slot it came from is emptied, which is opcode 16 and which a
+// device does. Two empty sides is nothing to move, and no sequence of writes
+// makes it into something, so it is refused before anything is kept or
+// written.
 type EmptySwapError struct {
-	// Empty are the slots that hold no preset, in the order the swap named
-	// them.
-	Empty []slotpkg.Address
-	// Full is the slot that holds one, or nil when neither does.
-	Full *slotpkg.Address
+	// First and Second are the two slots the swap named, in that order.
+	// Both hold no preset: one that did would be a move, so there is no
+	// other shape this error comes in.
+	First, Second slotpkg.Address
 }
 
 // Error implements the error interface.
 func (e *EmptySwapError) Error() string {
-	labels := make([]string, 0, len(e.Empty))
-	for _, at := range e.Empty {
-		labels = append(labels, slotpkg.Label(at.Slot))
-	}
-
-	if e.Full == nil {
-		return fmt.Sprintf("%v: %s, so there is nothing to swap",
-			ErrEmptySlot, strings.Join(labels, " and "))
-	}
-
-	return fmt.Sprintf("%v: %s, and a swap would have to leave %s empty, "+
-		"which nothing here can write", ErrEmptySlot, labels[0],
-		slotpkg.Label(e.Full.Slot))
+	return fmt.Sprintf("%v: %s and %s, so there is nothing to swap",
+		ErrEmptySlot,
+		slotpkg.Label(e.First.Slot), slotpkg.Label(e.Second.Slot))
 }
 
 // Unwrap returns ErrEmptySlot, so callers can match it.
@@ -120,6 +108,13 @@ type applier func(context.Context, device.Editor, slotpkg.Address, slotpkg.Addre
 type edited struct {
 	// from and to are what the two slots were called before the write.
 	from, to string
+	// replaced is what the destination held before, when it held anything.
+	// A move replaces nothing, and naming what the slot was called would
+	// report something lost when nothing was.
+	replaced string
+	// action is what the edit turned out to be, when that is not what it
+	// was asked for. A swap with one empty side carries out a move.
+	action result.Action
 	// kept are the backups written before anything was overwritten.
 	kept []string
 }
@@ -170,11 +165,17 @@ func edit(
 		return result.Change{}, err
 	}
 
+	// What it turned out to be, when that differs from what was asked for: a
+	// swap with one empty side is carried out as a move.
+	if did.action != "" {
+		action = did.action
+	}
+
 	return result.Change{
 		Action:   action,
 		From:     &result.At{Slot: from.Slot, Name: did.from},
 		To:       result.At{Slot: to.Slot, Name: did.to},
-		Replaced: did.to,
+		Replaced: did.replaced,
 		Kept:     did.kept,
 	}, nil
 }
@@ -190,7 +191,7 @@ func (f *Flows) copyOne(
 		return edited{}, err
 	}
 
-	body, err := slotBytes(ctx, s, from)
+	body, err := f.slotBytes(ctx, s, from, fromName)
 	if err != nil {
 		return edited{}, err
 	}
@@ -218,7 +219,7 @@ func (f *Flows) copyOne(
 			slotpkg.Label(to.Slot), err), kept)
 	}
 
-	return edited{from: fromName, to: toName, kept: kept}, nil
+	return edited{from: fromName, to: toName, replaced: toName, kept: kept}, nil
 }
 
 // swapTwo exchanges what two slots hold.
@@ -226,6 +227,9 @@ func (f *Flows) copyOne(
 // Both are read before either is written. A device that fails halfway through
 // would otherwise leave one slot holding a copy of the other and the original
 // gone.
+//
+// One empty side makes it a move: the preset goes into the empty slot and the
+// slot it came from is emptied. Two empty sides is refused.
 func (f *Flows) swapTwo(
 	ctx context.Context,
 	s device.Editor,
@@ -236,20 +240,20 @@ func (f *Flows) swapTwo(
 		return edited{}, err
 	}
 
-	source, err := readSlot(ctx, s, from)
+	source, err := f.readSlot(ctx, s, from, fromName)
 	if err != nil {
 		return edited{}, err
 	}
 
-	destination, err := readSlot(ctx, s, to)
+	destination, err := f.readSlot(ctx, s, to, toName)
 	if err != nil {
 		return edited{}, err
 	}
 
-	// Both read first, so the refusal can name every empty side, and before
+	// Both read first, so the refusal can name both empty sides, and before
 	// anything is kept or written, so a refused swap changes nothing.
-	if err := emptySides(from, source, to, destination); err != nil {
-		return edited{}, err
+	if source == nil && destination == nil {
+		return edited{}, &EmptySwapError{First: from, Second: to}
 	}
 
 	w, err := writerFor(s)
@@ -258,7 +262,8 @@ func (f *Flows) swapTwo(
 	}
 
 	// Both of them, because a swap replaces both. No extra reads: a swap has
-	// already read what it is about to move.
+	// already read what it is about to move. A side holding nothing is kept
+	// as nothing, which Keep answers with no file: there is nothing to lose.
 	kept, err := f.backups().Keep(ctx,
 		backup.Held{Body: destination, At: to, Name: toName},
 		backup.Held{Body: source, At: from, Name: fromName})
@@ -269,31 +274,99 @@ func (f *Flows) swapTwo(
 		return edited{}, keptError(err, kept)
 	}
 
-	if err := w.WriteNamedPreset(ctx, to.Setlist, to.Slot, fromName, source); err != nil {
-		return edited{}, keptError(fmt.Errorf("writing slot %s: %w",
-			slotpkg.Label(to.Slot), err), kept)
+	first, second := exchange(from, source, fromName, to, destination, toName)
+
+	if err := first.apply(ctx, w); err != nil {
+		return edited{}, keptError(err, kept)
 	}
 
 	// One slot is written, so the swap finishes whoever stops waiting.
-	// Stopping here would leave both slots holding the source, and what the
-	// destination held only in a backup.
-	if err := w.WriteNamedPreset(context.WithoutCancel(ctx),
-		from.Setlist, from.Slot, toName, destination); err != nil {
-		return edited{}, keptError(fmt.Errorf("writing slot %s: %w",
-			slotpkg.Label(from.Slot), err), kept)
+	// Stopping here would leave both slots holding the same preset, and what
+	// the other held only in a backup.
+	if err := second.apply(context.WithoutCancel(ctx), w); err != nil {
+		return edited{}, keptError(err, kept)
 	}
 
-	return edited{from: fromName, to: toName, kept: kept}, nil
+	did := edited{from: fromName, to: toName, replaced: toName, kept: kept}
+
+	// A move replaces nothing. The empty side had nothing to lose, and the
+	// preset that moved is still on the device in the other slot, so naming
+	// either as replaced would report a loss that did not happen.
+	if source == nil || destination == nil {
+		did.action, did.replaced = result.MovedPreset, ""
+	}
+
+	return did, nil
+}
+
+// step is one half of a swap: a slot, and what is to be in it. A step
+// carrying no preset empties its slot instead, which is what makes a swap
+// with one empty side a move.
+type step struct {
+	at   slotpkg.Address
+	name string
+	body []byte
+}
+
+// apply puts this step's preset in its slot, or empties the slot.
+func (s step) apply(
+	ctx context.Context,
+	w device.Writer,
+) error {
+	if s.body == nil {
+		if err := w.EmptySlot(ctx, s.at.Setlist, s.at.Slot); err != nil {
+			return fmt.Errorf("emptying slot %s: %w", slotpkg.Label(s.at.Slot), err)
+		}
+
+		return nil
+	}
+
+	if err := w.WriteNamedPreset(
+		ctx, s.at.Setlist, s.at.Slot, s.name, s.body); err != nil {
+		return fmt.Errorf("writing slot %s: %w", slotpkg.Label(s.at.Slot), err)
+	}
+
+	return nil
+}
+
+// exchange puts the two halves of a swap in the order they are carried out.
+//
+// The preset that is certain to exist moves first, and the slot it came from
+// is dealt with second. So a device that fails between them leaves a preset
+// in two slots rather than in none, and the second step is the one that can
+// be an empty.
+//
+// For an ordinary swap that is the source into the destination and then the
+// destination's own preset back. When the source is the empty side there is
+// nothing to move out of it, so the two are the other way round: what the
+// destination holds goes into the source's slot, and the destination is
+// emptied.
+func exchange(
+	from slotpkg.Address,
+	source []byte,
+	fromName string,
+	to slotpkg.Address,
+	destination []byte,
+	toName string,
+) (step, step) {
+	if source == nil {
+		return step{at: from, name: toName, body: destination},
+			step{at: to, name: fromName}
+	}
+
+	return step{at: to, name: fromName, body: source},
+		step{at: from, name: toName, body: destination}
 }
 
 // slotBytes reads one slot as the bytes the device holds, refusing a slot
 // that holds none.
-func slotBytes(
+func (f *Flows) slotBytes(
 	ctx context.Context,
 	s device.Editor,
 	at slotpkg.Address,
+	name string,
 ) ([]byte, error) {
-	body, err := readSlot(ctx, s, at)
+	body, err := f.readSlot(ctx, s, at, name)
 	if err != nil {
 		return nil, err
 	}
@@ -305,40 +378,39 @@ func slotBytes(
 	return body, nil
 }
 
-// readSlot reads one slot as the bytes the device holds, or nothing for an
-// empty slot.
-func readSlot(
+// readSlot reads one slot as the bytes the device holds, or nothing for a
+// slot holding no preset.
+//
+// Not merely the bytes: a device answers for a slot nobody has used with a
+// whole preset carrying no blocks, the 02B in wire's testdata, so a caller
+// asking "did it send anything" is told yes for a slot that holds nothing.
+// What the slot holds is what the reader decides, the same way show does, so
+// a swap, a copy and a listing agree on which slots are empty.
+func (f *Flows) readSlot(
 	ctx context.Context,
 	s device.Editor,
 	at slotpkg.Address,
+	name string,
 ) ([]byte, error) {
 	body, err := s.ReadPreset(ctx, at.Setlist, at.Slot)
 	if err != nil {
 		return nil, fmt.Errorf("reading slot %s: %w", slotpkg.Label(at.Slot), err)
 	}
 
-	return body, nil
-}
-
-// emptySides refuses a swap when either slot holds no preset.
-//
-// See EmptySwapError for why that is a refusal rather than a move.
-func emptySides(
-	a slotpkg.Address,
-	aBody []byte,
-	b slotpkg.Address,
-	bBody []byte,
-) error {
-	switch {
-	case aBody == nil && bBody == nil:
-		return &EmptySwapError{Empty: []slotpkg.Address{a, b}}
-	case aBody == nil:
-		return &EmptySwapError{Empty: []slotpkg.Address{a}, Full: &b}
-	case bBody == nil:
-		return &EmptySwapError{Empty: []slotpkg.Address{b}, Full: &a}
-	default:
-		return nil
+	if body == nil {
+		return nil, nil
 	}
+
+	read, err := f.deviceReading(ctx, body, at.Slot, name, result.FormatPreset)
+	if err != nil {
+		return nil, err
+	}
+
+	if read.Empty() {
+		return nil, nil
+	}
+
+	return body, nil
 }
 
 // names reads what the device calls both slots, before either is changed.

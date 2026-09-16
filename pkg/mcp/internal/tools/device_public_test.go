@@ -64,6 +64,9 @@ type deviceRow struct {
 	check func(s *DevicePublicTestSuite, res *gomcp.CallToolResult)
 	// allowWrites starts the server the way --allow-writes does.
 	allowWrites bool
+	// moved says this row's Change replaced nothing, which is what a move
+	// answers with. Every other row carries the name the mock returned.
+	moved bool
 }
 
 // held lets the tools open the pedal once, onto pedal, and close it when they

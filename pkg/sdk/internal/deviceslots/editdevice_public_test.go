@@ -130,9 +130,16 @@ func requireKept(
 }
 
 // answer returns one slot as the hardware sent it.
-func (s *EditDevicePublicTestSuite) answer() []byte {
+func (s *EditDevicePublicTestSuite) answer(
+	name ...string,
+) []byte {
+	file := "preset.bin"
+	if len(name) > 0 {
+		file = name[0]
+	}
+
 	raw, err := os.ReadFile(
-		filepath.Join("..", "wire", "testdata", "preset.bin"))
+		filepath.Join("..", "wire", "testdata", file))
 	s.Require().NoError(err)
 
 	return raw
@@ -196,6 +203,16 @@ func (s *EditDevicePublicTestSuite) expectRead(
 		return reader.EXPECT().ReadPreset(gomock.Any(), setlist, slot).
 			Return(nil, errors.New("boom"))
 	case "empty":
+		// What an untouched slot really answers: the bytes of 02B off an HX
+		// Stomp, a whole preset carrying no blocks. A device never answers
+		// nothing at all, and a mock that did is why a swap of two empty
+		// slots reported a move on hardware while every row here passed.
+		return reader.EXPECT().ReadPreset(gomock.Any(), setlist, slot).
+			Return(s.answer("empty.bin"), nil)
+	case "silent":
+		// A device that answers for the slot with nothing at all. Not what an
+		// HX Stomp does for an unused slot, but the wire allows it and the
+		// reader has to mean the same thing by it.
 		return reader.EXPECT().ReadPreset(gomock.Any(), setlist, slot).
 			Return(nil, nil)
 	case "garbage":
@@ -226,6 +243,56 @@ func (s *EditDevicePublicTestSuite) expectWrite(
 	}
 
 	return call.Return(nil)
+}
+
+// expectMove sets up the two calls a swap makes when one slot is empty: the
+// preset written into the empty slot, then the slot it came from emptied.
+//
+// first names which side holds nothing. The empty goes second in both cases,
+// so a device that fails between the two leaves the preset in both slots
+// rather than in neither.
+//
+// writeRefused is the case that order exists for: the preset never lands, and
+// no EmptySlot is set up at all, so calling one fails the test.
+func (s *EditDevicePublicTestSuite) expectMove(
+	first string,
+	toSetlist, toSlot int,
+	toName string,
+	writeRefused bool,
+	refused bool,
+	after *gomock.Call,
+) *gomock.Call {
+	// The second slot is the empty one: what the source holds goes there,
+	// and the source is emptied.
+	setlist, slot, name := toSetlist, toSlot, "Chunky Monkey"
+	emptySetlist, emptySlot := 0, 0
+
+	if first == "first" {
+		setlist, slot, name = 0, 0, toName
+		emptySetlist, emptySlot = toSetlist, toSlot
+	}
+
+	write := s.expectWrite(setlist, slot, name, !writeRefused)
+	if after != nil {
+		write.After(after)
+	}
+
+	// A preset that never landed leaves the slot it came from holding the
+	// only copy. No EmptySlot is set up, so a call to one is an unexpected
+	// call and gomock fails the test: that is the assertion.
+	if writeRefused {
+		return write
+	}
+
+	empty := s.dev.MockWriter.EXPECT().
+		EmptySlot(gomock.Any(), emptySetlist, emptySlot).
+		After(write)
+
+	if refused {
+		return empty.Return(errWriteRefused)
+	}
+
+	return empty.Return(nil)
 }
 
 // TestCopy writes one slot of a device over another.
@@ -466,6 +533,17 @@ func (s *EditDevicePublicTestSuite) TestSwap() {
 		cancelsOnFirstWrite bool
 		// the backup directory is still empty afterwards.
 		nothingKept bool
+		// which side holds no preset, when that turns the swap into a move:
+		// "first" or "second". The preset lands in the empty slot and the
+		// slot it came from is emptied.
+		moves string
+		// the device refuses the empty that finishes a move.
+		emptyRefused bool
+		// the device refuses the write that starts a move, so nothing may be
+		// emptied.
+		writeRefused bool
+		// the caller stops waiting while a move's write is going out.
+		cancelsOnMove bool
 
 		contains string
 		// how many backups the error names.
@@ -524,11 +602,36 @@ func (s *EditDevicePublicTestSuite) TestSwap() {
 			// Both slots are kept before either is written, and the second of
 			// the two fails. The first is already on disk, holding a preset
 			// nothing else names, so the error says where it is.
-			name:      "a second slot it cannot keep",
-			listed:    true,
-			reads:     []string{"garbage", "answered"},
-			keptInErr: 1,
-			errText:   "before replacing it",
+			// The second slot answers with bytes that are not a preset. What
+			// a slot holds is decided as it is read, so this stops at the
+			// read and nothing is written or kept. Before a swap read both
+			// slots through the reader it failed later, while the backup was
+			// being taken, which is what this row used to assert.
+			name:    "a second slot that is not a preset",
+			listed:  true,
+			reads:   []string{"answered", "garbage"},
+			errText: "reading slot 02A",
+		},
+		{
+			// Bytes that are not a preset, on the slot read first. What a
+			// slot holds is decided as it is read, so this stops there and
+			// nothing is kept: the backup the other row names is written
+			// only once the first slot has been read successfully.
+			name:    "a first slot that is not a preset",
+			listed:  true,
+			reads:   []string{"garbage"},
+			errText: "not a preset",
+		},
+		{
+			// A device answering for the slot with nothing at all, rather
+			// than with the blank preset an HX Stomp sends. Both mean the
+			// slot holds nothing, so this is the same move.
+			name:     "a slot the device answers for with nothing",
+			listed:   true,
+			reads:    []string{"answered", "silent"},
+			moves:    "second",
+			keptIn:   []string{"01A"},
+			contains: "moved",
 		},
 		{
 			name:    "the first slot, which it cannot read",
@@ -543,23 +646,65 @@ func (s *EditDevicePublicTestSuite) TestSwap() {
 			errText: "reading slot 02A",
 		},
 		{
-			// A move, which would have to leave 02A as empty as the device
-			// leaves an unused slot. Nothing here can write that, so nothing
-			// is kept or written. No write is expected, so one would fail.
-			name:        "a first slot that holds no preset",
-			listed:      true,
-			reads:       []string{"empty", "answered"},
-			nothingKept: true,
-			is:          deviceslots.ErrEmptySlot,
-			errText:     "no preset: 01A, and a swap would have to leave 02A empty",
+			// A move. 02A takes what 01A held and 01A is emptied, which is
+			// what opcode 16 does. Only 01A is kept: a slot holding nothing
+			// has nothing to lose.
+			name:     "a second slot that holds no preset",
+			listed:   true,
+			reads:    []string{"answered", "empty"},
+			moves:    "second",
+			keptIn:   []string{"01A-s0-"},
+			contains: "moved",
 		},
 		{
-			name:        "a second slot that holds no preset",
-			listed:      true,
-			reads:       []string{"answered", "empty"},
-			nothingKept: true,
-			is:          deviceslots.ErrEmptySlot,
-			errText:     "no preset: 02A, and a swap would have to leave 01A empty",
+			// The same move the other way round. What 02A holds goes into
+			// 01A first, so the preset is in two slots between the calls and
+			// never in none.
+			name:     "a first slot that holds no preset",
+			listed:   true,
+			reads:    []string{"empty", "answered"},
+			moves:    "first",
+			keptIn:   []string{"02A-s0-"},
+			contains: "moved",
+		},
+		{
+			// The claim the order rests on. The preset never reached the
+			// empty slot, so the slot it came from must still hold it: no
+			// EmptySlot is set up, and calling one fails the test. Reverse
+			// the two steps in exchange and this row is what catches it.
+			name:         "a move whose write is refused, which empties nothing",
+			listed:       true,
+			reads:        []string{"answered", "empty"},
+			moves:        "second",
+			writeRefused: true,
+			is:           errWriteRefused,
+			keptInErr:    1,
+			errText:      "writing slot 02A",
+		},
+		{
+			// The empty that finishes a move is owed what a swap's second
+			// write is owed: a caller who gives up once the preset has
+			// landed would otherwise leave it in two slots, which is a move
+			// half done.
+			name:          "a caller who stops waiting during a move's write",
+			listed:        true,
+			reads:         []string{"answered", "empty"},
+			cancelsOnMove: true,
+			contains:      "moved",
+		},
+		{
+			// Failing between the two calls: the preset landed and the slot
+			// it came from still holds it. Both slots hold it, which is
+			// worth saying plainly, and the backup is named the way a failed
+			// write's is.
+			name:         "a source it cannot empty",
+			listed:       true,
+			reads:        []string{"answered", "empty"},
+			moves:        "second",
+			emptyRefused: true,
+			is:           errWriteRefused,
+			keptInErr:    1,
+			errText:      "emptying slot 01A",
 		},
 		{
 			name:        "two slots that hold no preset",
@@ -643,6 +788,27 @@ func (s *EditDevicePublicTestSuite) TestSwap() {
 					After(first)
 			}
 
+			if tt.cancelsOnMove {
+				// The preset lands and the caller gives up while it does.
+				// The empty that finishes the move is handed a context of
+				// its own, so ctx.Err() here is nil; without that it would
+				// be context.Canceled and the move would stop with the
+				// preset in both slots.
+				write := s.dev.MockWriter.EXPECT().
+					WriteNamedPreset(gomock.Any(), toSetlist, toSlot, "Chunky Monkey", s.answer()).
+					DoAndReturn(func(context.Context, int, int, string, []byte) error {
+						cancel()
+
+						return nil
+					})
+				s.dev.MockWriter.EXPECT().
+					EmptySlot(gomock.Any(), 0, 0).
+					DoAndReturn(func(ctx context.Context, _, _ int) error {
+						return ctx.Err()
+					}).
+					After(write)
+			}
+
 			// A device that failed halfway through would leave one slot
 			// holding a copy of the other and the original gone, so both
 			// slots are read before either is written.
@@ -656,6 +822,11 @@ func (s *EditDevicePublicTestSuite) TestSwap() {
 				}
 
 				last = call
+			}
+
+			if tt.moves != "" {
+				last = s.expectMove(tt.moves, toSetlist, toSlot, toName,
+					tt.writeRefused, tt.emptyRefused, last)
 			}
 
 			for i, outcome := range tt.writes {
@@ -697,8 +868,17 @@ func (s *EditDevicePublicTestSuite) TestSwap() {
 
 			s.Require().NoError(err)
 			s.Require().Contains(did(change), tt.contains)
-			s.Require().Equal(toName, change.Replaced,
-				"what the second slot was called, in its own setlist")
+
+			// A move replaces nothing, so there is nothing to name. An
+			// exchange says what the second slot stopped being, read in its
+			// own setlist.
+			if tt.moves != "" || tt.cancelsOnMove {
+				s.Require().Empty(change.Replaced,
+					"a move replaced nothing, so nothing is named")
+			} else {
+				s.Require().Equal(toName, change.Replaced,
+					"what the second slot was called, in its own setlist")
+			}
 
 			if tt.keptIn != nil {
 				s.Require().Len(change.Kept, len(tt.keptIn))

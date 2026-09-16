@@ -22,6 +22,10 @@ on 7 September 2026: a preset copied into an empty slot, two slots exchanged,
 and a preset built from a recipe written into a third and read back with the
 gear it was asked for.
 
+Emptying a slot was verified on the same pedal on 15 September 2026, which is
+what lets `swap` move a preset: see
+[A named slot can still be empty](#a-named-slot-can-still-be-empty).
+
 Two things had to be right, and each produced a different failure.
 
 **A document goes out under the tag a device uses.** A device sends a preset
@@ -141,10 +145,16 @@ reads only names.
 
 A slot can be empty in two ways on the wire. A read of one slot can come back
 with no document at all, or with a whole document holding no blocks.
-`wire.Blank` is the second kind, captured from slot `02B` on firmware 2.92.
-Nothing here has seen a write that leaves a slot answering with no document, so
-a swap with such a slot is refused. Leaving the source empty is not something
-this project can write. `copy` into the slot instead.
+`wire.Blank` is the second kind, captured from slot `02B` on firmware 2.92. The
+first kind is what opcode 16 leaves behind, verified on an HX Stomp on 15
+September 2026: a slot holding a preset read back afterwards as no document at
+all.
+
+So a swap with one empty slot is a move. The preset goes into the empty slot,
+and then the slot it came from is emptied, in that order, so a device that fails
+between the two leaves the preset in both slots rather than in neither. A swap
+of two slots that both hold no preset is refused, because there is nothing to
+move.
 
 `42C` is untouched. `27B` has a name and no blocks. Only the second one is
 surprising, and it is the state that cost a day: a listing counting names called
