@@ -130,9 +130,16 @@ func requireKept(
 }
 
 // answer returns one slot as the hardware sent it.
-func (s *EditDevicePublicTestSuite) answer() []byte {
+func (s *EditDevicePublicTestSuite) answer(
+	name ...string,
+) []byte {
+	file := "preset.bin"
+	if len(name) > 0 {
+		file = name[0]
+	}
+
 	raw, err := os.ReadFile(
-		filepath.Join("..", "wire", "testdata", "preset.bin"))
+		filepath.Join("..", "wire", "testdata", file))
 	s.Require().NoError(err)
 
 	return raw
@@ -196,6 +203,16 @@ func (s *EditDevicePublicTestSuite) expectRead(
 		return reader.EXPECT().ReadPreset(gomock.Any(), setlist, slot).
 			Return(nil, errors.New("boom"))
 	case "empty":
+		// What an untouched slot really answers: the bytes of 02B off an HX
+		// Stomp, a whole preset carrying no blocks. A device never answers
+		// nothing at all, and a mock that did is why a swap of two empty
+		// slots reported a move on hardware while every row here passed.
+		return reader.EXPECT().ReadPreset(gomock.Any(), setlist, slot).
+			Return(s.answer("empty.bin"), nil)
+	case "silent":
+		// A device that answers for the slot with nothing at all. Not what an
+		// HX Stomp does for an unused slot, but the wire allows it and the
+		// reader has to mean the same thing by it.
 		return reader.EXPECT().ReadPreset(gomock.Any(), setlist, slot).
 			Return(nil, nil)
 	case "garbage":

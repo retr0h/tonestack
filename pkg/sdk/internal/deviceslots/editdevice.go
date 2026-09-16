@@ -191,7 +191,7 @@ func (f *Flows) copyOne(
 		return edited{}, err
 	}
 
-	body, err := slotBytes(ctx, s, from)
+	body, err := f.slotBytes(ctx, s, from, fromName)
 	if err != nil {
 		return edited{}, err
 	}
@@ -240,12 +240,12 @@ func (f *Flows) swapTwo(
 		return edited{}, err
 	}
 
-	source, err := readSlot(ctx, s, from)
+	source, err := f.readSlot(ctx, s, from, fromName)
 	if err != nil {
 		return edited{}, err
 	}
 
-	destination, err := readSlot(ctx, s, to)
+	destination, err := f.readSlot(ctx, s, to, toName)
 	if err != nil {
 		return edited{}, err
 	}
@@ -360,12 +360,13 @@ func exchange(
 
 // slotBytes reads one slot as the bytes the device holds, refusing a slot
 // that holds none.
-func slotBytes(
+func (f *Flows) slotBytes(
 	ctx context.Context,
 	s device.Editor,
 	at slotpkg.Address,
+	name string,
 ) ([]byte, error) {
-	body, err := readSlot(ctx, s, at)
+	body, err := f.readSlot(ctx, s, at, name)
 	if err != nil {
 		return nil, err
 	}
@@ -377,16 +378,36 @@ func slotBytes(
 	return body, nil
 }
 
-// readSlot reads one slot as the bytes the device holds, or nothing for an
-// empty slot.
-func readSlot(
+// readSlot reads one slot as the bytes the device holds, or nothing for a
+// slot holding no preset.
+//
+// Not merely the bytes: a device answers for a slot nobody has used with a
+// whole preset carrying no blocks, the 02B in wire's testdata, so a caller
+// asking "did it send anything" is told yes for a slot that holds nothing.
+// What the slot holds is what the reader decides, the same way show does, so
+// a swap, a copy and a listing agree on which slots are empty.
+func (f *Flows) readSlot(
 	ctx context.Context,
 	s device.Editor,
 	at slotpkg.Address,
+	name string,
 ) ([]byte, error) {
 	body, err := s.ReadPreset(ctx, at.Setlist, at.Slot)
 	if err != nil {
 		return nil, fmt.Errorf("reading slot %s: %w", slotpkg.Label(at.Slot), err)
+	}
+
+	if body == nil {
+		return nil, nil
+	}
+
+	read, err := f.deviceReading(ctx, body, at.Slot, name, result.FormatPreset)
+	if err != nil {
+		return nil, err
+	}
+
+	if read.Empty() {
+		return nil, nil
 	}
 
 	return body, nil
