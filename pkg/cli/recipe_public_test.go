@@ -275,10 +275,29 @@ func (s *RecipePublicTestSuite) TestScaffolded() {
 			want: []string{
 				"Test Player", "test-player", "Ampeg SVT", "Ampeg 8x10",
 				"Klon Centaur, Boss DS-1",
+				// Scaffolding from gear is the path that checks every name
+				// against the catalog, so it is the one that may say so.
+				"every gear name resolves",
 				// What to do with it next, which is the point of saying
 				// anything at all.
 				"presets make --id test-player",
 			},
+			absent: []string{"copied from"},
+		},
+		{
+			// A copy checks no gear at all: the chain is the parent's, and
+			// claiming it resolved would be claiming a check nobody ran.
+			name: "a copy of another rig",
+			in: sdk.Scaffolded{
+				ID: "test-player", Name: "Test Player",
+				Instrument: "bass", Amp: "Ampeg SVT",
+				From: "mike-dirnt", Path: "x.yaml",
+			},
+			want: []string{
+				"chain copied from mike-dirnt unchanged",
+				"presets make --id test-player",
+			},
+			absent: []string{"every gear name resolves"},
 		},
 		{
 			// Some amps carry their own cabinet, and a blank row would read

@@ -253,12 +253,28 @@ func Scaffolded(
 
 	if err := (paint.Section{
 		Title: sc.Name, Detail: sc.Path, Rows: rows,
-		Summary: fmt.Sprintf(
-			"every gear name resolves — next: tonestack presets make --id %s --out %s.hlx",
-			sc.ID, sc.ID),
+		Summary: closing(sc),
 	}).Render(w); err != nil {
 		return fmt.Errorf("reporting: %w", err)
 	}
 
 	return nil
+}
+
+// closing says what was done and what to do next.
+//
+// Only a rig scaffolded from gear names has had them resolved, so only that
+// one says so. A copy took the parent's chain as it stands and checked
+// nothing, and the honest thing to report is what it did: whose chain this is,
+// and that nothing was changed on the way.
+func closing(
+	sc sdk.Scaffolded,
+) string {
+	next := fmt.Sprintf("next: tonestack presets make --id %s --out %s.hlx", sc.ID, sc.ID)
+
+	if sc.Copied() {
+		return fmt.Sprintf("chain copied from %s unchanged — %s", sc.From, next)
+	}
+
+	return fmt.Sprintf("every gear name resolves — %s", next)
 }

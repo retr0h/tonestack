@@ -68,6 +68,18 @@ type Scaffolded struct {
 	Cab string
 	// Pedals are what else is in the chain, in order.
 	Pedals []string
+	// From is the rig this was copied from, by identifier. Empty when the
+	// rig was scaffolded from gear names.
+	//
+	// The two paths differ in what has been checked. Gear names are resolved
+	// against the catalog before a scaffold is written; a copy resolves
+	// nothing, because the chain is the parent's and no name has changed. A
+	// reader of the answer can tell which it holds, rather than a caller
+	// having to remember which call it made.
+	From string
 	// Path is the file that was written.
 	Path string
 }
+
+// Copied says whether the rig came from another rather than from gear names.
+func (s Scaffolded) Copied() bool { return s.From != "" }
