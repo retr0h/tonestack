@@ -28,20 +28,71 @@ import (
 	"io"
 )
 
-// builtIn is the generated catalog for the device this tool targets.
+// The generated catalogs, one per device this tool can write a preset for.
 //
-// It ships inside the binary so nothing about describing, validating or
-// writing a preset needs HX Edit installed. Generating it does — see
-// docs/catalog.md — but that happens once per Line 6 release, on one machine,
+// They ship inside the binary so nothing about describing, validating or
+// writing a preset needs HX Edit installed. Generating them does, see
+// docs/catalog.md, but that happens once per Line 6 release, on one machine,
 // not on every machine that runs this.
 //
-// Gzipped because it is repetitive JSON: 1.5MB becomes about 65KB.
+// Gzipped because it is repetitive JSON: about 1MB becomes about 74KB, so
+// four of them cost roughly 300KB of binary.
 //
-//go:embed data/hx-stomp.json.gz
-var builtIn []byte
+// One model table produces all four. Each model names the devices that
+// support it, so the same Line 6 resources filter to a different catalog per
+// device.
+var (
+	//go:embed data/hx-stomp.json.gz
+	builtIn []byte
+	//go:embed data/hx-stomp-xl.json.gz
+	stompXL []byte
+	//go:embed data/helix-floor.json.gz
+	helixFloor []byte
+	//go:embed data/helix-lt.json.gz
+	helixLT []byte
+)
+
+// The devices a catalog ships for, by the id a preset carries in data.device.
+const (
+	HXStomp    = 2162694
+	HXStompXL  = 2162699
+	HelixFloor = 2162689
+	HelixLT    = 2162692
+)
+
+// packed is each device's catalog, still compressed.
+var packed = map[int][]byte{
+	HXStomp:    builtIn,
+	HXStompXL:  stompXL,
+	HelixFloor: helixFloor,
+	HelixLT:    helixLT,
+}
 
 // BuiltIn returns the catalog compiled into this binary.
+//
+// The HX Stomp's. It is the device everything here was written against, the
+// only one that has been written to over USB, and the only one the corpus
+// statistics describe. For another, see For.
 func BuiltIn() (*Catalog, error) { return decode(builtIn) }
+
+// For returns the built-in catalog for one device.
+//
+// By the id a preset carries in data.device, which is also what filtered the
+// model table when the catalog was generated.
+//
+// Only an HX Stomp has been checked against real hardware. The other three are
+// read from Line 6's own files and describe devices nobody here has written
+// to.
+func For(
+	device int,
+) (*Catalog, error) {
+	body, ok := packed[device]
+	if !ok {
+		return nil, &NoDeviceError{Device: device}
+	}
+
+	return decode(body)
+}
 
 // decode reads a gzipped catalog.
 //
