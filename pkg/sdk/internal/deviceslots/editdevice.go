@@ -46,20 +46,17 @@ var ErrSameSlot = fileslots.ErrSameSlot
 // makes it into something, so it is refused before anything is kept or
 // written.
 type EmptySwapError struct {
-	// Empty are the slots that hold no preset, in the order the swap named
-	// them.
-	Empty []slotpkg.Address
+	// First and Second are the two slots the swap named, in that order.
+	// Both hold no preset: one that did would be a move, so there is no
+	// other shape this error comes in.
+	First, Second slotpkg.Address
 }
 
 // Error implements the error interface.
 func (e *EmptySwapError) Error() string {
-	labels := make([]string, 0, len(e.Empty))
-	for _, at := range e.Empty {
-		labels = append(labels, slotpkg.Label(at.Slot))
-	}
-
-	return fmt.Sprintf("%v: %s, so there is nothing to swap",
-		ErrEmptySlot, strings.Join(labels, " and "))
+	return fmt.Sprintf("%v: %s and %s, so there is nothing to swap",
+		ErrEmptySlot,
+		slotpkg.Label(e.First.Slot), slotpkg.Label(e.Second.Slot))
 }
 
 // Unwrap returns ErrEmptySlot, so callers can match it.
@@ -111,6 +108,13 @@ type applier func(context.Context, device.Editor, slotpkg.Address, slotpkg.Addre
 type edited struct {
 	// from and to are what the two slots were called before the write.
 	from, to string
+	// replaced is what the destination held before, when it held anything.
+	// A move replaces nothing, and naming what the slot was called would
+	// report something lost when nothing was.
+	replaced string
+	// action is what the edit turned out to be, when that is not what it
+	// was asked for. A swap with one empty side carries out a move.
+	action result.Action
 	// kept are the backups written before anything was overwritten.
 	kept []string
 }
@@ -161,11 +165,17 @@ func edit(
 		return result.Change{}, err
 	}
 
+	// What it turned out to be, when that differs from what was asked for: a
+	// swap with one empty side is carried out as a move.
+	if did.action != "" {
+		action = did.action
+	}
+
 	return result.Change{
 		Action:   action,
 		From:     &result.At{Slot: from.Slot, Name: did.from},
 		To:       result.At{Slot: to.Slot, Name: did.to},
-		Replaced: did.to,
+		Replaced: did.replaced,
 		Kept:     did.kept,
 	}, nil
 }
@@ -209,7 +219,7 @@ func (f *Flows) copyOne(
 			slotpkg.Label(to.Slot), err), kept)
 	}
 
-	return edited{from: fromName, to: toName, kept: kept}, nil
+	return edited{from: fromName, to: toName, replaced: toName, kept: kept}, nil
 }
 
 // swapTwo exchanges what two slots hold.
@@ -243,7 +253,7 @@ func (f *Flows) swapTwo(
 	// Both read first, so the refusal can name both empty sides, and before
 	// anything is kept or written, so a refused swap changes nothing.
 	if source == nil && destination == nil {
-		return edited{}, &EmptySwapError{Empty: []slotpkg.Address{from, to}}
+		return edited{}, &EmptySwapError{First: from, Second: to}
 	}
 
 	w, err := writerFor(s)
@@ -277,7 +287,16 @@ func (f *Flows) swapTwo(
 		return edited{}, keptError(err, kept)
 	}
 
-	return edited{from: fromName, to: toName, kept: kept}, nil
+	did := edited{from: fromName, to: toName, replaced: toName, kept: kept}
+
+	// A move replaces nothing. The empty side had nothing to lose, and the
+	// preset that moved is still on the device in the other slot, so naming
+	// either as replaced would report a loss that did not happen.
+	if source == nil || destination == nil {
+		did.action, did.replaced = result.MovedPreset, ""
+	}
+
+	return did, nil
 }
 
 // step is one half of a swap: a slot, and what is to be in it. A step

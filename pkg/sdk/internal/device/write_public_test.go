@@ -492,7 +492,7 @@ func (s *WritePublicTestSuite) TestWriteNamedPreset() {
 // The request is compared whole, because the arguments and their order are
 // the half of a device call that cannot be guessed: opcode 16 on the data
 // channel, the setlist and the slot, and no document. That is what went to an
-// HX Stomp on 16 September 2026, after which the slot read back as no
+// HX Stomp on 15 September 2026, after which the slot read back as no
 // document at all.
 func (s *WritePublicTestSuite) TestEmptySlot() {
 	d := s.completes()

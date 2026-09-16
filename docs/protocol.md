@@ -415,8 +415,8 @@ when it has the document, and the erase and program that follow never appear on
 the wire. Waiting on a completion notification that is not coming is not the
 same as pacing, which is what the 750ms settle is for.
 
-**Emptying a slot is a plain request too.** Opcode 16 went to an HX Stomp on 16
-September 2026, on the data channel, carrying `107` for the setlist and `108`
+**Emptying a slot is a plain request too.** On 15 September 2026 opcode 16 went
+to an HX Stomp, on the data channel, carrying `107` for the setlist and `108`
 for the slot and nothing else. The pedal answered status 0 with no error, and
 the slot, which had held a 2387-byte preset, then read back as no document at
 all: the same answer a slot nobody has ever written gives. The slot was put back

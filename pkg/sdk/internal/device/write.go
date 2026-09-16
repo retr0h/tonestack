@@ -113,7 +113,7 @@ func (s *session) WriteNamedPreset(
 // and it is what lets a swap with one empty side be a move.
 //
 // Sent on the data channel with the setlist and the slot, and nothing else.
-// Verified on an HX Stomp on 16 September 2026: status 0, no error, and a
+// Verified on an HX Stomp on 15 September 2026: status 0, no error, and a
 // slot holding a 2387-byte preset then read back as no document at all.
 //
 // Waits the flash pause afterwards, as a write does. The device answered it

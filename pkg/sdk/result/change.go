@@ -64,6 +64,13 @@ const (
 	Copied Action = "copied"
 	// Swapped is two slots exchanged.
 	Swapped Action = "swapped"
+	// MovedPreset is a swap with one empty slot: the preset went into the
+	// empty slot and the slot it came from was emptied. Nothing was
+	// replaced, which is what tells it apart from a swap.
+	//
+	// Named the long way because Moved in this package is already what a
+	// character term did to a parameter.
+	MovedPreset Action = "moved"
 	// Imported is a preset from a file put into a slot.
 	Imported Action = "written"
 	// Selected is a slot loaded the way a footswitch loads one, which

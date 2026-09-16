@@ -67,6 +67,13 @@ func moved(
 	// file to go and look at. A file says where it was written, because
 	// there is.
 	done := fmt.Sprintf("%s, replacing %s", c.Action, c.Replaced)
+
+	// A move replaces nothing, and neither does a swap into a slot nobody
+	// named. Saying "replacing" with nothing after it reads as a bug.
+	if c.Replaced == "" {
+		done = string(c.Action)
+	}
+
 	if !c.OnDevice() {
 		done = fmt.Sprintf("%s, wrote %s", c.Action, c.Path)
 	}

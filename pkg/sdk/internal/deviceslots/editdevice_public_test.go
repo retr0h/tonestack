@@ -234,10 +234,14 @@ func (s *EditDevicePublicTestSuite) expectWrite(
 // first names which side holds nothing. The empty goes second in both cases,
 // so a device that fails between the two leaves the preset in both slots
 // rather than in neither.
+//
+// writeRefused is the case that order exists for: the preset never lands, and
+// no EmptySlot is set up at all, so calling one fails the test.
 func (s *EditDevicePublicTestSuite) expectMove(
 	first string,
 	toSetlist, toSlot int,
 	toName string,
+	writeRefused bool,
 	refused bool,
 	after *gomock.Call,
 ) *gomock.Call {
@@ -251,9 +255,16 @@ func (s *EditDevicePublicTestSuite) expectMove(
 		emptySetlist, emptySlot = toSetlist, toSlot
 	}
 
-	write := s.expectWrite(setlist, slot, name, true)
+	write := s.expectWrite(setlist, slot, name, !writeRefused)
 	if after != nil {
 		write.After(after)
+	}
+
+	// A preset that never landed leaves the slot it came from holding the
+	// only copy. No EmptySlot is set up, so a call to one is an unexpected
+	// call and gomock fails the test: that is the assertion.
+	if writeRefused {
+		return write
 	}
 
 	empty := s.dev.MockWriter.EXPECT().
@@ -511,6 +522,11 @@ func (s *EditDevicePublicTestSuite) TestSwap() {
 		moves string
 		// the device refuses the empty that finishes a move.
 		emptyRefused bool
+		// the device refuses the write that starts a move, so nothing may be
+		// emptied.
+		writeRefused bool
+		// the caller stops waiting while a move's write is going out.
+		cancelsOnMove bool
 
 		contains string
 		// how many backups the error names.
@@ -596,7 +612,7 @@ func (s *EditDevicePublicTestSuite) TestSwap() {
 			reads:    []string{"answered", "empty"},
 			moves:    "second",
 			keptIn:   []string{"01A-s0-"},
-			contains: "swapped",
+			contains: "moved",
 		},
 		{
 			// The same move the other way round. What 02A holds goes into
@@ -607,7 +623,32 @@ func (s *EditDevicePublicTestSuite) TestSwap() {
 			reads:    []string{"empty", "answered"},
 			moves:    "first",
 			keptIn:   []string{"02A-s0-"},
-			contains: "swapped",
+			contains: "moved",
+		},
+		{
+			// The claim the order rests on. The preset never reached the
+			// empty slot, so the slot it came from must still hold it: no
+			// EmptySlot is set up, and calling one fails the test. Reverse
+			// the two steps in exchange and this row is what catches it.
+			name:         "a move whose write is refused, which empties nothing",
+			listed:       true,
+			reads:        []string{"answered", "empty"},
+			moves:        "second",
+			writeRefused: true,
+			is:           errWriteRefused,
+			keptInErr:    1,
+			errText:      "writing slot 02A",
+		},
+		{
+			// The empty that finishes a move is owed what a swap's second
+			// write is owed: a caller who gives up once the preset has
+			// landed would otherwise leave it in two slots, which is a move
+			// half done.
+			name:          "a caller who stops waiting during a move's write",
+			listed:        true,
+			reads:         []string{"answered", "empty"},
+			cancelsOnMove: true,
+			contains:      "moved",
 		},
 		{
 			// Failing between the two calls: the preset landed and the slot
@@ -705,6 +746,27 @@ func (s *EditDevicePublicTestSuite) TestSwap() {
 					After(first)
 			}
 
+			if tt.cancelsOnMove {
+				// The preset lands and the caller gives up while it does.
+				// The empty that finishes the move is handed a context of
+				// its own, so ctx.Err() here is nil; without that it would
+				// be context.Canceled and the move would stop with the
+				// preset in both slots.
+				write := s.dev.MockWriter.EXPECT().
+					WriteNamedPreset(gomock.Any(), toSetlist, toSlot, "Chunky Monkey", s.answer()).
+					DoAndReturn(func(context.Context, int, int, string, []byte) error {
+						cancel()
+
+						return nil
+					})
+				s.dev.MockWriter.EXPECT().
+					EmptySlot(gomock.Any(), 0, 0).
+					DoAndReturn(func(ctx context.Context, _, _ int) error {
+						return ctx.Err()
+					}).
+					After(write)
+			}
+
 			// A device that failed halfway through would leave one slot
 			// holding a copy of the other and the original gone, so both
 			// slots are read before either is written.
@@ -721,8 +783,8 @@ func (s *EditDevicePublicTestSuite) TestSwap() {
 			}
 
 			if tt.moves != "" {
-				last = s.expectMove(
-					tt.moves, toSetlist, toSlot, toName, tt.emptyRefused, last)
+				last = s.expectMove(tt.moves, toSetlist, toSlot, toName,
+					tt.writeRefused, tt.emptyRefused, last)
 			}
 
 			for i, outcome := range tt.writes {
@@ -764,8 +826,17 @@ func (s *EditDevicePublicTestSuite) TestSwap() {
 
 			s.Require().NoError(err)
 			s.Require().Contains(did(change), tt.contains)
-			s.Require().Equal(toName, change.Replaced,
-				"what the second slot was called, in its own setlist")
+
+			// A move replaces nothing, so there is nothing to name. An
+			// exchange says what the second slot stopped being, read in its
+			// own setlist.
+			if tt.moves != "" || tt.cancelsOnMove {
+				s.Require().Empty(change.Replaced,
+					"a move replaced nothing, so nothing is named")
+			} else {
+				s.Require().Equal(toName, change.Replaced,
+					"what the second slot was called, in its own setlist")
+			}
 
 			if tt.keptIn != nil {
 				s.Require().Len(change.Kept, len(tt.keptIn))

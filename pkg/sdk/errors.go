@@ -30,7 +30,8 @@ import (
 )
 
 // EmptySwapError is a swap refused because neither slot holds a preset. It
-// matches ErrEmptySlot, and Empty names both slots.
+// matches ErrEmptySlot, and First and Second name the two slots in the order
+// the swap named them.
 //
 // One empty side is a move and is carried out: the preset goes into the empty
 // slot and the slot it came from is emptied. Two empty sides is nothing to

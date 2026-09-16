@@ -22,7 +22,7 @@ on 7 September 2026: a preset copied into an empty slot, two slots exchanged,
 and a preset built from a recipe written into a third and read back with the
 gear it was asked for.
 
-Emptying a slot was verified on the same pedal on 16 September 2026, which is
+Emptying a slot was verified on the same pedal on 15 September 2026, which is
 what lets `swap` move a preset: see
 [A named slot can still be empty](#a-named-slot-can-still-be-empty).
 
@@ -146,7 +146,7 @@ reads only names.
 A slot can be empty in two ways on the wire. A read of one slot can come back
 with no document at all, or with a whole document holding no blocks.
 `wire.Blank` is the second kind, captured from slot `02B` on firmware 2.92. The
-first kind is what opcode 16 leaves behind, verified on an HX Stomp on 16
+first kind is what opcode 16 leaves behind, verified on an HX Stomp on 15
 September 2026: a slot holding a preset read back afterwards as no document at
 all.
 

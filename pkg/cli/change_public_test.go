@@ -88,6 +88,19 @@ func (s *ChangePublicTestSuite) TestChange() {
 			want: []string{"kept", "/tmp/01B.hlx", "swapped, replacing Second"},
 		},
 		{
+			// A move replaces nothing: the slot it went to held nothing, and
+			// the preset is still on the device. "replacing" with nothing
+			// after it would read as a bug.
+			name: "a preset moved into a slot that held nothing",
+			in: sdk.Change{
+				Action: sdk.MovedPreset,
+				From:   &from,
+				To:     sdk.At{Slot: 1, Name: "First"},
+				Kept:   []string{"/tmp/01A.hlx"},
+			},
+			want: []string{"01A", "01B", "moved"},
+		},
+		{
 			name: "a preset written into a slot on a device",
 			in: sdk.Change{
 				Action: sdk.Imported,

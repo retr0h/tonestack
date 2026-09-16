@@ -116,6 +116,9 @@ const (
 	Copied = result.Copied
 	// Swapped is two slots exchanged.
 	Swapped = result.Swapped
+	// MovedPreset is a swap with one empty slot: the preset went into the
+	// empty slot and the slot it came from was emptied.
+	MovedPreset = result.MovedPreset
 	// Imported is a preset from a file put into a slot.
 	Imported = result.Imported
 	// Selected is a slot loaded the way a footswitch loads one, which
