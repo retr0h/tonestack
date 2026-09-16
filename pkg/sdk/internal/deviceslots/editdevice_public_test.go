@@ -602,11 +602,36 @@ func (s *EditDevicePublicTestSuite) TestSwap() {
 			// Both slots are kept before either is written, and the second of
 			// the two fails. The first is already on disk, holding a preset
 			// nothing else names, so the error says where it is.
-			name:      "a second slot it cannot keep",
-			listed:    true,
-			reads:     []string{"garbage", "answered"},
-			keptInErr: 1,
-			errText:   "before replacing it",
+			// The second slot answers with bytes that are not a preset. What
+			// a slot holds is decided as it is read, so this stops at the
+			// read and nothing is written or kept. Before a swap read both
+			// slots through the reader it failed later, while the backup was
+			// being taken, which is what this row used to assert.
+			name:    "a second slot that is not a preset",
+			listed:  true,
+			reads:   []string{"answered", "garbage"},
+			errText: "reading slot 02A",
+		},
+		{
+			// Bytes that are not a preset, on the slot read first. What a
+			// slot holds is decided as it is read, so this stops there and
+			// nothing is kept: the backup the other row names is written
+			// only once the first slot has been read successfully.
+			name:    "a first slot that is not a preset",
+			listed:  true,
+			reads:   []string{"garbage"},
+			errText: "not a preset",
+		},
+		{
+			// A device answering for the slot with nothing at all, rather
+			// than with the blank preset an HX Stomp sends. Both mean the
+			// slot holds nothing, so this is the same move.
+			name:     "a slot the device answers for with nothing",
+			listed:   true,
+			reads:    []string{"answered", "silent"},
+			moves:    "second",
+			keptIn:   []string{"01A"},
+			contains: "moved",
 		},
 		{
 			name:    "the first slot, which it cannot read",
