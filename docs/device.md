@@ -26,6 +26,19 @@ Emptying a slot was verified on the same pedal on 15 September 2026, which is
 what lets `swap` move a preset: see
 [A named slot can still be empty](#a-named-slot-can-still-be-empty).
 
+Snapshots and routing were verified on the same pedal on 16 September 2026. A
+preset carrying three snapshots that differ in name, tempo, colour and which
+blocks each one switches was written to a slot and read back with all four
+intact, and HX Edit showed the three recalling different blocks. The names
+survived a power cycle. A preset carrying an output gain of -7.5, a noise gate
+threshold of -31 and a split balanced 0.125 against 0.875 was written to another
+slot and read back with every value, none of them the untouched preset's.
+
+One thing that looks wrong and is not. A snapshot's tempo is stored and read
+back correctly, and HX Edit still shows the preset's tempo for all three,
+because the device has a global Tempo Select setting deciding whether tempo
+follows a snapshot at all.
+
 Two things had to be right, and each produced a different failure.
 
 **A document goes out under the tag a device uses.** A device sends a preset
