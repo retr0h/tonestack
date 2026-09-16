@@ -23,6 +23,8 @@ package deviceslots
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 
 	"github.com/retr0h/tonestack/pkg/sdk/internal/device"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/fileslots"
@@ -31,6 +33,11 @@ import (
 	"github.com/retr0h/tonestack/pkg/sdk/result"
 	slotpkg "github.com/retr0h/tonestack/pkg/sdk/slot"
 )
+
+// rawExt is what a backup of a slot nothing could read a chain out of is
+// called. The bytes in it are the device's own, so putting one back writes
+// them as they are. See the backup package's rules 3 and 4.
+const rawExt = ".bin"
 
 // Import puts a preset file into a slot on the given session.
 //
@@ -45,14 +52,33 @@ func (f *Flows) Import(
 	file string,
 	at slotpkg.Address,
 ) (result.Change, error) {
-	doc, err := fileslots.ReadPreset(ctx, file)
-	if err != nil {
-		return result.Change{}, err
-	}
+	// A .bin is what a backup holds for a slot nothing could read a chain
+	// out of: the device's own bytes, kept exactly as they arrived. There is
+	// no document in it to rebuild from and no name inside it, so it goes
+	// back the way it came off, and the slot keeps whatever it is called.
+	raw := filepath.Ext(file) == rawExt
 
-	body, err := f.documentFor(ctx, doc)
-	if err != nil {
-		return result.Change{}, err
+	var (
+		body []byte
+		doc  *preset.Document
+		err  error
+	)
+
+	if raw {
+		body, err = os.ReadFile(file) //nolint:gosec // the path is the user's own file
+		if err != nil {
+			return result.Change{}, fmt.Errorf("reading %s: %w", file, err)
+		}
+	} else {
+		doc, err = fileslots.ReadPreset(ctx, file)
+		if err != nil {
+			return result.Change{}, err
+		}
+
+		body, err = f.documentFor(ctx, doc)
+		if err != nil {
+			return result.Change{}, err
+		}
 	}
 
 	// Before the backup rather than after it: a session that cannot write
@@ -76,7 +102,11 @@ func (f *Flows) Import(
 		return result.Change{}, err
 	}
 
-	name := doc.Data.Meta.Name
+	// A .bin carries no name of its own, so the slot keeps the one it has.
+	name := nameOf(found, at.Slot)
+	if !raw {
+		name = doc.Data.Meta.Name
+	}
 
 	if err := writer.WriteNamedPreset(ctx, at.Setlist, at.Slot, name, body); err != nil {
 		return result.Change{}, keptError(fmt.Errorf(

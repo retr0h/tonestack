@@ -83,6 +83,21 @@ func (s *ImportDevicePublicTestSuite) preset() string {
 	return filepath.Join("..", "compile", "testdata", "preset0.hlx")
 }
 
+// missingKept names a .bin that was never written, so reading it fails
+// before the device is asked anything.
+func (s *ImportDevicePublicTestSuite) missingKept() string {
+	return filepath.Join(s.T().TempDir(), "07A-s0-never-written.bin")
+}
+
+// kept writes a .bin backup: the device's own bytes for a slot, exactly as
+// the backup package keeps them when nothing can read a chain out of it.
+func (s *ImportDevicePublicTestSuite) kept() string {
+	path := filepath.Join(s.T().TempDir(), "07A-s0-20260916-000000.000000000.bin")
+	s.Require().NoError(os.WriteFile(path, s.answer(), 0o600))
+
+	return path
+}
+
 // unknownGear writes a preset naming a model no catalog carries.
 func (s *ImportDevicePublicTestSuite) unknownGear() string {
 	path := filepath.Join(s.T().TempDir(), "unknown.hlx")
@@ -157,6 +172,25 @@ func (s *ImportDevicePublicTestSuite) TestImport() {
 			writes:      true,
 			destination: "held",
 			keptAs:      "Minor Threat",
+		},
+		{
+			// A backup of a slot nothing could read a chain out of, put
+			// back. The bytes are the device's own, so they go out as they
+			// are rather than being rebuilt, and the slot keeps the name it
+			// has: a .bin carries none.
+			name:        "a .bin backup put back",
+			file:        "kept",
+			destination: "held",
+			keptAs:      "Minor Threat",
+			contains:    []string{"03B", "written", "Minor Threat"},
+		},
+		{
+			// A .bin nobody can read. The bytes are the whole of what goes
+			// to the slot, so there is nothing to write and the device is
+			// never asked anything.
+			name:    "a .bin it cannot read",
+			file:    "gone",
+			errText: "reading",
 		},
 		{
 			name:     "a destination it cannot name",
@@ -243,6 +277,18 @@ func (s *ImportDevicePublicTestSuite) TestImport() {
 				file = s.unknownGear()
 			case "crowded":
 				file = s.crowded()
+			case "gone":
+				file = s.missingKept()
+			case "kept":
+				file = s.kept()
+
+				// The whole of a raw restore: what the device is handed is
+				// the file, byte for byte, under the name the slot already
+				// has. Rebuilt or re-encoded bytes would leave the offset
+				// table pointing at the wrong places.
+				s.dev.MockWriter.EXPECT().
+					WriteNamedPreset(gomock.Any(), 0, 7, "Minor Threat", s.answer()).
+					Return(nil)
 			default:
 				file = tt.file
 			}
