@@ -118,6 +118,30 @@ What the device can do is a different question from what people do with it. See
 Ampeg SVT's bright channel; the median across the presets using it is 0.85. Both
 are facts, and the catalog only knows the first.
 
+## Four devices ship in the binary
+
+| device      | id        | blocks |
+| ----------- | --------- | ------ |
+| HX Stomp    | `2162694` | 665    |
+| HX Stomp XL | `2162699` | 665    |
+| Helix Floor | `2162689` | 674    |
+| Helix LT    | `2162692` | 665    |
+
+One model table, filtered four ways by the devices each model lists itself as
+supporting. About 74KB gzipped each.
+
+`catalog.BuiltIn()` returns the HX Stomp's. `catalog.For` takes the id a preset
+carries in `data.device` and returns that device's.
+
+Two limits worth knowing before trusting one of the other three. The corpus
+statistics are HX Stomp presets only, so a rig built against another device's
+catalog gets the model table and none of the measured starting values or added
+blocks. And only an HX Stomp has been written to over USB, so the other three
+are read from Line 6's own files and have never been checked against the
+hardware they describe.
+
+Nothing chooses a catalog by device on its own yet.
+
 ## Regenerating it
 
 ```bash

@@ -56,12 +56,19 @@ func (s *StalePublicTestSuite) TestTheCatalogMatchesTheInstalledRelease() {
 		s.T().Skip("no HX Edit installed; nothing to check the catalog against")
 	}
 
-	built, err := catalog.BuiltIn()
-	s.Require().NoError(err)
+	// Every catalog, not only the HX Stomp's. All four are built from one
+	// release in one run, so one of them lagging means a run that stopped
+	// part way, and the others would go on looking current.
+	for _, device := range []int{
+		catalog.HXStomp, catalog.HXStompXL, catalog.HelixFloor, catalog.HelixLT,
+	} {
+		built, err := catalog.For(device)
+		s.Require().NoError(err)
 
-	s.Require().Equal(installed, built.Source,
-		"%s is installed and the embedded catalog came from %q — run `just catalog`",
-		installed, built.Source)
+		s.Require().Equal(installed, built.Source,
+			"%s is installed and %s's embedded catalog came from %q — run `just catalog`",
+			installed, built.Device, built.Source)
+	}
 }
 
 func TestStalePublicTestSuite(

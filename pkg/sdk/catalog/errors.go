@@ -29,6 +29,23 @@ import (
 // value does not fit the declared type or range.
 var ErrBadParam = errors.New("invalid parameter")
 
+// ErrNoDevice reports a device this binary ships no catalog for.
+var ErrNoDevice = errors.New("no built-in catalog")
+
+// NoDeviceError names the device that was asked for.
+type NoDeviceError struct {
+	// Device is the id a preset carries in data.device.
+	Device int
+}
+
+// Error implements the error interface.
+func (e *NoDeviceError) Error() string {
+	return fmt.Sprintf("no catalog is built in for device %d", e.Device)
+}
+
+// Unwrap returns ErrNoDevice so callers can match with errors.Is.
+func (*NoDeviceError) Unwrap() error { return ErrNoDevice }
+
 // BadParamError names the block, the parameter and why it was rejected.
 type BadParamError struct {
 	Model  string

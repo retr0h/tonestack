@@ -52,6 +52,26 @@ func root() (string, error) {
 	return dir, nil
 }
 
+// devices are the catalogs this binary ships, one per device the tool can
+// write a preset for.
+//
+// The id is what a preset carries in data.device, and it is also what filters
+// the model table: each model names the devices that support it, so one set of
+// Line 6 resources yields a different catalog per device.
+//
+// The HX Stomp is first because it is the device everything here was written
+// against and the only one any measured figure comes from.
+var devices = []struct {
+	name string
+	id   int
+	file string
+}{
+	{"HX Stomp", 2162694, "hx-stomp.json.gz"},
+	{"HX Stomp XL", 2162699, "hx-stomp-xl.json.gz"},
+	{"Helix Floor", 2162689, "helix-floor.json.gz"},
+	{"Helix LT", 2162692, "helix-lt.json.gz"},
+}
+
 func main() {
 	dir, err := root()
 	if err != nil {
@@ -59,24 +79,27 @@ func main() {
 		os.Exit(1)
 	}
 
-	r, err := catalogen.Refresh(catalogen.Options{
-		ResourcesDir: catalogen.DefaultResourcesDir,
-		GearMapPath:  filepath.Join(dir, "resources", "schemas", "gear-map.json"),
-		DeviceName:   "HX Stomp",
-		DeviceID:     2162694,
-		OutputPath:   filepath.Join(dir, "pkg", "sdk", "catalog", "data", "hx-stomp.json.gz"),
-	})
+	for _, d := range devices {
+		r, err := catalogen.Refresh(catalogen.Options{
+			ResourcesDir: catalogen.DefaultResourcesDir,
+			GearMapPath:  filepath.Join(dir, "resources", "schemas", "gear-map.json"),
+			DeviceName:   d.name,
+			DeviceID:     d.id,
+			OutputPath:   filepath.Join(dir, "pkg", "sdk", "catalog", "data", d.file),
+		})
 
-	switch {
-	case err != nil:
-		fmt.Fprintln(os.Stderr, "catalog:", err)
-		os.Exit(1)
-	case r.Skipped != "":
-		fmt.Println("catalog: skipped,", r.Skipped)
-	case !r.Changed:
-		fmt.Printf("catalog: unchanged, %d blocks from %s\n", r.Blocks, r.Source)
-	default:
-		fmt.Printf("catalog: wrote %d blocks from %s, %d mapped to real gear\n",
-			r.Blocks, r.Source, r.Named)
+		switch {
+		case err != nil:
+			fmt.Fprintf(os.Stderr, "catalog %s: %v\n", d.name, err)
+			os.Exit(1)
+		case r.Skipped != "":
+			fmt.Printf("catalog %s: skipped, %s\n", d.name, r.Skipped)
+		case !r.Changed:
+			fmt.Printf("catalog %s: unchanged, %d blocks from %s\n",
+				d.name, r.Blocks, r.Source)
+		default:
+			fmt.Printf("catalog %s: wrote %d blocks from %s, %d mapped to real gear\n",
+				d.name, r.Blocks, r.Source, r.Named)
+		}
 	}
 }
