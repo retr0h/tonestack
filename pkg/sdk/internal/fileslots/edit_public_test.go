@@ -90,6 +90,7 @@ func (s *EditPublicTestSuite) TestCopy() {
 		// what the first slots must hold afterwards.
 		want     []string
 		contains []string
+		is       error
 		errText  string
 	}{
 		{
@@ -97,6 +98,17 @@ func (s *EditPublicTestSuite) TestCopy() {
 			to:       slotpkg.Address{Slot: 1},
 			want:     []string{"First", "First"},
 			contains: []string{"copied", "01A", "01B"},
+		},
+		{
+			// Refused before the file is opened, the way the device flows
+			// refuse it and with their error. A copy onto the slot it came
+			// from moves nothing, so a file written for it would be a backup
+			// of a change nobody made.
+			name:    "a slot copied onto itself",
+			from:    slotpkg.Address{Slot: 1},
+			to:      slotpkg.Address{Slot: 1},
+			is:      fileslots.ErrSameSlot,
+			errText: "01B",
 		},
 		{
 			name:    "a file that is not there",
@@ -155,6 +167,10 @@ func (s *EditPublicTestSuite) TestCopy() {
 				s.Require().ErrorContains(err, tt.errText)
 				s.Require().NoFileExists(out)
 
+				if tt.is != nil {
+					s.Require().ErrorIs(err, tt.is)
+				}
+
 				return
 			}
 
@@ -181,12 +197,20 @@ func (s *EditPublicTestSuite) TestSwap() {
 		path    string
 		a, b    slotpkg.Address
 		want    []string
+		is      error
 		errText string
 	}{
 		{
 			name: "two slots, each holding what the other did",
 			b:    slotpkg.Address{Slot: 1},
 			want: []string{"Second", "First"},
+		},
+		{
+			// A slot exchanged with itself holds what it held, so there is
+			// nothing to write a file for.
+			name:    "a slot swapped with itself",
+			is:      fileslots.ErrSameSlot,
+			errText: "01A",
 		},
 		{
 			name:    "a file that is not there",
@@ -222,6 +246,11 @@ func (s *EditPublicTestSuite) TestSwap() {
 
 			if tt.errText != "" {
 				s.Require().ErrorContains(err, tt.errText)
+				s.Require().NoFileExists(out)
+
+				if tt.is != nil {
+					s.Require().ErrorIs(err, tt.is)
+				}
 
 				return
 			}

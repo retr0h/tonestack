@@ -22,11 +22,21 @@ package fileslots
 
 import (
 	"context"
+	"errors"
+	"fmt"
 
 	"github.com/retr0h/tonestack/pkg/sdk/internal/setlist"
 	"github.com/retr0h/tonestack/pkg/sdk/result"
 	slotpkg "github.com/retr0h/tonestack/pkg/sdk/slot"
 )
+
+// ErrSameSlot is a copy or a swap whose two slots are one slot.
+//
+// Declared here rather than beside the device flows because those import this
+// package and not the other way round. Both refuse the same thing with the
+// same error, so a caller matching it does not have to ask whether the slots
+// were on disk or on hardware.
+var ErrSameSlot = errors.New("the source and the destination are the same slot")
 
 // Copy overwrites one slot of a file with another and writes the result.
 //
@@ -71,6 +81,14 @@ func edit(
 	action result.Action,
 	apply func(*setlist.Document, setlist.Address, setlist.Address) error,
 ) (result.Change, error) {
+	// Before the file is read: moving a slot onto itself changes nothing, and
+	// writing a file for it would leave somebody holding a copy of the input
+	// under a name that says an edit happened.
+	if src == dst {
+		return result.Change{}, fmt.Errorf("%w: %s",
+			ErrSameSlot, slotpkg.Label(src.Slot))
+	}
+
 	doc, err := open(ctx, path)
 	if err != nil {
 		return result.Change{}, err
