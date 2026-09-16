@@ -83,6 +83,12 @@ func (s *ImportDevicePublicTestSuite) preset() string {
 	return filepath.Join("..", "compile", "testdata", "preset0.hlx")
 }
 
+// missingKept names a .bin that was never written, so reading it fails
+// before the device is asked anything.
+func (s *ImportDevicePublicTestSuite) missingKept() string {
+	return filepath.Join(s.T().TempDir(), "07A-s0-never-written.bin")
+}
+
 // kept writes a .bin backup: the device's own bytes for a slot, exactly as
 // the backup package keeps them when nothing can read a chain out of it.
 func (s *ImportDevicePublicTestSuite) kept() string {
@@ -179,6 +185,14 @@ func (s *ImportDevicePublicTestSuite) TestImport() {
 			contains:    []string{"03B", "written", "Minor Threat"},
 		},
 		{
+			// A .bin nobody can read. The bytes are the whole of what goes
+			// to the slot, so there is nothing to write and the device is
+			// never asked anything.
+			name:    "a .bin it cannot read",
+			file:    "gone",
+			errText: "reading",
+		},
+		{
 			name:     "a destination it cannot name",
 			unlisted: true,
 			errText:  "listing presets",
@@ -263,6 +277,8 @@ func (s *ImportDevicePublicTestSuite) TestImport() {
 				file = s.unknownGear()
 			case "crowded":
 				file = s.crowded()
+			case "gone":
+				file = s.missingKept()
 			case "kept":
 				file = s.kept()
 
