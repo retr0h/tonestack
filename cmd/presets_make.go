@@ -73,6 +73,7 @@ func init() {
 	)
 	f.StringVar(&presetsMakeClient.catalog, "catalog", "",
 		"a generated catalog to use instead of the built-in one")
+	f.StringVar(&presetsMakeClient.device, "device", "", deviceUsage)
 	f.StringVar(&presetsMakeClient.stats, "stats", "",
 		"measured corpus statistics to use instead of the built-in ones")
 	f.StringVar(&presetsMakeOut, "out", "", "where to write the preset")

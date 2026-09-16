@@ -168,6 +168,67 @@ func (s *ClientPublicTestSuite) TestWithCatalog() {
 	}
 }
 
+// TestWithDevice covers using the built-in catalog for another pedal.
+//
+// Checked against the name the listing carries rather than how many blocks it
+// holds. A Helix LT carries the same 665 as an HX Stomp, so a count would pass
+// for the wrong reason on the one case most worth pinning down.
+func (s *ClientPublicTestSuite) TestWithDevice() {
+	tests := []struct {
+		name   string
+		device string
+		want   string
+		err    bool
+	}{
+		{
+			// The common case, and the device everything here was written
+			// against.
+			name: "nothing said about it", want: "HX Stomp",
+		},
+		{name: "a device that ships", device: "Helix Floor", want: "Helix Floor"},
+		{name: "loosely matched", device: "helix-lt", want: "Helix LT"},
+		{name: "a device nothing ships for", device: "Kemper", err: true},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			got, err := sdk.New(sdk.WithDevice(tt.device)).
+				Blocks(context.Background(), sdk.Filter{})
+
+			if tt.err {
+				s.Require().Error(err)
+				// The useful half of the message: naming what it does carry.
+				s.Require().Contains(err.Error(), "HX Stomp")
+
+				return
+			}
+
+			s.Require().NoError(err)
+			s.Require().Equal(tt.want, got.Device)
+		})
+	}
+}
+
+// TestWithCatalogBeatsWithDevice covers which of the two wins.
+//
+// A catalog somebody generated themselves is a stronger statement than the
+// name of a device this binary happens to carry. Nothing else would notice
+// this being reversed.
+func (s *ClientPublicTestSuite) TestWithCatalogBeatsWithDevice() {
+	floor, err := sdk.New(sdk.WithDevice("Helix Floor")).
+		Blocks(context.Background(), sdk.Filter{})
+	s.Require().NoError(err)
+
+	got, err := sdk.New(
+		sdk.WithCatalog(fixture("catalog.json")),
+		sdk.WithDevice("Helix Floor"),
+	).Blocks(context.Background(), sdk.Filter{})
+	s.Require().NoError(err)
+
+	s.Require().NotEqual(floor.Total, got.Total,
+		"the catalog somebody named is the one that was read")
+}
+
 // TestWithStats covers naming statistics other than the built-in ones.
 func (s *ClientPublicTestSuite) TestWithStats() {
 	_, err := sdk.New(sdk.WithStats("no.json.gz")).

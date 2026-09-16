@@ -90,6 +90,7 @@ func init() {
 	f.Var(&presetsExportAs, "as", "rigspec for a rig, hlx for the device's own file")
 	f.StringVar(&presetsExportClient.catalog, "catalog", "",
 		"a generated catalog to use instead of the built-in one")
+	f.StringVar(&presetsExportClient.device, "device", "", deviceUsage)
 	// Fails only for a flag that does not exist, and these are defined above.
 	_ = presetsExportCmd.MarkFlagRequired("slot")
 	_ = presetsExportCmd.MarkFlagRequired("out")

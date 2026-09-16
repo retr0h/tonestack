@@ -50,6 +50,7 @@ tonestack catalog <command> [flags]
 | flag | takes | default | what it does |
 | --- | --- | --- | --- |
 | `--catalog` | string |  | a generated catalog to read instead of the built-in one |
+| `--device` | string |  | which pedal's built-in catalog to use: HX Stomp, HX Stomp XL, Helix Floor or Helix LT |
 
 ## tonestack catalog list
 
@@ -118,6 +119,7 @@ tonestack corpus show [flags]
 | flag | takes | default | what it does |
 | --- | --- | --- | --- |
 | `--catalog` | string |  | a generated catalog to use instead of the built-in one |
+| `--device` | string |  | which pedal's built-in catalog to use: HX Stomp, HX Stomp XL, Helix Floor or Helix LT |
 | `--instrument` | string |  | limit the chain grammar to guitar or bass |
 | `--model` | string |  | show one model's parameter distributions, by identifier |
 | `--stats` | string |  | measured statistics to use instead of the built-in ones |
@@ -233,6 +235,7 @@ tonestack presets compile [flags]
 | flag | takes | default | what it does |
 | --- | --- | --- | --- |
 | `--catalog` | string |  | a generated catalog to use instead of the built-in one |
+| `--device` | string |  | which pedal's built-in catalog to use: HX Stomp, HX Stomp XL, Helix Floor or Helix LT |
 | `--out` | string |  | where to write the preset |
 | `--rig` | string |  | the rig to compile |
 | `--template` | string |  | a preset to write the chain into, instead of an untouched one |
@@ -253,6 +256,7 @@ tonestack presets copy [flags]
 | --- | --- | --- | --- |
 | `--backup-dir` | string |  | where to keep what a device slot held; the state directory by default |
 | `--catalog` | string |  | a generated catalog to use instead of the built-in one |
+| `--device` | string |  | which pedal's built-in catalog to use: HX Stomp, HX Stomp XL, Helix Floor or Helix LT |
 | `--file` | string |  | a .hls setlist or .hlb backup written by HX Edit |
 | `--from` | slot | `01A` | slot to read — a label such as 31A, or a number from zero |
 | `--from-setlist` | int |  | which setlist the source is in |
@@ -279,6 +283,7 @@ tonestack presets export [flags]
 | --- | --- | --- | --- |
 | `--as` | string | `rigspec` | rigspec for a rig, hlx for the device's own file |
 | `--catalog` | string |  | a generated catalog to use instead of the built-in one |
+| `--device` | string |  | which pedal's built-in catalog to use: HX Stomp, HX Stomp XL, Helix Floor or Helix LT |
 | `--file` | string |  | a .hls setlist or .hlb backup written by HX Edit |
 | `--out` | string |  | where to write it |
 | `--setlist` | int |  | which setlist, when the file is a backup holding several |
@@ -308,6 +313,7 @@ tonestack presets import [flags]
 | --- | --- | --- | --- |
 | `--backup-dir` | string |  | where to keep what a device slot held; the state directory by default |
 | `--catalog` | string |  | a catalog to resolve models against, when writing to a device |
+| `--device` | string |  | which pedal's built-in catalog to use: HX Stomp, HX Stomp XL, Helix Floor or Helix LT |
 | `--file` | string |  | a .hls setlist or .hlb backup written by HX Edit |
 | `--out` | string |  | where to write the edited setlist |
 | `--preset` | string |  | the .hlx preset to place, or a .bin backup to put back |
@@ -334,6 +340,7 @@ tonestack presets list [flags]
 | --- | --- | --- | --- |
 | `--all` |  |  | include empty slots |
 | `--catalog` | string |  | a generated catalog to use instead of the built-in one |
+| `--device` | string |  | which pedal's built-in catalog to use: HX Stomp, HX Stomp XL, Helix Floor or Helix LT |
 | `--file` | string |  | a .hls setlist or .hlb backup written by HX Edit |
 | `--setlist` | int |  | which setlist, when the file is a backup holding several |
 
@@ -352,6 +359,7 @@ tonestack presets make [flags]
 | flag | takes | default | what it does |
 | --- | --- | --- | --- |
 | `--catalog` | string |  | a generated catalog to use instead of the built-in one |
+| `--device` | string |  | which pedal's built-in catalog to use: HX Stomp, HX Stomp XL, Helix Floor or Helix LT |
 | `--id` | string |  | recipe to build from |
 | `--out` | string |  | where to write the preset |
 | `--recipes` | string |  | a directory of recipes to use instead of yours, beside the built-in ones |
@@ -393,6 +401,7 @@ tonestack presets show [flags]
 | flag | takes | default | what it does |
 | --- | --- | --- | --- |
 | `--catalog` | string |  | a generated catalog to use instead of the built-in one |
+| `--device` | string |  | which pedal's built-in catalog to use: HX Stomp, HX Stomp XL, Helix Floor or Helix LT |
 | `--file` | string |  | a .hls setlist or .hlb backup written by HX Edit |
 | `--preset` | string |  | a standalone .hlx preset file to read |
 | `--setlist` | int |  | which setlist, when the file is a backup holding several |
@@ -416,6 +425,7 @@ tonestack presets swap [flags]
 | --- | --- | --- | --- |
 | `--backup-dir` | string |  | where to keep what a device slot held; the state directory by default |
 | `--catalog` | string |  | a generated catalog to use instead of the built-in one |
+| `--device` | string |  | which pedal's built-in catalog to use: HX Stomp, HX Stomp XL, Helix Floor or Helix LT |
 | `--file` | string |  | a .hls setlist or .hlb backup written by HX Edit |
 | `--from` | slot | `01A` | slot to read — a label such as 31A, or a number from zero |
 | `--from-setlist` | int |  | which setlist the source is in |

@@ -23,6 +23,7 @@ package catalog
 import (
 	"errors"
 	"fmt"
+	"strings"
 )
 
 // ErrBadParam reports a parameter that does not exist on a block, or whose
@@ -31,6 +32,26 @@ var ErrBadParam = errors.New("invalid parameter")
 
 // ErrNoDevice reports a device this binary ships no catalog for.
 var ErrNoDevice = errors.New("no built-in catalog")
+
+// UnknownDeviceError names a device nothing here ships a catalog for.
+//
+// With the ones it does, because the answer to "that is not a device I carry"
+// is the list of devices it carries.
+type UnknownDeviceError struct {
+	// Name is what was asked for.
+	Name string
+	// Known is every device a catalog ships for.
+	Known []string
+}
+
+// Error implements the error interface.
+func (e *UnknownDeviceError) Error() string {
+	return fmt.Sprintf("no catalog is built in for %q: this binary carries %s",
+		e.Name, strings.Join(e.Known, ", "))
+}
+
+// Unwrap returns ErrNoDevice so callers can match with errors.Is.
+func (*UnknownDeviceError) Unwrap() error { return ErrNoDevice }
 
 // NoDeviceError names the device that was asked for.
 type NoDeviceError struct {

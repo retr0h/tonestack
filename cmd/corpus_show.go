@@ -70,6 +70,7 @@ func init() {
 		"measured statistics to use instead of the built-in ones")
 	f.StringVar(&corpusShowClient.catalog, "catalog", "",
 		"a generated catalog to use instead of the built-in one")
+	f.StringVar(&corpusShowClient.device, "device", "", deviceUsage)
 	corpusShowCmd.MarkFlagsMutuallyExclusive("model", "instrument")
 }
 

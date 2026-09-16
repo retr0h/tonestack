@@ -78,6 +78,10 @@ type Client struct {
 type options struct {
 	// catalog is a generated catalog. Empty means the built-in one.
 	catalog string
+	// device names which built-in catalog to use, for somebody whose pedal is
+	// not the HX Stomp everything here was written against. Empty means that
+	// one. An explicit catalog wins over it.
+	device string
 	// stats is measured corpus statistics. Empty means the built-in ones.
 	stats string
 	// recipes is a directory of rigs. Empty means the ones that ship.
@@ -104,6 +108,21 @@ func WithCatalog(
 	path string,
 ) Option {
 	return func(o *options) { o.catalog = path }
+}
+
+// WithDevice uses the built-in catalog for a named device.
+//
+// For somebody whose pedal is not the HX Stomp. Loosely matched, so "Helix
+// LT", "helix lt" and "helix-lt" all reach the same catalog, and a name
+// nothing ships for is reported when the catalog is opened, naming the ones
+// that do.
+//
+// WithCatalog wins over this: a catalog somebody generated themselves is a
+// stronger statement than the name of a device this binary happens to carry.
+func WithDevice(
+	name string,
+) Option {
+	return func(o *options) { o.device = name }
 }
 
 // WithStats reads corpus statistics instead of the built-in ones.
@@ -244,7 +263,7 @@ func (c *Client) Catalog(
 		return c.cat, nil
 	}
 
-	cat, err := catalog.Open(c.opts.catalog)
+	cat, err := c.openCatalog()
 	if err != nil {
 		return nil, err
 	}
@@ -252,6 +271,24 @@ func (c *Client) Catalog(
 	c.cat = cat
 
 	return cat, nil
+}
+
+// openCatalog reads whichever catalog this Client was told to use.
+//
+// A path somebody gave wins: a catalog they generated themselves is a
+// stronger statement than the name of a device this binary happens to carry.
+// Then a named device, and then the HX Stomp everything here was written
+// against.
+func (c *Client) openCatalog() (*catalog.Catalog, error) {
+	if c.opts.catalog != "" {
+		return catalog.Open(c.opts.catalog)
+	}
+
+	if c.opts.device != "" {
+		return catalog.ForName(c.opts.device)
+	}
+
+	return catalog.BuiltIn()
 }
 
 // Devices reports the hardware attached to this machine.
