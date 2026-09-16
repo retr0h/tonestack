@@ -29,23 +29,36 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/suite"
 
+	"github.com/retr0h/tonestack/pkg/sdk/internal/atomicfile"
+	"github.com/retr0h/tonestack/pkg/sdk/internal/backup"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/device"
+	"github.com/retr0h/tonestack/pkg/sdk/internal/deviceslots"
 	"github.com/retr0h/tonestack/pkg/sdk/internal/wire"
 	"github.com/retr0h/tonestack/pkg/sdk/slot"
 )
 
+// Run on hardware once, on 15 September 2026: an HX Stomp, with
+// TONESTACK_SCRATCH_SLOT=42B.
+//
+// The pedal answered status 0. The slot then read back as no document at all,
+// which is the answer a slot nobody has ever written gives, and the restore
+// put its 2387 bytes back byte for byte. What that means for the protocol is
+// recorded in docs/protocol.md and not repeated here.
+//
+// One pedal, one firmware, one run. A second run, on another firmware, is
+// still wanted, and that is what this is kept re-runnable for.
+
 // opEmptySlot is opcode 16, which docs/protocol.md lists as "empty a slot" on
 // the data channel taking a setlist and a slot.
 //
-// Nothing in this repository has ever sent it. The opcode, its channel and its
-// arguments come from reading other people's implementations, and the status
-// table in that document does not mark it verified. That is the whole reason
-// this file exists.
+// The opcode, its channel and its arguments come from reading other people's
+// implementations. Sending it is the whole reason this file exists.
 const opEmptySlot = 16
 
 // The argument keys opcode 16 takes: which setlist, and which slot in it. The
@@ -72,12 +85,18 @@ const experimentSetlist = 0
 // uses, for the same reason.
 const flashPause = 750 * time.Millisecond
 
+// keptDirVar names the directory the copy of the scratch slot is written to.
+//
+// Unset, the copy goes where the SDK already keeps what it is about to
+// overwrite. Set, it goes where a run can watch it appear.
+const keptDirVar = "TONESTACK_EXPERIMENT_DIR"
+
 // EmptySlotPublicTestSuite asks an attached HX Stomp what opcode 16 does.
 //
-// An experiment, not an assertion. Nobody has established that a device
-// accepts this opcode at all, so the pedal refusing it is a result worth
-// having rather than a failure: the test passes as long as it ran and put the
-// slot back. What it observed is reported with t.Log.
+// An experiment, not an assertion. One pedal answering once does not settle
+// what an opcode does, so a pedal refusing it is a result worth having rather
+// than a failure: the test passes as long as it ran and put the slot back.
+// What it observed is reported with t.Log.
 //
 // The question it settles is whether a swap with an empty slot can become a
 // move. A swap is currently refused when either side is empty, because this
@@ -94,10 +113,11 @@ type EmptySlotPublicTestSuite struct {
 
 // TestEmptyASlot sends opcode 16 at the scratch slot and says what came back.
 //
-// In order: read the slot and keep both its document and its name, register
-// putting it back, send the opcode, read the slot again and describe exactly
-// which of the four cases it is. The restore is registered before anything is
-// sent, so it runs whether or not the rest of the test survives.
+// In order: read the slot, keep its document and its name, write that copy to
+// disk, register putting it back, send the opcode, read the slot again and
+// describe exactly which of the four cases it is. Nothing is sent until the
+// copy is on disk, and the restore is registered before it is sent, so it runs
+// whether or not the rest of the test survives.
 //
 // Raw through the session's own exchange path, which is the seam this package
 // already exposes to its tests. Nothing in production gains a way to send an
@@ -158,13 +178,18 @@ func (s *EmptySlotPublicTestSuite) TestEmptyASlot() {
 	// reading one slot costs two calls. Putting the slot back needs both.
 	name := s.nameOf(ctx, session, scratch)
 
-	t.Logf("%s holds %q, %d bytes, kept in memory for the restore",
-		slot.Label(scratch), name, len(before))
+	// On disk before a single byte of opcode 16 goes out. keepOnDisk fails the
+	// test rather than returning, so a copy that could not be written stops the
+	// experiment instead of risking a preset against memory alone.
+	kept := s.keepOnDisk(ctx, scratch, name, before)
+
+	t.Logf("%s holds %q, %d bytes, copied to %s before anything is sent",
+		slot.Label(scratch), name, len(before), kept)
 
 	// Registered before the opcode goes out, so the slot is put back even if
 	// sending it fails, if reading it back fails, or if the test panics.
 	t.Cleanup(func() {
-		restoreScratch(ctx, t, session, scratch, name, before)
+		restoreScratch(ctx, t, session, scratch, name, before, kept)
 	})
 
 	resp, err := session.Call(ctx, device.DataChannel, opEmptySlot, []wire.Arg{
@@ -195,6 +220,101 @@ func (s *EmptySlotPublicTestSuite) TestEmptyASlot() {
 
 	t.Logf("after opcode %d, %s reads as: %s",
 		opEmptySlot, slot.Label(scratch), describeSlot(before, after))
+}
+
+// keepOnDisk writes what the scratch slot holds to a file and returns its
+// path.
+//
+// A copy held in memory dies with the process, and a restore that fails then
+// has nothing behind it. This is what makes the experiment safe to re-run: it
+// happens before anything is sent, and it fails the test rather than returning
+// empty-handed, so a copy that could not be written stops the run.
+//
+// Through the SDK's own backup keeper, so the copy lands where every other
+// overwrite in this project puts one, under the same policy: .hlx when the
+// slot decodes, so it can be imported back, and the device's own bytes as
+// .bin when it does not. A slot whose bytes the keeper cannot read at all is
+// an error here, and by stopping the run it leaves that pedal untouched.
+func (s *EmptySlotPublicTestSuite) keepOnDisk(
+	ctx context.Context,
+	at int,
+	name string,
+	body []byte,
+) string {
+	dir := keptDir(s.T())
+
+	kept, err := backup.New(dir, deviceslots.NewDecoder(&deviceslots.Flows{})).
+		Keep(ctx, backup.Held{
+			At:   slot.Address{Setlist: experimentSetlist, Slot: at},
+			Name: name,
+			Body: body,
+		})
+	s.Require().NoError(err,
+		"could not keep a copy of %s, so nothing was sent to the pedal",
+		slot.Label(at))
+
+	path := ""
+	if len(kept) > 0 {
+		path = kept[0]
+	}
+
+	// The keeper writes nothing for a slot holding no blocks that nobody has
+	// renamed, because nothing in it is anybody's. That is a fair policy for a
+	// write and the wrong one here: this needs a file on disk before it sends,
+	// whatever the slot holds, so the bytes go down as they came off the
+	// device.
+	if path == "" {
+		path = filepath.Join(dir, fmt.Sprintf("%s-s%d-%s.bin",
+			slot.Label(at), experimentSetlist,
+			time.Now().UTC().Format("20060102-150405.000000000")))
+
+		s.Require().NoError(os.MkdirAll(dir, 0o750),
+			"could not make room for a copy of %s in %s", slot.Label(at), dir)
+		s.Require().NoError(atomicfile.WriteNew(path, body, 0o600),
+			"could not write a copy of %s to %s", slot.Label(at), path)
+	}
+
+	// Asked of the filesystem rather than assumed, because "the copy was
+	// written" is the one claim the rest of this test rests on.
+	info, err := os.Stat(path)
+	s.Require().NoError(err,
+		"the copy of %s is not at %s, so nothing was sent to the pedal",
+		slot.Label(at), path)
+	s.Require().NotZero(info.Size(),
+		"the copy of %s at %s is an empty file, so nothing was sent to the pedal",
+		slot.Label(at), path)
+
+	return path
+}
+
+// keptDir is the directory the copy goes in.
+//
+// TONESTACK_EXPERIMENT_DIR when it is set. Otherwise the state directory the
+// SDK keeps backups in, worked out the way that package works it out:
+// $XDG_STATE_HOME/tonestack/presets, or ~/.local/state/tonestack/presets. It
+// is spelled out rather than borrowed because the directory is needed here
+// too, for the file written when the keeper's policy keeps nothing.
+//
+// Deliberately not t.TempDir(), which is deleted when the test ends and would
+// take the only copy of somebody's preset with it.
+func keptDir(
+	t *testing.T,
+) string {
+	if named := os.Getenv(keptDirVar); named != "" {
+		return named
+	}
+
+	if state := os.Getenv("XDG_STATE_HOME"); state != "" {
+		return filepath.Join(state, "tonestack", "presets")
+	}
+
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Fatalf("finding somewhere to keep a copy of the slot: %v; "+
+			"set %s to a directory this may write to", err, keptDirVar)
+	}
+
+	return filepath.Join(home, ".local", "state", "tonestack", "presets")
 }
 
 // nameOf reads what the device calls a slot.
@@ -265,10 +385,9 @@ func describeSlot(
 // restoreScratch puts the kept copy back and says whether it landed.
 //
 // Reported rather than asserted, because it runs after the test body and a
-// failure here has to say what state the pedal was left in. The copy is in
-// memory only, so a restore that fails leaves the slot as the experiment left
-// it and there is nothing on disk to recover it from: that is said plainly
-// rather than implied.
+// failure here has to say what state the pedal was left in. The bytes come
+// from memory, and every way this can fail names the file they were also
+// written to, so whoever ran it knows what to import and where it is.
 //
 // Named, because a write without one leaves whatever the slot was called,
 // which after emptying it may be nothing.
@@ -279,29 +398,34 @@ func restoreScratch(
 	at int,
 	name string,
 	kept []byte,
+	path string,
 ) {
 	if err := session.WriteNamedPreset(ctx, experimentSetlist, at, name, kept); err != nil {
 		t.Errorf("could not put %s back: %v; the pedal is left as the experiment "+
-			"left it, and the only copy was in memory", slot.Label(at), err)
+			"left it, and what the slot held is on disk at %s: import that",
+			slot.Label(at), err, path)
 
 		return
 	}
 
 	back, err := session.ReadPreset(ctx, experimentSetlist, at)
 	if err != nil {
-		t.Errorf("could not read %s after putting it back: %v", slot.Label(at), err)
+		t.Errorf("could not read %s after putting it back: %v; what it held is "+
+			"on disk at %s", slot.Label(at), err, path)
 
 		return
 	}
 
 	if !bytes.Equal(kept, back) {
 		t.Errorf("%s did not come back byte for byte: it now holds %d bytes "+
-			"where it held %d", slot.Label(at), len(back), len(kept))
+			"where it held %d; what it held is on disk at %s: import that",
+			slot.Label(at), len(back), len(kept), path)
 
 		return
 	}
 
-	t.Logf("%s put back as it was, %d bytes under %q", slot.Label(at), len(kept), name)
+	t.Logf("%s put back as it was, %d bytes under %q; the copy at %s is no "+
+		"longer needed", slot.Label(at), len(kept), name, path)
 }
 
 func TestEmptySlotPublicTestSuite(
