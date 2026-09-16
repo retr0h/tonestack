@@ -84,6 +84,7 @@ func init() {
 	)
 	f.StringVar(&presetsShowClient.catalog, "catalog", "",
 		"a generated catalog to use instead of the built-in one")
+	f.StringVar(&presetsShowClient.device, "device", "", deviceUsage)
 	presetsShowCmd.MarkFlagsMutuallyExclusive("file", "preset")
 	presetsShowCmd.MarkFlagsMutuallyExclusive("preset", "slot")
 

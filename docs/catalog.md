@@ -7,13 +7,14 @@ it reads, and run `just generate`.
 
 ## It ships in the binary
 
-`pkg/sdk/catalog/data/hx-stomp.json.gz` is committed and embedded: 665 blocks,
-1.5MB of JSON compressed to about 59KB.
+`pkg/sdk/catalog/data/` holds one committed and embedded catalog per device,
+each about 1MB of JSON compressed to about 74KB. The HX Stomp's is the default,
+at 665 blocks.
 
 **Nobody needs HX Edit to use this project.** Generating a catalog does; using
-one does not, and that distinction is the whole reason the file is committed
-rather than built on demand. A `--catalog` flag overrides the built-in one for
-anybody who has generated their own.
+one does not, and that distinction is the whole reason the files are committed
+rather than built on demand. `--device` names another pedal's, and `--catalog`
+reads one somebody generated themselves.
 
 ## Two sources, joined
 
@@ -140,7 +141,19 @@ blocks. And only an HX Stomp has been written to over USB, so the other three
 are read from Line 6's own files and have never been checked against the
 hardware they describe.
 
-Nothing chooses a catalog by device on its own yet.
+`--device` picks one on the command line, beside the `--catalog` that reads a
+generated file:
+
+```bash
+tonestack catalog list --device "Helix Floor" --category amp
+tonestack presets compile --device helix-lt --rig mike-dirnt --out lead.hlx
+```
+
+The name is matched loosely, so `Helix LT`, `helix lt` and `helix-lt` all reach
+the same catalog, and a name nothing ships for is refused with the list of names
+that work. `--catalog` wins over `--device`: a catalog somebody generated
+themselves is a stronger statement than the name of a device this binary happens
+to carry.
 
 ## Regenerating it
 

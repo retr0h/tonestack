@@ -34,7 +34,8 @@ var catalogShowCmd = &cobra.Command{
 	Short: "Show one block's parameters",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		block, err := newClient(sdk.WithCatalog(catalogPath)).
+		block, err := newClient(
+			sdk.WithCatalog(catalogPath), sdk.WithDevice(catalogDevice)).
 			Block(cmd.Context(), catalogShowModel)
 		if err != nil {
 			return cli.Hint(err)

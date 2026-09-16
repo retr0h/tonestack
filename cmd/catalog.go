@@ -36,8 +36,13 @@ installation with go generate, and nobody using tonestack has to.`,
 // catalogPath is where list and show read the catalog from.
 var catalogPath string
 
+// catalogDevice names which built-in catalog list and show read.
+var catalogDevice string
+
 func init() {
 	rootCmd.AddCommand(catalogCmd)
 	catalogCmd.PersistentFlags().StringVar(&catalogPath, "catalog",
 		"", "a generated catalog to read instead of the built-in one")
+	catalogCmd.PersistentFlags().StringVar(&catalogDevice, "device",
+		"", deviceUsage)
 }

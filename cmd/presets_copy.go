@@ -96,6 +96,7 @@ func editFlags(
 	f.StringVar(&o.out, "out", "", "where to write the edited setlist")
 	f.StringVar(&k.catalog, "catalog", "",
 		"a generated catalog to use instead of the built-in one")
+	f.StringVar(&k.device, "device", "", deviceUsage)
 	f.StringVar(&k.backupDir, "backup-dir", "",
 		"where to keep what a device slot held; the state directory by default")
 	// Fails only for a flag that does not exist, and these are defined above.

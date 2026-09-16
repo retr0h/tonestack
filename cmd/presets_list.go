@@ -93,6 +93,7 @@ func init() {
 	)
 	f.StringVar(&presetsListClient.catalog, "catalog", "",
 		"a generated catalog to use instead of the built-in one")
+	f.StringVar(&presetsListClient.device, "device", "", deviceUsage)
 	f.BoolVar(&presetsListAll, "all", false, "include empty slots")
 }
 
