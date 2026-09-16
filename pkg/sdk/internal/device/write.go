@@ -35,6 +35,10 @@ const (
 	// opWriteNamed writes a document and names it, which is what a paste or
 	// an import does.
 	opWriteNamed = 8
+	// opEmptySlot takes away what a slot holds. It is the one operation
+	// here that produces what a device answers for a slot nobody has
+	// written, which nothing can build a document for.
+	opEmptySlot = 16
 )
 
 // Argument keys a write uses beyond the ones a read does.
@@ -98,6 +102,32 @@ func (s *session) WriteNamedPreset(
 		wire.Number(argSlot, uint64(slot)),
 		wire.Text(argName, name),
 		wire.Blob(argDocument, document),
+	})
+}
+
+// EmptySlot takes away what a slot holds.
+//
+// Afterwards the slot answers with no document at all, which is what a slot
+// nobody has ever written answers with. That is the one state this project
+// cannot produce by writing, because there is no document to write for it,
+// and it is what lets a swap with one empty side be a move.
+//
+// Sent on the data channel with the setlist and the slot, and nothing else.
+// Verified on an HX Stomp on 16 September 2026: status 0, no error, and a
+// slot holding a 2387-byte preset then read back as no document at all.
+//
+// Waits the flash pause afterwards, as a write does. The device answered it
+// as a plain request, so nothing observed says a deferred commit follows; the
+// pause is not for this call but for the next one. Whatever an empty does to
+// flash is not on the wire either, and a write landing straight after it
+// would stack on top of it, which is the case the pause exists for.
+func (s *session) EmptySlot(
+	ctx context.Context,
+	setlist, slot int,
+) error {
+	return s.write(ctx, opEmptySlot, []wire.Arg{
+		wire.Number(argSetlist, uint64(setlist)),
+		wire.Number(argSlot, uint64(slot)),
 	})
 }
 

@@ -121,6 +121,9 @@ type Writer interface {
 	WriteNamedPreset(
 		ctx context.Context, setlist, slot int, name string, document []byte,
 	) error
+	// EmptySlot takes away what a slot holds, leaving it as a slot nobody
+	// has written.
+	EmptySlot(ctx context.Context, setlist, slot int) error
 }
 
 // Selector is a session that can change which preset a device is playing.

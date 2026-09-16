@@ -398,10 +398,11 @@ tonestack presets show [flags]
 
 Exchange two presets.
 
-This is what moving a preset means here. Leaving the source blank would mean
-writing an empty preset, and an empty preset is not empty: it carries the
-inputs, outputs, split and join a device expects, which differ by model and by
-firmware. Swapping invents nothing and undoes itself when repeated.
+This is also how a preset is moved. When one of the two slots holds no preset
+the exchange is a move: the preset lands in the empty slot, and the slot it
+came from is emptied the way the device empties one, so nothing is invented.
+Two slots that both hold no preset are refused, because there is nothing to
+move.
 
 ```text
 tonestack presets swap [flags]

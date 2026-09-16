@@ -228,6 +228,45 @@ func (s *EditDevicePublicTestSuite) expectWrite(
 	return call.Return(nil)
 }
 
+// expectMove sets up the two calls a swap makes when one slot is empty: the
+// preset written into the empty slot, then the slot it came from emptied.
+//
+// first names which side holds nothing. The empty goes second in both cases,
+// so a device that fails between the two leaves the preset in both slots
+// rather than in neither.
+func (s *EditDevicePublicTestSuite) expectMove(
+	first string,
+	toSetlist, toSlot int,
+	toName string,
+	refused bool,
+	after *gomock.Call,
+) *gomock.Call {
+	// The second slot is the empty one: what the source holds goes there,
+	// and the source is emptied.
+	setlist, slot, name := toSetlist, toSlot, "Chunky Monkey"
+	emptySetlist, emptySlot := 0, 0
+
+	if first == "first" {
+		setlist, slot, name = 0, 0, toName
+		emptySetlist, emptySlot = toSetlist, toSlot
+	}
+
+	write := s.expectWrite(setlist, slot, name, true)
+	if after != nil {
+		write.After(after)
+	}
+
+	empty := s.dev.MockWriter.EXPECT().
+		EmptySlot(gomock.Any(), emptySetlist, emptySlot).
+		After(write)
+
+	if refused {
+		return empty.Return(errWriteRefused)
+	}
+
+	return empty.Return(nil)
+}
+
 // TestCopy writes one slot of a device over another.
 func (s *EditDevicePublicTestSuite) TestCopy() {
 	tests := []struct {
@@ -466,6 +505,12 @@ func (s *EditDevicePublicTestSuite) TestSwap() {
 		cancelsOnFirstWrite bool
 		// the backup directory is still empty afterwards.
 		nothingKept bool
+		// which side holds no preset, when that turns the swap into a move:
+		// "first" or "second". The preset lands in the empty slot and the
+		// slot it came from is emptied.
+		moves string
+		// the device refuses the empty that finishes a move.
+		emptyRefused bool
 
 		contains string
 		// how many backups the error names.
@@ -543,23 +588,40 @@ func (s *EditDevicePublicTestSuite) TestSwap() {
 			errText: "reading slot 02A",
 		},
 		{
-			// A move, which would have to leave 02A as empty as the device
-			// leaves an unused slot. Nothing here can write that, so nothing
-			// is kept or written. No write is expected, so one would fail.
-			name:        "a first slot that holds no preset",
-			listed:      true,
-			reads:       []string{"empty", "answered"},
-			nothingKept: true,
-			is:          deviceslots.ErrEmptySlot,
-			errText:     "no preset: 01A, and a swap would have to leave 02A empty",
+			// A move. 02A takes what 01A held and 01A is emptied, which is
+			// what opcode 16 does. Only 01A is kept: a slot holding nothing
+			// has nothing to lose.
+			name:     "a second slot that holds no preset",
+			listed:   true,
+			reads:    []string{"answered", "empty"},
+			moves:    "second",
+			keptIn:   []string{"01A-s0-"},
+			contains: "swapped",
 		},
 		{
-			name:        "a second slot that holds no preset",
-			listed:      true,
-			reads:       []string{"answered", "empty"},
-			nothingKept: true,
-			is:          deviceslots.ErrEmptySlot,
-			errText:     "no preset: 02A, and a swap would have to leave 01A empty",
+			// The same move the other way round. What 02A holds goes into
+			// 01A first, so the preset is in two slots between the calls and
+			// never in none.
+			name:     "a first slot that holds no preset",
+			listed:   true,
+			reads:    []string{"empty", "answered"},
+			moves:    "first",
+			keptIn:   []string{"02A-s0-"},
+			contains: "swapped",
+		},
+		{
+			// Failing between the two calls: the preset landed and the slot
+			// it came from still holds it. Both slots hold it, which is
+			// worth saying plainly, and the backup is named the way a failed
+			// write's is.
+			name:         "a source it cannot empty",
+			listed:       true,
+			reads:        []string{"answered", "empty"},
+			moves:        "second",
+			emptyRefused: true,
+			is:           errWriteRefused,
+			keptInErr:    1,
+			errText:      "emptying slot 01A",
 		},
 		{
 			name:        "two slots that hold no preset",
@@ -656,6 +718,11 @@ func (s *EditDevicePublicTestSuite) TestSwap() {
 				}
 
 				last = call
+			}
+
+			if tt.moves != "" {
+				last = s.expectMove(
+					tt.moves, toSetlist, toSlot, toName, tt.emptyRefused, last)
 			}
 
 			for i, outcome := range tt.writes {

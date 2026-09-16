@@ -157,7 +157,7 @@ func register(
 	}, h.presetsCopy)
 	gomcp.AddTool(s, &gomcp.Tool{
 		Name:         "presets_swap",
-		Description:  "Exchange two slots. Both are saved to files first. A slot holding no preset is refused, and nothing is written; use presets_copy to fill it.",
+		Description:  "Exchange two slots. Both are saved to files first. One slot holding no preset makes it a move: the preset lands there and the slot it came from is emptied. Two slots holding no preset are refused.",
 		Annotations:  destructive(),
 		OutputSchema: mustOutputSchema[sdk.Change](),
 	}, h.presetsSwap)

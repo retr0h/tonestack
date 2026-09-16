@@ -487,6 +487,41 @@ func (s *WritePublicTestSuite) TestWriteNamedPreset() {
 		"a device reads an unterminated name as running into what follows")
 }
 
+// TestEmptySlot takes what a slot holds away again.
+//
+// The request is compared whole, because the arguments and their order are
+// the half of a device call that cannot be guessed: opcode 16 on the data
+// channel, the setlist and the slot, and no document. That is what went to an
+// HX Stomp on 16 September 2026, after which the slot read back as no
+// document at all.
+func (s *WritePublicTestSuite) TestEmptySlot() {
+	d := s.completes()
+
+	s.Require().NoError(s.session(d).EmptySlot(context.Background(), 0, 3))
+
+	s.Require().Equal(
+		wire.EncodeRequest(wire.Request{
+			Txn:    device.FirstTxn,
+			Opcode: 16,
+			Args:   []wire.Arg{wire.Number(107, 0), wire.Number(108, 3)},
+		}),
+		s.stream(d),
+		"the setlist and the slot, and nothing else")
+}
+
+// TestAnEmptyADeviceRefuses covers the answer a device gives to an opcode or
+// a slot it will not have.
+//
+// An empty goes out as a write does, so a refusal is read the same way: the
+// caller hears no, rather than a slot silently left as it was.
+func (s *WritePublicTestSuite) TestAnEmptyADeviceRefuses() {
+	d := answers(s.ctrl, s.answer(device.FirstTxn, 255))
+
+	err := s.session(d).EmptySlot(context.Background(), 0, 3)
+
+	s.Require().ErrorIs(err, wire.ErrRefused)
+}
+
 // TestAWriteOnAChannelNobodyOpened covers a session that never handshook.
 func (s *WritePublicTestSuite) TestAWriteOnAChannelNobodyOpened() {
 	d := s.completes()

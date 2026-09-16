@@ -214,8 +214,9 @@ func (s *Session) Copy(
 // Swap exchanges what two slots hold. Both are kept first.
 //
 // A swap whose first write landed finishes its second, whoever stops waiting.
-// A slot holding no preset is refused with an EmptySwapError, before anything
-// is kept or written.
+// One slot holding no preset makes it a move: the preset lands in the empty
+// slot and the slot it came from is emptied. Two slots holding no preset are
+// refused with an EmptySwapError, before anything is kept or written.
 func (s *Session) Swap(
 	ctx context.Context,
 	a, b slot.Address,

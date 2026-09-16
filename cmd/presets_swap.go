@@ -20,14 +20,10 @@
 package cmd
 
 import (
-	"errors"
-	"fmt"
-
 	"github.com/spf13/cobra"
 
 	"github.com/retr0h/tonestack/pkg/cli"
 	"github.com/retr0h/tonestack/pkg/sdk"
-	"github.com/retr0h/tonestack/pkg/sdk/slot"
 )
 
 var (
@@ -41,10 +37,11 @@ var presetsSwapCmd = &cobra.Command{
 	Short: "Exchange two slots",
 	Long: `Exchange two presets.
 
-This is what moving a preset means here. Leaving the source blank would mean
-writing an empty preset, and an empty preset is not empty: it carries the
-inputs, outputs, split and join a device expects, which differ by model and by
-firmware. Swapping invents nothing and undoes itself when repeated.`,
+This is also how a preset is moved. When one of the two slots holds no preset
+the exchange is a move: the preset lands in the empty slot, and the slot it
+came from is emptied the way the device empties one, so nothing is invented.
+Two slots that both hold no preset are refused, because there is nothing to
+move.`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		// The operation answers with what it did; saying so is decided here,
@@ -75,22 +72,10 @@ func swapped(
 	if o.file == "" {
 		pedal.claim()
 
-		change, err := client.Swap(cmd.Context(), o.source(), o.destination())
-
-		// The SDK says what went wrong; the next step is a command, and that
-		// is this layer's to name.
-		var empty *sdk.EmptySwapError
-		if errors.As(err, &empty) && empty.Full != nil {
-			full := slot.Label(empty.Full.Slot)
-			hollow := slot.Label(empty.Empty[0].Slot)
-
-			return change, fmt.Errorf(
-				"%w; run tonestack presets copy --from %s --to %s instead, "+
-					"which fills %s and leaves %s as it is",
-				err, full, hollow, hollow, full)
-		}
-
-		return change, err
+		// Nothing to add to what the SDK says. A swap with one empty slot is
+		// carried out as a move, and the only refusal left is two empty
+		// slots, which no other command answers either.
+		return client.Swap(cmd.Context(), o.source(), o.destination())
 	}
 
 	return client.Setlist(o.file).Swap(cmd.Context(), o.source(), o.destination(), o.out)
