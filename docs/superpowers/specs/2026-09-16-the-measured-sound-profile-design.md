@@ -73,6 +73,40 @@ separates them is the largest single rise against the peak: struck notes land
 above 0.94 and everything gradual below 0.1. The definition was replaced on that
 evidence rather than tuned until a test passed.
 
+### The input is somebody's records, and separation is required
+
+Not a DI recording. Nobody hands a tool a clean bass track: the real request is
+"I want to sound like Mike Dirnt, here are his songs, work it out". So the input
+is a corpus of finished records per artist, and isolating the bass from a full
+mix is a requirement rather than an option.
+
+An earlier draft of this record treated separation as undecided and pointed at
+DI recordings as the place to start. That was building for the convenience of
+whoever writes the code rather than for the person asking the question.
+
+A corpus per artist helps more than it costs. One mix is one engineer's
+decisions on one day; several records by the same player, measured and
+aggregated, separate what the player does from what a mastering chain did to
+them. That is the same move the preset corpus already makes, where 721 presets
+give a median rather than one file giving a number.
+
+DI still matters, for one thing only: closing the loop. Playing a known signal
+through a generated preset and measuring the return needs a signal whose source
+is not in question.
+
+**What separation costs.** Every serious option is a Python machine-learning
+model: Demucs, Spleeter, Open-Unmix. There is no Go library, and writing one is
+not an afternoon. This is the same bargain the gear map strikes with Python,
+scaled up: shell out for the job Go cannot do, keep the measurement here.
+
+Crude alternatives do not work, and this was measured rather than assumed. A
+centre-channel extraction with a 250Hz low-pass reads 92% low and a centroid of
+154Hz, which sounds like success until you notice both numbers are circular:
+everything above 250Hz was filtered out, so of course what is left is low. The
+number that gives it away is decay, which drops to 0.13s. That is far too short
+for a bass note ringing, and it reads like kick drum transients dominating the
+band. Kick and bass share those frequencies and a filter cannot tell them apart.
+
 ### WAV only
 
 One format, because a decoder can be trusted with it in a few lines. Anything
@@ -81,12 +115,6 @@ the gear map strikes with Python: shell out for the one job Go should not be
 doing, and keep the part that matters here.
 
 ## What is not decided
-
-**Stem separation.** Measuring a bass part inside a full mix needs the part
-isolated first, and every good option is a Python machine-learning model. That
-is a far heavier dependency than a PDF reader, and it deserves its own decision
-rather than being smuggled in. Not needed for a DI recording or a bass-forward
-track, which is where this starts.
 
 **Whether the character words survive.** The point of measuring first is to find
 out whether the numbers separate the artists the rigs already describe. If a
