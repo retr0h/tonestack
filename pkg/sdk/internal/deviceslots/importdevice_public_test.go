@@ -376,6 +376,21 @@ func (s *ImportDevicePublicTestSuite) TestImport() {
 				"the file's first snapshot is set up and the blank's is not")
 			s.Require().False(got.Snapshots[1].Valid)
 			s.Require().False(got.Snapshots[2].Valid)
+
+			// The file's own routing rather than the blank's. This preset
+			// turns its main output down and an unused slot leaves it at
+			// zero, so the two cannot be mistaken for each other.
+			var main wire.DeviceRouting
+
+			for _, r := range got.Routing {
+				if r.Slot == "outputA" {
+					main = r
+				}
+			}
+
+			s.Require().Len(main.Values, 2, "the main output's pan and gain")
+			s.Require().InDelta(-2.9, main.Values[1], 0.0001,
+				"the gain the file asks for, not the blank's zero")
 		})
 	}
 }

@@ -81,6 +81,12 @@ type Translator interface {
 	// SnapshotStates reads what a preset's own snapshots recall, for writing
 	// them to a device.
 	SnapshotStates(doc *preset.Document) []wire.Snapshot
+	// RoutingStates reads what a preset wraps its chain in, for writing it to
+	// a device. held is what the preset being written into already routes
+	// like, which says how many values each entry takes.
+	RoutingStates(
+		doc *preset.Document, cat *catalog.Catalog, held []wire.DeviceRouting,
+	) []wire.Routing
 }
 
 // Backups keeps what slots held before a write replaces them.

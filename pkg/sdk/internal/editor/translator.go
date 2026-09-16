@@ -105,3 +105,12 @@ func (*Translator) SnapshotStates(
 ) []wire.Snapshot {
 	return SnapshotStates(doc)
 }
+
+// RoutingStates reads what a preset wraps its chain in.
+func (*Translator) RoutingStates(
+	doc *preset.Document,
+	cat *catalog.Catalog,
+	held []wire.DeviceRouting,
+) []wire.Routing {
+	return RoutingStates(doc, cat, held)
+}

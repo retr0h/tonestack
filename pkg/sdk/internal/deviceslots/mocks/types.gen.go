@@ -212,6 +212,20 @@ func (mr *MockTranslatorMockRecorder) Placements(doc, cat any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Placements", reflect.TypeOf((*MockTranslator)(nil).Placements), doc, cat)
 }
 
+// RoutingStates mocks base method.
+func (m *MockTranslator) RoutingStates(doc *preset.Document, cat *catalog.Catalog, held []wire.DeviceRouting) []wire.Routing {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RoutingStates", doc, cat, held)
+	ret0, _ := ret[0].([]wire.Routing)
+	return ret0
+}
+
+// RoutingStates indicates an expected call of RoutingStates.
+func (mr *MockTranslatorMockRecorder) RoutingStates(doc, cat, held any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RoutingStates", reflect.TypeOf((*MockTranslator)(nil).RoutingStates), doc, cat, held)
+}
+
 // SnapshotStates mocks base method.
 func (m *MockTranslator) SnapshotStates(doc *preset.Document) []wire.Snapshot {
 	m.ctrl.T.Helper()

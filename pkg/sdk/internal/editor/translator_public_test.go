@@ -147,6 +147,19 @@ func (s *TranslatorPublicTestSuite) TestSnapshots() {
 		editor.New().Snapshots(s.got))
 }
 
+// TestRoutingStates covers reading a preset's routing, through the type.
+func (s *TranslatorPublicTestSuite) TestRoutingStates() {
+	doc, empty, err := editor.Document(s.got, s.cat, "one")
+	s.Require().NoError(err)
+	s.Require().False(empty)
+
+	held := wire.BlankRouting()
+
+	s.Require().Equal(
+		editor.RoutingStates(doc, s.cat, held),
+		editor.New().RoutingStates(doc, s.cat, held))
+}
+
 // TestSnapshotStates covers reading a preset's own snapshots, through the type.
 func (s *TranslatorPublicTestSuite) TestSnapshotStates() {
 	doc, empty, err := editor.Document(s.got, s.cat, "one")
