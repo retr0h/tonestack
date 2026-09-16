@@ -263,7 +263,10 @@ func (f *Flows) swapTwo(
 		backup.Held{Body: destination, At: to, Name: toName},
 		backup.Held{Body: source, At: from, Name: fromName})
 	if err != nil {
-		return edited{}, err
+		// The first of the two may be on disk already, and nothing else
+		// knows it is there. A backup nobody asked to delete is not this
+		// package's to remove, so the error says where it is instead.
+		return edited{}, keptError(err, kept)
 	}
 
 	if err := w.WriteNamedPreset(ctx, to.Setlist, to.Slot, fromName, source); err != nil {

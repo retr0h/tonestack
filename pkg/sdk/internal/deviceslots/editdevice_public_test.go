@@ -198,6 +198,11 @@ func (s *EditDevicePublicTestSuite) expectRead(
 	case "empty":
 		return reader.EXPECT().ReadPreset(gomock.Any(), setlist, slot).
 			Return(nil, nil)
+	case "garbage":
+		// Answered, so the slot is not empty and the edit goes ahead, and not
+		// a preset, so keeping what it holds fails.
+		return reader.EXPECT().ReadPreset(gomock.Any(), setlist, slot).
+			Return([]byte("not a preset"), nil)
 	default:
 		return reader.EXPECT().ReadPreset(gomock.Any(), setlist, slot).
 			Return(s.answer(), nil)
@@ -514,6 +519,16 @@ func (s *EditDevicePublicTestSuite) TestSwap() {
 			reads:     []string{"answered", "answered"},
 			badBackup: true,
 			errText:   "making room for a backup",
+		},
+		{
+			// Both slots are kept before either is written, and the second of
+			// the two fails. The first is already on disk, holding a preset
+			// nothing else names, so the error says where it is.
+			name:      "a second slot it cannot keep",
+			listed:    true,
+			reads:     []string{"garbage", "answered"},
+			keptInErr: 1,
+			errText:   "before replacing it",
 		},
 		{
 			name:    "the first slot, which it cannot read",

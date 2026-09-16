@@ -83,6 +83,11 @@ func New(
 // Several, because a swap replaces two, and a loop rather than a call each so
 // there is one place a backup can fail rather than one per slot. A slot not
 // kept has nothing to report and is left out.
+//
+// A failure hands back whatever was already written alongside the error. The
+// second of two can fail with the first on disk, and that file is a copy of
+// somebody's preset that nothing else names: removing it would throw away a
+// backup nobody asked to delete, so the caller is told where it is instead.
 func (k *Keeper) Keep(
 	ctx context.Context,
 	held ...Held,
@@ -92,7 +97,7 @@ func (k *Keeper) Keep(
 	for _, one := range held {
 		path, err := k.one(ctx, one)
 		if err != nil {
-			return nil, err
+			return out, err
 		}
 
 		if path == "" {
