@@ -268,6 +268,23 @@ The four positions the routing sits on are left alone, because a snapshot
 records those too and switching one off recalls the chain with its split
 bypassed.
 
+### The routing is part of the chain too
+
+A device lays its input, its split, its join and its output in the same array as
+the blocks: the first position, the two in the middle and the last. A chain is
+written into the other sixteen, so a preset built from a file keeps the routing
+of the slot it was built into. An output gain of -2.9 arrives at zero, and a
+split somebody set arrives as whatever the blank carried.
+
+`PlaceRouting` writes what the source says instead, finding each entry by the
+kind it declares rather than by where one blank happens to keep it.
+
+The values are capped at the length the device itself wrote, because a device
+sends fewer than a model names. An input names seven parameters and sends three,
+an output names three and sends two, and `select` is stored under its own key
+rather than among them. Writing the model's full list would hand a device a
+longer array than it produced.
+
 ### Every float is a float32
 
 A device stores parameters as float32. Writing 0.45 and reading it back gives

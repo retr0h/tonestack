@@ -149,5 +149,16 @@ func (f *Flows) documentFor(
 	// three snapshots recalling the same sound under the blank's names.
 	wire.PlaceSnapshots(out, f.translator().SnapshotStates(doc))
 
+	// And the routing, for the same reason. A chain is written into the
+	// sixteen positions a device gives it and never into the four its input,
+	// split, join and output sit on, so without this a preset keeps the
+	// routing of the slot it was built into rather than the one the file
+	// describes.
+	// The error is a value that will not encode, and everything reaching here
+	// came out of rawValue, which narrows each one to a bool, an integer or a
+	// float. PlaceRouting keeps reporting it for callers that build their own.
+	_ = wire.PlaceRouting(
+		out, f.translator().RoutingStates(doc, cat, wire.BlankRouting()))
+
 	return out.Encode(), nil
 }
