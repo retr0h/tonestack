@@ -140,6 +140,27 @@ func (s *GatePublicTestSuite) TestDecayStopsAtARest() {
 	s.Require().Positive(got.Decay)
 }
 
+// TestANoteStillRingingWhenThePlayingStops is the honest answer's limit.
+//
+// A note cut off before it has fallen to a quarter cannot be said to have
+// decayed in any particular time. All that is known is that it rang until the
+// playing stopped, and that is what comes back: the time to the rest, not the
+// length of the recording and not the silence after it.
+func (s *GatePublicTestSuite) TestANoteStillRingingWhenThePlayingStops() {
+	// A slow decay, cut short: at this rate the note is nowhere near a
+	// quarter of its peak when the silence arrives.
+	const sounding = 0.5
+
+	got := audio.Measure(
+		append(
+			audio.Plucked(110, sounding, rate, 0.8, 0.2),
+			audio.Silence(4.0, rate)...),
+		rate)
+
+	s.Require().InDelta(sounding, got.Decay, 0.05,
+		"it rang until the playing stopped, and no longer")
+}
+
 // TestQuietestIsWhereItSays guards the one number this all turns on.
 func (s *GatePublicTestSuite) TestQuietestIsWhereItSays() {
 	s.Require().InDelta(-40.0, audio.Quietest, 0.001,

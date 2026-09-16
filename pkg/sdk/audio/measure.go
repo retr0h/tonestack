@@ -298,22 +298,15 @@ func decay(
 	}
 
 	for i := at; i < len(levels); i++ {
-		// A rest is not a note dying away. Reaching one means the player
-		// stopped, and timing that would report the gap rather than the
-		// ring, which is what a track full of rests did before this.
-		if !held[i] {
-			break
-		}
-
-		if levels[i] <= peak/4 {
-			return float64(i-at) * float64(frame) / float64(rate)
-		}
-	}
-
-	// It was still sounding when the playing stopped, so all that can be said
-	// is that it rang for at least this long.
-	for i := at; i < len(levels); i++ {
-		if !held[i] {
+		// Either the note has fallen far enough, or the playing stopped while
+		// it was still sounding. Both end the measurement here.
+		//
+		// A rest is not a note dying away: reaching one means the player
+		// stopped, and timing the silence after it would report the gap
+		// rather than the ring, which is what a track full of rests did
+		// before this. What can honestly be said then is that it rang for at
+		// least this long.
+		if !held[i] || levels[i] <= peak/4 {
 			return float64(i-at) * float64(frame) / float64(rate)
 		}
 	}
