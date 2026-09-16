@@ -27,6 +27,7 @@ tonestack <command> [flags]
 | [corpus](#tonestack-corpus) | Work with what real presets say about a device |
 | [devices](#tonestack-devices) | Work with attached Helix hardware |
 | [mcp](#tonestack-mcp) | Serve tonestack to an agent over MCP |
+| [measure](#tonestack-measure) | Measure what a recording sounds like |
 | [presets](#tonestack-presets) | Build and inspect preset files |
 | [recipes](#tonestack-recipes) | Work with curated gear knowledge |
 
@@ -189,6 +190,32 @@ tonestack mcp start [flags]
 | flag | takes | default | what it does |
 | --- | --- | --- | --- |
 | `--allow-writes` |  |  | offer the tools that overwrite slots on the pedal |
+
+## tonestack measure
+
+Read a recording and report it as numbers.
+
+Where the energy sits, where the sound's centre of gravity is, how sharply
+notes start, how long they take to die away, how compressed the playing is,
+and how much sits above the fundamental.
+
+Nothing here decides what those numbers mean. "Warm" and "percussive" are
+judgements two people disagree about; a centroid of 410Hz is not. Turning one
+into the other is somebody else's job, and keeping them apart is what leaves
+anywhere to stand when they disagree.
+
+WAV only. Convert anything else on the way in:
+
+    ffmpeg -i take.mp3 take.wav
+    tonestack measure --file take.wav
+
+```text
+tonestack measure [flags]
+```
+
+| flag | takes | default | what it does |
+| --- | --- | --- | --- |
+| `--file` | string |  | the recording to measure, as a .wav |
 
 ## tonestack presets
 
