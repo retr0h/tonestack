@@ -65,12 +65,21 @@ license-check:
     set -euo pipefail
     missing=0
     while IFS= read -r f; do
+      # Nobody writes generated code, so nobody puts a header on it. The
+      # marker is what Go tooling itself keys on, so a generated file is
+      # skipped whatever it is called and a hand-written one never is.
+      # mockgen puts it on line 1, oapi-codegen under a package comment.
+      generated=$(head -5 "$f")
+      if grep -q '^// Code generated .* DO NOT EDIT\.$' <<<"$generated"; then
+        continue
+      fi
       # //go:build files carry the tag on line 1, blank line, then the header
-      if ! head -3 "$f" | grep -q "Copyright (c)"; then
+      header=$(head -3 "$f")
+      if ! grep -q "Copyright (c)" <<<"$header"; then
         echo "missing licence header: $f" >&2
         missing=$((missing+1))
       fi
-    done < <(find . -name '*.go' -not -path './.git/*' -not -name '*.gen.go' -not -name '*.gen_test.go')
+    done < <(find . -name '*.go' -not -path './.git/*')
     if [ "$missing" -ne 0 ]; then
       echo "$missing file(s) missing the header — see CONTRIBUTING.md" >&2
       exit 1
