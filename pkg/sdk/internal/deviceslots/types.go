@@ -78,6 +78,9 @@ type Translator interface {
 	Placements(doc *preset.Document, cat *catalog.Catalog) ([]wire.Placement, error)
 	// Snapshots carries what the device recalls on a footswitch.
 	Snapshots(got wire.DevicePreset) *[]rig.Snapshot
+	// SnapshotStates reads what a preset's own snapshots recall, for writing
+	// them to a device.
+	SnapshotStates(doc *preset.Document) []wire.Snapshot
 }
 
 // Backups keeps what slots held before a write replaces them.

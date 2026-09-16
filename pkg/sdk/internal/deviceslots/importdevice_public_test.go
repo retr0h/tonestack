@@ -367,6 +367,15 @@ func (s *ImportDevicePublicTestSuite) TestImport() {
 			s.Require().NotEmpty(got.Blocks, "the file's chain reached the device")
 			s.Require().Len(got.Snapshots, 3, "and the snapshots came with it")
 			s.Require().NotEmpty(got.Routing, "and the routing the blank carried")
+
+			// The file's own snapshots rather than the blank's, which ship
+			// with none of the three set up. This preset has the first set up
+			// and the other two not, so the blank's answer and the file's
+			// cannot be mistaken for each other.
+			s.Require().True(got.Snapshots[0].Valid,
+				"the file's first snapshot is set up and the blank's is not")
+			s.Require().False(got.Snapshots[1].Valid)
+			s.Require().False(got.Snapshots[2].Valid)
 		})
 	}
 }

@@ -145,6 +145,9 @@ func Document(
 		}
 	}
 
+	// After the chain, which a snapshot names the entries of.
+	snapshotsInto(doc, got)
+
 	return doc, false, nil
 }
 

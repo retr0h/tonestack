@@ -259,6 +259,15 @@ snapshot is for.
 So a chain written without them recalls the wrong blocks the moment anybody
 presses a snapshot. `Place` writes both or neither.
 
+What it writes is the chain's own state, repeated across all three. That is
+right for a chain nobody has snapshots for and wrong for a preset that arrived
+with three different sounds, which would come back holding one under the names
+the blank shipped with. `PlaceSnapshots` writes what the source recalls instead:
+the name, the tempo, the colour, and which positions each snapshot switches on.
+The four positions the routing sits on are left alone, because a snapshot
+records those too and switching one off recalls the chain with its split
+bypassed.
+
 ### Every float is a float32
 
 A device stores parameters as float32. Writing 0.45 and reading it back gives

@@ -98,3 +98,10 @@ func (*Translator) Snapshots(
 ) *[]rig.Snapshot {
 	return Snapshots(got)
 }
+
+// SnapshotStates reads what a preset's own snapshots recall.
+func (*Translator) SnapshotStates(
+	doc *preset.Document,
+) []wire.Snapshot {
+	return SnapshotStates(doc)
+}

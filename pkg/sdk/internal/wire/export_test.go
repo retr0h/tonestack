@@ -69,6 +69,10 @@ var (
 const (
 	GridSize     = gridSize
 	MsgKeepAlive = msgKeepAlive
+	// The sections a test builds a document without, to cover a preset that
+	// keeps fewer than a device writes.
+	KeyTone      = int8(keyTone)
+	KeySnapshots = int8(keySnapshots)
 )
 
 // Flag returns an argument carrying a boolean. Nothing in the package sends
