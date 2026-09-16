@@ -2,6 +2,12 @@
 #
 # The touring rig, not the Abbey Road one. He went direct on the records as
 # often as not, and the Vox stack of the Beatles years is not modelled here.
+#
+# The gear here is the 1972 and 1973 Wings rig, an Acoustic 360 and 361, and
+# the era this rig names is the tours after it. For the 1975 and 1976 world
+# tour that made Wings Over America he played a power amplifier and preamp
+# into JBLs, which this device does not model at all. So the chain is a stand
+# in, said plainly in the evidence rather than left to be discovered.
 
 schema: RigSpec
 version: 2
@@ -19,15 +25,31 @@ instrument: bass
 chain:
   - role: amp
     gear: Acoustic 360
+    substitute:
+      gear: Acoustic 360
+      evidence:
+        - kind: llm
+          note: >-
+            the tour rig was a power amplifier and a preamp into JBLs, and
+            this device models none of those parts. The Acoustic 360 is the
+            only Wings-era bass amplifier it carries, so it stands in for a
+            rig it is not.
+      confidence: low
     evidence:
-      - kind: user
-        url: https://www.talkbass.com/threads/paul-mccartneys-rig.469978/
-        note: an Acoustic 360/361 on the mid to late seventies Wings tours
+      - kind: cited
+        url: https://guitar.com/features/interviews/paul-mccartney-beatles-wings/
+        note: >-
+          "But the '75/'76 world tour was another matter. He had a pretty
+          sizeable rig there, with two Crown 300A amps and an Audio Master
+          preamp, and these drove a set of JBL speakers, a Roy Clare 2x12
+          midrange bin and JBL horns." John Hammel, McCartney's assistant
+          since the Beatles split, to Mark Cunningham, 18 June 2019. The same
+          passage puts the Acoustic 360 on the 1972 and 1973 tours, not this
+          one.
         caveat: >-
-          this thread blocks automated readers, so it was found by search and
-          not read. Somebody should open it. The equipboard page for his
-          amplifiers does not list an Acoustic at all, and does list Fender
-          Bassman, Mesa and Alembic, so this is the weakest claim here.
+          so the Acoustic 360 here is the wrong tour's amplifier, kept only
+          because nothing models a Crown, an Audio Master or a JBL. What the
+          preset sounds like is a 360, and what he played through was not.
     confidence: low
 
   - role: cab
@@ -40,11 +62,16 @@ chain:
             the device carries a 1x18 named for the 360 rather than the 361.
       confidence: medium
     evidence:
-      - kind: user
-        url: https://www.talkbass.com/threads/paul-mccartneys-rig.469978/
-        note: the 361 cabinet the 360 head drove
-        caveat: the same unread thread
-    confidence: medium
+      - kind: cited
+        url: https://guitar.com/features/interviews/paul-mccartney-beatles-wings/
+        note: >-
+          the same passage gives the 1975 and 1976 tour "a set of JBL
+          speakers, a Roy Clare 2x12 midrange bin and JBL horns", so the 361
+          belongs to the earlier tours along with the 360 head it was part of.
+        caveat: >-
+          nothing here models a JBL or a Roy Clare, so the cabinet is the
+          wrong tour's for the same reason the amplifier is.
+    confidence: low
 
 character:
   - term: mid-forward
