@@ -210,6 +210,13 @@ type DeviceSnapshot struct {
 	LED int
 	// Valid is whether the device considers the snapshot set up.
 	Valid bool
+	// On is which grid positions the snapshot switches on, counted the way
+	// the device lays a chain out rather than the way a preset numbers it.
+	//
+	// What makes a snapshot a snapshot: three of them over one chain are three
+	// sounds, and without this they are three names for the same one. A
+	// position the snapshot says nothing about is absent rather than false.
+	On map[int]bool
 }
 
 // DeviceFootswitch is one thing a switch on the pedal does.
@@ -553,8 +560,39 @@ func snapshotsOf(
 		}
 
 		snap.Valid, _ = entry[int8(keySnapValid)].(bool)
+		snap.On = snapshotStates(entry)
 
 		out = append(out, snap)
+	}
+
+	return out
+}
+
+// snapshotStates reads which grid positions one snapshot switches on.
+//
+// The record runs in step with the grid the device lays a chain out on: one
+// entry per position, each a pair whose second half is whether that position
+// is switched on. A snapshot keeping a shorter record than the grid has
+// nothing to say about the rest of it, and says so by being short.
+func snapshotStates(
+	entry map[any]any,
+) map[int]bool {
+	list, ok := entry[int8(keySnapBypass)].([]any)
+	if !ok {
+		return nil
+	}
+
+	out := make(map[int]bool, len(list))
+
+	for at, e := range list {
+		// A position whose pair is short, or whose second half is not a
+		// boolean, says nothing about itself. No device has sent one, and a
+		// reader that assumed otherwise would switch a block on a guess.
+		if pair, _ := e.([]any); len(pair) > snapBypassOn {
+			if on, ok := pair[snapBypassOn].(bool); ok {
+				out[at] = on
+			}
+		}
 	}
 
 	return out

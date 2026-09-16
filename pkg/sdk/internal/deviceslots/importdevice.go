@@ -143,5 +143,11 @@ func (f *Flows) documentFor(
 		return nil, err
 	}
 
+	// After the chain. Placing it writes every snapshot's record of what is
+	// switched on from the chain itself, which is right for a preset carrying
+	// no snapshots of its own and wrong for one that does: it would leave
+	// three snapshots recalling the same sound under the blank's names.
+	wire.PlaceSnapshots(out, f.translator().SnapshotStates(doc))
+
 	return out.Encode(), nil
 }

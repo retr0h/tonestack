@@ -212,6 +212,20 @@ func (mr *MockTranslatorMockRecorder) Placements(doc, cat any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Placements", reflect.TypeOf((*MockTranslator)(nil).Placements), doc, cat)
 }
 
+// SnapshotStates mocks base method.
+func (m *MockTranslator) SnapshotStates(doc *preset.Document) []wire.Snapshot {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SnapshotStates", doc)
+	ret0, _ := ret[0].([]wire.Snapshot)
+	return ret0
+}
+
+// SnapshotStates indicates an expected call of SnapshotStates.
+func (mr *MockTranslatorMockRecorder) SnapshotStates(doc any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SnapshotStates", reflect.TypeOf((*MockTranslator)(nil).SnapshotStates), doc)
+}
+
 // Snapshots mocks base method.
 func (m *MockTranslator) Snapshots(got wire.DevicePreset) *[]rig.Snapshot {
 	m.ctrl.T.Helper()

@@ -147,6 +147,17 @@ func (s *TranslatorPublicTestSuite) TestSnapshots() {
 		editor.New().Snapshots(s.got))
 }
 
+// TestSnapshotStates covers reading a preset's own snapshots, through the type.
+func (s *TranslatorPublicTestSuite) TestSnapshotStates() {
+	doc, empty, err := editor.Document(s.got, s.cat, "one")
+	s.Require().NoError(err)
+	s.Require().False(empty)
+
+	s.Require().Equal(
+		editor.SnapshotStates(doc),
+		editor.New().SnapshotStates(doc))
+}
+
 func TestTranslatorPublicTestSuite(
 	t *testing.T,
 ) {
