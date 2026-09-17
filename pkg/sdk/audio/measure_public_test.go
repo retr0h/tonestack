@@ -53,7 +53,7 @@ func (s *MeasurePublicTestSuite) TestASineIsAllFundamental() {
 	s.Require().Less(got.High, 0.01)
 
 	s.Require().InDelta(100, got.Centroid, 15, "and sits where it sounds")
-	s.Require().Less(got.Harmonics, 0.05, "with nothing above it")
+	s.Require().Less(got.Harmonics.Mid, 0.05, "with nothing above it")
 }
 
 // TestBandsSumToOne is what makes the three shares readable.
@@ -95,9 +95,36 @@ func (s *MeasurePublicTestSuite) TestASquareIsOddHarmonics() {
 	clean := audio.Measure(audio.Sine(200, 0.5, rate, 0.5), rate)
 	dirty := audio.Measure(audio.Square(200, 0.5, rate, 0.5), rate)
 
-	s.Require().Greater(dirty.Harmonics, clean.Harmonics*3,
+	s.Require().Greater(dirty.Harmonics.Mid, clean.Harmonics.Mid*3,
 		"a square carries far more above its fundamental than a sine")
-	s.Require().Negative(dirty.EvenOdd, "and what it carries is odd")
+	s.Require().Negative(dirty.EvenOdd.Mid, "and what it carries is odd")
+}
+
+// TestASpreadIsOrdered covers the three numbers being a range.
+func (s *MeasurePublicTestSuite) TestASpreadIsOrdered() {
+	got := audio.Measure(audio.Plucked(110, 2.0, rate, 0.9, 4), rate)
+
+	s.Require().LessOrEqual(got.Harmonics.Low, got.Harmonics.Mid)
+	s.Require().LessOrEqual(got.Harmonics.Mid, got.Harmonics.High)
+
+	s.Require().LessOrEqual(got.EvenOdd.Low, got.EvenOdd.Mid)
+	s.Require().LessOrEqual(got.EvenOdd.Mid, got.EvenOdd.High)
+}
+
+// TestANoteThatChangesSpreadsWider is the reason the range is kept.
+//
+// A tone that never changes measures the same in every window, so its three
+// numbers sit almost on top of each other. A note that is struck and then
+// dies away does not, and a median alone would report the two as the same
+// kind of measurement.
+func (s *MeasurePublicTestSuite) TestANoteThatChangesSpreadsWider() {
+	steady := audio.Measure(audio.Sine(110, 2.0, rate, 0.8), rate)
+	plucked := audio.Measure(audio.Plucked(110, 2.0, rate, 0.9, 4), rate)
+
+	s.Require().Greater(
+		plucked.Harmonics.High-plucked.Harmonics.Low,
+		steady.Harmonics.High-steady.Harmonics.Low,
+	)
 }
 
 // TestAPluckedNoteDecaysFasterThanAToneHeld covers decay separating them.
@@ -193,8 +220,8 @@ func (s *MeasurePublicTestSuite) TestSilenceMeasuresAsNothing() {
 	s.Require().InDelta(0, got.Mid, 1e-9)
 	s.Require().InDelta(0, got.High, 1e-9)
 	s.Require().InDelta(0, got.Centroid, 1e-9)
-	s.Require().InDelta(0, got.Harmonics, 1e-9)
-	s.Require().InDelta(0, got.EvenOdd, 1e-9)
+	s.Require().Equal(audio.Spread{}, got.Harmonics)
+	s.Require().Equal(audio.Spread{}, got.EvenOdd)
 	s.Require().InDelta(0, got.Decay, 1e-9)
 	s.Require().InDelta(0, got.DynamicRange, 1e-9)
 	s.Require().InDelta(0, got.Transient, 1e-9)
@@ -248,7 +275,7 @@ func (s *MeasurePublicTestSuite) TestLoudnessDoesNotMoveTheShape() {
 	s.Require().InDelta(quiet.Low, loud.Low, 0.01)
 	s.Require().InDelta(quiet.Mid, loud.Mid, 0.01)
 	s.Require().InDelta(quiet.Centroid, loud.Centroid, 1.0)
-	s.Require().InDelta(quiet.Harmonics, loud.Harmonics, 0.01)
+	s.Require().InDelta(quiet.Harmonics.Mid, loud.Harmonics.Mid, 0.01)
 }
 
 func TestMeasurePublicTestSuite(

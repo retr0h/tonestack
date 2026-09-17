@@ -62,8 +62,8 @@ func (s *ProfilePublicTestSuite) full() audio.Profile {
 		Transient:    0.81,
 		Decay:        0.42,
 		DynamicRange: 4.2,
-		Harmonics:    0.18,
-		EvenOdd:      -0.6,
+		Harmonics:    audio.Spread{Low: 0.04, Mid: 0.18, High: 0.45},
+		EvenOdd:      audio.Spread{Low: -0.8, Mid: -0.6, High: -0.2},
 	}
 }
 
@@ -83,6 +83,7 @@ func (s *ProfilePublicTestSuite) TestEveryNumberReachesThePage() {
 	s.Require().Contains(got, "0.42 s")
 	s.Require().Contains(got, "4.2 dB")
 	s.Require().Contains(got, "18%")
+	s.Require().Contains(got, "4–45%", "the middle window is not the whole answer")
 }
 
 // TestEveryMeasureIsNamed covers the rows being readable.
@@ -91,6 +92,7 @@ func (s *ProfilePublicTestSuite) TestEveryMeasureIsNamed() {
 
 	for _, name := range []string{
 		"energy", "centroid", "transient", "decay", "dynamics", "harmonics",
+		"spread",
 	} {
 		s.Require().Contains(got, name)
 	}
@@ -125,7 +127,7 @@ func (s *ProfilePublicTestSuite) TestHarmonicLean() {
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
 			p := s.full()
-			p.EvenOdd = tt.lean
+			p.EvenOdd = audio.Spread{Mid: tt.lean}
 
 			s.Require().Contains(s.render(p), tt.want)
 		})

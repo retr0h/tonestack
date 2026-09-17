@@ -68,8 +68,13 @@ func Profile(
 		},
 		{
 			paint.Accent(w, "harmonics"),
-			fmt.Sprintf("%.0f%%", p.Harmonics*100),
-			paint.Mute(w, leanReads(p.EvenOdd)),
+			fmt.Sprintf("%.0f%%", p.Harmonics.Mid*100),
+			paint.Mute(w, leanReads(p.EvenOdd.Mid)),
+		},
+		{
+			paint.Accent(w, "spread"),
+			fmt.Sprintf("%.0f–%.0f%%", p.Harmonics.Low*100, p.Harmonics.High*100),
+			paint.Mute(w, "the same measure, a tenth in from either end"),
 		},
 	}
 
