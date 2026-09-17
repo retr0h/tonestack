@@ -57,10 +57,6 @@ type Moved struct {
 	Weight float64
 }
 
-// Measured says whether the move was sized by a measurement rather than by
-// the word alone.
-func (m Moved) Measured() bool { return m.Acted() && m.Weight < 1 }
-
 // Acted says whether the term moved anything.
 func (m Moved) Acted() bool { return m.Param != "" }
 
