@@ -138,6 +138,16 @@ func (s *MakePublicTestSuite) TestMake() {
 			written:  []string{`"@controller":2`, `"@max":0.85`},
 		},
 		{
+			// The rig names the block its pedal moves by where that block
+			// sits in the chain it wrote. The fit puts that block on the
+			// second processor, where it is numbered from zero again, and
+			// the assignment goes with it.
+			name:    "a pedal on a block the fit moved",
+			id:      "two-paths-pedal",
+			catalog: filepath.Join("testdata", "catalog-floor.json"),
+			written: []string{`"dsp1":{"block0":{"Mix":{"@controller":2`},
+		},
+		{
 			name: "a recipe nobody has",
 			id:   "nobody",
 			err:  recipes.ErrNotFound,
