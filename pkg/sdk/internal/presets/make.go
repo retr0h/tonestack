@@ -96,7 +96,14 @@ func Make(
 	// against: an HX Stomp holds eight blocks on one path and a Helix Floor
 	// holds 29 across two.
 	limits := chain.LimitsFor(cat.Device)
+
+	// Kept, because the fit renumbers: a rig names the block its pedal moves
+	// by where that block sits in the chain the rig wrote, and after the fit
+	// that number means something else.
+	before := append([]chain.Block(nil), spec.Blocks...)
+
 	spec = opts.compiler().Fit(spec, cat, limits)
+	rec = compile.Refit(rec, before, spec.Blocks)
 
 	if err := chain.Validate(cat, spec, limits); err != nil {
 		return result.Made{}, fmt.Errorf(
