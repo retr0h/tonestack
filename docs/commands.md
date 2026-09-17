@@ -216,12 +216,20 @@ WAV only. Convert anything else on the way in:
     just stems ~/music/mike-dirnt ~/stems
     tonestack measure --dir ~/stems/htdemucs
 
+Point --corpus at a tree holding one directory per player and the report says
+which words each one's records earn. A word is earned by sitting clear of the
+other players, so this is the only mode that produces any: one player has
+nobody to be clear of.
+
+    tonestack measure --corpus resources/music
+
 ```text
 tonestack measure [flags]
 ```
 
 | flag | takes | default | what it does |
 | --- | --- | --- | --- |
+| `--corpus` | string |  | a tree of players, one directory each, compared against each other |
 | `--dir` | string |  | a tree of .wav recordings to measure together |
 | `--evidence` |  |  | write the measurements as rig evidence, to paste into a chain |
 | `--file` | string |  | the recording to measure, as a .wav |
