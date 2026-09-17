@@ -59,7 +59,6 @@ func (s *ControllersPublicTestSuite) TestControllers() {
 		control  *[]rig.Controller
 		existing string
 		want     string
-		err      error
 	}{
 		{
 			// Left as it was, rather than emptied: a rig that says nothing
@@ -117,16 +116,25 @@ func (s *ControllersPublicTestSuite) TestControllers() {
 			want:     `{"dsp0":{"block1":{"Drive":{"@controller":2,"@max":1,"@min":0}}}}`,
 		},
 		{
-			name:    "a block the chain does not have",
-			blocks:  []chain.Block{amp},
-			control: &[]rig.Controller{{Controller: 2, Block: 7, Parameter: "Drive"}},
-			err:     compile.ErrNoSuchBlock,
+			// Refused by check long before this, so reaching here means the
+			// chain moved underneath the assignment. Writing it onto
+			// whatever sits at that position now would be worse than
+			// dropping it.
+			name:     "a position the chain no longer has",
+			blocks:   []chain.Block{amp},
+			existing: `{}`,
+			control:  &[]rig.Controller{{Controller: 2, Block: 7, Parameter: "Drive"}},
+			want:     `{}`,
 		},
 		{
-			name:    "a control the model does not have",
-			blocks:  []chain.Block{amp},
-			control: &[]rig.Controller{{Controller: 2, Block: 1, Parameter: "Warp"}},
-			err:     compile.ErrNoSuchValue,
+			// The same, for a chain the device renumbered across two
+			// processors: the position exists and the block at it is a
+			// different one.
+			name:     "a control the block at that position does not have",
+			blocks:   []chain.Block{amp},
+			existing: `{}`,
+			control:  &[]rig.Controller{{Controller: 2, Block: 1, Parameter: "Warp"}},
+			want:     `{}`,
 		},
 	}
 
@@ -144,15 +152,7 @@ func (s *ControllersPublicTestSuite) TestControllers() {
 
 			spec := rig.Spec{Controllers: tt.control}
 
-			err = compile.Controllers(doc, spec, tt.blocks, s.cat)
-
-			if tt.err != nil {
-				s.Require().ErrorIs(err, tt.err)
-
-				return
-			}
-
-			s.Require().NoError(err)
+			compile.Controllers(doc, spec, tt.blocks, s.cat)
 
 			body, err := json.Marshal(doc.Data.Tone["controller"])
 			s.Require().NoError(err)
@@ -182,7 +182,9 @@ func (s *ControllersPublicTestSuite) TestLowerWritesWhatMoves() {
 		string(body))
 }
 
-// TestLowerRefusesAnAssignmentItCannotMake covers the other outcome.
+// TestLowerRefusesAnAssignmentItCannotMake covers the check that runs before
+// anything is written, so a rig naming a block its own chain does not have
+// fails rather than building a preset with the pedal on nothing.
 func (s *ControllersPublicTestSuite) TestLowerRefusesAnAssignmentItCannotMake() {
 	spec := recipe("Ampeg SVT", "")
 	spec.Controllers = &[]rig.Controller{
@@ -192,6 +194,7 @@ func (s *ControllersPublicTestSuite) TestLowerRefusesAnAssignmentItCannotMake() 
 	doc, err := preset.Blank()
 	s.Require().NoError(err)
 	s.Require().ErrorIs(compile.Lower(doc, spec, s.cat), compile.ErrNoSuchBlock)
+	s.Require().NotContains(doc.Data.Tone, "controller")
 }
 
 func TestControllersPublicTestSuite(

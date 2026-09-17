@@ -148,10 +148,8 @@ func (s *CompilePublicTestSuite) TestControllers() {
 			}},
 		},
 		{
-			name: "an assignment on a block the chain does not have",
-			spec: rig.Spec{Controllers: &[]rig.Controller{
-				{Controller: 2, Block: 9, Parameter: "Drive"},
-			}},
+			name: "a rig that assigns nothing",
+			spec: rig.Spec{},
 		},
 	}
 
@@ -160,10 +158,9 @@ func (s *CompilePublicTestSuite) TestControllers() {
 			first, _ := preset.Blank()
 			second, _ := preset.Blank()
 
-			want := compile.Controllers(first, tt.spec, blocks, s.cat)
-			got := compile.New().Controllers(second, tt.spec, blocks, s.cat)
+			compile.Controllers(first, tt.spec, blocks, s.cat)
+			compile.New().Controllers(second, tt.spec, blocks, s.cat)
 
-			s.Require().Equal(want == nil, got == nil)
 			s.Require().Equal(first, second)
 		})
 	}

@@ -63,7 +63,7 @@ type Compiler interface {
 	// Controllers writes what an expression pedal or footswitch moves.
 	Controllers(
 		doc *preset.Document, spec rig.Spec, blocks []chain.Block, cat *catalog.Catalog,
-	) error
+	)
 	// Sections writes a rig's song sections into a preset's snapshots.
 	Sections(
 		doc *preset.Document, spec rig.Spec, blocks []chain.Block, cat *catalog.Catalog,

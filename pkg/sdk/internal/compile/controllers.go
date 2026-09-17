@@ -49,22 +49,22 @@ const (
 //
 // Addressed the way the preset addresses its blocks: by path and by the
 // position a block is stored under, which is what the chain has just been
-// written with. A rig names the block by its place along the path, so a chain
-// the device split across two processors still lands on the right one.
+// written with.
+//
+// Writing only. Both paths into this have already put the rig through check,
+// which is where a block the chain does not have and a control the model does
+// not carry are refused, with every other complaint about the rig beside
+// them. What arrives here is an assignment that was legal when it was
+// checked, so anything that does not line up now is skipped rather than
+// written onto whatever happens to sit there.
 func Controllers(
 	doc *preset.Document,
 	spec rig.Spec,
 	blocks []chain.Block,
 	cat *catalog.Catalog,
-) error {
+) {
 	if spec.Controllers == nil {
-		return nil
-	}
-
-	// Checked before anything is written, so a rig that will not build leaves
-	// the preset as it was.
-	if err := checkControllers(spec, blocks, cat); err != nil {
-		return err
+		return
 	}
 
 	// Replaced rather than merged. The rig's list is the whole of what it
@@ -73,9 +73,10 @@ func Controllers(
 	paths := map[string]map[string]map[string]preset.Tone{}
 
 	for _, c := range *spec.Controllers {
-		// The check above has already refused a block the chain does not
-		// have, so this one is there.
-		at, _ := blockAt(blocks, c.Block)
+		at, ok := blockAt(blocks, c.Block)
+		if !ok || !carries(at, c.Parameter, cat) {
+			continue
+		}
 
 		path := processorKey(at.DSP)
 		block := "block" + strconv.Itoa(at.Pos)
@@ -101,8 +102,29 @@ func Controllers(
 	}
 
 	doc.Data.Tone[controllerKey] = entry
+}
 
-	return nil
+// carries says whether the block at a position has the control an assignment
+// names.
+//
+// A device with two signal paths renumbers its blocks when the chain is laid
+// out across them, and a position that means something different than it did
+// is how an assignment lands on the wrong knob. A model this catalog does not
+// carry is taken at its word, because it is a model the device has and this
+// tool has never seen.
+func carries(
+	at chain.Block,
+	parameter string,
+	cat *catalog.Catalog,
+) bool {
+	blk, ok := cat.Block(at.Model)
+	if !ok {
+		return true
+	}
+
+	_, has := blk.Params[parameter]
+
+	return has
 }
 
 // assignment is one parameter and what the controller moves it between.

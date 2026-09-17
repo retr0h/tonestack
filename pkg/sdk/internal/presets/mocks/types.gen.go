@@ -126,11 +126,9 @@ func (m *MockCompiler) EXPECT() *MockCompilerMockRecorder {
 }
 
 // Controllers mocks base method.
-func (m *MockCompiler) Controllers(doc *preset.Document, spec rig.Spec, blocks []chain.Block, cat *catalog.Catalog) error {
+func (m *MockCompiler) Controllers(doc *preset.Document, spec rig.Spec, blocks []chain.Block, cat *catalog.Catalog) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Controllers", doc, spec, blocks, cat)
-	ret0, _ := ret[0].(error)
-	return ret0
+	m.ctrl.Call(m, "Controllers", doc, spec, blocks, cat)
 }
 
 // Controllers indicates an expected call of Controllers.

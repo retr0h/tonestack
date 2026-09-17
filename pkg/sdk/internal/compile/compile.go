@@ -76,8 +76,8 @@ func (*Compiler) Controllers(
 	spec rig.Spec,
 	blocks []chain.Block,
 	cat *catalog.Catalog,
-) error {
-	return Controllers(doc, spec, blocks, cat)
+) {
+	Controllers(doc, spec, blocks, cat)
 }
 
 // Resolve turns a rig and a catalog into a chain.

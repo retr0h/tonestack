@@ -335,10 +335,8 @@ Leaving them out gives the control's own range, which is the full sweep.
 `no_snapshot` keeps a snapshot change from moving the assignment out from under
 your foot.
 
-This is written on both paths, and on the build path it runs after the fit, so
-an assignment on a block the device had no room for is refused rather than
-written into nothing. A footswitch set to switch a block rather than sweep a
-knob is a different field and is not written yet.
+This is written on both paths. A footswitch set to switch a block rather than
+sweep a knob is a different field and is not written yet.
 
 ## Record what you thought of it
 
