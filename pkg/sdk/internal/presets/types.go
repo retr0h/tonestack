@@ -47,9 +47,10 @@ type Recipes interface {
 
 // Compiler turns a rig into a preset a device has room for.
 //
-// Three of the four methods pkg/compile carries. Resolve and Fit build a chain
-// from a recipe, and Lower writes a rig into a preset. Lift reads a slot
-// rather than building one, so it is not named here.
+// Four of the five methods pkg/compile carries. Resolve and Fit build a chain
+// from a recipe, Sections writes its song sections, and Lower writes a rig
+// into a preset. Lift reads a slot rather than building one, so it is not
+// named here.
 type Compiler interface {
 	// Resolve turns a rig and a catalog into a chain.
 	Resolve(
@@ -59,6 +60,10 @@ type Compiler interface {
 	Fit(spec chain.Chain, cat *catalog.Catalog, lim chain.Limits) chain.Chain
 	// Lower writes a rig into a preset.
 	Lower(doc *preset.Document, spec rig.Spec, cat *catalog.Catalog) error
+	// Sections writes a rig's song sections into a preset's snapshots.
+	Sections(
+		doc *preset.Document, spec rig.Spec, blocks []chain.Block, cat *catalog.Catalog,
+	) error
 }
 
 // Deps are the collaborators building a preset works through.

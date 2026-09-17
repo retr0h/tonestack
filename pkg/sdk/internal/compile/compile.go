@@ -60,6 +60,16 @@ func (*Compiler) Lower(
 	return Lower(doc, spec, cat)
 }
 
+// Sections writes a rig's song sections into a preset's snapshots.
+func (*Compiler) Sections(
+	doc *preset.Document,
+	spec rig.Spec,
+	blocks []chain.Block,
+	cat *catalog.Catalog,
+) error {
+	return Sections(doc, spec, blocks, cat)
+}
+
 // Resolve turns a rig and a catalog into a chain.
 func (*Compiler) Resolve(
 	spec rig.Spec,

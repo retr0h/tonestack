@@ -627,6 +627,11 @@ type RigSpec struct {
 	// Schema Names the format, so a file says what it is without relying on where it was found.
 	Schema RigSpecSchema `json:"schema"`
 
+	// Sections The parts of a song this rig plays, each one a snapshot.
+	//
+	// The way to write snapshots by hand. A rig carries sections or snapshots, not both: snapshots are what a device stored, sections are what somebody wants, and a build given both would have to pick one without saying so. A device has a fixed number of snapshots, three on an HX Stomp, and a rig with more sections than that will not build.
+	Sections *[]Section `json:"sections,omitempty"`
+
 	// Snapshots The rig's snapshots, in the order the device numbers them.
 	//
 	// A snapshot is a musical decision — which blocks are on, at what tempo, under what name — so it is modelled rather than carried as device state. What a person put on a footswitch is part of the rig.
@@ -671,6 +676,22 @@ type RigSpecVersion int
 //
 // `utility` is plumbing — volume, gain, a send, a looper. Nobody chooses one for how it sounds, and a chain still contains them, so a rig that could not name one could not describe a real preset.
 type Role string
+
+// Section One part of a song, as the blocks that play in it: a verse with the drive off, a chorus with it on.
+//
+// Written as roles rather than block numbers, because a person thinks "drive on for the chorus" and a hand-written rig has no block numbers to name. Each section becomes a snapshot, in the order listed.
+type Section struct {
+	// Bypass Roles whose blocks are bypassed in this section. A block named in neither list keeps the state the chain gives it, and a role named in both is refused.
+	Bypass *[]Role `json:"bypass,omitempty"`
+
+	// Name What the device shows for this section, such as "Verse" or "Chorus".
+	Name string `json:"name"`
+
+	// Play Roles whose blocks play in this section. Every block in the chain with that role is turned on.
+	//
+	// Not called `on`: the YAML a rig is read with takes `on` and `off` for true and false, and the list would vanish without an error.
+	Play *[]Role `json:"play,omitempty"`
+}
 
 // Settings How the gear is set, in musical terms, from 0 to 1.
 //

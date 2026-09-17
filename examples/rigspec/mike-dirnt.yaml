@@ -198,6 +198,22 @@ target:
   technique:
     attack: fingers
 
+# The parts of a song, as the gear that plays in each. Every section becomes a
+# snapshot, in this order, and an HX Stomp has three.
+#
+# Named by role rather than by block, so "the compressor comes in for the
+# chorus" is written the way it is said. A role turns on or bypasses every
+# block in the chain with that role; one a section does not mention keeps the
+# state the chain gives it. A role the chain has no block for is refused.
+#
+# Nobody has documented Dirnt switching anything mid-song. These show the
+# shape of the field, not a habit of his.
+sections:
+  - name: Verse
+    bypass: [comp]
+  - name: Chorus
+    play: [comp]
+
 # What moves while you play, as distinct from what the chain holds.
 #
 # A rig records these because they are decisions somebody made about how they

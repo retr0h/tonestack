@@ -716,6 +716,44 @@ components:
             Anything else the device stored here, kept as it arrived, so a
             field this does not model is not a field it drops.
 
+    Section:
+      type: object
+      additionalProperties: false
+      description: >
+        One part of a song, as the blocks that play in it: a verse with the
+        drive off, a chorus with it on.
+
+
+        Written as roles rather than block numbers, because a person thinks
+        "drive on for the chorus" and a hand-written rig has no block numbers
+        to name. Each section becomes a snapshot, in the order listed.
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          pattern: "\\S"
+          description: What the device shows for this section, such as "Verse" or "Chorus".
+        play:
+          type: array
+          uniqueItems: true
+          items: { $ref: "#/components/schemas/Role" }
+          description: >
+            Roles whose blocks play in this section. Every block in the chain
+            with that role is turned on.
+
+
+            Not called `on`: the YAML a rig is read with takes `on` and `off`
+            for true and false, and the list would vanish without an error.
+        bypass:
+          type: array
+          uniqueItems: true
+          items: { $ref: "#/components/schemas/Role" }
+          description: >
+            Roles whose blocks are bypassed in this section. A block named in
+            neither list keeps the state the chain gives it, and a role named
+            in both is refused.
+
     Snapshot:
       type: object
       additionalProperties: false
@@ -946,6 +984,19 @@ components:
         mutations:
           type: array
           items: { $ref: "#/components/schemas/Mutation" }
+        sections:
+          type: array
+          items: { $ref: "#/components/schemas/Section" }
+          description: >
+            The parts of a song this rig plays, each one a snapshot.
+
+
+            The way to write snapshots by hand. A rig carries sections or
+            snapshots, not both: snapshots are what a device stored, sections
+            are what somebody wants, and a build given both would have to
+            pick one without saying so. A device has a fixed number of
+            snapshots, three on an HX Stomp, and a rig with more sections than
+            that will not build.
         snapshots:
           type: array
           items: { $ref: "#/components/schemas/Snapshot" }

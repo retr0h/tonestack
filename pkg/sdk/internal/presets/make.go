@@ -102,6 +102,13 @@ func Make(
 
 	doc := build(cat.DeviceID, spec)
 
+	// Against the chain as built rather than as the recipe wrote it: filling
+	// and fitting add and drop blocks, and a section can only turn on what
+	// made it into the preset.
+	if err := opts.compiler().Sections(doc, rec, spec.Blocks, cat); err != nil {
+		return result.Made{}, err
+	}
+
 	if err := write(opts.OutputPath, doc, opts.Existing); err != nil {
 		return result.Made{}, err
 	}

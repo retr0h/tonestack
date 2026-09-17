@@ -169,3 +169,17 @@ func (mr *MockCompilerMockRecorder) Resolve(spec, cat, stats any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Resolve", reflect.TypeOf((*MockCompiler)(nil).Resolve), spec, cat, stats)
 }
+
+// Sections mocks base method.
+func (m *MockCompiler) Sections(doc *preset.Document, spec rig.Spec, blocks []chain.Block, cat *catalog.Catalog) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Sections", doc, spec, blocks, cat)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Sections indicates an expected call of Sections.
+func (mr *MockCompilerMockRecorder) Sections(doc, spec, blocks, cat any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Sections", reflect.TypeOf((*MockCompiler)(nil).Sections), doc, spec, blocks, cat)
+}

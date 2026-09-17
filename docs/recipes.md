@@ -265,6 +265,38 @@ made it only if the same IR is loaded there. That is why generated chains never
 reach for a user IR block, and why one is flagged when reading somebody else's
 preset.
 
+## Write a song as sections
+
+```yaml
+sections:
+  - name: Verse
+    bypass: [drive]
+  - name: Chorus
+    play: [drive]
+```
+
+Each section becomes a snapshot, in the order listed, named what you called it.
+`play` turns on every block in the chain with that role, and `bypass` turns them
+off. A block neither list mentions keeps the state the chain gives it.
+
+Roles rather than block numbers, because a hand-written rig has no block numbers
+to name. The catch is that two drives in one chain switch together.
+
+The build refuses three things:
+
+- A role the chain has no block for. The check runs on the chain as built, after
+  the compiler has added and dropped blocks, so a section cannot switch
+  something the preset does not hold.
+- The same role in `play` and `bypass`.
+- More sections than the device has snapshots. An HX Stomp has three.
+
+A rig carries `sections` or `snapshots`, never both. `snapshots` are what a
+device stored, and a rig read off a device has them. `sections` are what you
+want. Reading a built preset back gives you `snapshots`.
+
+The fields are not called `on` and `off` because the YAML reader takes those
+words as true and false, so the lists would vanish without an error.
+
 ## Record what you thought of it
 
 ```yaml
@@ -404,6 +436,7 @@ original file gone.
 | field          | what it holds                                             |
 | -------------- | --------------------------------------------------------- |
 | `chain`        | the gear, in order, with settings and evidence            |
+| `sections`     | the parts of a song, as the roles that play in each       |
 | `snapshots`    | what each footswitch recalls: name, tempo, block states   |
 | `footswitches` | what the pedal prints under each switch, and its colour   |
 | `device`       | everything else, verbatim: routing, controllers, metadata |
