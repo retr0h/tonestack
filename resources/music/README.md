@@ -31,6 +31,15 @@ than ignored, and so is a recording nothing names.
 [workflows/measure-a-players-sound.md](../../docs/workflows/measure-a-players-sound.md)
 is the full procedure.
 
+## Adding one
+
+```bash
+just record resources/music/flea aeroplane https://open.spotify.com/track/0VLdJcQUsqHBBwqPp4CIKJ
+```
+
+[workflows/add-records-to-a-corpus.md](../../docs/workflows/add-records-to-a-corpus.md)
+says how to pick the record and check the file is the right recording.
+
 ## Choosing records
 
 Three or four each, with the bass prominent enough to separate cleanly, and from
