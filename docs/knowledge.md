@@ -131,9 +131,24 @@ of authority:
    [recipes.md](recipes.md#character-describes-the-result-not-the-control) lists
    the words.
 
-Built, for those six axes. What is not built is a general answer to which way
-any control moves, which is what turning a measured difference into a change
-would need.
+Built, for those six axes.
+
+Four of them now have a measurement behind the word rather than somebody's
+judgement: `mids` from the mid band share, `highs` from the high share and the
+centroid, `drive` from how much energy sits above the fundamental, and `attack`
+from how sharply notes start. Those need no general answer to which way a
+control moves, because each is the same quantity the control acts on.
+
+The other two do not, and no threshold is invented for them. `low-end` is Sag,
+which is touch response and sustain, and `space` is how much room is on the
+part. Nothing measured describes either, so both stay words somebody chose.
+
+What is still missing is a population. A figure names nothing on its own: 91% of
+the energy below 250Hz is not "scooped", because every isolated bass stem is
+mostly low. A measurement becomes a word by sitting somewhere among other
+artists measured the same way, and one artist has been measured so far.
+[The measured sound profile](superpowers/specs/2026-09-16-the-measured-sound-profile-design.md)
+carries the whole argument.
 
 ### Which way a knob moves
 
@@ -224,5 +239,11 @@ RigSpec      validated against the catalog
 a person     listens, and corrects the rig                    nothing above can hear
 ```
 
-Every step above the person exists. What is still missing is values that come
-from measuring a recording rather than from words.
+Every step above the person exists, and so does measuring a recording:
+`tonestack measure` reads an artist's records as numbers, and those numbers
+reach a rig as `kind: audio` evidence carrying the figures they were measured
+as.
+
+What is still missing is the step from those figures to the values. A figure
+chooses a word only by its position among other artists measured the same way,
+and one artist has been measured.
