@@ -187,6 +187,25 @@ func (s *DirPublicTestSuite) TestAFileThatIsNotAudioIsNamed() {
 	s.Require().Contains(err.Error(), "broken.wav")
 }
 
+// TestARecordingThatCannotBeReadIsNamed covers a file the walk lists and the
+// read then fails on.
+//
+// A dangling symlink is the ordinary way that happens: the directory entry is
+// there, it is not a directory, it ends in .wav, and opening it finds nothing.
+// Stems are often symlinked into place from somewhere else, and the half of
+// that which breaks is this.
+func (s *DirPublicTestSuite) TestARecordingThatCannotBeReadIsNamed() {
+	s.Require().NoError(os.Symlink(
+		filepath.Join(s.root, "gone.wav"),
+		filepath.Join(s.root, "dangling.wav"),
+	))
+
+	_, err := audio.MeasureAll(os.DirFS(s.root), ".")
+
+	s.Require().Error(err)
+	s.Require().Contains(err.Error(), "dangling.wav")
+}
+
 // TestARootThatIsNotThere is a caller's mistake, reported rather than
 // swallowed.
 func (s *DirPublicTestSuite) TestARootThatIsNotThere() {
