@@ -1,0 +1,25 @@
+schema: RigSpec
+version: 2
+id: two-paths-switch
+
+subject: { kind: artist, name: Two Paths Switch }
+instrument: bass
+
+chain:
+  - { role: other, gear: Chunky Thing, evidence: [{ kind: llm }] }
+  - { role: other, gear: Chunky Thing, evidence: [{ kind: llm }] }
+  - { role: other, gear: Chunky Thing, evidence: [{ kind: llm }] }
+  - { role: other, gear: Chunky Thing, evidence: [{ kind: llm }] }
+
+confidence: low
+
+controllers:
+  - controller: 2
+    block: 3
+    parameter: Mix
+
+footswitches:
+  - switch: 1
+    block: 3
+    label: Chunk
+    enabled: true

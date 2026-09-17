@@ -136,6 +136,27 @@ func footswitchOf(
 	return out, true
 }
 
+// Footswitches writes what the pedal prints under each switch.
+//
+// A label and a colour are decisions about somebody's own pedal, made once and
+// looked at every time they play. A built preset used to drop them: Lower
+// wrote them and Make did not, so the same rig compiled and built gave two
+// different pedals.
+//
+// Writing only, like [Controllers]: both paths into this have already put the
+// rig through check.
+func Footswitches(
+	doc *preset.Document,
+	spec rig.Spec,
+) {
+	if spec.Footswitches == nil {
+		return
+	}
+
+	pruneFootswitches(doc)
+	restoreFootswitches(doc, *spec.Footswitches)
+}
+
 // restoreFootswitches writes a rig's footswitches back as a preset stores
 // them: keyed by the block each acts on, inside its processor.
 func restoreFootswitches(

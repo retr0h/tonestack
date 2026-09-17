@@ -47,10 +47,11 @@ type Recipes interface {
 
 // Compiler turns a rig into a preset a device has room for.
 //
-// Five of the six methods pkg/compile carries. Resolve and Fit build a chain
+// Six of the seven methods pkg/compile carries. Resolve and Fit build a chain
 // from a recipe, Sections writes its song sections, Controllers writes what
-// moves while you play, and Lower writes a rig into a preset. Lift reads a
-// slot rather than building one, so it is not named here.
+// moves while you play, Footswitches writes what the pedal prints, and Lower
+// writes a rig into a preset. Lift reads a slot rather than building one, so
+// it is not named here.
 type Compiler interface {
 	// Resolve turns a rig and a catalog into a chain.
 	Resolve(
@@ -64,6 +65,8 @@ type Compiler interface {
 	Controllers(
 		doc *preset.Document, spec rig.Spec, blocks []chain.Block, cat *catalog.Catalog,
 	)
+	// Footswitches writes what the pedal prints under each switch.
+	Footswitches(doc *preset.Document, spec rig.Spec)
 	// Sections writes a rig's song sections into a preset's snapshots.
 	Sections(
 		doc *preset.Document, spec rig.Spec, blocks []chain.Block, cat *catalog.Catalog,

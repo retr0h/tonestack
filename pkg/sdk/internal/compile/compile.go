@@ -80,6 +80,14 @@ func (*Compiler) Controllers(
 	Controllers(doc, spec, blocks, cat)
 }
 
+// Footswitches writes what the pedal prints under each switch.
+func (*Compiler) Footswitches(
+	doc *preset.Document,
+	spec rig.Spec,
+) {
+	Footswitches(doc, spec)
+}
+
 // Resolve turns a rig and a catalog into a chain.
 func (*Compiler) Resolve(
 	spec rig.Spec,

@@ -99,6 +99,34 @@ func (s *RefitPublicTestSuite) TestRefit() {
 	}
 }
 
+// TestRefitMovesAFootswitch covers a switch following its block, which is the
+// same numbers and the same fit.
+func (s *RefitPublicTestSuite) TestRefitMovesAFootswitch() {
+	before := []chain.Block{{Pos: 0}, {Pos: 1}, {Pos: 2}}
+	after := []chain.Block{{Pos: 0}, {Pos: 1}, {DSP: 1, Pos: 0}}
+
+	on, at, nowhere := 1, 2, 9
+	spec := rig.Spec{Footswitches: &[]rig.Footswitch{
+		{Switch: &on, Block: &at},
+		{Switch: &on, Block: &nowhere},
+		// A switch that acts on nothing has no block for the fit to move.
+		{Switch: &on},
+	}}
+
+	got := compile.Refit(spec, before, after)
+	s.Require().NotNil(got.Footswitches)
+
+	moved := (*got.Footswitches)[0]
+	s.Require().Equal(0, *moved.Block)
+	s.Require().Equal(1, *moved.Path)
+
+	kept := (*got.Footswitches)[1]
+	s.Require().Equal(9, *kept.Block)
+	s.Require().Nil(kept.Path)
+
+	s.Require().Nil((*got.Footswitches)[2].Block)
+}
+
 // TestRefitLeavesARigThatAssignsNothing covers the common case, where there
 // is nothing to move.
 func (s *RefitPublicTestSuite) TestRefitLeavesARigThatAssignsNothing() {

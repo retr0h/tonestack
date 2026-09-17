@@ -342,8 +342,11 @@ This is written on both paths. On a device with two processors the build can lay
 a chain across both, which renumbers the blocks, and an assignment is moved with
 the block it names rather than left pointing at whatever took that number.
 
-A footswitch set to switch a block rather than sweep a knob is a different field
-and is not written yet.
+A footswitch set to switch a block rather than sweep a knob is the
+`footswitches` field below. It is written on both paths too, and its block moves
+with the fit the same way. Its colour is the exception: a preset stores one as a
+packed number, `colour`, and the `led` name beside it does not reach a built
+preset because nothing here maps a name to that number.
 
 ## Record what you thought of it
 

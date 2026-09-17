@@ -166,6 +166,39 @@ func (s *CompilePublicTestSuite) TestControllers() {
 	}
 }
 
+// TestFootswitches covers writing what the pedal prints through the type.
+func (s *CompilePublicTestSuite) TestFootswitches() {
+	block, switched := 0, 1
+
+	tests := []struct {
+		name string
+		spec rig.Spec
+	}{
+		{
+			name: "a switch on a block",
+			spec: rig.Spec{Footswitches: &[]rig.Footswitch{
+				{Switch: &switched, Block: &block},
+			}},
+		},
+		{
+			name: "a rig with no switches set",
+			spec: rig.Spec{},
+		},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			first, _ := preset.Blank()
+			second, _ := preset.Blank()
+
+			compile.Footswitches(first, tt.spec)
+			compile.New().Footswitches(second, tt.spec)
+
+			s.Require().Equal(first, second)
+		})
+	}
+}
+
 // TestResolve covers turning a rig into a chain through the type.
 func (s *CompilePublicTestSuite) TestResolve() {
 	tests := []struct {

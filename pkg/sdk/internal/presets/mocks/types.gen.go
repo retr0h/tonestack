@@ -151,6 +151,18 @@ func (mr *MockCompilerMockRecorder) Fit(spec, cat, lim any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Fit", reflect.TypeOf((*MockCompiler)(nil).Fit), spec, cat, lim)
 }
 
+// Footswitches mocks base method.
+func (m *MockCompiler) Footswitches(doc *preset.Document, spec rig.Spec) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "Footswitches", doc, spec)
+}
+
+// Footswitches indicates an expected call of Footswitches.
+func (mr *MockCompilerMockRecorder) Footswitches(doc, spec any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Footswitches", reflect.TypeOf((*MockCompiler)(nil).Footswitches), doc, spec)
+}
+
 // Lower mocks base method.
 func (m *MockCompiler) Lower(doc *preset.Document, spec rig.Spec, cat *catalog.Catalog) error {
 	m.ctrl.T.Helper()

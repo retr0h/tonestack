@@ -110,10 +110,7 @@ func Lower(
 	// above, along with everything else the rig claims.
 	Controllers(doc, spec, blocks, cat)
 
-	if spec.Footswitches != nil {
-		pruneFootswitches(doc)
-		restoreFootswitches(doc, *spec.Footswitches)
-	}
+	Footswitches(doc, spec)
 
 	// The rig names the preset, not the document underneath: compiling into
 	// an untouched preset would otherwise write out the template's own name.
