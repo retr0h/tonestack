@@ -58,13 +58,20 @@ type Axis struct {
 // nearest available figure because both happen to exist is how a number ends
 // up deciding a control it has nothing to do with.
 //
-// The compressor's Attack has a measurement that is not trusted yet. transient
-// reads the largest rise against the peak, so it is largest where there is
-// silence to rise from, and a player who leaves gaps between phrases scores
-// higher than one who plays continuously. Measured across three artists the
-// one whose rig says `percussive` scored lowest of the three, which is either
-// a wrong word or a measure of note density wearing the name of attack.
-// Nothing derives from it until that is settled.
+// The compressor's Attack has a measurement, and it measures a different
+// thing from the word. transient reads how sharply a note's level rises.
+// `percussive` on slap bass describes the character of the attack, the click
+// of a string against a fret, which is spectral rather than a rise in level.
+//
+// Measured across three artists, the one whose rig says `percussive` scored
+// lowest of the three. That was suspected to mean transient was really
+// reading note density, since it is largest where there is silence to rise
+// from. It is not: across 582 chunks of three seconds, with density running
+// from nothing to continuous, the correlation is +0.026. transient is sound,
+// and Flea rising less sharply than a picked punk bassist is true.
+//
+// So neither the word nor the figure is wrong, and no threshold between them
+// would mean anything. The axis stays out until something measures the click.
 var Axes = []Axis{
 	{
 		Key: KeyMid, More: "mid-forward", Less: "scooped",
