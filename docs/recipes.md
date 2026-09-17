@@ -312,6 +312,32 @@ want. Reading a built preset back gives you `snapshots`.
 The fields are not called `on` and `off` because the YAML reader takes those
 words as true and false, so the lists would vanish without an error.
 
+## Say what moves while you play
+
+```yaml
+controllers:
+  - controller: 2
+    block: 1
+    parameter: Drive
+    min: 0.3
+    max: 0.85
+    no_snapshot: true
+```
+
+The expression pedal reads 2 on an HX Stomp. `block` counts along the signal
+path the way the chain counts its entries, so 1 is the second piece of gear.
+`parameter` is the control by the name the catalog gives it, and it is checked
+against the model that ended up there: a name it does not have is refused with
+the names it does.
+
+`min` and `max` are what the parameter reads at either end of the travel.
+Leaving them out gives the control's own range, which is the full sweep.
+`no_snapshot` keeps a snapshot change from moving the assignment out from under
+your foot.
+
+This is written on both paths. A footswitch set to switch a block rather than
+sweep a knob is a different field and is not written yet.
+
 ## Record what you thought of it
 
 ```yaml

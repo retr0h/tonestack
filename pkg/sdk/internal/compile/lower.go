@@ -105,6 +105,11 @@ func Lower(
 		return err
 	}
 
+	// After the device's own state, so a rig's own assignments win over
+	// whatever the preset underneath carried. Checked already, by check
+	// above, along with everything else the rig claims.
+	Controllers(doc, spec, blocks, cat)
+
 	if spec.Footswitches != nil {
 		pruneFootswitches(doc)
 		restoreFootswitches(doc, *spec.Footswitches)

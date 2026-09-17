@@ -109,6 +109,11 @@ func Make(
 		return result.Made{}, err
 	}
 
+	// Against the same chain, and after the fit, because the fit is what
+	// decides which position a block ends up at. Resolve has already checked
+	// the assignments against the chain it built.
+	opts.compiler().Controllers(doc, rec, spec.Blocks, cat)
+
 	if err := write(opts.OutputPath, doc, opts.Existing); err != nil {
 		return result.Made{}, err
 	}

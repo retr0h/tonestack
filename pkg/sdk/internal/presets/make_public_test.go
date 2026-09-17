@@ -130,6 +130,14 @@ func (s *MakePublicTestSuite) TestMake() {
 			err:  compile.ErrNoSuchValue,
 		},
 		{
+			// The pedal under somebody's foot is part of the rig, and a
+			// preset built without it is one where the pedal does nothing.
+			name:     "a recipe with a pedal on a knob",
+			id:       "with-pedal",
+			loadable: true,
+			written:  []string{`"@controller":2`, `"@max":0.85`},
+		},
+		{
 			name: "a recipe nobody has",
 			id:   "nobody",
 			err:  recipes.ErrNotFound,

@@ -125,6 +125,18 @@ func (m *MockCompiler) EXPECT() *MockCompilerMockRecorder {
 	return m.recorder
 }
 
+// Controllers mocks base method.
+func (m *MockCompiler) Controllers(doc *preset.Document, spec rig.Spec, blocks []chain.Block, cat *catalog.Catalog) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "Controllers", doc, spec, blocks, cat)
+}
+
+// Controllers indicates an expected call of Controllers.
+func (mr *MockCompilerMockRecorder) Controllers(doc, spec, blocks, cat any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Controllers", reflect.TypeOf((*MockCompiler)(nil).Controllers), doc, spec, blocks, cat)
+}
+
 // Fit mocks base method.
 func (m *MockCompiler) Fit(spec chain.Chain, cat *catalog.Catalog, lim chain.Limits) chain.Chain {
 	m.ctrl.T.Helper()

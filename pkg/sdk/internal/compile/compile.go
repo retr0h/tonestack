@@ -70,6 +70,16 @@ func (*Compiler) Sections(
 	return Sections(doc, spec, blocks, cat)
 }
 
+// Controllers writes what an expression pedal or footswitch moves.
+func (*Compiler) Controllers(
+	doc *preset.Document,
+	spec rig.Spec,
+	blocks []chain.Block,
+	cat *catalog.Catalog,
+) {
+	Controllers(doc, spec, blocks, cat)
+}
+
 // Resolve turns a rig and a catalog into a chain.
 func (*Compiler) Resolve(
 	spec rig.Spec,
