@@ -93,15 +93,44 @@ func entryFor(
 		measured.Content = append(measured.Content, text(key), number(figures[key]))
 	}
 
-	return &yaml.Node{
-		Kind: yaml.MappingNode,
-		Content: []*yaml.Node{
-			text("kind"), text("audio"),
-			text("note"), text(n.Name + ", bass isolated from the mix before measuring"),
-			text("caveat"), folded(measuredCaveat),
-			text("measured"), measured,
-		},
+	out := &yaml.Node{
+		Kind:    yaml.MappingNode,
+		Content: []*yaml.Node{text("kind"), text("audio")},
 	}
+
+	// Written in the order a rig reads: what it is, where it came from, then
+	// what it says. A manifest supplies the middle, and without one the entry
+	// is the same minus the link.
+	if n.Source.URL != "" {
+		out.Content = append(out.Content, text("url"), text(n.Source.URL))
+	}
+
+	if n.Source.At != "" {
+		out.Content = append(out.Content, text("at"), quoted(n.Source.At))
+	}
+
+	out.Content = append(out.Content,
+		text("note"), text(noteFor(n)),
+		text("caveat"), folded(measuredCaveat),
+		text("measured"), measured,
+	)
+
+	return out
+}
+
+// noteFor is what to say about one recording.
+//
+// Whatever the manifest said, when it said anything. Somebody who wrote down
+// that the bass carries the verse alone knows something about that take this
+// does not.
+func noteFor(
+	n audio.Named,
+) string {
+	if n.Source.Note != "" {
+		return n.Name + ", " + n.Source.Note
+	}
+
+	return n.Name + ", bass isolated from the mix before measuring"
 }
 
 // text is one string, written plainly.
@@ -109,6 +138,24 @@ func text(
 	v string,
 ) *yaml.Node {
 	return &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: v}
+}
+
+// quoted is one string written so it stays a string.
+//
+// A timestamp is the reason this exists. Rigs are written here by a YAML 1.2
+// encoder and loaded by a 1.1 decoder, and in 1.1 colon-separated digits are
+// sexagesimal: a bare `at: 1:42` comes back as the number 102. Every rig in
+// this repository quotes it by hand, and this is that convention held to by
+// the thing that writes them.
+func quoted(
+	v string,
+) *yaml.Node {
+	return &yaml.Node{
+		Kind:  yaml.ScalarNode,
+		Tag:   "!!str",
+		Value: v,
+		Style: yaml.DoubleQuotedStyle,
+	}
 }
 
 // folded is one string written over as many lines as it needs.

@@ -104,6 +104,65 @@ func (s *EvidencePublicTestSuite) TestTheFiguresSurviveTheTrip() {
 	s.Require().InDelta(175, m[audio.KeyCentroid], 1e-9)
 }
 
+// TestATimestampStaysAString is the one value a rig cannot afford to guess at.
+//
+// Rigs are written by a YAML 1.2 encoder and loaded by a 1.1 decoder, and in
+// 1.1 colon-separated digits are sexagesimal: a bare `at: 1:42` comes back as
+// the number 102. A single timestamp is the case that exposes it, because a
+// range carries a trailing `-1:45` that keeps it a string by accident.
+func (s *EvidencePublicTestSuite) TestATimestampStaysAString() {
+	var buf bytes.Buffer
+
+	s.Require().NoError(cli.Evidence(&buf, []audio.Named{
+		{Name: "longview", Source: audio.Record{
+			URL: "https://example.com/a", At: "1:42",
+		}},
+	}))
+
+	s.Require().Contains(buf.String(), `at: "1:42"`)
+
+	var got []rig.Evidence
+
+	s.Require().NoError(yaml.Unmarshal(buf.Bytes(), &got))
+	s.Require().NotNil(got[0].At)
+	s.Require().Equal("1:42", *got[0].At)
+}
+
+// TestWhatTheManifestKnowsReachesTheEntry covers the link arriving.
+func (s *EvidencePublicTestSuite) TestWhatTheManifestKnowsReachesTheEntry() {
+	var buf bytes.Buffer
+
+	s.Require().NoError(cli.Evidence(&buf, []audio.Named{
+		{Name: "longview", Source: audio.Record{
+			URL:  "https://open.spotify.com/track/abc",
+			At:   "1:20-1:45",
+			Note: "the bass carries the verse alone",
+		}},
+	}))
+
+	var got []rig.Evidence
+
+	s.Require().NoError(yaml.Unmarshal(buf.Bytes(), &got))
+
+	s.Require().Equal("https://open.spotify.com/track/abc", *got[0].URL)
+	s.Require().Equal("1:20-1:45", *got[0].At)
+	s.Require().Contains(*got[0].Note, "the bass carries the verse alone")
+}
+
+// TestWithoutAManifestThereIsNoLink covers the entry a corpus with no
+// manifest produces.
+//
+// Worse evidence rather than broken evidence, which is why it is allowed.
+func (s *EvidencePublicTestSuite) TestWithoutAManifestThereIsNoLink() {
+	var got []rig.Evidence
+
+	s.Require().NoError(yaml.Unmarshal([]byte(s.render(s.records())), &got))
+
+	s.Require().Nil(got[0].URL)
+	s.Require().Nil(got[0].At)
+	s.Require().NotNil(got[0].Measured, "the measurement is still there")
+}
+
 // TestEachRecordingIsItsOwnEntry covers evidence staying per source.
 //
 // A url makes a claim checkable, and one entry averaging four records is the

@@ -437,10 +437,49 @@ Evidence carries the measurement and a link naming the recording. The audio
 itself is never referenced: somebody who does not own the record can still see
 what was measured and disagree, and somebody who does can re-measure.
 
-Do not type the numbers. `--evidence` writes the block:
+#### Name the records first
+
+The measurement knows what the audio sounds like and nothing about where it came
+from. A manifest supplies that, and it is the half that can be committed: the
+audio is somebody else's, and a link is checkable by a person who does not have
+the file.
+
+```yaml
+# ~/music/mike-dirnt/corpus.yaml
+artist: Mike Dirnt
+tracks:
+  - track: longview
+    url: https://open.spotify.com/track/…
+    at: "1:20-1:45"
+    note: the bass carries the verse alone
+  - track: basket-case
+    url: https://open.spotify.com/track/…
+```
+
+`track` matches the stem directory, which is the source file's own name. Commit
+this file; git-ignore the audio and the stems beside it, the same way
+`resources/schemas/corpus/` keeps its fetch script and drops its payload.
+
+An unknown field is refused rather than ignored, because `track` and `tracks`
+are one letter apart and a manifest that silently measures nothing is worse than
+one that stops. A timestamp that is not a timestamp is refused here too: left
+until build time it surfaces as a failure against `chain[0].evidence[1].at`,
+which does not say which song was wrong.
+
+#### Then write the block
+
+Do not type the numbers. `--evidence` writes them:
 
 ```bash
-tonestack measure --dir ~/stems/htdemucs --evidence
+tonestack measure --dir ~/stems/htdemucs --manifest ~/music/mike-dirnt/corpus.yaml --evidence
+```
+
+Anything the two disagree about is reported on stderr, so redirecting stdout
+into a rig stays clean:
+
+```text
+named in the manifest but not measured: nothing-was-separated
+measured but not in the manifest, so their evidence carries no link: brain-stew
 ```
 
 ```yaml

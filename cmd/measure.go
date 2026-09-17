@@ -22,6 +22,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -38,6 +39,10 @@ var measureDir string
 // measureEvidence writes the measurements as rig evidence rather than as a
 // report to read.
 var measureEvidence bool
+
+// measureManifest names the recordings and links them, so evidence can say
+// where a figure came from.
+var measureManifest string
 
 // measureCmd represents the measure command.
 var measureCmd = &cobra.Command{
@@ -113,6 +118,11 @@ func measureTree(
 		)
 	}
 
+	got, err = withSources(cmd, got)
+	if err != nil {
+		return err
+	}
+
 	if measureEvidence {
 		return cli.Evidence(cmd.OutOrStdout(), got)
 	}
@@ -129,6 +139,49 @@ func measureTree(
 	return cli.Across(cmd.OutOrStdout(), audio.Together(all))
 }
 
+// withSources attaches what a manifest knows to what was measured.
+//
+// Without one the recordings come back untouched, and their evidence goes out
+// with no link on it. That is a worse rig rather than a broken one, so it is
+// allowed and said out loud rather than refused.
+func withSources(
+	cmd *cobra.Command,
+	got []audio.Named,
+) ([]audio.Named, error) {
+	if measureManifest == "" {
+		return got, nil
+	}
+
+	f, err := os.Open(measureManifest) //nolint:gosec // the path is the user's own file
+	if err != nil {
+		return nil, fmt.Errorf("reading %s: %w", measureManifest, err)
+	}
+
+	// Opened read-only, so Close has nothing to report the read did not.
+	defer func() { _ = f.Close() }()
+
+	m, err := audio.ReadManifest(f)
+	if err != nil {
+		return nil, err
+	}
+
+	// To stderr, never to stdout. The evidence is written to be redirected
+	// into a rig, and a warning in that stream would end up inside the file.
+	missing, unnamed := m.Unmatched(got)
+	if len(missing) > 0 {
+		fmt.Fprintf(cmd.ErrOrStderr(),
+			"named in the manifest but not measured: %s\n", strings.Join(missing, ", "))
+	}
+
+	if len(unnamed) > 0 {
+		fmt.Fprintf(cmd.ErrOrStderr(),
+			"measured but not in the manifest, so their evidence carries no link: %s\n",
+			strings.Join(unnamed, ", "))
+	}
+
+	return m.Join(got), nil
+}
+
 func init() {
 	rootCmd.AddCommand(measureCmd)
 
@@ -136,6 +189,8 @@ func init() {
 		"the recording to measure, as a .wav")
 	measureCmd.Flags().StringVar(&measureDir, "dir", "",
 		"a tree of .wav recordings to measure together")
+	measureCmd.Flags().StringVar(&measureManifest, "manifest", "",
+		"a corpus manifest naming the recordings and linking them")
 	measureCmd.Flags().BoolVar(&measureEvidence, "evidence", false,
 		"write the measurements as rig evidence, to paste into a chain")
 

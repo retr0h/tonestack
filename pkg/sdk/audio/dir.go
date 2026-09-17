@@ -35,6 +35,10 @@ type Named struct {
 	Name string
 	// Profile is what it measured as.
 	Profile Profile
+	// Source is where the recording came from, when a manifest said. Empty
+	// otherwise: a measurement without a link is still a measurement, and the
+	// audio on disk is not a source anybody else can check.
+	Source Record
 }
 
 // MeasureAll measures every .wav in a tree, in name order.
