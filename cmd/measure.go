@@ -35,6 +35,10 @@ var measureFile string
 // measureDir is a tree of recordings to measure together.
 var measureDir string
 
+// measureEvidence writes the measurements as rig evidence rather than as a
+// report to read.
+var measureEvidence bool
+
 // measureCmd represents the measure command.
 var measureCmd = &cobra.Command{
 	Use:   "measure",
@@ -65,6 +69,13 @@ WAV only. Convert anything else on the way in:
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		if measureDir != "" {
 			return measureTree(cmd, measureDir)
+		}
+
+		// Evidence is written per recording across a corpus, and one take is
+		// not a corpus. Refused rather than ignored: a flag that silently does
+		// nothing is how somebody concludes the feature is broken.
+		if measureEvidence {
+			return fmt.Errorf("--evidence reads several records: give it --dir rather than --file")
 		}
 
 		f, err := os.Open(measureFile) //nolint:gosec // the path is the user's own file
@@ -102,6 +113,10 @@ func measureTree(
 		)
 	}
 
+	if measureEvidence {
+		return cli.Evidence(cmd.OutOrStdout(), got)
+	}
+
 	if err := cli.Tracks(cmd.OutOrStdout(), got); err != nil {
 		return err
 	}
@@ -121,6 +136,8 @@ func init() {
 		"the recording to measure, as a .wav")
 	measureCmd.Flags().StringVar(&measureDir, "dir", "",
 		"a tree of .wav recordings to measure together")
+	measureCmd.Flags().BoolVar(&measureEvidence, "evidence", false,
+		"write the measurements as rig evidence, to paste into a chain")
 
 	measureCmd.MarkFlagsOneRequired("file", "dir")
 	measureCmd.MarkFlagsMutuallyExclusive("file", "dir")

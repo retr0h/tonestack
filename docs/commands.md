@@ -223,6 +223,7 @@ tonestack measure [flags]
 | flag | takes | default | what it does |
 | --- | --- | --- | --- |
 | `--dir` | string |  | a tree of .wav recordings to measure together |
+| `--evidence` |  |  | write the measurements as rig evidence, to paste into a chain |
 | `--file` | string |  | the recording to measure, as a .wav |
 
 ## tonestack presets
