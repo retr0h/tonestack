@@ -204,10 +204,17 @@ judgements two people disagree about; a centroid of 410Hz is not. Turning one
 into the other is somebody else's job, and keeping them apart is what leaves
 anywhere to stand when they disagree.
 
+One record is one engineer's decisions on one day. Point --dir at several by
+the same player and the report gains what they have in common and how much
+the record chosen moved it.
+
 WAV only. Convert anything else on the way in:
 
     ffmpeg -i take.mp3 take.wav
     tonestack measure --file take.wav
+
+    just stems ~/music/mike-dirnt ~/stems
+    tonestack measure --dir ~/stems/htdemucs
 
 ```text
 tonestack measure [flags]
@@ -215,6 +222,7 @@ tonestack measure [flags]
 
 | flag | takes | default | what it does |
 | --- | --- | --- | --- |
+| `--dir` | string |  | a tree of .wav recordings to measure together |
 | `--file` | string |  | the recording to measure, as a .wav |
 
 ## tonestack presets

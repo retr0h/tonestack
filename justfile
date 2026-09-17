@@ -98,6 +98,18 @@ corpus:
 gear-map:
     uvx --with pypdf --with fonttools python3 resources/schemas/extract_gear_map.py
 
+# Separate the bass out of every recording in a directory, for `tonestack measure --dir`
+#
+# A mix measures the band, so the bass has to come out of it before any number
+# describes the player. Python because Demucs is; the same category as ffmpeg
+# converting an MP3, and nothing downstream of it leaves Go.
+#
+# `--with numpy` is not optional: Demucs does not declare it and fails without it.
+stems IN OUT:
+    uvx --from demucs --with numpy demucs --two-stems=bass -o {{ OUT }} {{ IN }}/*
+    @echo "stems written to {{ OUT }}/htdemucs — measure them with:"
+    @echo "    tonestack measure --dir {{ OUT }}/htdemucs"
+
 # Generate code
 generate:
     just go-generate

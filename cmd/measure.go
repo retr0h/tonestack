@@ -32,6 +32,9 @@ import (
 // measureFile is the recording to measure.
 var measureFile string
 
+// measureDir is a tree of recordings to measure together.
+var measureDir string
+
 // measureCmd represents the measure command.
 var measureCmd = &cobra.Command{
 	Use:   "measure",
@@ -47,12 +50,23 @@ judgements two people disagree about; a centroid of 410Hz is not. Turning one
 into the other is somebody else's job, and keeping them apart is what leaves
 anywhere to stand when they disagree.
 
+One record is one engineer's decisions on one day. Point --dir at several by
+the same player and the report gains what they have in common and how much
+the record chosen moved it.
+
 WAV only. Convert anything else on the way in:
 
     ffmpeg -i take.mp3 take.wav
-    tonestack measure --file take.wav`,
+    tonestack measure --file take.wav
+
+    just stems ~/music/mike-dirnt ~/stems
+    tonestack measure --dir ~/stems/htdemucs`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
+		if measureDir != "" {
+			return measureTree(cmd, measureDir)
+		}
+
 		f, err := os.Open(measureFile) //nolint:gosec // the path is the user's own file
 		if err != nil {
 			return fmt.Errorf("reading %s: %w", measureFile, err)
@@ -70,11 +84,44 @@ WAV only. Convert anything else on the way in:
 	},
 }
 
+// measureTree measures every recording under a directory and reports them
+// both one at a time and together.
+func measureTree(
+	cmd *cobra.Command,
+	dir string,
+) error {
+	got, err := audio.MeasureAll(os.DirFS(dir), ".")
+	if err != nil {
+		return fmt.Errorf("reading %s: %w", dir, err)
+	}
+
+	if len(got) == 0 {
+		return fmt.Errorf(
+			"no .wav recordings under %s: separate a directory of records with `just stems <in> <out>` first",
+			dir,
+		)
+	}
+
+	if err := cli.Tracks(cmd.OutOrStdout(), got); err != nil {
+		return err
+	}
+
+	all := make([]audio.Profile, 0, len(got))
+	for _, n := range got {
+		all = append(all, n.Profile)
+	}
+
+	return cli.Across(cmd.OutOrStdout(), audio.Together(all))
+}
+
 func init() {
 	rootCmd.AddCommand(measureCmd)
 
 	measureCmd.Flags().StringVar(&measureFile, "file", "",
 		"the recording to measure, as a .wav")
-	// Fails only for a flag that does not exist, and it is defined above.
-	_ = measureCmd.MarkFlagRequired("file")
+	measureCmd.Flags().StringVar(&measureDir, "dir", "",
+		"a tree of .wav recordings to measure together")
+
+	measureCmd.MarkFlagsOneRequired("file", "dir")
+	measureCmd.MarkFlagsMutuallyExclusive("file", "dir")
 }

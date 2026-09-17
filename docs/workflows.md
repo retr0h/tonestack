@@ -343,7 +343,7 @@ two it means.
 ## Measure a player's sound
 
 Reading numbers off records somebody actually made, so a rig can carry
-measurements rather than adjectives. Needs uv and ffmpeg; see
+measurements rather than adjectives. Needs uv; see
 [Prerequisites](../CONTRIBUTING.md#prerequisites).
 
 The short version: a mix measures the band, so the bass has to come out of it
@@ -367,14 +367,15 @@ mix.
 ### 2. Separate the bass from each
 
 ```bash
-for f in ~/music/mike-dirnt/*.mp3; do
-  uvx --from demucs --with numpy demucs --two-stems=bass -o ~/stems "$f"
-done
+just stems ~/music/mike-dirnt ~/stems
 ```
 
 About 15 seconds a track once the model is cached, so a four-record corpus is a
-minute. `--with numpy` is not optional: Demucs does not declare it and fails
-without it.
+minute. The recipe wraps Demucs, which is Python; that is the same category as
+`ffmpeg` converting an MP3, and nothing downstream of it leaves Go.
+
+Two files come out per track. `bass.wav` is the instrument and `no_bass.wav` is
+everything it was taken out of, which the next step ignores.
 
 **Do not skip this and filter instead.** A centre-channel extraction with a
 250Hz low-pass looks like it works — 92% low, a centroid of 154Hz — and both
@@ -382,36 +383,53 @@ numbers are circular, because everything above 250Hz was thrown away. The tell
 is decay, which comes back at 0.13s. A bass note does not stop that fast. Kick
 drum and bass share those frequencies and no filter separates them.
 
-### 3. Measure each stem
+### 3. Measure them together
+
+Point `--dir` at the tree the separation wrote. Each stem is named for the
+directory holding it, because four rows reading `bass` would name nothing.
 
 ```bash
-for d in ~/stems/htdemucs/*/; do
-  ffmpeg -y -i "$d/bass.wav" -ar 44100 -ac 1 /tmp/stem.wav 2>/dev/null
-  echo "$(basename "$d")"
-  tonestack measure --file /tmp/stem.wav
-done
+tonestack measure --dir ~/stems/htdemucs
 ```
-
-### 4. Read them together
-
-Four records by one player, bass stems:
 
 ```text
-track                low  centroid  transient  decay  dynamics
-basket-case          97%     148Hz       0.77  1.72s      5.5dB
-brain-stew           97%     135Hz       0.72  0.15s      6.1dB
-longview             94%     152Hz       0.71  0.82s      7.6dB
-when-i-come-around   91%     191Hz       0.68  0.88s      7.1dB
+  Each record  4 recordings
+
+  RECORD              LOW  CENTROID  TRANSIENT   DECAY  DYNAMICS  HARMONICS
+  basket-case         97%    151 Hz       0.79  1.72 s    5.3 dB  23%
+  brain-stew          97%    135 Hz       0.75  0.15 s    5.9 dB  18%
+  longview            91%    175 Hz       0.74  0.82 s    7.8 dB  35%
+  when-i-come-around  91%    195 Hz       0.72  1.22 s    7.1 dB  20%
+
+  Across the records  4 recordings
+
+  MEASURE    MIDDLE  ACROSS THE RECORDS
+  low           97%  91%–97%
+  mid            8%  3%–9%
+  high           0%  0%–1%
+  centroid   175 Hz  135 Hz–195 Hz
+  transient    0.75  0.72–0.79
+  decay      1.22 s  0.15 s–1.72 s
+  dynamics   7.1 dB  5.3 dB–7.8 dB
+  harmonics     23%  18%–35%
+  lean        +0.90  above the fundamental, leaning even
 ```
 
+### 4. Read the width, not just the middle
+
 The same four records measured as full mixes give centroids from 842Hz to
-1338Hz. Separated, they sit between 135Hz and 191Hz. That tightening is the
+1338Hz. Separated, they sit between 135Hz and 195Hz. That tightening is the
 whole reason for step 2.
 
-Take the median across the corpus, and treat a figure that disagrees with the
-rest as a question rather than an answer. `brain-stew` above still reports a
-decay of 0.15s where the others ring for around a second, because its stem is
-half silence and the loudest note is followed immediately by a rest.
+A middle with a narrow width is a habit. A middle with a wide one is four
+different decisions averaged into a number nobody played, and `decay` above is
+exactly that: 0.15s to 1.72s is not a player's tendency, it is four takes
+disagreeing. `brain-stew` reports 0.15s because its stem is half silence and the
+loudest note is followed immediately by a rest.
+
+With four records the ends of each width are the extreme records rather than a
+tenth in from them, so one unusual take is the whole of one end. Treat a figure
+that disagrees with the rest as a question rather than an answer.
 
 ### 5. Write it into the rig
 
@@ -427,7 +445,7 @@ what was measured and disagree, and somebody who does can re-measure.
       url: https://open.spotify.com/track/…
       at: "0:45-1:10"
       note: bass isolated from the mix before measuring
-      measured: { low: 0.94, centroid: 152, decay: 0.82, dynamics: 7.6 }
+      measured: { low: 0.91, centroid: 175, decay: 0.82, dynamics: 7.8 }
       caveat: >-
         measures the record rather than the player: the amp, the mic, the desk,
         the master and the encoder are all in these numbers
