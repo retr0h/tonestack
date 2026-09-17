@@ -132,9 +132,11 @@ func (s *MeasurePublicTestSuite) TestAPluckedNoteDecaysFasterThanAToneHeld() {
 	held := audio.Measure(audio.Sine(110, 2.0, rate, 0.8), rate)
 	plucked := audio.Measure(audio.Plucked(110, 2.0, rate, 0.9, 4), rate)
 
-	s.Require().Less(plucked.Decay, held.Decay,
-		"a note that dies away decays sooner than one that does not")
-	s.Require().Less(plucked.Decay, 1.0, "and does it within the recording")
+	s.Require().True(plucked.Decay.Known, "a note that dies away has a decay")
+	s.Require().False(held.Decay.Known,
+		"a tone that never falls to a quarter has none to report")
+
+	s.Require().Less(plucked.Decay.Value, 1.0, "and does it within the recording")
 }
 
 // TestAHarderPluckDecaysSooner covers decay tracking the envelope.
@@ -142,7 +144,9 @@ func (s *MeasurePublicTestSuite) TestAHarderPluckDecaysSooner() {
 	slow := audio.Measure(audio.Plucked(110, 2.0, rate, 0.8, 2), rate)
 	fast := audio.Measure(audio.Plucked(110, 2.0, rate, 0.8, 8), rate)
 
-	s.Require().Less(fast.Decay, slow.Decay)
+	s.Require().True(fast.Decay.Known)
+	s.Require().True(slow.Decay.Known)
+	s.Require().Less(fast.Decay.Value, slow.Decay.Value)
 }
 
 // TestASteadyToneIsNotDynamic covers dynamic range on something unchanging.
@@ -179,14 +183,36 @@ func (s *MeasurePublicTestSuite) TestASuddenStartReadsAsTransient() {
 	held := audio.Measure(audio.Sine(110, 1.0, rate, 0.7), rate)
 	swelled := audio.Measure(audio.Swell(110, 1.0, rate, 0.8), rate)
 
-	s.Require().Greater(struck.Transient, 0.9, "a struck note arrives at once")
-	s.Require().Greater(ringing.Transient, 0.9, "however long it then rings")
+	s.Require().Greater(struck.Transient.Value, 0.9, "a struck note arrives at once")
+	s.Require().Greater(ringing.Transient.Value, 0.9, "however long it then rings")
 
-	s.Require().Less(held.Transient, 0.1, "a held tone never arrives")
-	s.Require().Less(swelled.Transient, 0.1, "and a swell arrives gradually")
+	s.Require().False(held.Transient.Known,
+		"a held tone is at level from the first frame and never arrives at all")
+	s.Require().Less(swelled.Transient.Value, 0.1, "and a swell arrives gradually")
 
-	s.Require().Greater(struck.Transient, swelled.Transient*5,
+	s.Require().Greater(struck.Transient.Value, swelled.Transient.Value*5,
 		"the two are not close")
+}
+
+// TestATonesAttackIsNotMeasurable separates no attack from a gradual one.
+//
+// The number alone cannot tell them apart: a swell's largest rise is 2.9% of
+// its peak and a held sine's is 2.5%. What separates them is where the signal
+// starts. A swell begins at 0.2% of its peak and climbs; a sine is already at
+// 92% of its peak in the first frame and has nowhere to climb from.
+//
+// Reporting the sine's 2.5% as a transient read it as a note swelled in over
+// three seconds, which is the opposite of a tone that simply began.
+func (s *MeasurePublicTestSuite) TestATonesAttackIsNotMeasurable() {
+	tone := audio.Measure(audio.Sine(110, 3.0, rate, 0.8), rate)
+	swelled := audio.Measure(audio.Swell(110, 1.0, rate, 0.8), rate)
+
+	s.Require().False(tone.Transient.Known,
+		"a tone at full level in its first frame has no attack to measure")
+
+	s.Require().True(swelled.Transient.Known,
+		"a swell starts from nothing, so its rise is a real one")
+	s.Require().Less(swelled.Transient.Value, 0.1, "and a gradual one")
 }
 
 // TestTransientIgnoresHowLoud covers it measuring the start, not the level.
@@ -196,18 +222,27 @@ func (s *MeasurePublicTestSuite) TestTransientIgnoresHowLoud() {
 	loud := audio.Measure(
 		append(audio.Silence(0.3, rate), audio.Plucked(110, 0.7, rate, 0.9, 6)...), rate)
 
-	s.Require().InDelta(quiet.Transient, loud.Transient, 0.05)
+	s.Require().InDelta(quiet.Transient.Value, loud.Transient.Value, 0.05)
 }
 
 // TestTransientNeverExceedsOne covers the one case that could push it past.
 //
-// A signal that starts at full level in its very first frame has a rise as
-// large as its peak, and nothing should report more than all of it.
+// Silence and then a note struck at once: the rise into it is the whole of the
+// peak, measured at exactly 1.0000, and nothing should report more than all of
+// it.
+//
+// The note on its own is not this case. It is at full level in its first
+// frame, so it has no rise to clamp and no attack to report.
 func (s *MeasurePublicTestSuite) TestTransientNeverExceedsOne() {
-	got := audio.Measure(audio.Plucked(110, 1.0, rate, 0.9, 8), rate)
+	got := audio.Measure(
+		append(audio.Silence(0.3, rate), audio.Plucked(110, 0.7, rate, 0.9, 8)...), rate)
 
-	s.Require().LessOrEqual(got.Transient, 1.0)
-	s.Require().GreaterOrEqual(got.Transient, 0.0)
+	s.Require().True(got.Transient.Known)
+	s.Require().LessOrEqual(got.Transient.Value, 1.0)
+	s.Require().GreaterOrEqual(got.Transient.Value, 0.0)
+
+	bare := audio.Measure(audio.Plucked(110, 1.0, rate, 0.9, 8), rate)
+	s.Require().False(bare.Transient.Known)
 }
 
 // TestSilenceMeasuresAsNothing covers every measurement surviving no signal.
@@ -222,9 +257,10 @@ func (s *MeasurePublicTestSuite) TestSilenceMeasuresAsNothing() {
 	s.Require().InDelta(0, got.Centroid, 1e-9)
 	s.Require().Equal(audio.Spread{}, got.Harmonics)
 	s.Require().Equal(audio.Spread{}, got.EvenOdd)
-	s.Require().InDelta(0, got.Decay, 1e-9)
 	s.Require().InDelta(0, got.DynamicRange, 1e-9)
-	s.Require().InDelta(0, got.Transient, 1e-9)
+
+	s.Require().False(got.Decay.Known, "there is no note to fall")
+	s.Require().False(got.Transient.Known, "and none to start")
 }
 
 // TestNoSamplesAtAll measures as an empty profile rather than a guess.
@@ -248,8 +284,8 @@ func (s *MeasurePublicTestSuite) TestARateOfNothing() {
 func (s *MeasurePublicTestSuite) TestTooShortToMeasure() {
 	got := audio.Measure([]float64{0.1, -0.1, 0.2}, rate)
 
-	s.Require().InDelta(0, got.Transient, 1e-9)
-	s.Require().InDelta(0, got.Decay, 1e-9)
+	s.Require().False(got.Transient.Known)
+	s.Require().False(got.Decay.Known)
 	s.Require().InDelta(0, got.DynamicRange, 1e-9)
 }
 

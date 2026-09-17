@@ -135,9 +135,10 @@ func (s *GatePublicTestSuite) TestDecayStopsAtARest() {
 		append(audio.Plucked(110, 1.0, rate, 0.8, 2), audio.Silence(5.0, rate)...),
 		rate)
 
-	s.Require().Less(got.Decay, 2.0,
+	s.Require().True(got.Decay.Known)
+	s.Require().Less(got.Decay.Value, 2.0,
 		"the five seconds of silence are not part of the note")
-	s.Require().Positive(got.Decay)
+	s.Require().Positive(got.Decay.Value)
 }
 
 // TestANoteStillRingingWhenThePlayingStops is the honest answer's limit.
@@ -157,7 +158,11 @@ func (s *GatePublicTestSuite) TestANoteStillRingingWhenThePlayingStops() {
 			audio.Silence(4.0, rate)...),
 		rate)
 
-	s.Require().InDelta(sounding, got.Decay, 0.05,
+	// Still a measurement rather than an absence. The playing stopping is an
+	// observed event; what makes a decay unknown is the recording ending
+	// while the note is still above a quarter.
+	s.Require().True(got.Decay.Known)
+	s.Require().InDelta(sounding, got.Decay.Value, 0.05,
 		"it rang until the playing stopped, and no longer")
 }
 

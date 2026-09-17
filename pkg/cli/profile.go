@@ -53,13 +53,13 @@ func Profile(
 		},
 		{
 			paint.Accent(w, "transient"),
-			fmt.Sprintf("%.2f", p.Transient),
+			readingOf(p.Transient, "%.2f", 1),
 			paint.Mute(w, attackReads(p.Transient)),
 		},
 		{
 			paint.Accent(w, "decay"),
-			fmt.Sprintf("%.2f s", p.Decay),
-			paint.Mute(w, "to a quarter of the loudest moment"),
+			readingOf(p.Decay, "%.2f s", 1),
+			paint.Mute(w, decayReads(p.Decay)),
 		},
 		{
 			paint.Accent(w, "dynamics"),
@@ -90,15 +90,36 @@ func Profile(
 	}.Render(w)
 }
 
+// readingOf is a measurement, or a dash where the recording did not allow one.
+//
+// A dash rather than a zero. Zero is an answer somebody got; this is the
+// absence of one, and printing them the same way is what let a generated tone
+// read as a note that swelled in over three seconds.
+func readingOf(
+	r audio.Reading,
+	format string,
+	scale float64,
+) string {
+	if !r.Known {
+		return "—"
+	}
+
+	return fmt.Sprintf(format, r.Value*scale)
+}
+
 // attackReads says what a transient number is counting, not what it means.
 //
 // The boundaries come from measuring signals whose answers were known: a
 // struck note reads above 0.9 and a note swelled in reads below 0.1. They
 // describe how the number was arrived at rather than ruling on the playing.
 func attackReads(
-	v float64,
+	r audio.Reading,
 ) string {
-	switch {
+	if !r.Known {
+		return "it is at its loudest in the first frame, so nothing rose"
+	}
+
+	switch v := r.Value; {
 	case v >= 0.9:
 		return "the level arrives in one step"
 	case v <= 0.1:
@@ -106,6 +127,17 @@ func attackReads(
 	default:
 		return "the largest single step up, against the peak"
 	}
+}
+
+// decayReads says what the decay number is, or why there is not one.
+func decayReads(
+	r audio.Reading,
+) string {
+	if !r.Known {
+		return "it never fell to a quarter before the recording ended"
+	}
+
+	return "to a quarter of the loudest moment"
 }
 
 // compressionReads says what the decibel gap is between.

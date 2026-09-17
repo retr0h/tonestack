@@ -39,10 +39,12 @@ type Across struct {
 
 	// Centroid is the spectrum's centre of gravity, in hertz.
 	Centroid Spread
-	// Transient is how sharply notes start, from zero to one.
-	Transient Spread
-	// Decay is how long a note takes to fall to a quarter, in seconds.
-	Decay Spread
+	// Transient is how sharply notes start, from zero to one. Only the
+	// recordings whose level rose at all are in it.
+	Transient Ranged
+	// Decay is how long a note takes to fall to a quarter, in seconds. Only
+	// the recordings whose notes fell that far are in it.
+	Decay Ranged
 	// DynamicRange is the gap between loudest and typical, in decibels.
 	DynamicRange Spread
 	// Harmonics is the share of energy above the fundamental.
@@ -75,14 +77,50 @@ func Together(
 	out.High = each(of, func(p Profile) float64 { return p.High })
 
 	out.Centroid = each(of, func(p Profile) float64 { return p.Centroid })
-	out.Transient = each(of, func(p Profile) float64 { return p.Transient })
-	out.Decay = each(of, func(p Profile) float64 { return p.Decay })
 	out.DynamicRange = each(of, func(p Profile) float64 { return p.DynamicRange })
+
+	out.Transient = whichever(of, func(p Profile) Reading { return p.Transient })
+	out.Decay = whichever(of, func(p Profile) Reading { return p.Decay })
 
 	out.Harmonics = each(of, func(p Profile) float64 { return p.Harmonics.Mid })
 	out.EvenOdd = each(of, func(p Profile) float64 { return p.EvenOdd.Mid })
 
 	return out
+}
+
+// Ranged is what several recordings measured, and how many of them could be.
+//
+// Not every recording answers every question. A note held through a whole bar
+// never falls to a quarter of itself, so it has no decay to contribute, and a
+// spread taken over the recordings that do plus the ones that do not is a
+// spread over two different things.
+type Ranged struct {
+	Spread
+
+	// From is how many recordings contributed a reading. Zero means none
+	// could, and the spread inside is empty rather than small.
+	From int
+}
+
+// whichever is the spread of one measure across the recordings that had it.
+//
+// Silence from the ones that did not, rather than a zero. A zero is a
+// measurement somebody took and got nothing; an absent recording is one
+// nobody could take, and averaging the second into the first drags every
+// answer toward zero for a reason that has nothing to do with the playing.
+func whichever(
+	of []Profile,
+	pick func(Profile) Reading,
+) Ranged {
+	vals := make([]float64, 0, len(of))
+
+	for _, p := range of {
+		if r := pick(p); r.Known {
+			vals = append(vals, r.Value)
+		}
+	}
+
+	return Ranged{Spread: spreadOf(vals), From: len(vals)}
 }
 
 // each is the spread of one measure across the recordings.

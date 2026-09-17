@@ -55,6 +55,24 @@ type Spread struct {
 	High float64
 }
 
+// Reading is a measurement a recording may not have allowed.
+//
+// Some questions have no answer for some audio. A tone that starts at full
+// level never rises, so there is no attack to measure; a note held through a
+// whole bar never falls to a quarter of itself, so there is no decay. Both
+// used to come back as a number anyway: zero for the first, and the length of
+// the recording for the second.
+//
+// A number nobody could take is worse than no number, because it is
+// indistinguishable from one somebody did. Known is what separates them.
+type Reading struct {
+	// Value is the measurement, when there was one.
+	Value float64
+	// Known says whether the recording answered at all. Value means nothing
+	// when it is false.
+	Known bool
+}
+
 // Profile is what a recording measures as.
 //
 // Every field is a number somebody else could compute from the same audio and
@@ -81,12 +99,14 @@ type Profile struct {
 	// Transient is how sharply notes start, from zero to one.
 	//
 	// The share of the signal's rises that are sudden rather than gradual.
-	// Fingers are lower, a pick is higher, a slap higher still.
-	Transient float64
+	// Fingers are lower, a pick is higher, a slap higher still. Unknown when
+	// the recording starts at its loudest, because nothing rose.
+	Transient Reading
 
 	// Decay is how long a note takes to fall to a quarter of its peak, in
-	// seconds. Muted playing is short, a ringing open string is long.
-	Decay float64
+	// seconds. Muted playing is short, a ringing open string is long. Unknown
+	// when it never falls that far before the recording ends.
+	Decay Reading
 
 	// DynamicRange is the gap between the loudest and the typical moment, in
 	// decibels. A heavily compressed part is a small number.
@@ -110,6 +130,17 @@ const (
 	lowMid  = 250.0
 	midHigh = 2000.0
 )
+
+// startedAtPeak is how close to its loudest a recording's first frame has to
+// be before there is no attack left in it to measure.
+//
+// Measured rather than chosen. Across the generators, everything already at
+// level reads 0.92 to 1.00 of its peak in the first frame: a sine 0.92, noise
+// 0.94, a struck note with no silence before it 0.99, a square 1.00. Anything
+// with a start to find reads under 0.01: a swell 0.002, silence before a
+// pluck 0.000. Nothing lands between 0.003 and 0.917, so the figure in the
+// middle is not delicate.
+const startedAtPeak = 0.5
 
 // Measure reads a recording into the numbers that describe it.
 //
@@ -339,15 +370,16 @@ func quantile(
 func transient(
 	samples []float64,
 	rate int,
-) float64 {
+) Reading {
 	frame := rate / 200
 	if frame < 1 || len(samples) < frame*4 {
-		return 0
+		return Reading{}
 	}
 
 	var largest, peak float64
 
 	prev := loudness(samples[:frame])
+	first := prev
 	peak = prev
 
 	for at := frame; at+frame <= len(samples); at += frame {
@@ -359,11 +391,19 @@ func transient(
 		prev = cur
 	}
 
-	if peak == 0 {
-		return 0
+	// Nothing to rise from. A recording already at its loudest in the first
+	// frame has no attack in it to be sharp or gradual, and the largest rise
+	// it does contain is whatever the level wandered by afterwards.
+	//
+	// The size of that rise cannot be what decides this. Measured across the
+	// generators, a swell's largest rise is 2.9% of its peak and a held sine's
+	// is 2.5%: near enough identical, while one is a real attack and the other
+	// is not. Where the signal starts separates them cleanly.
+	if peak == 0 || first >= peak*startedAtPeak {
+		return Reading{}
 	}
 
-	return math.Min(1, largest/peak)
+	return Reading{Value: math.Min(1, largest/peak), Known: true}
 }
 
 // decay is how long the loudest moment takes to fall to a quarter of itself.
@@ -373,10 +413,10 @@ func transient(
 func decay(
 	samples []float64,
 	rate int,
-) float64 {
+) Reading {
 	frame := rate / 100
 	if frame < 1 || len(samples) < frame*2 {
-		return 0
+		return Reading{}
 	}
 
 	levels := frames(samples, frame)
@@ -391,7 +431,7 @@ func decay(
 	}
 
 	if peak == 0 {
-		return 0
+		return Reading{}
 	}
 
 	for i := at; i < len(levels); i++ {
@@ -404,11 +444,21 @@ func decay(
 		// before this. What can honestly be said then is that it rang for at
 		// least this long.
 		if !held[i] || levels[i] <= peak/4 {
-			return float64(i-at) * float64(frame) / float64(rate)
+			return Reading{
+				Value: float64(i-at) * float64(frame) / float64(rate),
+				Known: true,
+			}
 		}
 	}
 
-	return float64(len(levels)-at) * float64(frame) / float64(rate)
+	// It never fell. Returning what is left of the recording gives back its
+	// length rather than a decay, and a sustained note or a generated tone
+	// reads as ringing for exactly as long as somebody happened to record.
+	//
+	// The rest above is a different case and stays a measurement: reaching
+	// one means the player stopped while the note was still sounding, which
+	// is an observed event rather than the end of the file.
+	return Reading{}
 }
 
 // dynamicRange is the gap between the loudest frame and the median one, in

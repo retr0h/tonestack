@@ -42,14 +42,74 @@ func (s *EvidencePublicTestSuite) keys() []string {
 //
 // A key in the order that nothing measures would write an absent figure into
 // a rig; a key measured but missing from the order would be dropped silently.
+//
+// Measured against a recording that answered everything. A profile that did
+// not answer writes fewer keys, which is the point of the two below.
 func (s *EvidencePublicTestSuite) TestEveryKeyIsMeasured() {
-	got := audio.Profile{}.Measured()
+	got := audio.Profile{
+		Transient: audio.Reading{Known: true},
+		Decay:     audio.Reading{Known: true},
+	}.Measured()
 
 	s.Require().Len(audio.MeasuredKeys(), len(got))
 
 	for _, key := range audio.MeasuredKeys() {
 		s.Require().Contains(got, key)
 	}
+}
+
+// TestAMeasureNobodyCouldTakeIsLeftOut is the difference between a figure of
+// zero and no figure.
+//
+// An earlier version wrote all nine keys always, so a tone that never decayed
+// carried `decay: 3.0` into a rig and was compared against a preset's real
+// decay as though somebody had measured it.
+func (s *EvidencePublicTestSuite) TestAMeasureNobodyCouldTakeIsLeftOut() {
+	got := audio.Profile{Centroid: 175}.Measured()
+
+	s.Require().NotContains(got, audio.KeyDecay)
+	s.Require().NotContains(got, audio.KeyTransient)
+	s.Require().Contains(got, audio.KeyCentroid, "the rest still arrives")
+}
+
+// TestAGatheredMeasureThatWasTakenIsWritten covers the other side of it.
+//
+// The middle of the records that answered, written under the same key a
+// single recording uses. Three so the middle is the middle rather than an
+// end.
+func (s *EvidencePublicTestSuite) TestAGatheredMeasureThatWasTakenIsWritten() {
+	got := audio.Together([]audio.Profile{
+		{
+			Centroid:  175,
+			Transient: audio.Reading{Value: 0.70, Known: true},
+			Decay:     audio.Reading{Value: 0.80, Known: true},
+		},
+		{
+			Centroid:  180,
+			Transient: audio.Reading{Value: 0.74, Known: true},
+			Decay:     audio.Reading{Value: 0.82, Known: true},
+		},
+		{
+			Centroid:  185,
+			Transient: audio.Reading{Value: 0.78, Known: true},
+			Decay:     audio.Reading{Value: 0.90, Known: true},
+		},
+	}).Measured()
+
+	s.Require().InDelta(0.74, got[audio.KeyTransient], 1e-9)
+	s.Require().InDelta(0.82, got[audio.KeyDecay], 1e-9)
+
+	s.Require().Len(got, len(audio.MeasuredKeys()))
+}
+
+// TestAGatheredMeasureNobodyCouldTakeIsLeftOut covers the same across records.
+func (s *EvidencePublicTestSuite) TestAGatheredMeasureNobodyCouldTakeIsLeftOut() {
+	got := audio.Together([]audio.Profile{{Centroid: 175}, {Centroid: 185}}).
+		Measured()
+
+	s.Require().NotContains(got, audio.KeyDecay)
+	s.Require().NotContains(got, audio.KeyTransient)
+	s.Require().Contains(got, audio.KeyCentroid)
 }
 
 // TestTheOrderIsStable covers evidence written twice reading the same way.
@@ -61,7 +121,9 @@ func (s *EvidencePublicTestSuite) TestTheOrderIsStable() {
 func (s *EvidencePublicTestSuite) TestOneRecordingIsNamedInFull() {
 	got := audio.Profile{
 		Low: 0.9134, Mid: 0.0812, High: 0.0054,
-		Centroid: 175.4, Transient: 0.7431, Decay: 0.8249,
+		Centroid:     175.4,
+		Transient:    audio.Reading{Value: 0.7431, Known: true},
+		Decay:        audio.Reading{Value: 0.8249, Known: true},
 		DynamicRange: 7.84,
 		Harmonics:    audio.Spread{Mid: 0.3512},
 		EvenOdd:      audio.Spread{Mid: -0.6049},
@@ -95,7 +157,10 @@ func (s *EvidencePublicTestSuite) TestGatheredRecordingsAreNamedTheSameWay() {
 // precision the transform does not have.
 func (s *EvidencePublicTestSuite) TestFiguresAreRoundedToWhatTheyCanClaim() {
 	got := audio.Profile{
-		Low: 0.913471, Centroid: 175.4382, Decay: 0.824913, DynamicRange: 7.8449,
+		Low:          0.913471,
+		Centroid:     175.4382,
+		Decay:        audio.Reading{Value: 0.824913, Known: true},
+		DynamicRange: 7.8449,
 	}.Measured()
 
 	s.Require().InDelta(0.91, got[audio.KeyLow], 1e-9)
@@ -114,15 +179,27 @@ func (s *EvidencePublicTestSuite) TestTheMiddleIsWhatIsCarried() {
 	s.Require().InDelta(175, got[audio.KeyCentroid], 1e-9)
 }
 
-// TestNothingMeasuredIsStillNamed covers an empty measurement.
+// TestNothingMeasuredNamesOnlyWhatItCould covers an empty measurement.
 //
-// Zeroes rather than absent keys. A rig reading this can tell the difference
-// between a figure of zero and a figure nobody took, and dropping the key
-// would remove that.
-func (s *EvidencePublicTestSuite) TestNothingMeasuredIsStillNamed() {
+// This test used to assert the opposite, that all nine keys are always
+// written, on the reasoning that a rig could then tell a figure of zero from a
+// figure nobody took. That had it backwards. The absent key is what tells them
+// apart, and writing a number for a measure nobody could take is how a
+// generated tone came to carry a decay of three seconds into a rig.
+func (s *EvidencePublicTestSuite) TestNothingMeasuredNamesOnlyWhatItCould() {
 	got := audio.Across{}.Measured()
 
-	s.Require().Len(got, len(s.keys()))
+	for _, key := range []string{
+		audio.KeyLow, audio.KeyMid, audio.KeyHigh, audio.KeyCentroid,
+		audio.KeyDynamics, audio.KeyHarmonics, audio.KeyLean,
+	} {
+		s.Require().Contains(got, key, "%s is a real zero", key)
+	}
+
+	s.Require().NotContains(got, audio.KeyDecay)
+	s.Require().NotContains(got, audio.KeyTransient)
+
+	s.Require().Len(got, len(audio.MeasuredKeys())-2)
 }
 
 func TestEvidencePublicTestSuite(
