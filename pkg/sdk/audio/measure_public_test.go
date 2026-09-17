@@ -149,6 +149,52 @@ func (s *MeasurePublicTestSuite) TestAHarderPluckDecaysSooner() {
 	s.Require().Less(fast.Decay.Value, slow.Decay.Value)
 }
 
+// TestDecayIsPerNoteNotPerRecording is the whole of what changed.
+//
+// Three notes: one long, one short, one long. Timed from the loudest frame in
+// the recording, the answer is whichever single note happened to peak highest.
+// Timed per note, it is the middle of the three, which is what describes the
+// playing rather than one moment of it.
+func (s *MeasurePublicTestSuite) TestDecayIsPerNoteNotPerRecording() {
+	samples := make([]float64, 0, rate*4)
+
+	// A loud short note first, so a global peak would time that one.
+	samples = append(samples, audio.Plucked(110, 0.6, rate, 0.9, 12)...)
+	samples = append(samples, audio.Silence(0.2, rate)...)
+	samples = append(samples, audio.Plucked(110, 1.4, rate, 0.5, 2)...)
+	samples = append(samples, audio.Silence(0.2, rate)...)
+	samples = append(samples, audio.Plucked(110, 1.4, rate, 0.5, 2)...)
+
+	got := audio.Measure(samples, rate)
+
+	s.Require().True(got.Decay.Known)
+	s.Require().Greater(got.Decay.Value, 0.15,
+		"two of the three notes ring, so the middle is not the short one")
+}
+
+// TestAnAccentDoesNotDecideTheDecay covers the failure this replaced.
+//
+// On a dense line the loudest frame is one accent, and the level drops back to
+// the ongoing playing straight after it. Timing that one fall reported the
+// accent rather than the notes, which is how a bassist whose notes ring read
+// 0.03s across three records.
+func (s *MeasurePublicTestSuite) TestAnAccentDoesNotDecideTheDecay() {
+	var samples []float64
+	for range 6 {
+		samples = append(samples, audio.Plucked(110, 0.5, rate, 0.4, 3)...)
+	}
+
+	// One accent, twice as loud, in the middle of the line.
+	accent := audio.Plucked(110, 0.5, rate, 0.9, 3)
+	samples = append(samples[:len(samples)/2], append(accent, samples[len(samples)/2:]...)...)
+
+	got := audio.Measure(samples, rate)
+
+	s.Require().True(got.Decay.Known)
+	s.Require().Greater(got.Decay.Value, 0.05,
+		"the notes decide it, not the one frame that was loudest")
+}
+
 // TestASteadyToneIsNotDynamic covers dynamic range on something unchanging.
 func (s *MeasurePublicTestSuite) TestASteadyToneIsNotDynamic() {
 	got := audio.Measure(audio.Sine(220, 1.0, rate, 0.7), rate)

@@ -406,10 +406,49 @@ func transient(
 	return Reading{Value: math.Min(1, largest/peak), Known: true}
 }
 
-// decay is how long the loudest moment takes to fall to a quarter of itself.
+// onsetRise is how far a frame has to rise above the one before it, as a share
+// of the recording's loudest, to count as a new note rather than the same one
+// continuing.
+//
+// Swept from 0.02 to 0.40 across thirteen bass stems. The sweep did not find a
+// best value, because the thing worth optimising turned out to be unobtainable
+// at any threshold: see decay. What it did find is where the detector starts
+// missing notes, above about 0.30, where one player's decay collapses from
+// 0.26s to 0.05s as onsets stop being counted.
+//
+// 0.06 sits well below that, and the synthetic signals whose answers are known
+// measure correctly there.
+const onsetRise = 0.06
+
+// decay is how long a note takes to fall to a quarter of itself, across the
+// notes in a recording.
 //
 // A quarter rather than silence, because a recording's noise floor never
 // reaches silence and waiting for it would measure the room.
+//
+// Per note, and this is the whole point. An earlier version took the single
+// loudest frame in the recording and timed that one fall. On a dense line the
+// loudest frame is one accent, and the level drops back to the ongoing playing
+// immediately after it: nothing stopped ringing, the loudest moment merely
+// passed. Measured that way one bassist read 0.01s to 0.06s across three
+// records, and no note dies in thirty milliseconds.
+//
+// The figure it produced was not stable either. Measured across two different
+// selections of the same player's records it moved 0.43s, which is as far
+// apart as the artists are from each other, so it could not support a
+// comparison between players at all.
+//
+// Per note fixes the first problem and not the second. A player whose notes
+// plainly ring now reads 0.26s rather than 0.03s, which is a believable ring
+// time. But measured across two selections of one player's records the figure
+// still moves 0.28s to 0.46s, at every onset threshold from 0.02 to 0.40,
+// against 0.56s to 0.77s between the artists themselves. There is no threshold
+// where the drift becomes a small enough share of the separation to compare
+// players by.
+//
+// So this is a measurement of a recording rather than of a player, and it
+// stays out of Axes. Centroid moves 1Hz across the same two selections;
+// that is what a figure has to do before a word is derived from it.
 func decay(
 	samples []float64,
 	rate int,
@@ -422,43 +461,65 @@ func decay(
 	levels := frames(samples, frame)
 	held := playing(levels)
 
-	peak, at := 0.0, 0
-
-	for i, l := range levels {
-		if l > peak {
-			peak, at = l, i
-		}
+	var loudest float64
+	for _, l := range levels {
+		loudest = math.Max(loudest, l)
 	}
 
-	if peak == 0 {
+	if loudest == 0 {
 		return Reading{}
 	}
 
-	for i := at; i < len(levels); i++ {
-		// Either the note has fallen far enough, or the playing stopped while
-		// it was still sounding. Both end the measurement here.
-		//
-		// A rest is not a note dying away: reaching one means the player
-		// stopped, and timing the silence after it would report the gap
-		// rather than the ring, which is what a track full of rests did
-		// before this. What can honestly be said then is that it rang for at
-		// least this long.
-		if !held[i] || levels[i] <= peak/4 {
-			return Reading{
-				Value: float64(i-at) * float64(frame) / float64(rate),
-				Known: true,
+	rang := make([]float64, 0, len(levels)/4)
+
+	for i := range levels {
+		if !held[i] {
+			continue
+		}
+
+		// A note starts where the level rises into it, where the playing
+		// resumes after a rest, or at the very beginning. The last two matter
+		// as much as the first: a recording that opens with a note already
+		// sounding has nothing to rise from, and looking only for a rise finds
+		// no notes in it at all.
+		if i > 0 && held[i-1] && levels[i]-levels[i-1] < loudest*onsetRise {
+			continue
+		}
+
+		// This note's own peak, which is at the onset or just after it.
+		peak := levels[i]
+		for j := i + 1; j < len(levels) && held[j] && levels[j] > peak; j++ {
+			peak = levels[j]
+		}
+
+		for j := i + 1; j < len(levels); j++ {
+			// Either the note has fallen far enough, or the playing stopped
+			// while it was still sounding. Both end this note.
+			//
+			// A rest is not a note dying away: reaching one means the player
+			// stopped, and timing the silence after it would report the gap
+			// rather than the ring. What can honestly be said then is that it
+			// rang for at least this long.
+			if levels[j] <= peak/4 || !held[j] {
+				rang = append(rang,
+					float64(j-i)*float64(frame)/float64(rate))
+
+				break
 			}
 		}
 	}
 
-	// It never fell. Returning what is left of the recording gives back its
-	// length rather than a decay, and a sustained note or a generated tone
-	// reads as ringing for exactly as long as somebody happened to record.
-	//
-	// The rest above is a different case and stays a measurement: reaching
-	// one means the player stopped while the note was still sounding, which
-	// is an observed event rather than the end of the file.
-	return Reading{}
+	// Nothing rose far enough to be a note, or no note ever fell. Returning
+	// what is left of the recording would give back its length rather than a
+	// decay, and a sustained note or a generated tone would read as ringing
+	// for exactly as long as somebody happened to record.
+	if len(rang) == 0 {
+		return Reading{}
+	}
+
+	slices.Sort(rang)
+
+	return Reading{Value: quantile(rang, 0.5), Known: true}
 }
 
 // dynamicRange is the gap between the loudest frame and the median one, in
