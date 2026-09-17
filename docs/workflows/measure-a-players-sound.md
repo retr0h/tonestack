@@ -26,6 +26,11 @@ An agent can fetch them itself.
 [Add records to a corpus](add-records-to-a-corpus.md) covers choosing,
 downloading and checking each one.
 
+Run every step here from the main checkout, not a git worktree. The corpus is
+ignored by git, so a worktree's copy of `resources/music/` is a separate
+directory that is deleted with the worktree, taking the audio with it. See
+[Keeping it](../../resources/music/README.md#keeping-it).
+
 ### 2. Separate the bass from each
 
 ```bash

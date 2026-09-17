@@ -23,6 +23,11 @@ wrong is a file that downloads cleanly and is the wrong recording.
 An agent that sees one of these says so and names the records it would add. It
 downloads them when asked to.
 
+Do this in the main checkout. A git worktree has its own `resources/music/`,
+which is ignored by git and deleted with the worktree, so records fetched there
+are records nobody keeps. See
+[Keeping it](../../resources/music/README.md#keeping-it).
+
 ### 1. Check the player played the bass on that recording
 
 Do this before anything else, because no later step catches it. A song credited
