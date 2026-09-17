@@ -437,23 +437,45 @@ Evidence carries the measurement and a link naming the recording. The audio
 itself is never referenced: somebody who does not own the record can still see
 what was measured and disagree, and somebody who does can re-measure.
 
-```yaml
-- role: amp
-  gear: Ampeg SVT
-  evidence:
-    - kind: audio
-      url: https://open.spotify.com/track/…
-      at: "0:45-1:10"
-      note: bass isolated from the mix before measuring
-      measured: { low: 0.91, centroid: 175, decay: 0.82, dynamics: 7.8 }
-      caveat: >-
-        measures the record rather than the player: the amp, the mic, the desk,
-        the master and the encoder are all in these numbers
+Do not type the numbers. `--evidence` writes the block:
+
+```bash
+tonestack measure --dir ~/stems/htdemucs --evidence
 ```
 
-`caveat` is doing real work there. These figures describe a finished record, so
-they compare against the same measurement taken from a generated preset. They
-are not knob positions.
+```yaml
+# Paste under a chain entry's evidence:, and add a url: to each naming the
+# recording it came from.
+- kind: audio
+  note: longview, bass isolated from the mix before measuring
+  caveat: >-
+    measures the record rather than the player: the amp, the mic, the desk and
+    the master are all in these numbers
+  measured:
+    low: 0.91
+    mid: 0.09
+    high: 0
+    centroid: 175
+    transient: 0.74
+    decay: 0.82
+    dynamics: 7.8
+    harmonics: 0.35
+    lean: 0.73
+```
+
+One entry per record, not one for the corpus. A url is what makes a claim
+checkable, and a single entry averaging four records is the one thing nobody
+could check. Add the url yourself: the tool measured the audio and has no idea
+which release it came from.
+
+The keys are fixed, and that is the whole point of them. These figures exist to
+be compared against the same figures taken from a generated preset, and that
+comparison is only possible when both sides call a thing by the same name. The
+contract accepts any key, the way it accepts any evidence `kind`; these are what
+the tool writes.
+
+`caveat` is doing real work too. These figures describe a finished record, so
+they compare against another measurement. They are not knob positions.
 
 ## Ask what is possible
 

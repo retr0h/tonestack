@@ -72,17 +72,29 @@ chain:
       # Audio evidence carries measurements rather than conclusions. These
       # compare against the same measurement taken from a generated preset;
       # they are not knob positions, because a record is not an amplifier.
+      #
+      # The keys are what `tonestack measure` writes, and that is the point of
+      # them: a figure can only be compared against the same figure taken
+      # somewhere else if both sides call it the same thing. Write this block
+      # with `tonestack measure --dir <stems> --evidence` rather than by hand,
+      # then add the url.
       - kind: audio
         url: https://www.youtube.com/watch?v=EXAMPLE2
         at: "1:20-1:45"
-        note: isolated bass stem, separated with htdemucs
+        note: longview, bass isolated from the mix before measuring
         caveat: >-
-          measuring a record measures the bass, the player, the amp, the mic,
-          the desk and the master — treat as a direction, not a value
+          measures the record rather than the player: the amp, the mic, the
+          desk and the master are all in these numbers
         measured:
-          mid_ratio: 0.61
-          spectral_tilt: -3.2
-          crest_factor: 8.4
+          low: 0.91
+          mid: 0.09
+          high: 0
+          centroid: 175
+          transient: 0.74
+          decay: 0.82
+          dynamics: 7.8
+          harmonics: 0.35
+          lean: 0.73
       # Where a number came from the corpus rather than from him.
       - kind: corpus
         note: >-
