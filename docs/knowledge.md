@@ -248,6 +248,24 @@ Every step above the person exists, and so does measuring a recording:
 reach a rig as `kind: audio` evidence carrying the figures they were measured
 as.
 
-What is still missing is the step from those figures to the values. A figure
-chooses a word only by its position among other artists measured the same way,
-and one artist has been measured.
+The step from figures to words exists too, for three axes. `tonestack measure`
+compares an artist against the others measured the same way, and earns them a
+term only where their whole spread sits clear of the rest: mid-forward or
+scooped from the mid band, bright or dark from the centroid, saturated or clean
+from the harmonics. The music corpus names 5 players, which is what makes the
+comparison possible at all: one artist has nothing to be clear of.
+
+Three axes rather than the six a rig can say. `attack` is not among them,
+because what is measured is how fast the level rises and the click of a pick is
+spectral: the bass stems carry almost nothing above 1 kHz, so the figure that
+axis needs is not in the recording. `decay` is not among them either, because it
+moves by a third of a second depending on which tracks were picked, which
+measures the choice rather than the player. Both findings sit beside the code
+that would have used them, in `pkg/sdk/audio/derive.go`.
+
+The records are not in this repository and neither are the measurements: the
+stems are somebody's own audio files, so a figure in a rig is a claim about a
+recording nobody else here can replay.
+
+What is still missing is the step from a word to a value. A term says which way
+to move a control. How far is still somebody's judgement.
