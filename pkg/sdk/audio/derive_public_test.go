@@ -229,6 +229,34 @@ func (s *DerivePublicTestSuite) TestAnEmptyOtherIsNotAVote() {
 	}
 }
 
+// TestAnExtremeArtistDoesNotTakeATermAway is the property the rule was
+// changed for.
+//
+// Clear of every other artist, one more extreme artist was enough to take a
+// term away from somebody who had plainly earned it. Measured, one player
+// earned three terms against two artists and none against four. Outside the
+// middle half of the others, the extreme artist moves the upper quartile a
+// little and takes nothing away.
+func (s *DerivePublicTestSuite) TestAnExtremeArtistDoesNotTakeATermAway() {
+	mine := at(200, 0.10, 0.20)
+
+	three := map[string]audio.Across{
+		"a": at(100, 0.10, 0.20),
+		"b": at(110, 0.10, 0.20),
+		"c": at(120, 0.10, 0.20),
+	}
+	s.Require().Equal([]string{"bright"}, s.terms(audio.Derive(mine, three)))
+
+	four := map[string]audio.Across{
+		"a": at(100, 0.10, 0.20),
+		"b": at(110, 0.10, 0.20),
+		"c": at(120, 0.10, 0.20),
+		"d": at(400, 0.10, 0.20),
+	}
+	s.Require().Equal([]string{"bright"}, s.terms(audio.Derive(mine, four)),
+		"brighter than most is still bright when somebody brighter arrives")
+}
+
 // TestEveryOtherArtistEmptyDerivesNothing covers a population that is there
 // and has nothing in it.
 //
