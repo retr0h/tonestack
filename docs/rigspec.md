@@ -98,6 +98,7 @@ One parameter something moves: an expression pedal, or a footswitch set to sweep
 | `min` | number | — | — |
 | `no_snapshot` | boolean | — | `true` or `false` |
 | `parameter *` | string | looked up | the parameters the model at that block has |
+| `path` | integer | — | — |
 
 ## DeviceState
 
