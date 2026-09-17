@@ -42,6 +42,7 @@ A rig, complete. Sparse when hand-written; the same document carries settings an
 | `mutations` | list of Mutation | — | [Mutation](#mutation) |
 | `requires` | list of Requirement | — | [Requirement](#requirement) |
 | `schema *` | string | closed | `RigSpec` |
+| `sections` | list of Section | — | [Section](#section) |
 | `snapshots` | list of Snapshot | — | [Snapshot](#snapshot) |
 | `subject *` | Subject | — | [Subject](#subject) |
 | `target` | Target | — | [Target](#target) |
@@ -166,6 +167,16 @@ Something a rig needs that a device does not ship with.
 | `name *` | string | shaped | `\S` |
 | `slot` | integer | — | — |
 | `url` | string | shaped | `^https?://\S+$` |
+
+## Section
+
+One part of a song, as the blocks that play in it: a verse with the drive off, a chorus with it on.
+
+| field | holds | grammar | allowed |
+| --- | --- | --- | --- |
+| `bypass` | list of string | closed | `amp`, `cab`, `drive`, `comp`, `gate`, `eq`, `mod`, `delay`, `reverb`, `wah`, `pitch`, `filter`, `utility`, `other` |
+| `name *` | string | shaped | `\S` |
+| `play` | list of string | closed | `amp`, `cab`, `drive`, `comp`, `gate`, `eq`, `mod`, `delay`, `reverb`, `wah`, `pitch`, `filter`, `utility`, `other` |
 
 ## Snapshot
 

@@ -88,6 +88,12 @@ func Lower(
 		restoreSnapshots(doc, *spec.Snapshots)
 	}
 
+	// After the snapshots a rig carries, which a rig with sections has none
+	// of, and onto whichever snapshots the preset underneath came with.
+	if err := Sections(doc, spec, blocks, cat); err != nil {
+		return err
+	}
+
 	if spec.Footswitches != nil {
 		pruneFootswitches(doc)
 		restoreFootswitches(doc, *spec.Footswitches)

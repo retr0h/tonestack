@@ -78,6 +78,7 @@ func (s *MakePublicTestSuite) TestMake() {
 		out      string
 		contains []string
 		loadable bool
+		written  []string
 		err      error
 		errText  string
 	}{
@@ -113,6 +114,20 @@ func (s *MakePublicTestSuite) TestMake() {
 			id:      "test-player",
 			stats:   filepath.Join("testdata", "no-such-stats.gz"),
 			errText: "no-such-stats.gz",
+		},
+		{
+			// A song's sections become the preset's snapshots, named.
+			name:     "a recipe in song sections",
+			id:       "in-sections",
+			loadable: true,
+			written:  []string{`"@name":"Verse"`, `"@name":"Chorus"`},
+		},
+		{
+			// Checked against the chain as built, so a section cannot turn
+			// on a pedal the preset does not hold.
+			name: "a section naming gear the chain does not hold",
+			id:   "wrong-section",
+			err:  compile.ErrNoSuchValue,
 		},
 		{
 			name: "a recipe nobody has",
@@ -197,6 +212,16 @@ func (s *MakePublicTestSuite) TestMake() {
 
 			for _, want := range tt.contains {
 				s.Require().Contains(got, want)
+			}
+
+			if len(tt.written) > 0 {
+				body, err := os.ReadFile(filepath.Clean(out))
+				s.Require().NoError(err)
+
+				compact := strings.Join(strings.Fields(string(body)), "")
+				for _, want := range tt.written {
+					s.Require().Contains(compact, want)
+				}
 			}
 
 			if !tt.loadable {

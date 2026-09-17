@@ -76,6 +76,8 @@ type (
 	Controller = gen.Controller
 	// Footswitch is what a switch does and how it is lit.
 	Footswitch = gen.Footswitch
+	// Section is one part of a song, as the roles that play in it.
+	Section = gen.Section
 	// Snapshot is one set of values a preset can recall.
 	Snapshot = gen.Snapshot
 	// DeviceState is everything a preset carries that this format does not
