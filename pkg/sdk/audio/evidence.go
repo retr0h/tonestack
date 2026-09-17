@@ -71,18 +71,32 @@ func MeasuredKeys() []string {
 // Rounded to what the measurement can honestly claim. A centroid is reported
 // to the hertz because the bins are about 10Hz apart, and a share to two
 // places because the third moves with which windows the playing fell in.
+// A measure a recording could not answer is left out rather than written as
+// the number it would have been. An earlier version wrote all nine keys
+// always, reasoning that a rig could then tell a figure of zero from a figure
+// nobody took. That was backwards: what distinguishes them is the key being
+// absent, and writing `decay: 2.95` for a note that never decayed claims a
+// measurement where there was only the length of the recording.
 func (p Profile) Measured() map[string]float64 {
-	return map[string]float64{
+	out := map[string]float64{
 		KeyLow:       to(p.Low, 2),
 		KeyMid:       to(p.Mid, 2),
 		KeyHigh:      to(p.High, 2),
 		KeyCentroid:  to(p.Centroid, 0),
-		KeyTransient: to(p.Transient, 2),
-		KeyDecay:     to(p.Decay, 2),
 		KeyDynamics:  to(p.DynamicRange, 1),
 		KeyHarmonics: to(p.Harmonics.Mid, 2),
 		KeyLean:      to(p.EvenOdd.Mid, 2),
 	}
+
+	if p.Transient.Known {
+		out[KeyTransient] = to(p.Transient.Value, 2)
+	}
+
+	if p.Decay.Known {
+		out[KeyDecay] = to(p.Decay.Value, 2)
+	}
+
+	return out
 }
 
 // Measured is what several recordings measure as together, keyed for a rig's
@@ -94,17 +108,29 @@ func (p Profile) Measured() map[string]float64 {
 // middle at all, which is a judgement made while reading the report rather
 // than a number to carry.
 func (a Across) Measured() map[string]float64 {
-	return map[string]float64{
+	out := map[string]float64{
 		KeyLow:       to(a.Low.Mid, 2),
 		KeyMid:       to(a.Mid.Mid, 2),
 		KeyHigh:      to(a.High.Mid, 2),
 		KeyCentroid:  to(a.Centroid.Mid, 0),
-		KeyTransient: to(a.Transient.Mid, 2),
-		KeyDecay:     to(a.Decay.Mid, 2),
 		KeyDynamics:  to(a.DynamicRange.Mid, 1),
 		KeyHarmonics: to(a.Harmonics.Mid, 2),
 		KeyLean:      to(a.EvenOdd.Mid, 2),
 	}
+
+	// Written when any recording answered, because a middle taken over three
+	// of four records is still a measurement of those three. How many is in
+	// the report rather than in the rig: evidence carries figures, and the
+	// count is something to weigh them by while reading.
+	if a.Transient.From > 0 {
+		out[KeyTransient] = to(a.Transient.Mid, 2)
+	}
+
+	if a.Decay.From > 0 {
+		out[KeyDecay] = to(a.Decay.Mid, 2)
+	}
+
+	return out
 }
 
 // to rounds a measurement to the places it can honestly claim.

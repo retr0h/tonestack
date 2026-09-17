@@ -49,8 +49,8 @@ func Tracks(
 			paint.Accent(w, n.Name),
 			fmt.Sprintf("%.0f%%", p.Low*100),
 			fmt.Sprintf("%.0f Hz", p.Centroid),
-			fmt.Sprintf("%.2f", p.Transient),
-			fmt.Sprintf("%.2f s", p.Decay),
+			readingOf(p.Transient, "%.2f", 1),
+			readingOf(p.Decay, "%.2f s", 1),
 			fmt.Sprintf("%.1f dB", p.DynamicRange),
 			fmt.Sprintf("%.0f%%", p.Harmonics.Mid*100),
 		})
@@ -87,8 +87,8 @@ func Across(
 		spreadRow(w, "mid", "%.0f%%", a.Mid, 100),
 		spreadRow(w, "high", "%.0f%%", a.High, 100),
 		spreadRow(w, "centroid", "%.0f Hz", a.Centroid, 1),
-		spreadRow(w, "transient", "%.2f", a.Transient, 1),
-		spreadRow(w, "decay", "%.2f s", a.Decay, 1),
+		rangedRow(w, "transient", "%.2f", a.Transient, 1, a.Tracks),
+		rangedRow(w, "decay", "%.2f s", a.Decay, 1, a.Tracks),
 		spreadRow(w, "dynamics", "%.1f dB", a.DynamicRange, 1),
 		spreadRow(w, "harmonics", "%.0f%%", a.Harmonics, 100),
 		{
@@ -122,6 +122,39 @@ func spreadRow(
 		paint.Accent(w, name),
 		fmt.Sprintf(format, s.Mid*scale),
 		paint.Mute(w, fmt.Sprintf(format+"–"+format, s.Low*scale, s.High*scale)),
+	}
+}
+
+// rangedRow is one measure the records did not all answer.
+//
+// How many answered is said out loud when it is fewer than all of them. A
+// middle taken over two records of four is still a measurement of those two,
+// but reading it beside a middle taken over all four without knowing which is
+// which is how a corpus quietly becomes a smaller corpus.
+func rangedRow(
+	w io.Writer,
+	name, format string,
+	r audio.Ranged,
+	scale float64,
+	tracks int,
+) []string {
+	if r.From == 0 {
+		return []string{
+			paint.Accent(w, name),
+			"—",
+			paint.Mute(w, "no record answered this"),
+		}
+	}
+
+	span := fmt.Sprintf(format+"–"+format, r.Low*scale, r.High*scale)
+	if r.From < tracks {
+		span += fmt.Sprintf(", from %d of %d", r.From, tracks)
+	}
+
+	return []string{
+		paint.Accent(w, name),
+		fmt.Sprintf(format, r.Mid*scale),
+		paint.Mute(w, span),
 	}
 }
 

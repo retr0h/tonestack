@@ -141,3 +141,36 @@ tool would each call it.
 
 `tonestack measure --file take.wav` prints a profile. It reads a file and prints
 numbers; it does not touch a device.
+
+## Amended: a measurement nobody could take
+
+Two of the six have no answer for some audio, and both returned a number anyway.
+
+A recording already at its loudest in the first frame holds no attack. A
+generated tone is one, and so is a note with no silence in front of it.
+`transient` reported the largest wobble in the level after that, which measures
+2.5% of the peak for a held sine against 2.9% for a swell. One of those never
+started and the other arrived over a second, and by that number they are the
+same figure.
+
+A note that never falls to a quarter of its peak has no decay. `decay` returned
+whatever was left of the recording, so a tone read as ringing for exactly as
+long as somebody happened to record it.
+
+`Profile.Transient` and `Profile.Decay` are a `Reading` now, carrying whether
+the recording answered at all. `Across` gathers only the records that did and
+counts them, so a middle taken over two of four says so. `Measured()` leaves the
+key out instead of writing a figure, and the absent key is what separates a
+measurement of zero from one nobody took.
+
+What tells the two attack cases apart is where the signal starts rather than how
+far it rose. Across the generators, everything already at level begins at 0.92
+to 1.00 of its peak, and everything with a start to find begins under 0.01.
+Nothing lands between.
+
+The rest at the end of a note stays a measurement. Reaching one means the player
+stopped while the note was still sounding, which is something observed rather
+than the recording running out.
+
+Checked against the four bass stems afterwards: all four still report both
+figures, because real playing starts from silence.

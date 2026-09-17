@@ -49,13 +49,17 @@ func (s *AcrossPublicTestSuite) render(
 // full is a gathered measurement with something in every field.
 func (s *AcrossPublicTestSuite) full() audio.Across {
 	return audio.Across{
-		Tracks:       4,
-		Low:          audio.Spread{Low: 0.91, Mid: 0.94, High: 0.97},
-		Mid:          audio.Spread{Low: 0.02, Mid: 0.05, High: 0.08},
-		High:         audio.Spread{Low: 0.01, Mid: 0.01, High: 0.02},
-		Centroid:     audio.Spread{Low: 135, Mid: 150, High: 191},
-		Transient:    audio.Spread{Low: 0.68, Mid: 0.72, High: 0.77},
-		Decay:        audio.Spread{Low: 0.15, Mid: 0.82, High: 1.72},
+		Tracks:   4,
+		Low:      audio.Spread{Low: 0.91, Mid: 0.94, High: 0.97},
+		Mid:      audio.Spread{Low: 0.02, Mid: 0.05, High: 0.08},
+		High:     audio.Spread{Low: 0.01, Mid: 0.01, High: 0.02},
+		Centroid: audio.Spread{Low: 135, Mid: 150, High: 191},
+		Transient: audio.Ranged{
+			Spread: audio.Spread{Low: 0.68, Mid: 0.72, High: 0.77}, From: 4,
+		},
+		Decay: audio.Ranged{
+			Spread: audio.Spread{Low: 0.15, Mid: 0.82, High: 1.72}, From: 4,
+		},
 		DynamicRange: audio.Spread{Low: 5.5, Mid: 6.1, High: 7.6},
 		Harmonics:    audio.Spread{Low: 0.18, Mid: 0.21, High: 0.35},
 		EvenOdd:      audio.Spread{Low: 0.1, Mid: 0.4, High: 0.6},
@@ -118,17 +122,46 @@ func (s *AcrossPublicTestSuite) TestNothingMeasured() {
 	s.Require().Contains(got, "0 recordings")
 }
 
+// TestAMeasureOnlySomeRecordsAnsweredSaysHowMany covers the partial case.
+//
+// A middle taken over two records of four is still a measurement of those
+// two. Reading it beside a middle taken over all four, with nothing marking
+// which is which, is how a corpus quietly becomes a smaller one.
+func (s *AcrossPublicTestSuite) TestAMeasureOnlySomeRecordsAnsweredSaysHowMany() {
+	a := s.full()
+	a.Decay = audio.Ranged{
+		Spread: audio.Spread{Low: 0.80, Mid: 0.90, High: 1.00}, From: 2,
+	}
+
+	s.Require().Contains(s.render(a), "from 2 of 4")
+}
+
+// TestAMeasureNoRecordAnsweredSaysSo covers none of them having it.
+func (s *AcrossPublicTestSuite) TestAMeasureNoRecordAnsweredSaysSo() {
+	a := s.full()
+	a.Decay = audio.Ranged{}
+
+	got := s.render(a)
+
+	s.Require().Contains(got, "no record answered this")
+	s.Require().NotContains(got, "0.00 s", "and no figure standing in for one")
+}
+
 // TestEachRecordGetsARow covers the per-record table.
 func (s *AcrossPublicTestSuite) TestEachRecordGetsARow() {
 	var buf bytes.Buffer
 
 	s.Require().NoError(cli.Tracks(&buf, []audio.Named{
 		{Name: "basket-case", Profile: audio.Profile{
-			Low: 0.97, Centroid: 148, Transient: 0.77, Decay: 1.72,
+			Low: 0.97, Centroid: 148,
+			Transient:    audio.Reading{Value: 0.77, Known: true},
+			Decay:        audio.Reading{Value: 1.72, Known: true},
 			DynamicRange: 5.5, Harmonics: audio.Spread{Mid: 0.23},
 		}},
 		{Name: "longview", Profile: audio.Profile{
-			Low: 0.94, Centroid: 152, Transient: 0.71, Decay: 0.82,
+			Low: 0.94, Centroid: 152,
+			Transient:    audio.Reading{Value: 0.71, Known: true},
+			Decay:        audio.Reading{Value: 0.82, Known: true},
 			DynamicRange: 7.6, Harmonics: audio.Spread{Mid: 0.35},
 		}},
 	}))

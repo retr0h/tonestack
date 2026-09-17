@@ -33,13 +33,20 @@ type AcrossPublicTestSuite struct {
 	suite.Suite
 }
 
+// rang is a decay the recording actually gave up.
+func rang(
+	v float64,
+) audio.Reading {
+	return audio.Reading{Value: v, Known: true}
+}
+
 // records is four profiles that disagree by a known amount.
 func (s *AcrossPublicTestSuite) records() []audio.Profile {
 	return []audio.Profile{
-		{Centroid: 135, Low: 0.97, Decay: 0.15, Harmonics: audio.Spread{Mid: 0.18}},
-		{Centroid: 148, Low: 0.97, Decay: 1.72, Harmonics: audio.Spread{Mid: 0.23}},
-		{Centroid: 152, Low: 0.94, Decay: 0.82, Harmonics: audio.Spread{Mid: 0.35}},
-		{Centroid: 191, Low: 0.91, Decay: 0.88, Harmonics: audio.Spread{Mid: 0.20}},
+		{Centroid: 135, Low: 0.97, Decay: rang(0.15), Harmonics: audio.Spread{Mid: 0.18}},
+		{Centroid: 148, Low: 0.97, Decay: rang(1.72), Harmonics: audio.Spread{Mid: 0.23}},
+		{Centroid: 152, Low: 0.94, Decay: rang(0.82), Harmonics: audio.Spread{Mid: 0.35}},
+		{Centroid: 191, Low: 0.91, Decay: rang(0.88), Harmonics: audio.Spread{Mid: 0.20}},
 	}
 }
 
@@ -111,20 +118,56 @@ func (s *AcrossPublicTestSuite) TestEveryMeasureIsGathered() {
 	got := audio.Together([]audio.Profile{
 		{
 			Low: 0.6, Mid: 0.3, High: 0.1,
-			Centroid: 410, Transient: 0.8, Decay: 0.4, DynamicRange: 4.2,
-			Harmonics: audio.Spread{Mid: 0.18},
-			EvenOdd:   audio.Spread{Mid: -0.6},
+			Centroid: 410, Transient: rang(0.8), Decay: rang(0.4),
+			DynamicRange: 4.2,
+			Harmonics:    audio.Spread{Mid: 0.18},
+			EvenOdd:      audio.Spread{Mid: -0.6},
 		},
 	})
 
-	for name, s2 := range map[string]audio.Spread{
+	for name, sp := range map[string]audio.Spread{
 		"low": got.Low, "mid": got.Mid, "high": got.High,
-		"centroid": got.Centroid, "transient": got.Transient,
-		"decay": got.Decay, "dynamics": got.DynamicRange,
+		"centroid": got.Centroid, "dynamics": got.DynamicRange,
 		"harmonics": got.Harmonics, "lean": got.EvenOdd,
 	} {
-		s.Require().NotZero(s2.Mid, "%s never reached the answer", name)
+		s.Require().NotZero(sp.Mid, "%s never reached the answer", name)
 	}
+
+	// The two a recording can decline to answer are gathered separately, and
+	// carry how many of them did.
+	for name, r := range map[string]audio.Ranged{
+		"transient": got.Transient, "decay": got.Decay,
+	} {
+		s.Require().Equal(1, r.From, "%s did not count the record it came from", name)
+		s.Require().NotZero(r.Mid, "%s never reached the answer", name)
+	}
+}
+
+// TestARecordingThatDeclinesIsLeftOut covers a corpus where only some records
+// answer.
+//
+// The middle has to come from the records that had the measurement. Counting
+// the ones that did not as zero drags every answer down for a reason that has
+// nothing to do with the playing.
+func (s *AcrossPublicTestSuite) TestARecordingThatDeclinesIsLeftOut() {
+	got := audio.Together([]audio.Profile{
+		{Decay: rang(0.8)},
+		{Decay: audio.Reading{}},
+		{Decay: rang(1.0)},
+	})
+
+	s.Require().Equal(2, got.Decay.From, "two of the three had a decay")
+	s.Require().InDelta(0.8, got.Decay.Low, 0.001)
+	s.Require().InDelta(1.0, got.Decay.High, 0.001)
+}
+
+// TestNoRecordingAnswered covers a corpus where none could.
+func (s *AcrossPublicTestSuite) TestNoRecordingAnswered() {
+	got := audio.Together([]audio.Profile{{Centroid: 150}, {Centroid: 160}})
+
+	s.Require().Equal(2, got.Tracks, "the records are still there")
+	s.Require().Equal(0, got.Decay.From, "but none of them had a decay")
+	s.Require().Equal(audio.Spread{}, got.Decay.Spread)
 }
 
 func TestAcrossPublicTestSuite(

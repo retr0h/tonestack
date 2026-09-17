@@ -59,8 +59,8 @@ func (s *ProfilePublicTestSuite) full() audio.Profile {
 		Mid:          0.31,
 		High:         0.07,
 		Centroid:     410,
-		Transient:    0.81,
-		Decay:        0.42,
+		Transient:    audio.Reading{Value: 0.81, Known: true},
+		Decay:        audio.Reading{Value: 0.42, Known: true},
 		DynamicRange: 4.2,
 		Harmonics:    audio.Spread{Low: 0.04, Mid: 0.18, High: 0.45},
 		EvenOdd:      audio.Spread{Low: -0.8, Mid: -0.6, High: -0.2},
@@ -149,11 +149,30 @@ func (s *ProfilePublicTestSuite) TestAttackReads() {
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
 			p := s.full()
-			p.Transient = tt.transient
+			p.Transient = audio.Reading{Value: tt.transient, Known: true}
 
 			s.Require().Contains(s.render(p), tt.want)
 		})
 	}
+}
+
+// TestAMeasureNobodyCouldTakeReadsAsADash covers the page saying so.
+//
+// A dash rather than a zero, and a line saying why. Printing 0.00 for a tone
+// that never rose reads as a note swelled in over three seconds, which is the
+// opposite of what happened.
+func (s *ProfilePublicTestSuite) TestAMeasureNobodyCouldTakeReadsAsADash() {
+	p := s.full()
+	p.Transient = audio.Reading{}
+	p.Decay = audio.Reading{}
+
+	got := s.render(p)
+
+	s.Require().Contains(got, "—")
+	s.Require().Contains(got, "nothing rose")
+	s.Require().Contains(got, "never fell to a quarter")
+
+	s.Require().NotContains(got, "0.00", "and no figure standing in for one")
 }
 
 // TestCompressionReads covers the dynamics row naming what it compares.

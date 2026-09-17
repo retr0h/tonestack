@@ -44,12 +44,17 @@ func (s *EvidencePublicTestSuite) records() []audio.Named {
 	return []audio.Named{
 		{Name: "longview", Profile: audio.Profile{
 			Low: 0.91, Mid: 0.08, High: 0.01,
-			Centroid: 175, Transient: 0.74, Decay: 0.82, DynamicRange: 7.8,
-			Harmonics: audio.Spread{Mid: 0.35},
-			EvenOdd:   audio.Spread{Mid: 0.9},
+			Centroid:     175,
+			Transient:    audio.Reading{Value: 0.74, Known: true},
+			Decay:        audio.Reading{Value: 0.82, Known: true},
+			DynamicRange: 7.8,
+			Harmonics:    audio.Spread{Mid: 0.35},
+			EvenOdd:      audio.Spread{Mid: 0.9},
 		}},
 		{Name: "basket-case", Profile: audio.Profile{
-			Low: 0.97, Centroid: 151, Transient: 0.79, Decay: 1.72,
+			Low: 0.97, Centroid: 151,
+			Transient:    audio.Reading{Value: 0.79, Known: true},
+			Decay:        audio.Reading{Value: 1.72, Known: true},
 			DynamicRange: 5.3,
 			Harmonics:    audio.Spread{Mid: 0.23},
 		}},
