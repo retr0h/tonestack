@@ -161,6 +161,17 @@ func (s *MakePublicTestSuite) TestMake() {
 			errText: "will not load",
 		},
 		{
+			// The same chain on a device with two processors, which has
+			// somewhere to put what does not fit on the first. What a build
+			// will hold is the catalog's device, not whichever one this was
+			// written against.
+			name:     "a chain that fits a bigger device",
+			id:       "two-paths",
+			catalog:  filepath.Join("testdata", "catalog-floor.json"),
+			written:  []string{`"dsp1"`},
+			loadable: false,
+		},
+		{
 			name:    "nowhere to write the preset",
 			id:      "test-player",
 			out:     filepath.Join("no", "such", "dir.hlx"),

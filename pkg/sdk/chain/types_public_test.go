@@ -66,6 +66,52 @@ func (s *RigPublicTestSuite) TestSpecRoundTripsThroughJSON() {
 	s.Require().Equal(in, out)
 }
 
+// TestLimitsForNamesTheDevice covers each device's ceilings being its own.
+func (s *RigPublicTestSuite) TestLimitsForNamesTheDevice() {
+	tests := []struct {
+		name   string
+		device string
+		blocks int
+		paths  int
+		why    string
+	}{
+		{
+			name: "an HX Stomp", device: "HX Stomp", blocks: 8, paths: 1,
+			why: "721 presets, the largest holding eight blocks, none on a second processor",
+		},
+		{
+			name: "an HX Stomp XL", device: "HX Stomp XL", blocks: 8, paths: 1,
+			why: "the same two chips in a bigger box",
+		},
+		{
+			name: "a Helix Floor", device: "Helix Floor", blocks: 29, paths: 2,
+			why: "1,698 presets, the largest holding 29 blocks, 1,219 on two processors",
+		},
+		{
+			name: "a Helix LT", device: "Helix LT", blocks: 29, paths: 2,
+			why: "the Helix Floor's processing in a smaller box",
+		},
+		{
+			name: "a device named the way somebody typed it", device: "helix floor",
+			blocks: 29, paths: 2, why: "a catalog's name is not case",
+		},
+		{
+			name: "a device nothing here knows", device: "Pod Go", blocks: 8, paths: 1,
+			why: "the smallest ceilings here, because a chain that fits them fits the rest",
+		},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			l := chain.LimitsFor(tt.device)
+
+			s.Require().Equal(tt.blocks, l.MaxBlocks, tt.why)
+			s.Require().Equal(tt.paths, l.Paths, tt.why)
+			s.Require().InDelta(95.0, l.ChipCeiling, 1e-9)
+		})
+	}
+}
+
 func (s *RigPublicTestSuite) TestHXStompLimitsAreTheDocumentedCeilings() {
 	l := chain.HXStompLimits()
 

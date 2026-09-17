@@ -373,7 +373,7 @@ func Fit(
 	cat *catalog.Catalog,
 	lim chain.Limits,
 ) chain.Chain {
-	used := 0.0
+	used, path := 0.0, 0
 
 	for i := range spec.Blocks {
 		b, ok := cat.Block(spec.Blocks[i].Model)
@@ -386,18 +386,24 @@ func Fit(
 			cost = b.DSP.Stereo
 		}
 
-		if used+cost > lim.ChipCeiling {
-			// A device with one signal path has nowhere to put the overflow.
-			// Leaving the block where it is lets validation reject the chain,
-			// which is the honest answer; moving it to a path the device does
-			// not have would produce a file nothing can load.
-			if lim.Paths > 1 {
-				spec.Blocks[i].DSP = 1
-			}
+		// Filled in order, one processor at a time. Moving a block back to a
+		// processor an earlier one overflowed would reorder somebody's chain,
+		// which is a different preset rather than the same one laid out
+		// differently.
+		for used+cost > lim.ChipCeiling && path+1 < lim.Paths {
+			path++
+			used = 0
+		}
 
+		// Nowhere left to put it. Leaving the block where it is lets
+		// validation reject the chain, which is the honest answer; writing it
+		// onto a processor with no room would produce a file the device
+		// refuses.
+		if used+cost > lim.ChipCeiling {
 			continue
 		}
 
+		spec.Blocks[i].DSP = path
 		used += cost
 	}
 

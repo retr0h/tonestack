@@ -475,6 +475,36 @@ func (s *ResolvePublicTestSuite) TestFit() {
 
 // TestFitNumbersEachProcessorFromZero is a property of the whole result
 // rather than of any one chain.
+// TestFitBudgetsEachProcessor covers the second processor having a ceiling
+// of its own.
+//
+// Before this, everything that overflowed the first went onto the second
+// whatever it already held: three heavy blocks put 180 on a chip with room
+// for 95, and the chain was rejected by validation rather than laid out.
+func (s *ResolvePublicTestSuite) TestFitBudgetsEachProcessor() {
+	spec, _, _, err := compile.Resolve(
+		recipe("Ampeg SVT", "", "Heavy Thing", "Heavy Thing", "Heavy Thing"),
+		s.cat, nil)
+	s.Require().NoError(err)
+
+	used := map[int]float64{}
+
+	for _, b := range compile.Fit(spec, s.cat, twoChips(95.0)).Blocks {
+		blk, ok := s.cat.Block(b.Model)
+		s.Require().True(ok)
+
+		used[b.DSP] += blk.DSP.Mono
+	}
+
+	// Two of the three heavy blocks have somewhere to go, one on each
+	// processor. The third has nowhere, so it stays where it is and
+	// validation is what refuses the chain.
+	s.Require().Greater(used[0], 95.0,
+		"the block nothing had room for is still counted against a processor")
+	s.Require().LessOrEqual(used[1], 95.0,
+		"the second processor is not a place to put whatever did not fit")
+}
+
 func (s *ResolvePublicTestSuite) TestFitNumbersEachProcessorFromZero() {
 	spec, _, _, err := compile.Resolve(
 		recipe("Ampeg SVT", "", "Heavy Thing", "Heavy Thing"), s.cat, nil)

@@ -1,0 +1,14 @@
+schema: RigSpec
+version: 2
+id: two-paths
+
+subject: { kind: artist, name: Two Paths }
+instrument: bass
+
+chain:
+  - { role: other, gear: Chunky Thing, evidence: [{ kind: llm }] }
+  - { role: other, gear: Chunky Thing, evidence: [{ kind: llm }] }
+  - { role: other, gear: Chunky Thing, evidence: [{ kind: llm }] }
+  - { role: other, gear: Chunky Thing, evidence: [{ kind: llm }] }
+
+confidence: low
