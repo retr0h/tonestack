@@ -106,6 +106,8 @@ character:
   - term: clean
     evidence:
       - kind: audio
+        measured: { harmonics: 0.10 }
+        against: { harmonics: 0.24 }
         note: >-
           10% of his energy sits above the fundamental against 24% for the
           rest of the corpus, the cleanest of the five.

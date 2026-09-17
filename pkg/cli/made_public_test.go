@@ -140,6 +140,34 @@ func (s *MadePublicTestSuite) TestMade() {
 			want: []string{"heard", "mid-forward", "Mid 0.52 to 0.60"},
 		},
 		{
+			// A word sized by a measurement moves a different distance from
+			// the same word asserted, so the report says which it was.
+			// Otherwise two builds of the same rig differ for no stated
+			// reason.
+			name: "a knob a measurement sized",
+			in: s.made(func(m *sdk.Made) {
+				m.Moved = []sdk.Moved{
+					{Term: "clean", Param: "Drive", From: 0.26, To: 0.14, Weight: 0.5},
+				}
+			}),
+			want: []string{
+				"clean — Drive 0.26 to 0.14",
+				"50% of a step: what the records measured",
+			},
+		},
+		{
+			// A word nobody measured is worth its whole step, and saying so
+			// on every line would be noise.
+			name: "a knob the word alone sized",
+			in: s.made(func(m *sdk.Made) {
+				m.Moved = []sdk.Moved{
+					{Term: "saturated", Param: "Drive", From: 0.26, To: 0.38, Weight: 1},
+				}
+			}),
+			want:   []string{"saturated — Drive 0.26 to 0.38"},
+			absent: []string{"of a step"},
+		},
+		{
 			// Four of the ten axes describe the player and the instrument
 			// rather than the rig, so no control answers them. Saying so
 			// beats letting somebody believe the word did something.

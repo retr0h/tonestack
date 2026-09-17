@@ -222,6 +222,7 @@ other players, so this is the only mode that produces any: one player has
 nobody to be clear of.
 
     tonestack measure --corpus resources/music
+    tonestack measure --corpus resources/music --evidence
 
 ```text
 tonestack measure [flags]

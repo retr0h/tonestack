@@ -433,6 +433,13 @@ type DeviceState struct {
 //
 // A URL does not make a claim true. It makes it checkable, which is what lets somebody correct one line instead of re-deriving a rig.
 type Evidence struct {
+	// Against The same figures for the players this one was compared against, keyed the same way. Written by `tonestack measure --corpus`, which is where a word is earned.
+	//
+	// This is what turns a word into a distance. A term whose evidence carries both sides moves its control by the gap between them rather than by a fixed step, so a player who reads a little cleaner than everybody else gets a little less drive, and one who reads twice as clean gets the whole step.
+	//
+	// A figure on its own says nothing about how far to move anything: 12% of the energy above the fundamental is high or low only against what other players read.
+	Against *map[string]float64 `json:"against,omitempty"`
+
 	// At Where in the source — a timestamp such as "1:42", or a range.
 	At *string `json:"at,omitempty"`
 
@@ -460,7 +467,7 @@ type Evidence struct {
 	// `store` is where content that did not ship with the device comes from, bought or free. It is the one kind that answers "where do I get this" rather than "why is this believed", and a substitute naming something nobody can obtain is worth nothing without it.
 	Kind EvidenceKind `json:"kind"`
 
-	// Measured Figures taken from audio, keyed by feature. Measuring a record measures the record — the bass, the player, the amp, the mic, the desk and the master — so these compare against another measurement rather than name a knob position.
+	// Measured Figures taken from audio, keyed by feature. Measuring a record measures the record: the bass, the player, the amp, the mic, the desk and the master. So these compare against another measurement rather than name a knob position.
 	Measured *map[string]float64 `json:"measured,omitempty"`
 	Note     *string             `json:"note,omitempty"`
 	URL      *string             `json:"url,omitempty"`

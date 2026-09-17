@@ -288,7 +288,7 @@ func (s *MoveTestSuite) TestMove() {
 		s.Run(tt.name, func() {
 			built := s.built()
 
-			got := move(s.blocks(), built, tt.terms, s.stats())
+			got := move(s.blocks(), built, said(tt.terms...), s.stats())
 
 			s.Require().Len(got, len(tt.terms))
 
@@ -340,7 +340,7 @@ func (s *MoveTestSuite) TestMoveClampsToWhatTheDeviceAccepts() {
 				}},
 			}}
 
-			got := move([]catalog.Block{s.amp()}, built, []string{tt.term}, s.stats())
+			got := move([]catalog.Block{s.amp()}, built, said(tt.term), s.stats())
 
 			s.Require().True(got[0].Acted())
 			s.Require().InDelta(tt.want, s.paramOf(built, "Drive"), 1e-9)
@@ -364,7 +364,7 @@ func (s *MoveTestSuite) TestMoveSkipsWhatTheBlockDoesNotHave() {
 		{Model: "HD2_Plain", Params: chain.Params{"Mid": catalog.Float(0.5)}},
 	}}
 
-	got := move([]catalog.Block{b}, built, []string{"tight-low-end"}, nil)
+	got := move([]catalog.Block{b}, built, said("tight-low-end"), nil)
 
 	s.Require().Len(got, 1)
 	s.Require().False(got[0].Acted())
@@ -383,7 +383,7 @@ func (s *MoveTestSuite) TestMoveWhenTheChainIsAlreadyWhatTheWordAsked() {
 		{Model: "HD2_AmpTestBass", Params: s.params()},
 	}}
 
-	got := move([]catalog.Block{s.amp()}, built, []string{"dry"}, s.stats())
+	got := move([]catalog.Block{s.amp()}, built, said("dry"), s.stats())
 
 	s.Require().Len(got, 1)
 	s.Require().True(got[0].Holds())
@@ -399,7 +399,7 @@ func (s *MoveTestSuite) TestMoveWhenTheChainIsAlreadyWhatTheWordAsked() {
 func (s *MoveTestSuite) TestMoveTurnsTheReverbThatIsThere() {
 	built := s.built()
 
-	got := move(s.blocks(), built, []string{"dry"}, s.stats())
+	got := move(s.blocks(), built, said("dry"), s.stats())
 
 	s.Require().Len(got, 1)
 	s.Require().False(got[0].Holds())
@@ -416,7 +416,7 @@ func (s *MoveTestSuite) TestMoveWithoutTheBlockTheWordNeeds() {
 		{Model: "HD2_AmpTestBass", Params: s.params()},
 	}}
 
-	got := move([]catalog.Block{s.amp()}, built, []string{"roomy"}, s.stats())
+	got := move([]catalog.Block{s.amp()}, built, said("roomy"), s.stats())
 
 	s.Require().Len(got, 1)
 	s.Require().False(got[0].Acted())
@@ -428,7 +428,7 @@ func (s *MoveTestSuite) TestMoveWithoutTheBlockTheWordNeeds() {
 func (s *MoveTestSuite) TestMoveWithoutStatistics() {
 	built := s.built()
 
-	got := move(s.blocks(), built, []string{"mid-forward"}, nil)
+	got := move(s.blocks(), built, said("mid-forward"), nil)
 
 	s.Require().True(got[0].Acted())
 
@@ -452,26 +452,93 @@ func (s *MoveTestSuite) TestMoveSkipsAValueItCannotDo() {
 		{Model: "HD2_Switched", Params: chain.Params{"Mid": catalog.Bool(true)}},
 	}}
 
-	got := move([]catalog.Block{b}, built, []string{"mid-forward"}, nil)
+	got := move([]catalog.Block{b}, built, said("mid-forward"), nil)
 
 	s.Require().Len(got, 1)
 	s.Require().False(got[0].Acted())
 }
 
-// TestTermsOf covers reading the words a rig described itself with.
+// TestTermsOf covers reading the words a rig described itself with, and how
+// much of a step each one is worth.
 func (s *MoveTestSuite) TestTermsOf() {
+	figures := func(mine, theirs float64, key string) *[]rig.Evidence {
+		return &[]rig.Evidence{{
+			Kind:     rig.EvidenceAudio,
+			Measured: &map[string]float64{key: mine},
+			Against:  &map[string]float64{key: theirs},
+		}}
+	}
+
 	tests := []struct {
 		name string
 		in   *[]rig.CharacterTerm
-		want []string
+		want []heard
 	}{
 		{name: "a rig that said nothing about how it sounds"},
 		{
+			// Nobody measured these, so each is worth the whole step, which
+			// is what every rig did before any of this could be weighed.
 			name: "the words, in the order they were written",
 			in: &[]rig.CharacterTerm{
 				{Term: "mid-forward"}, {Term: "saturated"},
 			},
-			want: []string{"mid-forward", "saturated"},
+			want: []heard{
+				{term: "mid-forward", weight: 1}, {term: "saturated", weight: 1},
+			},
+		},
+		{
+			// Half the harmonics of everybody else is half a step. The word
+			// says which way; the gap says how far.
+			name: "a word with the gap that earned it",
+			in: &[]rig.CharacterTerm{
+				{Term: "clean", Evidence: figures(0.12, 0.24, "harmonics")},
+			},
+			want: []heard{{term: "clean", weight: 0.5}},
+		},
+		{
+			// A gap wider than what the others read is still one word, and
+			// one word does not decide the whole of a control.
+			name: "a gap wider than the others' own figure",
+			in: &[]rig.CharacterTerm{
+				{Term: "mid-forward", Evidence: figures(0.09, 0.02, "mid")},
+			},
+			want: []heard{{term: "mid-forward", weight: 1}},
+		},
+		{
+			name: "a centroid, which the highs are earned from",
+			in: &[]rig.CharacterTerm{
+				{Term: "dark", Evidence: figures(96, 170, "centroid")},
+			},
+			want: []heard{{term: "dark", weight: 0.43529411764705883}},
+		},
+		{
+			// Every way the figures can fail to say anything, each of which
+			// leaves the word worth its whole step rather than nothing.
+			name: "figures that do not weigh the word",
+			in: &[]rig.CharacterTerm{
+				// An axis no measurement speaks to.
+				{Term: "quiet-strings", Evidence: figures(0.1, 0.2, "harmonics")},
+				// A word the vocabulary does not carry.
+				{Term: "chewy", Evidence: figures(0.1, 0.2, "harmonics")},
+				// One side of the comparison missing.
+				{Term: "clean", Evidence: &[]rig.Evidence{{
+					Kind: rig.EvidenceAudio, Measured: &map[string]float64{"harmonics": 0.12},
+				}}},
+				// The wrong measure for this axis.
+				{Term: "bright", Evidence: figures(0.12, 0.24, "harmonics")},
+				// Nothing to compare against but zero.
+				{Term: "scooped", Evidence: figures(0.0, 0.0, "mid")},
+				// No evidence at all.
+				{Term: "saturated"},
+			},
+			want: []heard{
+				{term: "quiet-strings", weight: 1},
+				{term: "chewy", weight: 1},
+				{term: "clean", weight: 1},
+				{term: "bright", weight: 1},
+				{term: "scooped", weight: 1},
+				{term: "saturated", weight: 1},
+			},
 		},
 	}
 
@@ -484,8 +551,42 @@ func (s *MoveTestSuite) TestTermsOf() {
 	}
 }
 
+// TestAMeasuredWordMovesLessThanAnAssertedOne is the point of weighing a
+// term: the same word, on the same chain, moves further when the gap that
+// earned it is wider.
+func (s *MoveTestSuite) TestAMeasuredWordMovesLessThanAnAssertedOne() {
+	asserted := s.built()
+	measured := s.built()
+
+	s.Require().NotEmpty(move(s.blocks(), asserted, said("clean"), nil))
+	s.Require().NotEmpty(move(s.blocks(), measured,
+		[]heard{{term: "clean", weight: 0.5}}, nil))
+
+	was, _ := s.built().Blocks[1].Params["Drive"].Float()
+	full, _ := asserted.Blocks[1].Params["Drive"].Float()
+	half, _ := measured.Blocks[1].Params["Drive"].Float()
+
+	s.Require().Less(full, half, "half a step lands nearer where it started")
+	s.Require().Less(half, was, "and still moves the control the way the word says")
+	s.Require().InDelta(was-half, (was-full)/2, 1e-9,
+		"half the weight is half the distance")
+}
+
 func TestMoveTestSuite(
 	t *testing.T,
 ) {
 	suite.Run(t, new(MoveTestSuite))
+}
+
+// said is a set of terms nobody measured, which is what every rig carried
+// before a measurement could size a move.
+func said(
+	terms ...string,
+) []heard {
+	out := make([]heard, 0, len(terms))
+	for _, term := range terms {
+		out = append(out, heard{term: term, weight: 1})
+	}
+
+	return out
 }

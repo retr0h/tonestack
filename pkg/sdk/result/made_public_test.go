@@ -33,6 +33,47 @@ type MadePublicTestSuite struct {
 	suite.Suite
 }
 
+// TestMeasured covers telling a move a measurement sized from one the word
+// sized on its own.
+func (s *MadePublicTestSuite) TestMeasured() {
+	tests := []struct {
+		name string
+		in   result.Moved
+		want bool
+	}{
+		{
+			// Half of what the other players read, so half a step.
+			name: "a move the records sized",
+			in: result.Moved{
+				Term: "clean", Param: "Drive", From: 0.26, To: 0.14, Weight: 0.5,
+			},
+			want: true,
+		},
+		{
+			name: "a word nobody measured, worth its whole step",
+			in: result.Moved{
+				Term: "saturated", Param: "Drive", From: 0.26, To: 0.38, Weight: 1,
+			},
+		},
+		{
+			// Every rig written before a move could be weighed, read back
+			// through a result that now carries one.
+			name: "a build from before any of this was measured",
+			in:   result.Moved{Term: "saturated", Param: "Drive", From: 0.26, To: 0.38},
+		},
+		{
+			name: "a word that moved nothing at all",
+			in:   result.Moved{Term: "short-decay", Weight: 0.5},
+		},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			s.Require().Equal(tt.want, tt.in.Measured())
+		})
+	}
+}
+
 // TestActed covers telling a word that turned a knob from one that did not.
 func (s *MadePublicTestSuite) TestActed() {
 	tests := []struct {

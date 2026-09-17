@@ -313,9 +313,28 @@ components:
           additionalProperties: { type: number, format: double }
           description: >
             Figures taken from audio, keyed by feature. Measuring a record
-            measures the record — the bass, the player, the amp, the mic, the
-            desk and the master — so these compare against another measurement
+            measures the record: the bass, the player, the amp, the mic, the
+            desk and the master. So these compare against another measurement
             rather than name a knob position.
+        against:
+          type: object
+          additionalProperties: { type: number, format: double }
+          description: >
+            The same figures for the players this one was compared against,
+            keyed the same way. Written by `tonestack measure --corpus`,
+            which is where a word is earned.
+
+
+            This is what turns a word into a distance. A term whose evidence
+            carries both sides moves its control by the gap between them
+            rather than by a fixed step, so a player who reads a little
+            cleaner than everybody else gets a little less drive, and one who
+            reads twice as clean gets the whole step.
+
+
+            A figure on its own says nothing about how far to move anything:
+            12% of the energy above the fundamental is high or low only
+            against what other players read.
 
     Settings:
       type: object

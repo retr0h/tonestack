@@ -140,6 +140,13 @@ func heard(
 			line = fmt.Sprintf("%s — %s", m.Term, m.Already)
 		case m.Acted():
 			line = fmt.Sprintf("%s — %s %.2f to %.2f", m.Term, m.Param, m.From, m.To)
+			if m.Measured() {
+				// Said out loud, because the same word on the same chain
+				// moves a different distance depending on what was measured,
+				// and a reader comparing two builds deserves to know why.
+				line += fmt.Sprintf(" (%.0f%% of a step: what the records measured)",
+					m.Weight*100)
+			}
 		case m.Unanswered():
 			line = fmt.Sprintf("%s — %s", m.Term, m.Because)
 		}

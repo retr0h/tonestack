@@ -250,6 +250,7 @@ func movedFrom(
 			Against: m.Against,
 			Because: m.Because,
 			Already: m.Already,
+			Weight:  m.Weight,
 		})
 	}
 
