@@ -47,11 +47,8 @@ func (s *ValidatePublicTestSuite) good() rig.Spec {
 // TestValidate checks a rig against its own contract. A case naming no field
 // is one the contract accepts.
 func (s *ValidatePublicTestSuite) TestValidate() {
-	settings := func(v float64) *rig.Settings {
-		out := rig.Settings{"drive": v}
-
-		return &out
-	}
+	knob := func(v float64) *rig.Knob { return &v }
+	settings := func(v float64) *rig.Settings { return &rig.Settings{Drive: knob(v)} }
 	confidence := func(c rig.Confidence) *rig.Confidence { return &c }
 
 	tests := []struct {
@@ -70,7 +67,8 @@ func (s *ValidatePublicTestSuite) TestValidate() {
 			// of this.
 			name: "everything optional, filled in",
 			mutate: func(r *rig.Spec) {
-				r.Chain[0].Settings = &rig.Settings{"drive": 0, "treble": 1}
+				r.Chain[0].Settings = settings(0)
+				r.Chain[0].Settings.Treble = knob(1)
 				r.Chain[0].Evidence = &[]rig.Evidence{{Kind: rig.EvidenceCited}}
 				r.Mutations = &[]rig.Mutation{{Ask: "make it clunkier"}}
 			},

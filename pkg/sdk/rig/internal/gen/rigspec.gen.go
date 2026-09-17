@@ -320,9 +320,9 @@ type ChainEntry struct {
 
 	// Settings How the gear is set, in musical terms, from 0 to 1.
 	//
-	// Deliberately small and deliberately lossy. `drive`, `bass`, `mid`, `treble`, `presence`, `level`, `mix`, `feel` mean roughly the same thing on any amplifier; `Sag`, `Bias X` and `Ripple` are one manufacturer's controls and belong to the compiler, which sets them from catalog defaults, corpus medians and the manual's own directional guidance.
+	// Deliberately small and deliberately lossy. These words mean roughly the same thing on any amplifier, and each one is put on whichever control the model has for it: `drive` reaches a Drive or a Gain, `level` reaches a Level, a Ch Vol or a Master. A word the model has no control for is refused, with the words it does take.
 	//
-	// A rig that carried device parameters would not survive being read on different hardware, which is the whole point of the format.
+	// `Sag`, `Bias X` and `Ripple` are one manufacturer's controls and belong to the compiler, which sets them from catalog defaults, corpus medians and the manual's own directional guidance. A rig that carried device parameters would not survive being read on different hardware, which is the whole point of the format.
 	Settings *Settings `json:"settings,omitempty"`
 
 	// Substitute What to use when the device cannot do what the rig names.
@@ -534,6 +534,11 @@ type Instrument string
 // Kind What a rig is attributed to. Artist is the common case, but a rig can belong to a song, a genre, or to nothing at all.
 type Kind string
 
+// Knob One control, from 0 to 1, whatever the device's own range is.
+//
+// Scaled onto the control when the preset is written, so 0.5 is halfway up whether the device counts 0 to 1, -12 to 12 or 20 to 20000.
+type Knob = float64
+
 // Mutation One round of correction, and what a person made of the result.
 //
 // This is the only place a human ear's judgement is written down. Nothing in this system can hear; every other input is a measurement or an assertion. A verdict is the one piece of information that cannot be recovered later if it is not captured when it happens.
@@ -695,10 +700,45 @@ type Section struct {
 
 // Settings How the gear is set, in musical terms, from 0 to 1.
 //
-// Deliberately small and deliberately lossy. `drive`, `bass`, `mid`, `treble`, `presence`, `level`, `mix`, `feel` mean roughly the same thing on any amplifier; `Sag`, `Bias X` and `Ripple` are one manufacturer's controls and belong to the compiler, which sets them from catalog defaults, corpus medians and the manual's own directional guidance.
+// Deliberately small and deliberately lossy. These words mean roughly the same thing on any amplifier, and each one is put on whichever control the model has for it: `drive` reaches a Drive or a Gain, `level` reaches a Level, a Ch Vol or a Master. A word the model has no control for is refused, with the words it does take.
 //
-// A rig that carried device parameters would not survive being read on different hardware, which is the whole point of the format.
-type Settings map[string]float64
+// `Sag`, `Bias X` and `Ripple` are one manufacturer's controls and belong to the compiler, which sets them from catalog defaults, corpus medians and the manual's own directional guidance. A rig that carried device parameters would not survive being read on different hardware, which is the whole point of the format.
+type Settings struct {
+	// Bass One control, from 0 to 1, whatever the device's own range is.
+	//
+	// Scaled onto the control when the preset is written, so 0.5 is halfway up whether the device counts 0 to 1, -12 to 12 or 20 to 20000.
+	Bass *Knob `json:"bass,omitempty"`
+
+	// Drive One control, from 0 to 1, whatever the device's own range is.
+	//
+	// Scaled onto the control when the preset is written, so 0.5 is halfway up whether the device counts 0 to 1, -12 to 12 or 20 to 20000.
+	Drive *Knob `json:"drive,omitempty"`
+
+	// Level One control, from 0 to 1, whatever the device's own range is.
+	//
+	// Scaled onto the control when the preset is written, so 0.5 is halfway up whether the device counts 0 to 1, -12 to 12 or 20 to 20000.
+	Level *Knob `json:"level,omitempty"`
+
+	// Mid One control, from 0 to 1, whatever the device's own range is.
+	//
+	// Scaled onto the control when the preset is written, so 0.5 is halfway up whether the device counts 0 to 1, -12 to 12 or 20 to 20000.
+	Mid *Knob `json:"mid,omitempty"`
+
+	// Mix One control, from 0 to 1, whatever the device's own range is.
+	//
+	// Scaled onto the control when the preset is written, so 0.5 is halfway up whether the device counts 0 to 1, -12 to 12 or 20 to 20000.
+	Mix *Knob `json:"mix,omitempty"`
+
+	// Presence One control, from 0 to 1, whatever the device's own range is.
+	//
+	// Scaled onto the control when the preset is written, so 0.5 is halfway up whether the device counts 0 to 1, -12 to 12 or 20 to 20000.
+	Presence *Knob `json:"presence,omitempty"`
+
+	// Treble One control, from 0 to 1, whatever the device's own range is.
+	//
+	// Scaled onto the control when the preset is written, so 0.5 is halfway up whether the device counts 0 to 1, -12 to 12 or 20 to 20000.
+	Treble *Knob `json:"treble,omitempty"`
+}
 
 // Snapshot One snapshot: a set of block states a footswitch recalls.
 type Snapshot struct {

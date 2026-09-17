@@ -19,6 +19,11 @@ instrument: bass
 chain:
   - role: other
     gear: Mu-Tron III
+    settings:
+      # Line 6 ship this model fully wet and nobody has measured how much dry
+      # signal Bootsy keeps under his. This says the default out loud rather
+      # than claiming something nobody checked.
+      mix: 1.0
     evidence:
       - kind: cited
         url: https://mixdownmag.com.au/features/gear-rundown-bootsy-collins/

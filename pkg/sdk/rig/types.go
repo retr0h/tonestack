@@ -66,6 +66,8 @@ type (
 	Instrument = gen.Instrument
 	// Settings are the values a piece of gear is set to.
 	Settings = gen.Settings
+	// Knob is one control, from 0 to 1, whatever the device's range is.
+	Knob = gen.Knob
 	// Substitute stands in for gear no device models.
 	Substitute = gen.Substitute
 	// Target is the hardware a rig was written for.

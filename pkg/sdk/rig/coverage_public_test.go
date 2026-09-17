@@ -49,6 +49,10 @@ type CoveragePublicTestSuite struct {
 // A reason rather than a list, so that adding to it is a decision somebody
 // has to defend rather than a way past a failing test.
 var exempt = map[string]string{
+	"presence": "sets the control an amplifier calls Presence. Every rig " +
+		"here is a bassist's, and no bass amplifier in this device's " +
+		"catalog has one, so a rig writing it would be a rig that cannot " +
+		"build.",
 	"extends": "records that one rig departs from another. Every rig here " +
 		"is a sibling rather than a departure, and `recipes new --from` " +
 		"writes the field, so exercising it would mean inventing a rig to " +
