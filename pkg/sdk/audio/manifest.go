@@ -45,7 +45,17 @@ type Record struct {
 	Track string `yaml:"track"`
 	// URL is where to hear it. Not where the audio lives on disk: a link is
 	// checkable by somebody who does not have the file.
+	//
+	// Required. Every figure measured from a record travels into a rig as
+	// evidence, and evidence with no source is an assertion.
 	URL string `yaml:"url"`
+	// Source is where the audio was actually fetched from, when the url alone
+	// could not fetch it. Evidence stays with URL, which is the link a person
+	// checks; this is only the downloader's way back to the same recording.
+	//
+	// Both Flea records failed on every Spotify link tried, and the pair that
+	// worked lived in one person's shell history until it was written here.
+	Source string `yaml:"source"`
 	// At is the part measured, as "1:20" or "1:20-1:45".
 	At string `yaml:"at"`
 	// Note is anything worth saying about this recording in particular.
@@ -103,9 +113,24 @@ func (r Record) check() error {
 		return fmt.Errorf("reading manifest: an entry has no track name")
 	}
 
-	if r.URL != "" && !urlPattern.MatchString(r.URL) {
+	// A record with no link is a claim nobody else can check. The figures
+	// measured from it end up in a rig as evidence, and evidence whose
+	// source is "a file on somebody's disk" is worth no more than an
+	// assertion. Three players had three tracks each and no links between
+	// them before this was refused.
+	if r.URL == "" {
+		return fmt.Errorf("reading manifest: %s has no url, and a record nobody "+
+			"can find is a measurement nobody can check", r.Track)
+	}
+
+	if !urlPattern.MatchString(r.URL) {
 		return fmt.Errorf(
 			"reading manifest: %s has a url that is not a link: %q", r.Track, r.URL)
+	}
+
+	if r.Source != "" && !urlPattern.MatchString(r.Source) {
+		return fmt.Errorf(
+			"reading manifest: %s has a source that is not a link: %q", r.Track, r.Source)
 	}
 
 	if r.At != "" && !atPattern.MatchString(r.At) {

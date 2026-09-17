@@ -1,8 +1,11 @@
 artist: Paul McCartney
 tracks:
   - track: rain
-    note: 1966 single
+    url: https://open.spotify.com/track/48TNLcToLs8DWkdj5vYdiW
+    note: 1966 single, the B-side of Paperback Writer. Collected on Past Masters
   - track: come-together
+    url: https://open.spotify.com/track/2EqlS6tkEnglzr7tkKAAYD
     note: Abbey Road, 1969
   - track: silly-love-songs
+    url: https://open.spotify.com/track/3bC0IKk62yB6TDaratb1s2
     note: Wings at the Speed of Sound, 1976
