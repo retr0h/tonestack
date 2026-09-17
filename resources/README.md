@@ -2,9 +2,10 @@
 
 The data this project reads and ships, as opposed to the Go that reads it.
 
-| Path       |                                                                   |
-| ---------- | ----------------------------------------------------------------- |
-| `schemas/` | the generated catalog and gear map, and the corpus they come from |
+| Path       |                                                                           |
+| ---------- | ------------------------------------------------------------------------- |
+| `schemas/` | the generated catalog and gear map, and the corpus they come from         |
+| `music/`   | records measured to describe how somebody plays, one directory per artist |
 
 Nothing here is embedded in the binary. What ships lives beside the package that
 reads it: `pkg/sdk/catalog/data/`, `pkg/sdk/corpus/data/`,
