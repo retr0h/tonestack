@@ -22,6 +22,10 @@ ls ~/music/mike-dirnt/
 Four is a reasonable minimum. Fewer cannot tell a player's habit from one song's
 mix.
 
+An agent can fetch them itself.
+[Add records to a corpus](add-records-to-a-corpus.md) covers choosing,
+downloading and checking each one.
+
 ### 2. Separate the bass from each
 
 ```bash

@@ -110,6 +110,16 @@ stems IN OUT:
     @echo "stems written to {{ OUT }}/htdemucs — measure them with:"
     @echo "    tonestack measure --dir {{ OUT }}/htdemucs"
 
+# Download one record into an artist's corpus, named for its manifest entry
+#
+# URL is the Spotify track the manifest links to, so the record measured is the
+# one the evidence names. When spotdl cannot find the audio, pass
+# "YOUTUBE|SPOTIFY" and it takes the audio from that video. The file is named
+# TRACK because that is what `tonestack measure --manifest` matches against.
+record DIR TRACK URL:
+    uvx spotdl download "{{ URL }}" --output "{{ DIR }}/{{ TRACK }}.{output-ext}"
+    @test -f "{{ DIR }}/{{ TRACK }}.mp3" || { echo "no {{ DIR }}/{{ TRACK }}.mp3: see docs/workflows/add-records-to-a-corpus.md" >&2; exit 1; }
+
 # Generate code
 generate:
     just go-generate

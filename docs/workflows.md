@@ -24,6 +24,7 @@ lists them all.
 | switch presets, or move them around     | [Switch and rearrange](workflows/switch-and-rearrange.md)  |
 | add knowledge from a video or recording | [Add evidence](workflows/add-evidence-from-a-recording.md) |
 | measure records a player actually made  | [Measure a sound](workflows/measure-a-players-sound.md)    |
+| fetch more records for a player         | [Add records](workflows/add-records-to-a-corpus.md)        |
 | know what the device can do at all      | [Ask the catalog](workflows/ask-what-is-possible.md)       |
 
 ## Create a rig for a player
@@ -86,6 +87,14 @@ and write the figures into a rig as evidence.
 
 Read
 [workflows/measure-a-players-sound.md](workflows/measure-a-players-sound.md).
+
+## Add records to a corpus
+
+Download the records a measurement is short of, under the names the manifest
+gives them, and check each is the recording the player is on.
+
+Read
+[workflows/add-records-to-a-corpus.md](workflows/add-records-to-a-corpus.md).
 
 ## Ask what is possible
 
