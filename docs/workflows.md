@@ -23,6 +23,7 @@ lists them all.
 | get a preset onto the hardware          | [Load it](#get-it-onto-the-device)             |
 | switch presets, or move them around     | [Switch and rearrange](#switch-and-rearrange)  |
 | add knowledge from a video or recording | [Add evidence](#add-evidence-from-a-recording) |
+| measure records a player actually made  | [Measure a sound](#measure-a-players-sound)    |
 | know what the device can do at all      | [Ask the catalog](#ask-what-is-possible)       |
 
 ## Create a rig for a player
@@ -338,6 +339,103 @@ the amp, the mic, the desk, the master and the encoder. Those numbers compare
 against the same measurement taken from a generated preset, giving a direction.
 They are not knob positions. The `caveat` field is where a rig says which of the
 two it means.
+
+## Measure a player's sound
+
+Reading numbers off records somebody actually made, so a rig can carry
+measurements rather than adjectives. Needs uv and ffmpeg; see
+[Prerequisites](../CONTRIBUTING.md#prerequisites).
+
+The short version: a mix measures the band, so the bass has to come out of it
+first. Then measure several records rather than one, because one mix is one
+engineer's decisions on one day.
+
+### 1. Collect what the player played on
+
+Put the records in a directory. They stay there: audio is never committed, the
+same way the preset corpus under `resources/schemas/corpus/` is fetched and
+git-ignored rather than redistributed.
+
+```bash
+ls ~/music/mike-dirnt/
+# basket-case.mp3  brain-stew.mp3  longview.mp3  when-i-come-around.mp3
+```
+
+Four is a reasonable minimum. Fewer cannot tell a player's habit from one song's
+mix.
+
+### 2. Separate the bass from each
+
+```bash
+for f in ~/music/mike-dirnt/*.mp3; do
+  uvx --from demucs --with numpy demucs --two-stems=bass -o ~/stems "$f"
+done
+```
+
+About 15 seconds a track once the model is cached, so a four-record corpus is a
+minute. `--with numpy` is not optional: Demucs does not declare it and fails
+without it.
+
+**Do not skip this and filter instead.** A centre-channel extraction with a
+250Hz low-pass looks like it works — 92% low, a centroid of 154Hz — and both
+numbers are circular, because everything above 250Hz was thrown away. The tell
+is decay, which comes back at 0.13s. A bass note does not stop that fast. Kick
+drum and bass share those frequencies and no filter separates them.
+
+### 3. Measure each stem
+
+```bash
+for d in ~/stems/htdemucs/*/; do
+  ffmpeg -y -i "$d/bass.wav" -ar 44100 -ac 1 /tmp/stem.wav 2>/dev/null
+  echo "$(basename "$d")"
+  tonestack measure --file /tmp/stem.wav
+done
+```
+
+### 4. Read them together
+
+Four records by one player, bass stems:
+
+```text
+track                low  centroid  transient  decay  dynamics
+basket-case          97%     148Hz       0.77  1.72s      5.5dB
+brain-stew           97%     135Hz       0.72  0.15s      6.1dB
+longview             94%     152Hz       0.71  0.82s      7.6dB
+when-i-come-around   91%     191Hz       0.68  0.88s      7.1dB
+```
+
+The same four records measured as full mixes give centroids from 842Hz to
+1338Hz. Separated, they sit between 135Hz and 191Hz. That tightening is the
+whole reason for step 2.
+
+Take the median across the corpus, and treat a figure that disagrees with the
+rest as a question rather than an answer. `brain-stew` above still reports a
+decay of 0.15s where the others ring for around a second, because its stem is
+half silence and the loudest note is followed immediately by a rest.
+
+### 5. Write it into the rig
+
+Evidence carries the measurement and a link naming the recording. The audio
+itself is never referenced: somebody who does not own the record can still see
+what was measured and disagree, and somebody who does can re-measure.
+
+```yaml
+- role: amp
+  gear: Ampeg SVT
+  evidence:
+    - kind: audio
+      url: https://open.spotify.com/track/…
+      at: "0:45-1:10"
+      note: bass isolated from the mix before measuring
+      measured: { low: 0.94, centroid: 152, decay: 0.82, dynamics: 7.6 }
+      caveat: >-
+        measures the record rather than the player: the amp, the mic, the desk,
+        the master and the encoder are all in these numbers
+```
+
+`caveat` is doing real work there. These figures describe a finished record, so
+they compare against the same measurement taken from a generated preset. They
+are not knob positions.
 
 ## Ask what is possible
 

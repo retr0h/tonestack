@@ -36,7 +36,14 @@ var (
 	Plucked  = plucked
 	Swell    = swell
 	Loudness = loudness
+
+	Playing = playing
+	Frames  = frames
 )
+
+// Quietest is how far under the loudest moment a frame may sit and still
+// count as playing.
+const Quietest = quietest
 
 // Reading a spectrum from outside the package, for the tests that hold the
 // transform. A caller works in measurements, not in bins.

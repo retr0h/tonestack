@@ -28,8 +28,16 @@ mise install
   once: a test asserted that a map keyed by `any` could not be encoded as JSON,
   which was true on Go 1.26 and stopped being true on 1.27, so it passed locally
   and failed in CI.
-- **[uv].** Python package runner. `just md-fmt` formats markdown with
-  [mdformat] through `uvx`; nothing is installed into the repository.
+- **[uv].** Python package runner, and the only way Python enters this project.
+  Nothing is installed into the repository: `uvx` fetches a tool, runs it and
+  leaves. Three jobs need it, each one something Go should not be doing.
+  `just md-fmt` formats markdown with [mdformat]. `just gear-map` reads the
+  Pilot's Guide PDF, whose model-name column uses a subset-embedded font no Go
+  library decodes. And separating a bass part out of a finished record runs
+  [Demucs], a trained model with no equivalent in Go. See
+  [Measure a player's sound](docs/workflows.md#measure-a-players-sound).
+- **[ffmpeg].** Converts a recording to the WAV that `tonestack measure` reads.
+  Only needed if you are measuring audio. `brew install ffmpeg`.
 - **[just].** Task runner used for building, testing, formatting, and other
   development workflows. Install with `brew install just`.
 
@@ -676,7 +684,9 @@ If you have questions, open a [Discussion] on GitHub.
 
 [claude code]: https://claude.ai/code
 [conventional commits]: https://www.conventionalcommits.org
+[demucs]: https://github.com/adefossez/demucs
 [discussion]: https://github.com/retr0h/tonestack/discussions
+[ffmpeg]: https://ffmpeg.org
 [go]: https://go.dev
 [gofumpt]: https://github.com/mvdan/gofumpt
 [golangci-lint]: https://golangci-lint.run

@@ -142,6 +142,62 @@ func swell(
 	return out
 }
 
+// quietest is how far below a recording's own loudest moment a frame may sit
+// and still count as playing, in decibels.
+//
+// Measured rather than chosen. Four bass stems from one band: three carry
+// rests over 4% to 23% of their length, and one is silent for 51% of its
+// running time across 56 separate gaps. In every one of them the silent
+// stretches sit more than 40dB under the loudest note, and the playing never
+// does.
+//
+// Relative to the recording rather than absolute, because a quiet master and
+// a loud one are the same performance.
+const quietest = -40.0
+
+// playing reports which frames hold the instrument rather than the gap
+// between notes.
+//
+// Anything measured over time has to ask this first. A rest is not quiet
+// playing, and counting it as though it were reports the silence between the
+// notes instead of the notes.
+func playing(
+	levels []float64,
+) []bool {
+	out := make([]bool, len(levels))
+
+	var loudest float64
+	for _, l := range levels {
+		loudest = math.Max(loudest, l)
+	}
+
+	if loudest == 0 {
+		return out
+	}
+
+	// Decibels are a ratio, so the floor is a fraction of the loudest frame.
+	floor := loudest * math.Pow(10, quietest/20)
+
+	for i, l := range levels {
+		out[i] = l >= floor
+	}
+
+	return out
+}
+
+// frames cuts a signal into level readings, one per window.
+func frames(
+	samples []float64,
+	frame int,
+) []float64 {
+	out := make([]float64, 0, len(samples)/frame)
+	for at := 0; at+frame <= len(samples); at += frame {
+		out = append(out, loudness(samples[at:at+frame]))
+	}
+
+	return out
+}
+
 // loudness is the root mean square of a run of samples.
 //
 // What "how loud is this" means for a signal rather than for one sample: the

@@ -282,10 +282,8 @@ func decay(
 		return 0
 	}
 
-	levels := make([]float64, 0, len(samples)/frame)
-	for at := 0; at+frame <= len(samples); at += frame {
-		levels = append(levels, loudness(samples[at:at+frame]))
-	}
+	levels := frames(samples, frame)
+	held := playing(levels)
 
 	peak, at := 0.0, 0
 
@@ -300,12 +298,19 @@ func decay(
 	}
 
 	for i := at; i < len(levels); i++ {
-		if levels[i] <= peak/4 {
+		// Either the note has fallen far enough, or the playing stopped while
+		// it was still sounding. Both end the measurement here.
+		//
+		// A rest is not a note dying away: reaching one means the player
+		// stopped, and timing the silence after it would report the gap
+		// rather than the ring, which is what a track full of rests did
+		// before this. What can honestly be said then is that it rang for at
+		// least this long.
+		if !held[i] || levels[i] <= peak/4 {
 			return float64(i-at) * float64(frame) / float64(rate)
 		}
 	}
 
-	// Never fell that far, so it rings for at least the rest of what there is.
 	return float64(len(levels)-at) * float64(frame) / float64(rate)
 }
 
@@ -323,10 +328,17 @@ func dynamicRange(
 		return 0
 	}
 
-	var levels []float64
+	all := frames(samples, frame)
+	held := playing(all)
 
-	for at := 0; at+frame <= len(samples); at += frame {
-		if l := loudness(samples[at : at+frame]); l > 0 {
+	// Only where the instrument is sounding. The median of a part that rests
+	// half the time lands in the noise floor, and the gap between the loudest
+	// note and the noise floor is not how dynamic the playing is: one stem
+	// measured 55dB that way, against 6 to 8dB for the same player elsewhere.
+	levels := make([]float64, 0, len(all))
+
+	for i, l := range all {
+		if held[i] && l > 0 {
 			levels = append(levels, l)
 		}
 	}
