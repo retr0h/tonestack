@@ -36,6 +36,9 @@ var measureFile string
 // measureDir is a tree of recordings to measure together.
 var measureDir string
 
+// measureCorpus is a tree of players to measure and compare.
+var measureCorpus string
+
 // measureEvidence writes the measurements as rig evidence rather than as a
 // report to read.
 var measureEvidence bool
@@ -69,9 +72,20 @@ WAV only. Convert anything else on the way in:
     tonestack measure --file take.wav
 
     just stems ~/music/mike-dirnt ~/stems
-    tonestack measure --dir ~/stems/htdemucs`,
+    tonestack measure --dir ~/stems/htdemucs
+
+Point --corpus at a tree holding one directory per player and the report says
+which words each one's records earn. A word is earned by sitting clear of the
+other players, so this is the only mode that produces any: one player has
+nobody to be clear of.
+
+    tonestack measure --corpus resources/music`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
+		if measureCorpus != "" {
+			return measurePlayers(cmd, measureCorpus)
+		}
+
 		if measureDir != "" {
 			return measureTree(cmd, measureDir)
 		}
@@ -98,6 +112,37 @@ WAV only. Convert anything else on the way in:
 
 		return cli.Profile(cmd.OutOrStdout(), audio.Measure(samples, rate))
 	},
+}
+
+// measurePlayers measures every player under a tree and reports what each
+// one's figures earn them against the others.
+func measurePlayers(
+	cmd *cobra.Command,
+	dir string,
+) error {
+	// Evidence is one player's figures against their own records, and this
+	// reads several players. Refused rather than ignored: a flag that
+	// silently does nothing is how somebody concludes the feature is broken.
+	if measureEvidence {
+		return fmt.Errorf(
+			"--evidence reads one player's records: give it --dir rather than --corpus",
+		)
+	}
+
+	players, err := audio.Corpus(os.DirFS(dir), ".")
+	if err != nil {
+		return err
+	}
+
+	if len(players) == 0 {
+		return fmt.Errorf(
+			"no players under %s: one directory of .wav recordings each, "+
+				"separated with `just stems <in> <out>`",
+			dir,
+		)
+	}
+
+	return cli.Players(cmd.OutOrStdout(), players)
 }
 
 // measureTree measures every recording under a directory and reports them
@@ -194,6 +239,9 @@ func init() {
 	measureCmd.Flags().BoolVar(&measureEvidence, "evidence", false,
 		"write the measurements as rig evidence, to paste into a chain")
 
-	measureCmd.MarkFlagsOneRequired("file", "dir")
-	measureCmd.MarkFlagsMutuallyExclusive("file", "dir")
+	measureCmd.Flags().StringVar(&measureCorpus, "corpus", "",
+		"a tree of players, one directory each, compared against each other")
+
+	measureCmd.MarkFlagsOneRequired("file", "dir", "corpus")
+	measureCmd.MarkFlagsMutuallyExclusive("file", "dir", "corpus")
 }

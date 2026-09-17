@@ -177,3 +177,41 @@ the tool writes.
 
 `caveat` is doing real work too. These figures describe a finished record, so
 they compare against another measurement. They are not knob positions.
+
+### 6. Compare them against the other players
+
+A figure on its own is a fact about a recording. A word is a claim about a
+player, and it is earned by sitting clear of everybody else:
+
+```bash
+tonestack measure --corpus resources/music
+```
+
+```
+  What the records say  5 players
+
+  PLAYER          RECORDS  EARNS        AGAINST THE OTHERS
+  flea                  3  clean        harmonics 12% against 24%
+  les-claypool          3  nothing
+  mike-dirnt            3  mid-forward  mid 9% against 2%
+  paul-mccartney        3  clean        harmonics 10% against 24%
+  pino-palladino        3  dark         centroid 96 Hz against 170 Hz
+```
+
+One directory per player, each holding that player's separated records. This is
+the only mode that produces words, because one player has nobody to be clear of.
+
+`nothing` is the ordinary answer and not a failure. A player earns a term only
+where their whole range sits outside the middle half of the others, so a player
+whose records disagree with each other earns nothing, and so does one who sits
+where everybody else sits. Les Claypool reads that way today: one of his three
+records is far darker than the other two.
+
+Three axes are derived — `mid-forward`/`scooped`, `bright`/`dark` and
+`saturated`/`clean` — and they are the three whose measure is the same quantity
+the control acts on. `attack` and `decay` are measured but not derived, for
+reasons written down in `pkg/sdk/audio/derive.go`.
+
+A word this earns is a word for the rig's `character`. Nothing writes it there
+for you: the terms are an argument, and putting one in a file is still somebody
+deciding to believe it.
