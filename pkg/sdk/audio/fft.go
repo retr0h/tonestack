@@ -59,6 +59,58 @@ func (s spectrum) hz(
 	return float64(bin) * s.hzPerBin()
 }
 
+// window is how many samples one transform covers.
+//
+// At 44.1kHz this is about 93 milliseconds, putting the bins roughly 10.8Hz
+// apart. Fine enough to tell a bass fundamental from its second harmonic, and
+// long enough to resolve a low note at all: an open E at 41Hz needs several
+// of its cycles inside the window before it has a frequency to report.
+const window = 4096
+
+// hop is how far the window moves each time, at half its length.
+//
+// Overlapping, so a note that starts in the middle of one window is whole in
+// the next. Without it a note landing on a boundary is split between two
+// windows and clearly present in neither.
+const hop = window / 2
+
+// spectra cuts a recording into overlapping windows and takes each one's
+// spectrum.
+//
+// Only where the instrument is sounding. A window of silence has a spectrum
+// like any other, and letting the rests vote is how a measurement ends up
+// describing the room instead of the playing.
+//
+// A recording shorter than one window is measured whole, which is what the
+// synthetic signals in the tests are.
+func spectra(
+	samples []float64,
+	rate int,
+) []spectrum {
+	if len(samples) < window {
+		return []spectrum{analyse(samples, rate)}
+	}
+
+	starts := make([]int, 0, len(samples)/hop)
+	levels := make([]float64, 0, len(samples)/hop)
+
+	for at := 0; at+window <= len(samples); at += hop {
+		starts = append(starts, at)
+		levels = append(levels, loudness(samples[at:at+window]))
+	}
+
+	held := playing(levels)
+	out := make([]spectrum, 0, len(starts))
+
+	for i, at := range starts {
+		if held[i] {
+			out = append(out, analyse(samples[at:at+window], rate))
+		}
+	}
+
+	return out
+}
+
 // analyse takes the spectrum of one window of samples.
 //
 // The window is padded up to a power of two, because that is the only length
