@@ -1,0 +1,17 @@
+artist: Pino Palladino
+# One album, against the usual rule of spreading records across productions.
+# pino-palladino.yaml describes Voodoo specifically (flatwounds, tone rolled
+# off), and his fretless eighties records are close to the opposite sound.
+#
+# Charlie Hunter played the bass on The Root, Greatdayndamornin' and Spanish
+# Joint, on eight-string guitar, so none of those is here.
+tracks:
+  - track: chicken-grease
+    url: https://open.spotify.com/track/42uCM9saw5B3bCjEFLROlE
+    note: D'Angelo, Voodoo, 2000
+  - track: playa-playa
+    url: https://open.spotify.com/track/6j0FBH06L1YlVkxBvE972P
+    note: D'Angelo, Voodoo, 2000
+  - track: send-it-on
+    url: https://open.spotify.com/track/5LIwaG8Wl9LfExcmiRQm7J
+    note: D'Angelo, Voodoo, 2000
