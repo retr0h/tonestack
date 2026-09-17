@@ -99,6 +99,40 @@ func (s *CompilePublicTestSuite) TestLower() {
 	}
 }
 
+// TestSections covers writing song sections into snapshots through the type.
+func (s *CompilePublicTestSuite) TestSections() {
+	blocks := []chain.Block{{Model: "HD2_AmpSVBeastNrm", Enabled: true}}
+	amp := []rig.Role{rig.RoleAmp}
+	drive := []rig.Role{rig.RoleDrive}
+
+	tests := []struct {
+		name string
+		spec rig.Spec
+	}{
+		{
+			name: "a section the chain can play",
+			spec: rig.Spec{Sections: &[]rig.Section{{Name: "Verse", Bypass: &amp}}},
+		},
+		{
+			name: "a section naming a role the chain lacks",
+			spec: rig.Spec{Sections: &[]rig.Section{{Name: "Chorus", Play: &drive}}},
+		},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			first, _ := preset.Blank()
+			second, _ := preset.Blank()
+
+			want := compile.Sections(first, tt.spec, blocks, s.cat)
+			got := compile.New().Sections(second, tt.spec, blocks, s.cat)
+
+			s.Require().Equal(want == nil, got == nil)
+			s.Require().Equal(first, second)
+		})
+	}
+}
+
 // TestResolve covers turning a rig into a chain through the type.
 func (s *CompilePublicTestSuite) TestResolve() {
 	tests := []struct {
