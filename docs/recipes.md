@@ -233,7 +233,8 @@ This is what makes a rig correctable rather than merely a guess.
 
 Evidence attaches to a **claim**, not to the document, because the amp may come
 from an interview and a drive figure from measuring a corpus. `kind` is open:
-`llm`, `cited`, `video`, `audio`, `corpus`, `measured`, `user`.
+`heard`, `cited`, `audio`, `user`, `video`, `corpus`, `llm`, strongest first,
+plus `store` for where to get something.
 
 Two things to be clear about.
 

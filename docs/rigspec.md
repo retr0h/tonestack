@@ -121,7 +121,7 @@ Why one claim is believed. Attached per claim rather than per document, because 
 | --- | --- | --- | --- |
 | `at` | string | shaped | `^\d{1,2}:\d{2}(:\d{2})?(-\d{1,2}:\d{2}(:\d{2})?)?$` |
 | `caveat` | string | open | — |
-| `kind *` | string | closed | `llm`, `cited`, `video`, `audio`, `corpus`, `measured`, `user`, `store` |
+| `kind *` | string | closed | `heard`, `cited`, `audio`, `user`, `video`, `corpus`, `llm`, `store` |
 | `measured` | map of number | — | — |
 | `note` | string | open | — |
 | `url` | string | shaped | `^https?://\S+$` |

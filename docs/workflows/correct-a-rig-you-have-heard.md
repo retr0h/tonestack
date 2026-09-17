@@ -25,6 +25,18 @@ mutations:
     verdict: closer, but muddy now, so keep the feel and put the drive back
 ```
 
+When a round settles a claim, put the verdict on that claim too, as `heard`
+evidence. It is the strongest kind there is, and a rig whose amp a person has
+played and confirmed should say so where the amp is:
+
+```yaml
+- role: amp
+  gear: Ampeg SVT
+  evidence:
+    - kind: heard
+      note: round three, played against Longview and it sits right
+```
+
 `reason` is where an agent records its *interpretation*, cited. If it read
 "clunkier" as drive when you meant sag, that line is what shows the reading was
 wrong rather than only the value.

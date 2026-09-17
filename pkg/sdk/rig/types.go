@@ -114,13 +114,13 @@ const (
 
 	// Where a claim came from. Ranked by how far somebody has to go to
 	// disagree with it; llm is the one that is not checkable at all.
-	EvidenceCited    = gen.EvidenceCited
-	EvidenceLLM      = gen.EvidenceLLM
-	EvidenceAudio    = gen.EvidenceAudio
-	EvidenceVideo    = gen.EvidenceVideo
-	EvidenceCorpus   = gen.EvidenceCorpus
-	EvidenceMeasured = gen.EvidenceMeasured
-	EvidenceUser     = gen.EvidenceUser
+	EvidenceHeard  = gen.EvidenceHeard
+	EvidenceCited  = gen.EvidenceCited
+	EvidenceAudio  = gen.EvidenceAudio
+	EvidenceUser   = gen.EvidenceUser
+	EvidenceVideo  = gen.EvidenceVideo
+	EvidenceCorpus = gen.EvidenceCorpus
+	EvidenceLLM    = gen.EvidenceLLM
 
 	// What a rig is played on.
 	InstrumentBass   = gen.InstrumentBass

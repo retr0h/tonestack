@@ -36,16 +36,20 @@ risk in the product, and it is why every rig carries evidence per claim. See
 
 ### Which sources are worth what
 
-Not equally. Ranked for a claim about gear:
+Not equally. Strongest first, the order `tonestack recipes list` uses to name a
+rig's source:
 
-| kind    | what it is                           | worth                                             |
-| ------- | ------------------------------------ | ------------------------------------------------- |
-| `cited` | a published rig rundown or interview | best. Somebody with access wrote it down          |
-| `user`  | a forum thread, TalkBass or Reddit   | argued and corrected in public, and uneven        |
-| `video` | footage                              | good for how it sounds, weak for what the box was |
-| `llm`   | a model asserted it                  | a starting point, never an answer                 |
+| kind     | what it is                            | worth                                                    |
+| -------- | ------------------------------------- | -------------------------------------------------------- |
+| `heard`  | a person played the rig and judged it | best. Nothing else here can hear                         |
+| `cited`  | a published rig rundown or interview  | somebody with access wrote it down                       |
+| `audio`  | figures measured from a record        | anybody with the record can check, but it holds a studio |
+| `user`   | a forum thread, TalkBass or Reddit    | argued and corrected in public, and uneven               |
+| `video`  | footage                               | good for how it sounds, weak for what the box was        |
+| `corpus` | what other people's presets do        | says what is common, not what this player did            |
+| `llm`    | a model asserted it                   | a starting point, never an answer                        |
 
-Video is last on purpose. A stage seen from forty feet says little about which
+Video sits low on purpose. A stage seen from forty feet says little about which
 head was on it, and the description under a clip is whatever the uploader typed.
 Cite it for character and technique, where hearing or seeing it is the point,
 and say in the note that is what it is for.

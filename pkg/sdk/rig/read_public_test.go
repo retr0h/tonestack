@@ -168,35 +168,47 @@ func (s *ReadPublicTestSuite) TestSourced() {
 		want  rig.EvidenceKind
 	}{
 		{
-			// Nothing in this project can hear, so somebody who listened
-			// outranks any citation.
-			name: "a person, above everything",
+			// Nothing in this project can hear, so somebody who played the
+			// rig and heard it outranks any citation.
+			name: "a person who heard it, above everything",
 			kinds: []rig.EvidenceKind{
-				rig.EvidenceMeasured, rig.EvidenceUser, rig.EvidenceCited,
+				rig.EvidenceAudio, rig.EvidenceCited, rig.EvidenceHeard,
 			},
-			want: rig.EvidenceUser,
+			want: rig.EvidenceHeard,
 		},
 		{
-			name: "measured over cited",
-			kinds: []rig.EvidenceKind{
-				rig.EvidenceCited, rig.EvidenceMeasured,
-			},
-			want: rig.EvidenceMeasured,
-		},
-		{
-			name:  "cited over video",
-			kinds: []rig.EvidenceKind{rig.EvidenceVideo, rig.EvidenceCited},
+			// An interview says what the player used. A measurement says what
+			// the record sounds like, and the record includes the studio.
+			name:  "cited over audio",
+			kinds: []rig.EvidenceKind{rig.EvidenceAudio, rig.EvidenceCited},
 			want:  rig.EvidenceCited,
 		},
 		{
-			name:  "video over audio",
-			kinds: []rig.EvidenceKind{rig.EvidenceAudio, rig.EvidenceVideo},
-			want:  rig.EvidenceVideo,
+			// Anybody holding the record can take a measurement again. Nobody
+			// can re-run a forum post.
+			name:  "audio over a forum thread",
+			kinds: []rig.EvidenceKind{rig.EvidenceUser, rig.EvidenceAudio},
+			want:  rig.EvidenceAudio,
 		},
 		{
-			name:  "audio over corpus",
-			kinds: []rig.EvidenceKind{rig.EvidenceCorpus, rig.EvidenceAudio},
-			want:  rig.EvidenceAudio,
+			// This test used to rank user above everything, on the reading
+			// that it meant a person who listened. Every rig and every page of
+			// docs used it for a forum thread, so a TalkBass comment outranked
+			// an interview, and Jaco Pastorius listed as user-sourced despite
+			// two citations. The person who listened is heard now.
+			name:  "cited over a forum thread",
+			kinds: []rig.EvidenceKind{rig.EvidenceUser, rig.EvidenceCited},
+			want:  rig.EvidenceCited,
+		},
+		{
+			name:  "a forum thread over video",
+			kinds: []rig.EvidenceKind{rig.EvidenceVideo, rig.EvidenceUser},
+			want:  rig.EvidenceUser,
+		},
+		{
+			name:  "video over corpus",
+			kinds: []rig.EvidenceKind{rig.EvidenceCorpus, rig.EvidenceVideo},
+			want:  rig.EvidenceVideo,
 		},
 		{
 			name:  "corpus over an assertion",
