@@ -148,6 +148,17 @@ func (s *MakePublicTestSuite) TestMake() {
 			written: []string{`"dsp1":{"block0":{"Mix":{"@controller":2`},
 		},
 		{
+			// What the pedal prints under a switch is a decision somebody
+			// made once and reads every time they play. A built preset used
+			// to drop it, so the same rig compiled and built gave two
+			// different pedals. The switch names the block by where it sits
+			// in the chain the rig wrote, so it moves with the fit too.
+			name:    "a switch on a block the fit moved",
+			id:      "two-paths-switch",
+			catalog: filepath.Join("testdata", "catalog-floor.json"),
+			written: []string{`"footswitch":{"dsp1":{"block0":`, `"@fs_label":"Chunk"`},
+		},
+		{
 			name: "a recipe nobody has",
 			id:   "nobody",
 			err:  recipes.ErrNotFound,

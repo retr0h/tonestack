@@ -36,31 +36,62 @@ import (
 //
 // Nothing to do on a device with one processor, where a fit moves nothing.
 //
-// Footswitch assignments carry the same numbers and are not written into a
-// built preset yet. They will need this too.
+// A footswitch carries the same numbers for the same reason, and moves the
+// same way.
 func Refit(
 	spec rig.Spec,
 	before, after []chain.Block,
 ) rig.Spec {
-	if spec.Controllers == nil || len(before) != len(after) {
+	if len(before) != len(after) {
 		return spec
 	}
 
-	out := make([]rig.Controller, 0, len(*spec.Controllers))
+	if spec.Controllers != nil {
+		out := make([]rig.Controller, 0, len(*spec.Controllers))
 
-	for _, c := range *spec.Controllers {
-		if i, ok := blockIndexAt(before, at(c.Path, 0), c.Block); ok {
-			path := after[i].DSP
-			c.Path = &path
-			c.Block = after[i].Pos
+		for _, c := range *spec.Controllers {
+			if path, pos, ok := moved(before, after, at(c.Path, 0), c.Block); ok {
+				c.Path, c.Block = &path, pos
+			}
+
+			out = append(out, c)
 		}
 
-		out = append(out, c)
+		spec.Controllers = &out
 	}
 
-	spec.Controllers = &out
+	if spec.Footswitches != nil {
+		out := make([]rig.Footswitch, 0, len(*spec.Footswitches))
+
+		for _, fs := range *spec.Footswitches {
+			// A switch with no block is a switch that acts on nothing, which
+			// the fit cannot have moved.
+			if fs.Block != nil {
+				if path, pos, ok := moved(before, after, at(fs.Path, 0), *fs.Block); ok {
+					fs.Path, fs.Block = &path, &pos
+				}
+			}
+
+			out = append(out, fs)
+		}
+
+		spec.Footswitches = &out
+	}
 
 	return spec
+}
+
+// moved says where the block at one address ended up.
+func moved(
+	before, after []chain.Block,
+	path, position int,
+) (int, int, bool) {
+	i, ok := blockIndexAt(before, path, position)
+	if !ok {
+		return 0, 0, false
+	}
+
+	return after[i].DSP, after[i].Pos, true
 }
 
 // blockIndexAt finds where in a chain the block at a position sits.
