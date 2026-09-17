@@ -17,6 +17,16 @@ resources/schemas/corpus/**
 !resources/schemas/corpus/customtone/SOURCES.md
 !resources/schemas/corpus/customtone/fetch_customtone.py
 
+# Music corpus - somebody else's records, and the stems cut from them.
+#
+# Neither the audio nor the stems can be committed: they are not ours, and a
+# repository is not a way around that. The record of which songs were measured
+# can be, so every artist's corpus.yaml is kept and everything beside it is not.
+resources/music/**
+!resources/music/README.md
+!resources/music/*/
+!resources/music/*/corpus.yaml
+
 # Generated from an HX Edit installation. The catalog itself is committed
 # under pkg/catalog/data/ and ships in the binary, so nobody needs HX Edit to
 # use tonestack — only to regenerate it. These are the intermediate artifacts.
