@@ -126,7 +126,7 @@ func Make(
 
 	// The same numbers, moved the same way: what the pedal prints under a
 	// switch names the block the switch acts on.
-	opts.compiler().Footswitches(doc, rec)
+	opts.compiler().Footswitches(doc, rec, cat)
 
 	if err := write(opts.OutputPath, doc, opts.Existing); err != nil {
 		return result.Made{}, err

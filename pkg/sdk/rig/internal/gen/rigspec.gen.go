@@ -494,7 +494,7 @@ type Footswitch struct {
 
 	// Colour The colour it lights, as the packed number a preset file stores.
 	//
-	// This is the resolved colour rather than the choice: measured over 17,665 assignments in the corpus it tracks the block's own kind — red for an amp or cabinet, amber for drive, green for delay, blue for modulation, purple for a filter, pitch block or wah, orange for reverb — at two brightnesses, bright while the block is engaged and dim while it is bypassed.
+	// This is the automatic colour rather than the choice, which is `led`: measured over 17,665 assignments in the corpus it tracks the block's own kind — red for an amp or cabinet, amber for drive, green for delay, blue for modulation, purple for a filter, pitch block or wah, orange for reverb — at two brightnesses, bright while the block is engaged and dim while it is bypassed.
 	Colour *int `json:"colour,omitempty"`
 
 	// Enabled Whether the switch acts on the block at all.
@@ -512,7 +512,9 @@ type Footswitch struct {
 	//
 	// `auto` is the default and the interesting one: the light follows the block rather than a choice, which is why an untouched preset lights its switches red for an amp, amber for drive and blue for modulation without anybody setting anything.
 	//
-	// Read from a device, which reports the choice. A preset file stores the colour the choice resolved to instead — see `colour` — and the two are not yet known to convert.
+	// Written as the number the device files the colour under, which is its place in the catalog's own list: 0 is automatic, 2 is red, 11 is off. A preset stores that number under `@fs_customcolor`, and 1,162 assignments in the corpus carry one.
+	//
+	// `colour` beside it is a different thing: the light the switch shows when nobody chose, which the device works out from the block.
 	Led *string `json:"led,omitempty"`
 
 	// Momentary Whether the switch holds while pressed rather than latching.

@@ -191,8 +191,8 @@ func (s *CompilePublicTestSuite) TestFootswitches() {
 			first, _ := preset.Blank()
 			second, _ := preset.Blank()
 
-			compile.Footswitches(first, tt.spec)
-			compile.New().Footswitches(second, tt.spec)
+			compile.Footswitches(first, tt.spec, s.cat)
+			compile.New().Footswitches(second, tt.spec, s.cat)
 
 			s.Require().Equal(first, second)
 		})

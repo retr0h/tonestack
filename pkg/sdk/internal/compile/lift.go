@@ -58,7 +58,7 @@ func Lift(
 	}
 
 	snapshots := snapshotsOf(doc)
-	switches := footswitchesOf(doc)
+	switches := footswitchesOf(doc, cat)
 
 	out := rig.Spec{
 		Schema:       rig.SchemaName,
