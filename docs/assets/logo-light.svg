@@ -1,21 +1,60 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 120" width="520" height="120" role="img" aria-label="tonestack">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 80" width="576" height="80" role="img" aria-label="tonestack">
   <title>tonestack</title>
-
-  <!-- The same mark in the deeper amber the CLI uses for cabinets, which holds
-       its contrast against a white page where the accent hue does not. -->
-  <g fill="none" stroke="#b06a1e" stroke-width="4">
-    <circle cx="36" cy="60" r="24"/>
-    <circle cx="100" cy="60" r="24"/>
-    <circle cx="164" cy="60" r="24"/>
-  </g>
-
-  <g stroke="#b06a1e" stroke-width="5" stroke-linecap="round">
-    <line x1="36" y1="60" x2="22" y2="44"/>
-    <line x1="100" y1="60" x2="100" y2="38"/>
-    <line x1="164" y1="60" x2="180" y2="46"/>
-  </g>
-
-  <text x="210" y="82"
-        font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
-        font-size="62" font-weight="600" fill="#b06a1e">tonestack</text>
+  <!-- The banner install.sh and `tonestack --help` print. The letters are
+       the two strings in paint.Banner, drawn as rectangles so the half
+       blocks meet exactly rather than depending on a font being present. -->
+  <rect x="8" y="8" width="16" height="16" fill="#6f6f6f"/>
+  <rect x="24" y="8" width="16" height="32" fill="#6f6f6f"/>
+  <rect x="40" y="8" width="16" height="16" fill="#6f6f6f"/>
+  <rect x="72" y="8" width="16" height="32" fill="#6f6f6f"/>
+  <rect x="88" y="8" width="16" height="16" fill="#6f6f6f"/>
+  <rect x="104" y="8" width="16" height="32" fill="#6f6f6f"/>
+  <rect x="136" y="8" width="16" height="32" fill="#6f6f6f"/>
+  <rect x="152" y="24" width="16" height="16" fill="#6f6f6f"/>
+  <rect x="168" y="8" width="16" height="32" fill="#6f6f6f" opacity="0.25"/>
+  <rect x="184" y="8" width="16" height="32" fill="#6f6f6f"/>
+  <rect x="216" y="8" width="16" height="32" fill="#6f6f6f"/>
+  <rect x="232" y="8" width="16" height="16" fill="#6f6f6f"/>
+  <rect x="248" y="8" width="16" height="16" fill="#6f6f6f"/>
+  <rect x="280" y="8" width="16" height="32" fill="#6f6f6f"/>
+  <rect x="296" y="8" width="16" height="16" fill="#6f6f6f"/>
+  <rect x="328" y="8" width="16" height="16" fill="#6f6f6f"/>
+  <rect x="344" y="8" width="16" height="32" fill="#6f6f6f"/>
+  <rect x="360" y="8" width="16" height="16" fill="#6f6f6f"/>
+  <rect x="392" y="24" width="16" height="16" fill="#6f6f6f"/>
+  <rect x="408" y="8" width="16" height="16" fill="#6f6f6f"/>
+  <rect x="424" y="8" width="16" height="32" fill="#6f6f6f"/>
+  <rect x="456" y="8" width="16" height="32" fill="#6f6f6f"/>
+  <rect x="472" y="8" width="16" height="16" fill="#6f6f6f"/>
+  <rect x="488" y="8" width="16" height="16" fill="#6f6f6f"/>
+  <rect x="520" y="8" width="16" height="32" fill="#6f6f6f"/>
+  <rect x="536" y="24" width="16" height="16" fill="#6f6f6f"/>
+  <rect x="552" y="8" width="16" height="16" fill="#6f6f6f"/>
+  <rect x="8" y="40" width="16" height="32" fill="#b06a1e" opacity="0.25"/>
+  <rect x="24" y="40" width="16" height="32" fill="#b06a1e"/>
+  <rect x="40" y="40" width="16" height="32" fill="#b06a1e" opacity="0.25"/>
+  <rect x="72" y="40" width="16" height="32" fill="#b06a1e"/>
+  <rect x="88" y="56" width="16" height="16" fill="#b06a1e"/>
+  <rect x="104" y="40" width="16" height="32" fill="#b06a1e"/>
+  <rect x="136" y="40" width="16" height="32" fill="#b06a1e"/>
+  <rect x="152" y="40" width="16" height="32" fill="#b06a1e" opacity="0.25"/>
+  <rect x="168" y="40" width="16" height="16" fill="#b06a1e"/>
+  <rect x="184" y="40" width="16" height="32" fill="#b06a1e"/>
+  <rect x="216" y="40" width="16" height="32" fill="#b06a1e"/>
+  <rect x="232" y="40" width="16" height="32" fill="#b06a1e"/>
+  <rect x="248" y="56" width="16" height="16" fill="#b06a1e"/>
+  <rect x="280" y="56" width="16" height="16" fill="#b06a1e"/>
+  <rect x="296" y="40" width="16" height="32" fill="#b06a1e"/>
+  <rect x="328" y="40" width="16" height="32" fill="#b06a1e" opacity="0.25"/>
+  <rect x="344" y="40" width="16" height="32" fill="#b06a1e"/>
+  <rect x="360" y="40" width="16" height="32" fill="#b06a1e" opacity="0.25"/>
+  <rect x="392" y="40" width="16" height="32" fill="#b06a1e"/>
+  <rect x="408" y="40" width="16" height="16" fill="#b06a1e"/>
+  <rect x="424" y="40" width="16" height="32" fill="#b06a1e"/>
+  <rect x="456" y="40" width="16" height="32" fill="#b06a1e"/>
+  <rect x="472" y="56" width="16" height="16" fill="#b06a1e"/>
+  <rect x="488" y="56" width="16" height="16" fill="#b06a1e"/>
+  <rect x="520" y="40" width="16" height="32" fill="#b06a1e"/>
+  <rect x="536" y="40" width="16" height="32" fill="#b06a1e" opacity="0.25"/>
+  <rect x="552" y="40" width="16" height="32" fill="#b06a1e"/>
 </svg>
