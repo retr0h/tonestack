@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -135,6 +136,14 @@ func (s *KnowledgeTestSuite) TestTheFiguresMatchTheData() {
 			want: fmt.Sprintf("about %d of them together", roundTo(unclear, 50)),
 		},
 		{
+			// The comparison Derive makes needs artists to compare, so the
+			// page says how many there are. A sixth added without the
+			// sentence following it makes the page wrong about its own
+			// method.
+			name: "players in the music corpus",
+			want: fmt.Sprintf("The music corpus names %d players", s.players()),
+		},
+		{
 			name: "the amp the pipeline follows",
 			want: fmt.Sprintf("Drive %.1f–%.1f, default %.2f, DSP %.2f",
 				nrmBlock.Params["Drive"].Min, nrmBlock.Params["Drive"].Max,
@@ -148,6 +157,17 @@ func (s *KnowledgeTestSuite) TestTheFiguresMatchTheData() {
 				"docs/knowledge.md no longer matches the embedded data")
 		})
 	}
+}
+
+// players counts the artists the music corpus holds records for.
+//
+// One directory each, with the manifest naming the tracks. The records
+// themselves are not in the repository.
+func (s *KnowledgeTestSuite) players() int {
+	found, err := filepath.Glob(filepath.Join("resources", "music", "*", "corpus.yaml"))
+	s.Require().NoError(err)
+
+	return len(found)
 }
 
 // model reads one model's measurements, which the page's examples depend on.
