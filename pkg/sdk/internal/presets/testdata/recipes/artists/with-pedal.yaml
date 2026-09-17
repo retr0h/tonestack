@@ -1,0 +1,23 @@
+schema: RigSpec
+version: 2
+id: with-pedal
+
+subject: { kind: artist, name: Test Player }
+instrument: bass
+
+chain:
+  - role: amp
+    gear: Ampeg SVT
+    evidence: [{ kind: llm }]
+  - role: cab
+    gear: Ampeg SVT 410HLF
+    evidence: [{ kind: llm }]
+
+confidence: medium
+
+controllers:
+  - controller: 2
+    block: 0
+    parameter: Drive
+    min: 0.3
+    max: 0.85

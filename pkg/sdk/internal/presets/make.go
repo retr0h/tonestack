@@ -109,6 +109,12 @@ func Make(
 		return result.Made{}, err
 	}
 
+	// Against the same chain, and after the fit for the same reason: a
+	// controller on a block the device had no room for moves nothing.
+	if err := opts.compiler().Controllers(doc, rec, spec.Blocks, cat); err != nil {
+		return result.Made{}, err
+	}
+
 	if err := write(opts.OutputPath, doc, opts.Existing); err != nil {
 		return result.Made{}, err
 	}

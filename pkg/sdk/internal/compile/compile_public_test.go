@@ -133,6 +133,42 @@ func (s *CompilePublicTestSuite) TestSections() {
 	}
 }
 
+// TestControllers covers writing what moves through the type.
+func (s *CompilePublicTestSuite) TestControllers() {
+	blocks := []chain.Block{{Model: "HD2_AmpSVBeastNrm", Enabled: true}}
+
+	tests := []struct {
+		name string
+		spec rig.Spec
+	}{
+		{
+			name: "an assignment the chain can make",
+			spec: rig.Spec{Controllers: &[]rig.Controller{
+				{Controller: 2, Block: 0, Parameter: "Drive"},
+			}},
+		},
+		{
+			name: "an assignment on a block the chain does not have",
+			spec: rig.Spec{Controllers: &[]rig.Controller{
+				{Controller: 2, Block: 9, Parameter: "Drive"},
+			}},
+		},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			first, _ := preset.Blank()
+			second, _ := preset.Blank()
+
+			want := compile.Controllers(first, tt.spec, blocks, s.cat)
+			got := compile.New().Controllers(second, tt.spec, blocks, s.cat)
+
+			s.Require().Equal(want == nil, got == nil)
+			s.Require().Equal(first, second)
+		})
+	}
+}
+
 // TestResolve covers turning a rig into a chain through the type.
 func (s *CompilePublicTestSuite) TestResolve() {
 	tests := []struct {
