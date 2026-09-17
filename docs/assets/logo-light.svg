@@ -1,8 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 80" width="576" height="80" role="img" aria-label="tonestack">
   <title>tonestack</title>
-  <!-- The banner install.sh and `tonestack --help` print. The letters are
-       the two strings in paint.Banner, drawn as rectangles so the half
-       blocks meet exactly rather than depending on a font being present. -->
+  <!-- The banner install.sh and `tonestack --help` print. The letters
+       are the two strings in paint.Banner, drawn as rectangles so the
+       half blocks meet exactly rather than depending on a font. -->
   <rect x="8" y="8" width="16" height="16" fill="#6f6f6f"/>
   <rect x="24" y="8" width="16" height="32" fill="#6f6f6f"/>
   <rect x="40" y="8" width="16" height="16" fill="#6f6f6f"/>
