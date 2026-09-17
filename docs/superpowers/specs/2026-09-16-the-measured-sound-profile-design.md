@@ -174,3 +174,71 @@ than the recording running out.
 
 Checked against the four bass stems afterwards: all four still report both
 figures, because real playing starts from silence.
+
+## Amended: how a measurement becomes a setting
+
+This record left the map unwritten. It is written here, and most of it is a
+statement of what cannot be done yet rather than what can.
+
+### A figure on its own names nothing
+
+91% of the energy below 250Hz is not "scooped". Every isolated bass stem is
+mostly low, so that figure describes the instrument rather than the player. A
+measurement becomes a word only by sitting somewhere in a population of
+measurements taken the same way.
+
+So the map is not `centroid 175Hz` to `Treble 0.6`. It is: measure an artist's
+records, place that artist against the other artists measured the same way, and
+let the position choose the term. Nothing new is needed after that. A term
+already moves a control from where the corpus left it, by the corpus spread,
+capped at a quarter of the range.
+
+That also answers which half of the system measurement replaces. Gear still
+comes from sourced knowledge, cited. Measurement replaces the adjective somebody
+chose, and the adjective already knows how to move a knob.
+
+### Four of the six acting axes have a measurement behind them
+
+| axis   | control                   | measurement          | direction                                            |
+| ------ | ------------------------- | -------------------- | ---------------------------------------------------- |
+| mids   | Mid                       | mid band share       | more is mid-forward, less is scooped                 |
+| highs  | Treble                    | high share, centroid | higher is bright, lower is dark                      |
+| drive  | Drive                     | harmonics            | energy above the fundamental is what distortion adds |
+| attack | Attack, on the compressor | transient            | sharper is percussive, softer is soft-attack         |
+
+Each of those is the same quantity the control acts on, which is why the
+direction needs no argument.
+
+### Two do not, and no threshold should be invented for them
+
+**Sag** is touch response and sustain. No band share, centroid or harmonic
+figure describes it, and `tight-low-end` against `loose-low-end` cannot be read
+off any of them.
+
+**Reverb Mix** is how much room is on the part. Nothing measured separates the
+room from the rest of a finished master.
+
+Those two stay words somebody chose, until there is a measurement that means
+them. Deriving them from the figures that happen to be available would be
+fitting a number to a control because both exist, which is the thing this whole
+record was written to avoid.
+
+### What blocks the rest is data, not design
+
+One artist has been measured: four Green Day bass stems. A population of one has
+no positions in it, so any threshold derived from it today would be a number
+written to fit one player and nobody else.
+
+The next step is measuring a second artist, and a third. That is the same
+experiment this record already names above under whether the character words
+survive, and it answers both questions at once: if the numbers do not separate
+two players the rigs describe differently, no threshold drawn from them was ever
+going to mean anything.
+
+### The loop is the other route, and it needs the pedal
+
+Closing the loop needs no population. Playing a signal through a generated
+preset, recording the return and measuring it the same way compares a preset
+against a target measurement directly, and the difference says which way to move
+without anybody deciding what a word means. It stays undecided here for the
+reason given above: it needs the pedal connected for every run.
