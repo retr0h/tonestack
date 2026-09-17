@@ -72,7 +72,15 @@ type Moved struct {
 	// turned. A rig asking for no room, in a chain holding no reverb, asked
 	// for something it already has.
 	Already string
+	// Weight is how much of a step the word was worth, where 1 is the whole
+	// step. Less than that when the term's own evidence measured the gap
+	// that earned it against other players, and the gap is narrow.
+	Weight float64
 }
+
+// Measured says whether a measurement sized the move rather than the word
+// alone.
+func (m Moved) Measured() bool { return m.Acted() && m.Weight > 0 && m.Weight < 1 }
 
 // Acted says whether the term moved anything.
 func (m Moved) Acted() bool { return m.Param != "" }

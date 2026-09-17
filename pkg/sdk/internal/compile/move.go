@@ -51,7 +51,15 @@ type Moved struct {
 	// turned. A rig asking for no room, in a chain holding no reverb, asked
 	// for something it already has.
 	Already string
+	// Weight is how much of a step the word was worth, where 1 is the whole
+	// step. Less than that when the term's own evidence measured the gap
+	// that earned it and the gap is small.
+	Weight float64
 }
+
+// Measured says whether the move was sized by a measurement rather than by
+// the word alone.
+func (m Moved) Measured() bool { return m.Acted() && m.Weight < 1 }
 
 // Acted says whether the term moved anything.
 func (m Moved) Acted() bool { return m.Param != "" }
@@ -154,13 +162,14 @@ const maxStep = 0.25
 func move(
 	blocks []catalog.Block,
 	built chain.Chain,
-	terms []string,
+	terms []heard,
 	stats *corpus.Stats,
 ) []Moved {
 	out := make([]Moved, 0, len(terms))
 	contested := contested(terms)
 
-	for _, term := range terms {
+	for _, h := range terms {
+		term := h.term
 		// Two words from one axis are two answers to one question. Neither
 		// is applied, because applying both lands back where it started and
 		// reads as though the rig said nothing.
@@ -199,7 +208,7 @@ func move(
 			continue
 		}
 
-		out = append(out, apply(blocks[at], built.Blocks[at].Params, term, t, stats))
+		out = append(out, apply(blocks[at], built.Blocks[at].Params, h, t, stats))
 	}
 
 	return out
@@ -226,10 +235,12 @@ func indexOf(
 func apply(
 	b catalog.Block,
 	params chain.Params,
-	term string,
+	h heard,
 	t turn,
 	stats *corpus.Stats,
 ) Moved {
+	term := h.term
+
 	p, held := b.Params[t.param]
 	if !held {
 		// Not every amplifier models sag, and an opto compressor has no
@@ -242,11 +253,11 @@ func apply(
 		return Moved{Term: term, Because: "the " + b.Name + " has no " + t.param}
 	}
 
-	to := clamp(from+t.steps*step(b, t.param, p, stats), p.Min, p.Max)
+	to := clamp(from+t.steps*h.weight*step(b, t.param, p, stats), p.Min, p.Max)
 
 	params[t.param] = catalog.Float(to)
 
-	return Moved{Term: term, Param: t.param, From: from, To: to}
+	return Moved{Term: term, Param: t.param, From: from, To: to, Weight: h.weight}
 }
 
 // step is how far one term moves this parameter.
@@ -290,27 +301,91 @@ func clamp(
 // termsOf reads the words a rig describes itself with, in the order written.
 func termsOf(
 	spec rig.Spec,
-) []string {
+) []heard {
 	if spec.Character == nil {
 		return nil
 	}
 
-	out := make([]string, 0, len(*spec.Character))
+	out := make([]heard, 0, len(*spec.Character))
 	for _, c := range *spec.Character {
-		out = append(out, c.Term)
+		out = append(out, heard{term: c.Term, weight: weightOf(c)})
 	}
 
 	return out
 }
 
+// heard is one word a rig used, and how much of a step it is worth.
+type heard struct {
+	// term is the word.
+	term string
+	// weight is how far along the term's own direction to move, where 1 is
+	// the whole step. A word nobody measured is worth the whole step,
+	// because there is nothing to say it should be worth less.
+	weight float64
+}
+
+// measures names the figure each axis is earned from, for the axes a
+// measurement can speak to.
+//
+// The same three [audio.Derive] compares on: the mid band, the centroid and
+// how much energy sits above the fundamental. The rest of the vocabulary
+// describes a player or an instrument rather than a band of the spectrum, so
+// there is no figure to weigh it with.
+var measures = map[string]string{
+	"mids":  "mid",
+	"highs": "centroid",
+	"drive": "harmonics",
+}
+
+// weightOf reads how far a term's own measurement sits from everybody else's.
+//
+// The gap as a share of what the others read: a player reading half the
+// harmonics of the rest is worth half a step, and one reading none of them is
+// worth the whole step. Beyond that it stops counting, because a word is one
+// opinion and the cap on a step is what keeps one opinion off the rail.
+//
+// A term with no measurement, or one measuring something no control answers
+// to, is worth the whole step. That is what every rig did before any of this
+// was measured, and it stays the answer where nobody has measured anything.
+func weightOf(
+	c rig.CharacterTerm,
+) float64 {
+	axis, ok := axisOf(c.Term)
+	if !ok {
+		return 1
+	}
+
+	key, ok := measures[axis]
+	if !ok || c.Evidence == nil {
+		return 1
+	}
+
+	for _, e := range *c.Evidence {
+		if e.Measured == nil || e.Against == nil {
+			continue
+		}
+
+		mine, held := (*e.Measured)[key]
+		theirs, also := (*e.Against)[key]
+
+		if !held || !also || theirs == 0 {
+			continue
+		}
+
+		return math.Min(math.Abs(mine-theirs)/math.Abs(theirs), 1)
+	}
+
+	return 1
+}
+
 // contested finds the axes a rig spoke for more than once.
 func contested(
-	terms []string,
+	terms []heard,
 ) map[string]bool {
 	seen := map[string]int{}
 
-	for _, term := range terms {
-		if axis, ok := axisOf(term); ok {
+	for _, h := range terms {
+		if axis, ok := axisOf(h.term); ok {
 			seen[axis]++
 		}
 	}

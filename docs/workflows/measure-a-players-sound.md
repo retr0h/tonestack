@@ -212,6 +212,25 @@ Three axes are derived — `mid-forward`/`scooped`, `bright`/`dark` and
 the control acts on. `attack` and `decay` are measured but not derived, for
 reasons written down in `pkg/sdk/audio/derive.go`.
 
-A word this earns is a word for the rig's `character`. Nothing writes it there
-for you: the terms are an argument, and putting one in a file is still somebody
-deciding to believe it.
+A word this earns is a word for the rig's `character`, and `--evidence` writes
+the block to paste:
+
+```bash
+tonestack measure --corpus resources/music --evidence
+```
+
+```yaml
+flea:
+  - term: clean
+    evidence:
+      - kind: audio
+        measured: { harmonics: 0.12 }
+        against: { harmonics: 0.24 }
+```
+
+Both sides, because the gap between them is what decides how far the word moves
+a control when the preset is built. Half of what everybody else reads is half a
+step, not a knob at zero.
+
+Nothing writes it into the rig for you. The terms are an argument, and putting
+one in a file is still somebody deciding to believe it.

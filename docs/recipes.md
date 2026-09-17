@@ -168,6 +168,25 @@ claiming both has claimed nothing.
 | `space`        | what surrounds the part                             | `dry` · `roomy`                                            |
 | `string-noise` | what the hands make that is not a note              | `audible-strings` · `quiet-strings`                        |
 
+A term earned by measurement carries the figures that earned it, and then the
+gap decides the distance:
+
+```yaml
+character:
+  - term: clean
+    evidence:
+      - kind: audio
+        measured: { harmonics: 0.12 }
+        against: { harmonics: 0.24 }
+```
+
+`measured` is this player, `against` is everybody else. Reading half of what the
+others read is worth half a step; reading a gap as wide as their own figure is
+worth the whole one, and nothing is worth more than that. A term with no figures
+beside it is worth the whole step, which is what every rig did before any of
+this could be measured. `tonestack measure --corpus <dir> --evidence` writes
+these blocks for you.
+
 Six of those axes turn a knob. `mids`, `highs`, `drive` and `low-end` move the
 first amplifier in the chain, `space` moves the first reverb and `attack` moves
 the first compressor. Each word is worth one step from where the corpus left

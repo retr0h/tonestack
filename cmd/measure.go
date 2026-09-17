@@ -79,7 +79,8 @@ which words each one's records earn. A word is earned by sitting clear of the
 other players, so this is the only mode that produces any: one player has
 nobody to be clear of.
 
-    tonestack measure --corpus resources/music`,
+    tonestack measure --corpus resources/music
+    tonestack measure --corpus resources/music --evidence`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		if measureCorpus != "" {
@@ -120,15 +121,6 @@ func measurePlayers(
 	cmd *cobra.Command,
 	dir string,
 ) error {
-	// Evidence is one player's figures against their own records, and this
-	// reads several players. Refused rather than ignored: a flag that
-	// silently does nothing is how somebody concludes the feature is broken.
-	if measureEvidence {
-		return fmt.Errorf(
-			"--evidence reads one player's records: give it --dir rather than --corpus",
-		)
-	}
-
 	players, err := audio.Corpus(os.DirFS(dir), ".")
 	if err != nil {
 		return err
@@ -140,6 +132,13 @@ func measurePlayers(
 				"separated with `just stems <in> <out>`",
 			dir,
 		)
+	}
+
+	// The same comparison, written two ways: a table to read, or the terms
+	// it earned as evidence to paste into a rig. Both carry the figures,
+	// because a word without them is an assertion.
+	if measureEvidence {
+		return cli.PlayerTerms(cmd.OutOrStdout(), players)
 	}
 
 	return cli.Players(cmd.OutOrStdout(), players)

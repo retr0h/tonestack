@@ -267,5 +267,12 @@ The records are not in this repository and neither are the measurements: the
 stems are somebody's own audio files, so a figure in a rig is a claim about a
 recording nobody else here can replay.
 
-What is still missing is the step from a word to a value. A term says which way
-to move a control. How far is still somebody's judgement.
+The step from a word to a value is half built. A term says which way to move a
+control, and where the term carries the figures that earned it — this player's
+measurement and the other players' — the distance follows the gap between them.
+A word nobody measured still moves a fixed step, which is a guess held to a
+quarter of the control's range.
+
+What is missing is any of it being heard. Nothing above the person listens, so
+whether half a step of drive is the right amount of drive is a question no
+measurement here answers.
