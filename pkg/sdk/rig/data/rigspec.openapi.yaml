@@ -157,14 +157,22 @@ components:
 
 
         Describe the result rather than the control: "mid-forward, not
-        scooped", never "raise the mids". Nothing compiles a term into a
-        chain, so what it earns is a reader deciding whether the preset came
-        out right, and that is worth nothing if the reader cannot tell an
-        assertion from something somebody listened to.
+        scooped", never "raise the mids". Where the treble knob sits is a
+        fact about somebody's amplifier; how the record came out is a fact
+        about the sound, and only the second survives being read on other
+        gear.
 
 
-        A term is free text today. The vocabulary that closes it ships beside
-        the catalog, and is not written yet.
+        A term moves controls when a preset is built: six axes act, each word
+        worth one step from wherever the corpus left that control and never
+        more than a quarter of its range. So the evidence on a term is not
+        decoration. It is the difference between a knob moved because
+        somebody listened and a knob moved because a model guessed.
+
+
+        A term outside the shipped vocabulary is reported and kept, not
+        refused: it moves nothing, and refusing a preset over a word would
+        make the format hostile to the person it exists for.
       required: [term]
       properties:
         term:

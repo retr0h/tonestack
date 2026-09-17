@@ -70,6 +70,29 @@ character:
         note: >-
           "he keeps his knobs taped at his preferred settings (bass almost
           full up, treble rolled off)"
+        caveat: >-
+          knob positions rather than a result, which is the confusion this
+          field exists to avoid: where the treble control sits says nothing
+          about where the record lands.
+      - kind: audio
+        note: >-
+          his three records measure a centroid of 163 Hz, which is the middle
+          of the five players in the music corpus: Pino Palladino reads 96 Hz
+          and Paul McCartney 138 Hz. Reproduce with `tonestack measure
+          --corpus resources/music`.
+        caveat: >-
+          the word is kept because a citation outranks a measurement here, and
+          because three records of one player are not his whole catalogue.
+          What the records say is that he is not the dark end of this corpus.
+  - term: clean
+    evidence:
+      - kind: audio
+        note: >-
+          12% of his energy sits above the fundamental against 24% for the
+          rest of the corpus, which is the one term his records earn outright.
+        caveat: >-
+          measures the record rather than the player: the amp, the mic, the
+          desk and the master are all in that figure.
 
 technique:
   attack: slap

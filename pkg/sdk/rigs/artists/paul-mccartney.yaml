@@ -92,6 +92,27 @@ character:
         caveat: >-
           the same kind of thread, found by search and not read. It also
           suggests a darker top, which one unread post is too thin to claim.
+      - kind: audio
+        note: >-
+          the three records measured for him — Rain, Come Together and Silly
+          Love Songs — hold 0% of their energy in the mid band, the lowest of
+          the five players in the music corpus. Reproduce with `tonestack
+          measure --corpus resources/music`.
+        caveat: >-
+          not the record the citations describe. Both are about Wings Over
+          America, a 1976 live album played on a Rickenbacker, and none of the
+          three measured records is from it. Measuring that album is what
+          would settle this either way.
+  - term: clean
+    evidence:
+      - kind: audio
+        note: >-
+          10% of his energy sits above the fundamental against 24% for the
+          rest of the corpus, the cleanest of the five.
+        caveat: >-
+          measures the record rather than the player, and two of the three are
+          Beatles records cut on a Hofner rather than the Rickenbacker rig
+          this describes.
   - term: neck-forward
     evidence:
       - kind: llm
