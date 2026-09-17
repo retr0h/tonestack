@@ -92,7 +92,10 @@ func Make(
 		return result.Made{}, err
 	}
 
-	limits := chain.HXStompLimits()
+	// The device the catalog describes, not whichever one this was written
+	// against: an HX Stomp holds eight blocks on one path and a Helix Floor
+	// holds 29 across two.
+	limits := chain.LimitsFor(cat.Device)
 	spec = opts.compiler().Fit(spec, cat, limits)
 
 	if err := chain.Validate(cat, spec, limits); err != nil {
