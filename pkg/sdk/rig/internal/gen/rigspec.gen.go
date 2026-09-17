@@ -381,6 +381,11 @@ type Controller struct {
 	//
 	// A device names nothing: it stores the parameter's place in the model's own order, and only the catalog turns that into a word. A rig carrying the number would be unreadable and would break the moment a firmware release reordered anything.
 	Parameter string `json:"parameter"`
+
+	// Path Which processor the block is on. Omitted means the first, which is the only one an HX Stomp has.
+	//
+	// A block number alone does not say which block on a device with two of them: both paths count from zero, so a chain laid across them has two blocks numbered 0 and an assignment naming one of them could move either.
+	Path *int `json:"path,omitempty"`
 }
 
 // DeviceState Everything a preset carries that this format does not model as musical intent, kept exactly as the device wrote it.

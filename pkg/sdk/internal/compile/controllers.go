@@ -73,7 +73,7 @@ func Controllers(
 	paths := map[string]map[string]map[string]preset.Tone{}
 
 	for _, c := range *spec.Controllers {
-		at, ok := blockAt(blocks, c.Block)
+		at, ok := blockAt(blocks, at(c.Path, 0), c.Block)
 		if !ok || !carries(at, c.Parameter, cat) {
 			continue
 		}

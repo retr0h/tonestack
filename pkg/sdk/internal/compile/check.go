@@ -134,7 +134,9 @@ func checkControllers(
 		// By position along the path rather than by place in the list. A rig
 		// read off a device numbers its blocks the way the device lays them
 		// out, and a chain that states its positions leaves gaps in them.
-		at, ok := blockAt(blocks, c.Block)
+		path := at(c.Path, 0)
+
+		at, ok := blockAt(blocks, path, c.Block)
 		if !ok {
 			out = append(out, &NoSuchBlockError{
 				Field: fmt.Sprintf("controllers[%d].block", i),
@@ -171,13 +173,17 @@ func checkControllers(
 	return errors.Join(out...)
 }
 
-// blockAt finds the block sitting at a position along the path.
+// blockAt finds the block sitting at a position on one processor.
+//
+// Both, because both paths of a device that has two count their blocks from
+// zero. A chain laid across them holds two blocks numbered 0, and a position
+// on its own would find whichever came first.
 func blockAt(
 	blocks []chain.Block,
-	position int,
+	path, position int,
 ) (chain.Block, bool) {
 	for _, b := range blocks {
-		if b.Pos == position {
+		if b.DSP == path && b.Pos == position {
 			return b, true
 		}
 	}

@@ -99,12 +99,23 @@ func (s *ControllersPublicTestSuite) TestControllers() {
 			want:    `{"dsp0":{"block0":{"Drive":{"@controller":2,"@max":1,"@min":0}}}}`,
 		},
 		{
-			// A chain the device split across two processors still lands on
-			// the block the rig named.
-			name:    "a block on the second processor",
-			blocks:  []chain.Block{{Model: "HD2_AmpSVBeastNrm", DSP: 1, Pos: 4}},
-			control: &[]rig.Controller{{Controller: 2, Block: 4, Parameter: "Drive"}},
-			want:    `{"dsp1":{"block4":{"Drive":{"@controller":2,"@max":1,"@min":0}}}}`,
+			// A chain the device split across two processors lands on the
+			// block the rig named, on the processor it named it on.
+			name:   "a block on the second processor",
+			blocks: []chain.Block{{Model: "HD2_AmpSVBeastNrm", DSP: 1, Pos: 4}},
+			control: &[]rig.Controller{
+				{Controller: 2, Block: 4, Path: &second, Parameter: "Drive"},
+			},
+			want: `{"dsp1":{"block4":{"Drive":{"@controller":2,"@max":1,"@min":0}}}}`,
+		},
+		{
+			// Both paths count from zero, so a rig that says nothing about
+			// which one means the first. The block on the second is not it.
+			name:     "a position on a processor the rig did not name",
+			blocks:   []chain.Block{{Model: "HD2_AmpSVBeastNrm", DSP: 1, Pos: 4}},
+			existing: `{}`,
+			control:  &[]rig.Controller{{Controller: 2, Block: 4, Parameter: "Drive"}},
+			want:     `{}`,
 		},
 		{
 			// What the preset underneath came with is not what the rig says
@@ -164,6 +175,9 @@ func (s *ControllersPublicTestSuite) TestControllers() {
 // yes is a rig saying a field is true.
 var yes = true
 
+// second is the other processor, on a device that has one.
+var second = 1
+
 // TestLowerWritesWhatMoves covers the assignments reaching a compiled preset.
 func (s *ControllersPublicTestSuite) TestLowerWritesWhatMoves() {
 	spec := recipe("Ampeg SVT", "")
@@ -195,6 +209,19 @@ func (s *ControllersPublicTestSuite) TestLowerRefusesAnAssignmentItCannotMake() 
 	s.Require().NoError(err)
 	s.Require().ErrorIs(compile.Lower(doc, spec, s.cat), compile.ErrNoSuchBlock)
 	s.Require().NotContains(doc.Data.Tone, "controller")
+}
+
+// TestLowerRefusesAProcessorTheDeviceDoesNotHave covers a rig naming the
+// second path on a chain that has one.
+func (s *ControllersPublicTestSuite) TestLowerRefusesAProcessorTheDeviceDoesNotHave() {
+	spec := recipe("Ampeg SVT", "")
+	spec.Controllers = &[]rig.Controller{
+		{Controller: 2, Block: 0, Path: &second, Parameter: "Drive"},
+	}
+
+	doc, err := preset.Blank()
+	s.Require().NoError(err)
+	s.Require().ErrorIs(compile.Lower(doc, spec, s.cat), compile.ErrNoSuchBlock)
 }
 
 func TestControllersPublicTestSuite(

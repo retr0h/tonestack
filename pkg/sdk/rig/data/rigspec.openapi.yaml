@@ -631,6 +631,17 @@ components:
           description: >
             Which block it works on, counted along the signal path the way
             the chain counts its entries.
+        path:
+          type: integer
+          description: >
+            Which processor the block is on. Omitted means the first, which is
+            the only one an HX Stomp has.
+
+
+            A block number alone does not say which block on a device with two
+            of them: both paths count from zero, so a chain laid across them
+            has two blocks numbered 0 and an assignment naming one of them
+            could move either.
         parameter:
           type: string
           x-lookup: the parameters the model at that block has

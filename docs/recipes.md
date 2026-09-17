@@ -326,6 +326,9 @@ controllers:
 
 The expression pedal reads 2 on an HX Stomp. `block` counts along the signal
 path the way the chain counts its entries, so 1 is the second piece of gear.
+`path` says which processor that block is on, and leaving it out means the
+first, which is the only one an HX Stomp has. It matters on a Helix Floor, where
+both paths count their blocks from zero and a number alone could mean either.
 `parameter` is the control by the name the catalog gives it, and it is checked
 against the model that ended up there: a name it does not have is refused with
 the names it does.
