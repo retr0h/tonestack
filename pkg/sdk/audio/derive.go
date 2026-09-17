@@ -72,6 +72,17 @@ type Axis struct {
 //
 // So neither the word nor the figure is wrong, and no threshold between them
 // would mean anything. The axis stays out until something measures the click.
+//
+// Measuring the click was tried, and it cannot be done from these stems. The
+// measure was fixed before any music was run: the share of a note's energy
+// above 1kHz in its first 30ms. It separates a plain synthetic pluck (0.000)
+// from one with a click added (0.095). On five artists' separated bass stems
+// every figure sat at the noise floor, 0.0000 to 0.0060, because the stems
+// carry almost nothing above 1kHz; the high band reads 0 to 2% for every
+// artist measured. The click lives in exactly what separation takes out.
+// Recordings that keep the bass's top end, a DI or a separation that does not
+// band-limit, would be needed first. A lower cutoff was not tried, because
+// choosing one after seeing these figures would fit the measure to them.
 var Axes = []Axis{
 	{
 		Key: KeyMid, More: "mid-forward", Less: "scooped",
