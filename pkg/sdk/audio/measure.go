@@ -31,7 +31,29 @@
 // leave nowhere to stand when they disagree.
 package audio
 
-import "math"
+import (
+	"math"
+	"slices"
+)
+
+// Spread is one measurement across a recording, kept as a range.
+//
+// Some of what a recording measures as is the same in every window and some
+// of it is not. Harmonic content is the second kind: on four bass stems it
+// ran from a few percent in the quietest tenth of windows to nearly half in
+// the loudest, and reporting only the middle one hid the fact. Whether what
+// separates two players is the middle or the width is not known yet, so both
+// are kept.
+type Spread struct {
+	// Low is the tenth percentile: all but the lowest tenth of windows are
+	// above this.
+	Low float64
+	// Mid is the median, the middle window.
+	Mid float64
+	// High is the ninetieth percentile: all but the highest tenth are below
+	// it.
+	High float64
+}
 
 // Profile is what a recording measures as.
 //
@@ -72,10 +94,10 @@ type Profile struct {
 
 	// Harmonics is the share of energy above the fundamental, from zero to
 	// one. A clean note is low, a distorted one is high.
-	Harmonics float64
+	Harmonics Spread
 	// EvenOdd leans positive when even harmonics dominate and negative when
 	// odd ones do. Even is the warmth of a valve; odd is the edge of a fuzz.
-	EvenOdd float64
+	EvenOdd Spread
 }
 
 // Band edges, in hertz.
@@ -186,7 +208,7 @@ func centroid(
 // the answer is meaningless rather than wrong.
 func harmonics(
 	windows []spectrum,
-) (float64, float64) {
+) (Spread, Spread) {
 	shares := make([]float64, 0, len(windows))
 	leans := make([]float64, 0, len(windows))
 
@@ -200,10 +222,10 @@ func harmonics(
 		leans = append(leans, lean)
 	}
 
-	// The middle window rather than the average of them. One window catching
-	// a cymbal or a key change should not move the answer, and across a whole
-	// recording there are always a few.
-	return median(shares), median(leans)
+	// A range rather than the average of them. One window catching a cymbal
+	// or a key change should not move the answer, which is why neither end is
+	// the largest or the smallest window.
+	return spreadOf(shares), spreadOf(leans)
 }
 
 // harmonicsOf reads one window: how much energy sits above its loudest
@@ -269,22 +291,37 @@ func harmonicsOf(
 	return above / total, lean, true
 }
 
-// median is the middle value, or nothing when there are none.
-func median(
+// spreadOf is what the windows measured, as a range rather than a number.
+//
+// Nothing here is the largest or the smallest window. Both ends are a tenth
+// of the way in, so a single window catching something the player did not do
+// moves neither.
+func spreadOf(
 	of []float64,
-) float64 {
+) Spread {
 	if len(of) == 0 {
-		return 0
+		return Spread{}
 	}
 
-	sorted := append([]float64(nil), of...)
-	for i := 1; i < len(sorted); i++ {
-		for j := i; j > 0 && sorted[j] < sorted[j-1]; j-- {
-			sorted[j], sorted[j-1] = sorted[j-1], sorted[j]
-		}
-	}
+	sorted := slices.Clone(of)
+	slices.Sort(sorted)
 
-	return sorted[len(sorted)/2]
+	return Spread{
+		Low:  quantile(sorted, 0.1),
+		Mid:  quantile(sorted, 0.5),
+		High: quantile(sorted, 0.9),
+	}
+}
+
+// quantile is the value that share of the way through a sorted list.
+//
+// share is never one, so the index it lands on is always inside the list:
+// even at 0.9 of a single value the index is zero.
+func quantile(
+	sorted []float64,
+	share float64,
+) float64 {
+	return sorted[int(share*float64(len(sorted)))]
 }
 
 // transient is how much of a note's level arrives in one step.
@@ -407,16 +444,12 @@ func dynamicRange(
 		return 0
 	}
 
-	sorted := append([]float64(nil), levels...)
-	for i := 1; i < len(sorted); i++ {
-		for j := i; j > 0 && sorted[j] < sorted[j-1]; j-- {
-			sorted[j], sorted[j-1] = sorted[j-1], sorted[j]
-		}
-	}
+	sorted := slices.Clone(levels)
+	slices.Sort(sorted)
 
 	// Both are above zero: the loop above keeps only frames that are.
-	median := sorted[len(sorted)/2]
+	middle := quantile(sorted, 0.5)
 	loudest := sorted[len(sorted)-1]
 
-	return 20 * math.Log10(loudest/median)
+	return 20 * math.Log10(loudest/middle)
 }

@@ -121,7 +121,7 @@ func (s *ReadPublicTestSuite) TestTheMeasurementsAreTheSameOffDisk() {
 	s.Require().InDelta(direct.Low, fromDisk.Low, 0.01)
 	s.Require().InDelta(direct.Mid, fromDisk.Mid, 0.01)
 	s.Require().InDelta(direct.Centroid, fromDisk.Centroid, 5)
-	s.Require().InDelta(direct.Harmonics, fromDisk.Harmonics, 0.02)
+	s.Require().InDelta(direct.Harmonics.Mid, fromDisk.Harmonics.Mid, 0.02)
 }
 
 // TestStereoIsAveragedToOne covers several channels becoming one.
