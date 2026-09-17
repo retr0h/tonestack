@@ -32,10 +32,10 @@ import (
 // UnknownTerm is a word a rig used to describe its sound that the shipped
 // vocabulary does not carry.
 //
-// Reported rather than refused. Nothing compiles a character term into a
-// chain, so an unfamiliar one costs nothing and stops nothing, and refusing a
-// preset over a word that moves no knob would make the format hostile to the
-// person it exists for. Unknown gear is different: there is no model to
+// Reported rather than refused. A term the vocabulary carries moves controls;
+// one it does not carry moves nothing, so an unfamiliar word costs nothing and
+// stops nothing, and refusing a preset over it would make the format hostile
+// to the person it exists for. Unknown gear is different: there is no model to
 // write, so that is an error and stays one.
 type UnknownTerm struct {
 	// Term is what the rig said.
