@@ -105,11 +105,25 @@ type Derived struct {
 // Derive is what an artist's measurements say about them, against others
 // measured the same way.
 //
-// An artist earns a term only where their whole range sits clear of what the
-// other artists' middles cover. The middle alone is not enough: one of the
-// three artists measured so far reads 0% mid across two records and 15% on a
-// third, so his median is a figure he never actually plays, and a term drawn
-// from it would assert something his own records contradict.
+// An artist earns a term only where their whole range sits outside the middle
+// half of the other artists: above the others' upper quartile, or below their
+// lower quartile. So a word means more than most of the population, not more
+// than every member of it.
+//
+// It was more than every member of it at first, and that rule got stricter
+// with every artist added. Each one could only raise the highest middle or
+// lower the lowest, so with five artists at most one could clear an axis in
+// each direction. One player earned three terms against two other artists and
+// none against four, which is more data giving fewer answers.
+//
+// The quartiles are interpolated between neighbours. Taken on a single
+// neighbour, the upper quartile of four artists is simply the highest of them,
+// which is the old rule back again.
+//
+// The whole range rather than the middle, because the middle alone is not
+// enough: one artist reads 0% mid across two records and 15% on a third, so
+// his median is a figure he never actually plays, and a term drawn from it
+// would assert something his own records contradict.
 //
 // Nothing is derived where the evidence is mixed. With few artists that will
 // be most of the time, and saying nothing is the right answer rather than a
@@ -130,13 +144,13 @@ func Derive(
 			continue
 		}
 
+		slices.Sort(rest)
 		span := ax.of(mine)
-		low, high := slices.Min(rest), slices.Max(rest)
 
 		switch {
-		case span.Low > high:
+		case span.Low > between(rest, 0.75):
 			out = append(out, made(ax, ax.More, mine, rest, len(others)+1))
-		case span.High < low:
+		case span.High < between(rest, 0.25):
 			out = append(out, made(ax, ax.Less, mine, rest, len(others)+1))
 		}
 	}
@@ -146,7 +160,7 @@ func Derive(
 
 // made is one derived term, carrying what it was derived from.
 //
-// rest is never empty here: Derive returns early when it is.
+// rest arrives sorted, and is never empty: Derive returns early when it is.
 func made(
 	ax Axis,
 	term string,
@@ -154,9 +168,6 @@ func made(
 	rest []float64,
 	of int,
 ) Derived {
-	sorted := slices.Clone(rest)
-	slices.Sort(sorted)
-
 	return Derived{
 		Term: term,
 		Key:  ax.Key,
@@ -164,7 +175,7 @@ func made(
 		Mine: mine.Measured()[ax.Key],
 		// The middle of the others, so a report can say what this was
 		// clear of rather than only that it was.
-		Others: quantile(sorted, 0.5),
+		Others: between(rest, 0.5),
 		Of:     of,
 	}
 }
@@ -188,4 +199,26 @@ func middles(
 	}
 
 	return out
+}
+
+// between is the value a share of the way through a sorted list, interpolated
+// between the two entries either side of that point.
+//
+// quantile in measure.go takes the entry the point lands on, which is right
+// for a spread over hundreds of windows and wrong for a handful of artists:
+// there, the upper quartile of four lands on the highest of them.
+func between(
+	sorted []float64,
+	share float64,
+) float64 {
+	at := share * float64(len(sorted)-1)
+	lo := int(at)
+
+	// Only a list of one has nothing above its only entry. For anything
+	// longer, share below one keeps lo below the last index.
+	if lo+1 >= len(sorted) {
+		return sorted[lo]
+	}
+
+	return sorted[lo] + (at-float64(lo))*(sorted[lo+1]-sorted[lo])
 }
