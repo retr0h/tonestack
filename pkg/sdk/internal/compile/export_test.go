@@ -22,11 +22,13 @@ package compile
 
 // Exposed to this package's external tests.
 //
-// Both are steps Lower takes rather than things a caller reaches, and each
-// has a contract of its own that Lower's test does not reach: check reports
-// which value a device has no such thing for, and gear reports the near
-// misses when a name matches no model.
+// Each is a step Lower takes rather than something a caller reaches, and
+// each has a contract of its own that Lower's test does not reach: check
+// reports which value a device has no such thing for, gear reports the near
+// misses when a name matches no model, and setKnobs decides which control a
+// musical word lands on and what it reads there.
 var (
-	Check = check
-	Gear  = gear
+	Check    = check
+	Gear     = gear
+	SetKnobs = setKnobs
 )

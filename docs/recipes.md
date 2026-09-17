@@ -103,7 +103,22 @@ settings: { drive: 0.47, bass: 0.52, mid: 0.71, treble: 0.85 }
 ```
 
 A small vocabulary from 0 to 1: `drive`, `bass`, `mid`, `treble`, `presence`,
-`level`, `mix`, `feel`. Each means roughly the same thing on any amplifier.
+`level`, `mix`. Each means roughly the same thing on any amplifier, and nothing
+else is allowed: a word outside the list is refused when the rig is read.
+
+Each word lands on whichever control the model has for it. `drive` reaches a
+Drive or a Gain, `level` reaches a Level, a Ch Vol, a Master, a Volume or an
+Output, and `bass` reaches a Bass or a Low. The 0 to 1 is scaled onto the range
+the control is counted in, so 0.5 on a control from -12 to 12 is 0.
+
+A word the model has no control for is refused, and the error lists the words it
+does take. The Ampeg SVT has no Presence, so a rig asking for one on that amp
+does not build. That is the point: `drive: 0.47` sat in the example rig doing
+nothing until this was written, because nothing read it.
+
+What a rig says beats everything under it. The catalog default is the floor, the
+corpus median can raise on it, a character term can move it, and the number
+somebody wrote down wins over all three.
 
 **Device controls do not belong here.** `Sag`, `Bias X`, `Ripple` and `Hum` are
 one manufacturer's knobs; the compiler sets those from catalog defaults, corpus

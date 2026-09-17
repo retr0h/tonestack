@@ -49,6 +49,11 @@ func Resolve(
 
 	blocks := make([]catalog.Block, 0, len(spec.Chain)+1)
 
+	// What the rig said about each block, kept beside it. A chain gains
+	// blocks on the way through: an implied cabinet, whatever the corpus
+	// fills. Those are nobody's words, so they take no settings.
+	said := make([]*rig.Settings, 0, len(spec.Chain)+1)
+
 	// A cabinet is the one miss worth recovering from: Line 6 do not describe
 	// every cabinet in terms of real gear, and an amplifier already names the
 	// one it was voiced with. Every other role fails, because substituting an
@@ -99,6 +104,7 @@ func Resolve(
 		}
 
 		blocks = append(blocks, b)
+		said = append(said, entry.Settings)
 	}
 
 	// A rig naming an amplifier and no cabinet gets the one Line 6 voiced it
@@ -113,6 +119,7 @@ func Resolve(
 		}
 
 		blocks = append(blocks, *cab)
+		said = append(said, nil)
 	} else if missed != "" {
 		// Nothing to fall back to, so the rig named a cabinet that cannot be
 		// built and saying so is the only honest answer.
@@ -126,6 +133,13 @@ func Resolve(
 	// After the corpus has had its say, because a term is an opinion about
 	// where players land rather than a replacement for knowing.
 	moved := character(spec, blocks, built, stats)
+
+	// Last, over the corpus medians and over whatever a character term
+	// moved: a number somebody wrote down is the most explicit thing in the
+	// rig, and the only one that says exactly what they meant.
+	if err := saidKnobs(built.Blocks, blocks, said); err != nil {
+		return chain.Chain{}, nil, nil, err
+	}
 
 	// What the rig claims beside its chain: a colour, a parameter, a device.
 	// Checked here because the answer is a fact about this catalog.
@@ -403,4 +417,27 @@ func renumber(
 	}
 
 	return spec
+}
+
+// saidKnobs puts each entry's settings onto the block it resolved to.
+//
+// Blocks the rig did not ask for are at the end of the chain and have no
+// settings beside them, so the lists run out together.
+func saidKnobs(
+	built []chain.Block,
+	blocks []catalog.Block,
+	said []*rig.Settings,
+) error {
+	out := []error(nil)
+
+	for i, set := range said {
+		if set == nil || i >= len(built) {
+			continue
+		}
+
+		out = append(out, setKnobs(
+			built[i].Params, blocks[i], set, fmt.Sprintf("chain[%d].settings", i)))
+	}
+
+	return errors.Join(out...)
 }

@@ -60,9 +60,20 @@ func Lower(
 			return fmt.Errorf("chain entry %d: %w", i, err)
 		}
 
+		params := paramsFor(entry, cat, model)
+
+		// Over whatever the entry's own parameters said. A lifted rig
+		// carries both, and the words are the part a person edits.
+		blk, _ := cat.Block(model)
+		if err := setKnobs(
+			params, blk, entry.Settings, fmt.Sprintf("chain[%d].settings", i),
+		); err != nil {
+			return err
+		}
+
 		blocks = append(blocks, chain.Block{
 			Model:   model,
-			Params:  paramsFor(entry, cat, model),
+			Params:  params,
 			Attrs:   attrsFor(entry),
 			DSP:     at(entry.Path, 0),
 			Pos:     at(entry.Position, i),

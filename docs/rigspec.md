@@ -64,7 +64,7 @@ One piece of gear, in signal order.
 | `path` | integer | — | — |
 | `position` | integer | — | — |
 | `role *` | string | closed | `amp`, `cab`, `drive`, `comp`, `gate`, `eq`, `mod`, `delay`, `reverb`, `wah`, `pitch`, `filter`, `utility`, `other` |
-| `settings` | map of number | shaped | `0` to `1` |
+| `settings` | Settings | — | [Settings](#settings) |
 | `substitute` | Substitute | — | [Substitute](#substitute) |
 
 ## Change
@@ -177,6 +177,20 @@ One part of a song, as the blocks that play in it: a verse with the drive off, a
 | `bypass` | list of string | closed | `amp`, `cab`, `drive`, `comp`, `gate`, `eq`, `mod`, `delay`, `reverb`, `wah`, `pitch`, `filter`, `utility`, `other` |
 | `name *` | string | shaped | `\S` |
 | `play` | list of string | closed | `amp`, `cab`, `drive`, `comp`, `gate`, `eq`, `mod`, `delay`, `reverb`, `wah`, `pitch`, `filter`, `utility`, `other` |
+
+## Settings
+
+How the gear is set, in musical terms, from 0 to 1.
+
+| field | holds | grammar | allowed |
+| --- | --- | --- | --- |
+| `bass` | number | shaped | `0` to `1` |
+| `drive` | number | shaped | `0` to `1` |
+| `level` | number | shaped | `0` to `1` |
+| `mid` | number | shaped | `0` to `1` |
+| `mix` | number | shaped | `0` to `1` |
+| `presence` | number | shaped | `0` to `1` |
+| `treble` | number | shaped | `0` to `1` |
 
 ## Snapshot
 
