@@ -104,24 +104,25 @@ func checkable(
 
 // Sourced names where a rig's knowledge came from, strongest first.
 //
-// Ranked by how far somebody has to go to disagree with it. A person who
-// listened outranks a citation, because this project's founding constraint is
-// that nothing in it can hear.
+// Ranked by how far somebody has to go to disagree with it, in the order the
+// contract describes. A person who played the rig and heard it outranks a
+// citation, because this project's founding constraint is that nothing in it
+// can hear.
 func Sourced(
 	spec Spec,
 ) EvidenceKind {
 	best := EvidenceKind("")
 	rank := func(k EvidenceKind) int {
 		switch k {
-		case EvidenceUser:
+		case EvidenceHeard:
 			return 6
-		case EvidenceMeasured:
-			return 5
 		case EvidenceCited:
-			return 4
-		case EvidenceVideo:
-			return 3
+			return 5
 		case EvidenceAudio:
+			return 4
+		case EvidenceUser:
+			return 3
+		case EvidenceVideo:
 			return 2
 		case EvidenceCorpus:
 			return 1

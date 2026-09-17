@@ -112,15 +112,19 @@ const (
 	ConfidenceMedium = gen.ConfidenceMedium
 	ConfidenceHigh   = gen.ConfidenceHigh
 
-	// Where a claim came from. Ranked by how far somebody has to go to
-	// disagree with it; llm is the one that is not checkable at all.
-	EvidenceCited    = gen.EvidenceCited
-	EvidenceLLM      = gen.EvidenceLLM
-	EvidenceAudio    = gen.EvidenceAudio
-	EvidenceVideo    = gen.EvidenceVideo
-	EvidenceCorpus   = gen.EvidenceCorpus
-	EvidenceMeasured = gen.EvidenceMeasured
-	EvidenceUser     = gen.EvidenceUser
+	// Where a claim came from, strongest first. The contract says what each
+	// one is and why it ranks where it does.
+	EvidenceHeard  = gen.EvidenceHeard
+	EvidenceCited  = gen.EvidenceCited
+	EvidenceAudio  = gen.EvidenceAudio
+	EvidenceUser   = gen.EvidenceUser
+	EvidenceVideo  = gen.EvidenceVideo
+	EvidenceCorpus = gen.EvidenceCorpus
+	EvidenceLLM    = gen.EvidenceLLM
+
+	// Not ranked, because it answers where to get something rather than why
+	// a claim is believed.
+	EvidenceStore = gen.EvidenceStore
 
 	// What a rig is played on.
 	InstrumentBass   = gen.InstrumentBass

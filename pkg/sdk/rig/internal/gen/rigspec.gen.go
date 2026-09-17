@@ -30,14 +30,14 @@ func (e Confidence) Valid() bool {
 
 // Defines values for EvidenceKind.
 const (
-	EvidenceAudio    EvidenceKind = "audio"
-	EvidenceCited    EvidenceKind = "cited"
-	EvidenceCorpus   EvidenceKind = "corpus"
-	EvidenceLLM      EvidenceKind = "llm"
-	EvidenceMeasured EvidenceKind = "measured"
-	EvidenceStore    EvidenceKind = "store"
-	EvidenceUser     EvidenceKind = "user"
-	EvidenceVideo    EvidenceKind = "video"
+	EvidenceAudio  EvidenceKind = "audio"
+	EvidenceCited  EvidenceKind = "cited"
+	EvidenceCorpus EvidenceKind = "corpus"
+	EvidenceHeard  EvidenceKind = "heard"
+	EvidenceLLM    EvidenceKind = "llm"
+	EvidenceStore  EvidenceKind = "store"
+	EvidenceUser   EvidenceKind = "user"
+	EvidenceVideo  EvidenceKind = "video"
 )
 
 // Valid indicates whether the value is a known member of the EvidenceKind enum.
@@ -49,9 +49,9 @@ func (e EvidenceKind) Valid() bool {
 		return true
 	case EvidenceCorpus:
 		return true
-	case EvidenceLLM:
+	case EvidenceHeard:
 		return true
-	case EvidenceMeasured:
+	case EvidenceLLM:
 		return true
 	case EvidenceStore:
 		return true
@@ -434,6 +434,20 @@ type Evidence struct {
 
 	// Kind How something came to be believed. Open by design: a new way of learning is a new value here, not a new document.
 	//
+	// Strongest first, ranked by how far somebody has to go to disagree:
+	//
+	// `heard` is a person who played the rig and judged it. Nothing in this system can hear, so a verdict outranks everything else. A mutation's verdict records a round of correction; this kind attaches that judgement to the claim it settled.
+	//
+	// `cited` is a published rig rundown or interview. Somebody with access wrote down what the player used.
+	//
+	// `audio` is a measurement taken from a record, carried in `measured`. Anybody holding the record can take it again, which puts it above a forum post. It sits below a citation because the record holds the studio as well as the player.
+	//
+	// `user` is a forum thread, TalkBass or Reddit: argued and corrected in public, and uneven.
+	//
+	// `video` is footage. Good for how it sounds and how it is played, weak for which box was on stage.
+	//
+	// `corpus` is a statistic over the preset corpus, what other people's presets do. It is not the music under resources/music/, which is evidence of kind `audio`.
+	//
 	// `llm` means a model asserted it and nobody checked — reliable for well-known players, unreliable for obscure ones, and the model cannot always tell which it is doing.
 	//
 	// `store` is where content that did not ship with the device comes from, bought or free. It is the one kind that answers "where do I get this" rather than "why is this believed", and a substitute naming something nobody can obtain is worth nothing without it.
@@ -446,6 +460,20 @@ type Evidence struct {
 }
 
 // EvidenceKind How something came to be believed. Open by design: a new way of learning is a new value here, not a new document.
+//
+// Strongest first, ranked by how far somebody has to go to disagree:
+//
+// `heard` is a person who played the rig and judged it. Nothing in this system can hear, so a verdict outranks everything else. A mutation's verdict records a round of correction; this kind attaches that judgement to the claim it settled.
+//
+// `cited` is a published rig rundown or interview. Somebody with access wrote down what the player used.
+//
+// `audio` is a measurement taken from a record, carried in `measured`. Anybody holding the record can take it again, which puts it above a forum post. It sits below a citation because the record holds the studio as well as the player.
+//
+// `user` is a forum thread, TalkBass or Reddit: argued and corrected in public, and uneven.
+//
+// `video` is footage. Good for how it sounds and how it is played, weak for which box was on stage.
+//
+// `corpus` is a statistic over the preset corpus, what other people's presets do. It is not the music under resources/music/, which is evidence of kind `audio`.
 //
 // `llm` means a model asserted it and nobody checked — reliable for well-known players, unreliable for obscure ones, and the model cannot always tell which it is doing.
 //
