@@ -66,7 +66,7 @@ type Compiler interface {
 		doc *preset.Document, spec rig.Spec, blocks []chain.Block, cat *catalog.Catalog,
 	)
 	// Footswitches writes what the pedal prints under each switch.
-	Footswitches(doc *preset.Document, spec rig.Spec)
+	Footswitches(doc *preset.Document, spec rig.Spec, cat *catalog.Catalog)
 	// Sections writes a rig's song sections into a preset's snapshots.
 	Sections(
 		doc *preset.Document, spec rig.Spec, blocks []chain.Block, cat *catalog.Catalog,

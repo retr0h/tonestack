@@ -344,9 +344,11 @@ the block it names rather than left pointing at whatever took that number.
 
 A footswitch set to switch a block rather than sweep a knob is the
 `footswitches` field below. It is written on both paths too, and its block moves
-with the fit the same way. Its colour is the exception: a preset stores one as a
-packed number, `colour`, and the `led` name beside it does not reach a built
-preset because nothing here maps a name to that number.
+with the fit the same way. `led` names the colour somebody chose for the switch,
+and a build writes it as the number the device files that colour under. `colour`
+beside it is a different thing: the light the switch shows when nobody chose,
+which the device works out from the block. That is why an untouched preset
+lights an amp red and a delay green without anybody setting anything.
 
 ## Record what you thought of it
 

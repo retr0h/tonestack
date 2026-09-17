@@ -26,6 +26,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/retr0h/tonestack/pkg/sdk/catalog"
 	"github.com/retr0h/tonestack/pkg/sdk/preset"
 	"github.com/retr0h/tonestack/pkg/sdk/rig"
 )
@@ -41,12 +42,13 @@ const (
 	fsEnabled   = "@fs_enabled"
 	fsMomentary = "@fs_momentary"
 	fsPrimary   = "@fs_primary"
+	fsChosen    = "@fs_customcolor"
 )
 
 // fsModelled names the fields this package reads by name.
 var fsModelled = map[string]bool{
 	fsIndex: true, fsLabel: true, fsColour: true,
-	fsEnabled: true, fsMomentary: true, fsPrimary: true,
+	fsEnabled: true, fsMomentary: true, fsPrimary: true, fsChosen: true,
 }
 
 // footswitchesOf reads what the pedal shows under each switch.
@@ -56,6 +58,7 @@ var fsModelled = map[string]bool{
 // attach it to cannot be written back.
 func footswitchesOf(
 	doc *preset.Document,
+	cat *catalog.Catalog,
 ) *[]rig.Footswitch {
 	entry, ok := doc.Data.Tone[footswitchKey]
 	if !ok {
@@ -76,7 +79,7 @@ func footswitchesOf(
 		}
 
 		for _, key := range sortedKeys(blocks) {
-			fs, ok := footswitchOf(blocks[key], key, path)
+			fs, ok := footswitchOf(blocks[key], key, path, cat)
 			if !ok {
 				continue
 			}
@@ -97,6 +100,7 @@ func footswitchOf(
 	raw json.RawMessage,
 	key string,
 	path int,
+	cat *catalog.Catalog,
 ) (rig.Footswitch, bool) {
 	number, err := strconv.Atoi(strings.TrimPrefix(key, blockPrefix))
 	if err != nil {
@@ -120,6 +124,18 @@ func footswitchOf(
 	decode(fields[fsEnabled], &out.Enabled)
 	decode(fields[fsMomentary], &out.Momentary)
 	decode(fields[fsPrimary], &out.Primary)
+
+	// The choice, where somebody made one, as the word for it rather than
+	// the number the device files it under.
+	var chosen *int
+
+	decode(fields[fsChosen], &chosen)
+
+	if chosen != nil {
+		if name, ok := cat.LEDColour(*chosen); ok {
+			out.Led = &name
+		}
+	}
 
 	rest := map[string]json.RawMessage{}
 
@@ -148,13 +164,14 @@ func footswitchOf(
 func Footswitches(
 	doc *preset.Document,
 	spec rig.Spec,
+	cat *catalog.Catalog,
 ) {
 	if spec.Footswitches == nil {
 		return
 	}
 
 	pruneFootswitches(doc)
-	restoreFootswitches(doc, *spec.Footswitches)
+	restoreFootswitches(doc, *spec.Footswitches, cat)
 }
 
 // restoreFootswitches writes a rig's footswitches back as a preset stores
@@ -162,6 +179,7 @@ func Footswitches(
 func restoreFootswitches(
 	doc *preset.Document,
 	switches []rig.Footswitch,
+	cat *catalog.Catalog,
 ) {
 	byProcessor := map[string]map[string]json.RawMessage{}
 
@@ -175,7 +193,7 @@ func restoreFootswitches(
 			byProcessor[processor] = map[string]json.RawMessage{}
 		}
 
-		byProcessor[processor][blockPrefix+strconv.Itoa(*fs.Block)] = fieldsOf(fs)
+		byProcessor[processor][blockPrefix+strconv.Itoa(*fs.Block)] = fieldsOf(fs, cat)
 	}
 
 	if len(byProcessor) == 0 {
@@ -196,6 +214,7 @@ func restoreFootswitches(
 // fieldsOf renders one assignment the way a preset stores it.
 func fieldsOf(
 	fs rig.Footswitch,
+	cat *catalog.Catalog,
 ) json.RawMessage {
 	fields := map[string]json.RawMessage{}
 
@@ -205,6 +224,18 @@ func fieldsOf(
 	putRaw(fields, fsEnabled, fs.Enabled)
 	putRaw(fields, fsMomentary, fs.Momentary)
 	putRaw(fields, fsPrimary, fs.Primary)
+
+	// The colour somebody chose, as the number the device files it under.
+	// `@fs_ledcolor` beside it is the colour the switch lights when nobody
+	// chose one, which follows the block rather than anybody's choice: across
+	// the corpus a red switch is on an amp or a cabinet, a green one on a
+	// delay, a blue one on modulation. Writing a choice there would be
+	// writing it in the field the device recomputes.
+	if fs.Led != nil {
+		if n, ok := colourNumber(cat, *fs.Led); ok {
+			putRaw(fields, fsChosen, &n)
+		}
+	}
 
 	if fs.Rest != nil {
 		for name, value := range *fs.Rest {
@@ -260,4 +291,21 @@ func sortedKeys(
 	sort.Strings(out)
 
 	return out
+}
+
+// colourNumber finds the number a device files a colour name under.
+//
+// The catalog lists them in the device's own order, so the place in that list
+// is the number: 0 is the automatic colour, 2 is red, 11 is off.
+func colourNumber(
+	cat *catalog.Catalog,
+	name string,
+) (int, bool) {
+	for i := range cat.LEDColours {
+		if strings.EqualFold(cat.LEDColours[i], name) {
+			return i, true
+		}
+	}
+
+	return 0, false
 }

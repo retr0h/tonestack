@@ -84,8 +84,9 @@ func (*Compiler) Controllers(
 func (*Compiler) Footswitches(
 	doc *preset.Document,
 	spec rig.Spec,
+	cat *catalog.Catalog,
 ) {
-	Footswitches(doc, spec)
+	Footswitches(doc, spec, cat)
 }
 
 // Resolve turns a rig and a catalog into a chain.
