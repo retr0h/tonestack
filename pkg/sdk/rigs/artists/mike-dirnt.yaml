@@ -56,6 +56,16 @@ character:
   - term: mid-forward
     evidence:
       - { kind: llm }
+      - kind: audio
+        measured: { mid: 0.08 }
+        against: { mid: 0.02 }
+        note: >-
+          8% of his energy sits in the mid band across Longview, Welcome to
+          Paradise and Stuart and the Ave, against 2% for the other four
+          players in the music corpus. The only player who earns this word.
+        caveat: >-
+          measures the record rather than the player: the amp, the mic, the
+          desk and the master are all in these numbers.
   - term: grit-on-attack
     evidence:
       - { kind: llm }
