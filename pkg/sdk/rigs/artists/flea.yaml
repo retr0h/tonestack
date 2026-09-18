@@ -91,6 +91,21 @@ character:
         caveat: >-
           the word is kept because a citation outranks a measurement here, and
           three records of one player are not his whole catalogue.
+played:
+  gear: Fender Jazz Bass, 1961, Shell Pink
+  evidence:
+    - kind: cited
+      url: https://www.notreble.com/buzz/2016/07/14/fender-unveils-flea-signature-jazz-bass/
+      note: >-
+        Fender's own text for the signature model, which recreates the bass
+        "he received from a fan and used to record the Red Hot Chili Peppers
+        albums Stadium Arcadium and The Getaway"
+      caveat: >-
+        The Getaway only. Nothing found says which bass he recorded I'm With
+        You on, and the 2012 rundown covers that tour rather than those
+        sessions: Modulus basses live, the Fender explicitly not used live.
+        Two of the three records measured here are from that album.
+
 technique:
   attack: slap
   evidence:

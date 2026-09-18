@@ -57,6 +57,23 @@ character:
     evidence:
       - kind: llm
 
+played:
+  gear: Carl Thompson 4-string
+  evidence:
+    - kind: cited
+      url: https://ctbasses.com/players/les-claypool
+      note: >-
+        the luthier's own pages, with build dates: the 4-string he has played
+        since he was a teenager, and a 6-string fretted "sold to Les just
+        before Pork Soda was recorded in 1993"
+      caveat: >-
+        which bass is on which record is only partly documented. The
+        six-string fretless everybody associates with him, the Rainbow Bass,
+        arrived after Sailing the Seas of Cheese was recorded: the same page
+        says he "received the bass just in time to tour following recording".
+        What was played on that album is established nowhere, and this rig
+        covers records either side of the change.
+
 technique:
   attack: slap
   evidence:

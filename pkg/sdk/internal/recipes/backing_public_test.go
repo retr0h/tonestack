@@ -20,6 +20,7 @@
 package recipes_test
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -97,16 +98,33 @@ func (s *BackingPublicTestSuite) TestARigIsNotItsOwnOrphan() {
 
 // TestADirectoryWithNoManifest covers a directory somebody made and has not
 // filled, which claims nothing and is nobody's problem.
+//
+// Built here rather than kept in testdata, because git does not track an
+// empty directory: as a fixture this passed locally and never ran anywhere
+// else, which is the kind of test that reports coverage it does not have.
 func (s *BackingPublicTestSuite) TestADirectoryWithNoManifest() {
+	corpus := s.T().TempDir()
+
+	s.Require().NoError(os.MkdirAll(filepath.Join(corpus, "empty-dir"), 0o750))
+	s.Require().NoError(os.MkdirAll(filepath.Join(corpus, "mccartney"), 0o750))
+
+	named, err := os.ReadFile(
+		filepath.Join("testdata", "backing", "music", "mccartney", "corpus.yaml"))
+	s.Require().NoError(err)
+	s.Require().NoError(os.WriteFile(
+		filepath.Join(corpus, "mccartney", "corpus.yaml"), named, 0o600))
+
 	got, err := recipes.Backing(
-		recipes.Source{Dir: filepath.Join("testdata", "backing", "rigs")},
-		filepath.Join("testdata", "backing", "orphans"),
-	)
+		recipes.Source{Dir: filepath.Join("testdata", "backing", "rigs")}, corpus)
 	s.Require().NoError(err)
 
+	seen := map[string]bool{}
 	for _, b := range got {
-		s.Require().NotEqual("empty-dir", b.ID, "nothing in it to report")
+		seen[b.ID] = true
 	}
+
+	s.Require().True(seen["mccartney"], "records nobody's rig is named for")
+	s.Require().False(seen["empty-dir"], "nothing in it to report")
 }
 
 // TestAnOrphanManifestThatWillNotRead covers a directory no rig claims whose

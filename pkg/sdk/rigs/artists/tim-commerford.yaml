@@ -51,6 +51,22 @@ character:
   # A word claiming less breakup than usual, on a player who reads exactly
   # usual, is a word the records refuse. Audio outranks a model here.
 
+played:
+  gear: Ernie Ball Music Man StingRay
+  evidence:
+    - kind: cited
+      url: https://www.musicradar.com/guitars/bass-guitars/ernie-ball-music-man-tim-commerford-ltd-edition-signature-stingray
+      note: >-
+        his own words: "This is a bass that I fell in love with at a pawnshop
+        and used to play the first Rage record"
+      caveat: >-
+        the finish details people repeat with this, a blonde body and a
+        removed pickguard, are on no page anybody has opened. The model is
+        sourced and the rest is not.
+  # Not the Precision people assume. He reads 5% in the mid band and 109Hz
+  # where Mike Dirnt and Geddy Lee read 1% and 14% on the same amplifier, and
+  # the instrument is where a difference like that starts.
+
 technique:
   attack: fingers
   evidence:

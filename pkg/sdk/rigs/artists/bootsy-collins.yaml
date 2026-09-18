@@ -77,6 +77,14 @@ character:
           measures the record rather than the player, and the envelope filter
           this rig is mostly about is a mid-band effect: the figure describes
           the Mu-Tron as much as the bass.
+# No `played` here on purpose. The star-shaped Space Bass was built in 1975 and
+# was in his hands for the Stretchin' Out cover shoot in 1976, per
+# https://guitar.com/features/opinion-analysis/the-story-of-bootsy-collins-space-bass/
+# — which says it was on the album cover, not on the recording. Nothing found
+# says which bass was played on either album this rig covers, and through the
+# seventies he alternated a Fender Jazz and a 1975 Precision. Left empty rather
+# than filled with the instrument everybody pictures.
+
 technique:
   attack: slap
   evidence:

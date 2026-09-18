@@ -241,24 +241,22 @@ func (s *CorpusPublicTestSuite) TestAManifestThatWillNotRead() {
 	s.Require().Error(err)
 }
 
-// TestAManifestThatCannotBeOpened covers a manifest that is there and shut.
+// TestAManifestThatCannotBeOpened covers a manifest that is there and will
+// not open.
 //
 // Distinct from one that is absent, which measures the tree as found: a
 // manifest nobody can read is a statement of what to measure that nobody can
 // read, and measuring the tree instead would quietly use records somebody
 // took out.
+//
+// A symlink to itself rather than a file with its permissions removed. Both
+// fail to open; only one fails for every user, and a test that skips itself
+// for root is a test that does not run where it matters.
 func (s *CorpusPublicTestSuite) TestAManifestThatCannotBeOpened() {
 	s.record("mike-dirnt", "one", audio.Sine(110, 1, rate, 0.8))
 
 	at := filepath.Join(s.root, "mike-dirnt", "corpus.yaml")
-	s.manifest("mike-dirnt", "one")
-	s.Require().NoError(os.Chmod(at, 0o000))
-
-	defer func() { s.Require().NoError(os.Chmod(at, 0o600)) }()
-
-	if _, err := os.ReadFile(at); err == nil {
-		s.T().Skip("running as a user that reads anything, so there is no error to see")
-	}
+	s.Require().NoError(os.Symlink("corpus.yaml", at))
 
 	_, err := audio.Corpus(os.DirFS(s.root), ".")
 

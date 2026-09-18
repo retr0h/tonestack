@@ -93,6 +93,19 @@ character:
     evidence:
       - kind: llm
 
+played:
+  gear: Fender Mike Dirnt Signature Precision Bass
+  evidence:
+    - kind: cited
+      url: https://www.notreble.com/buzz/2026/08/22/mike-dirnt-is-selling-american-idiot-tour-basses-and-a-fender-used-to-record-nimrod/
+      note: >-
+        "two American Idiot-era Fender Mike Dirnt Signature Precisions used on
+        tour", from coverage of him selling his own instruments
+      caveat: >-
+        says toured, not recorded. Fender introduced the signature model in
+        2004, the year of the album, and the page claiming it was used in the
+        sessions is a fan site rather than an interview.
+
 technique:
   attack: pick
   position: bridge
