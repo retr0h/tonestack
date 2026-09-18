@@ -51,6 +51,16 @@ character:
           not sourced. This was split off a line saying "thumping low end
           under a hard top", and the rundown behind that line describes the
           low end and says nothing about the top.
+      - kind: audio
+        note: >-
+          his centroid sits at 264Hz, the highest middle of the eight players
+          in the music corpus, so the records point the way the word does. It
+          is not earned: Wynona's Big Brown Beaver reads 114Hz against 264Hz
+          and 275Hz for the other two, and a player whose own records
+          disagree that much is clear of nobody.
+        caveat: >-
+          a fourth record would say whether that one is the outlier or the
+          other two are.
   - term: percussive
     evidence:
       - kind: llm

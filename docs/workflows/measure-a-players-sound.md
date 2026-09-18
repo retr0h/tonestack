@@ -193,14 +193,17 @@ tonestack measure --corpus resources/music
 ```
 
 ```
-  What the records say  5 players
+  What the records say  8 players
 
-  PLAYER          RECORDS  EARNS        AGAINST THE OTHERS
-  flea                  3  clean        harmonics 12% against 24%
+  PLAYER          RECORDS  EARNS                AGAINST THE OTHERS
+  bootsy-collins        4  mid-forward          mid 23% against 5%
+  flea                  3  clean                harmonics 12% against 24%
+  geddy-lee             4  nothing
+  jaco-pastorius        4  mid-forward, bright  mid 39% against 5%; centroid 259 Hz against 176 Hz
   les-claypool          3  nothing
-  mike-dirnt            3  mid-forward  mid 9% against 2%
-  paul-mccartney        3  clean        harmonics 10% against 24%
-  pino-palladino        3  dark         centroid 96 Hz against 170 Hz
+  mike-dirnt            3  nothing
+  paul-mccartney        3  dark, clean          centroid 138 Hz against 177 Hz; harmonics 10% against 24%
+  pino-palladino        3  dark                 centroid 96 Hz against 177 Hz
 ```
 
 One directory per player, each holding that player's separated records. This is
@@ -211,6 +214,12 @@ where their whole range sits outside the middle half of the others, so a player
 whose records disagree with each other earns nothing, and so does one who sits
 where everybody else sits. Les Claypool reads that way today: one of his three
 records is far darker than the other two.
+
+Mike Dirnt earned `mid-forward` against four players and earns nothing against
+seven. Nothing about his records changed. Bootsy Collins and Jaco Pastorius sit
+further into the mids than he does, so the middle of the population moved and
+what used to be clear of it no longer is. A word lost this way was never
+evidence; it was a small population.
 
 Three axes are derived — `mid-forward`/`scooped`, `bright`/`dark` and
 `saturated`/`clean` — and they are the three whose measure is the same quantity

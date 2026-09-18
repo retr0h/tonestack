@@ -60,6 +60,28 @@ character:
   - term: bright
     evidence:
       - kind: llm
+      - kind: audio
+        measured: { centroid: 259 }
+        against: { centroid: 176 }
+        note: >-
+          his centroid across Continuum, Barbary Coast, Teen Town and Three
+          Views of a Secret, against the middle of the other seven players in
+          the music corpus. Earned outright: his whole range sits above them.
+        caveat: >-
+          measures the record rather than the player, and a fretless played
+          near the bridge is bright before any amplifier touches it.
+  - term: mid-forward
+    evidence:
+      - kind: audio
+        measured: { mid: 0.39 }
+        against: { mid: 0.05 }
+        note: >-
+          39% of his energy sits in the mid band against 5% for the other
+          seven, the widest gap any player has on any axis here. Nobody wrote
+          this word down before the records were measured.
+        caveat: >-
+          measures the record rather than the player: a fretless singing near
+          the top of its range puts energy where a rock bass does not.
   - term: audible-strings
     evidence:
       - kind: llm
