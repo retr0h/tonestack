@@ -76,9 +76,9 @@ character:
           about where the record lands.
       - kind: audio
         note: >-
-          his three records measure a centroid of 163Hz, third darkest of the
-          eight players in the music corpus: Pino Palladino reads 96Hz and
-          Paul McCartney 138Hz, and both earn `dark` where he does not.
+          his three records measure a centroid of 163Hz, fourth darkest of
+          the nine players in the music corpus, behind Pino Palladino at
+          96Hz, Tim Commerford at 122Hz and Paul McCartney at 138Hz.
           Reproduce with `tonestack measure --corpus resources/music/bass`.
         caveat: >-
           the word is kept because a citation outranks a measurement here, and

@@ -40,7 +40,17 @@ character:
     evidence:
       - kind: cited
         url: https://mixdownmag.com.au/features/rig-rundown-pino-palladino/
-        note: '"keeping the volume turned all the way up and the tone all the way down"' 
+        note: '"keeping the volume turned all the way up and the tone all the way down"'
+      - kind: audio
+        measured: { centroid: 96 }
+        against: { centroid: 176 }
+        note: >-
+          his centroid sits at 96Hz against 176Hz for the other eight players,
+          the darkest of the nine and the only one who has earned the word on
+          every corpus it has been measured against.
+        caveat: >-
+          measures the record rather than the player, and all three records
+          are one album cut by one engineer. 
   - term: short-decay
     evidence:
       - kind: llm

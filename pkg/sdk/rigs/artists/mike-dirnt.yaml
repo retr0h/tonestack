@@ -58,14 +58,14 @@ character:
       - { kind: llm }
       - kind: audio
         measured: { mid: 0.08 }
-        against: { mid: 0.05 }
+        against: { mid: 0.04 }
         note: >-
           8% of his energy sits in the mid band across Longview, Welcome to
-          Paradise and Stuart and the Ave, against 5% for the other seven
-          players in the music corpus. Above the middle, and no longer clear
-          of it: he earned this word against four players and earns nothing
-          against seven, because Bootsy Collins at 23% and Jaco Pastorius at
-          39% moved the population he is measured against.
+          Paradise and Stuart and the Ave, against 4% for the other eight
+          players in the music corpus. Above the middle and not clear of it:
+          he earned this word against four players and has earned nothing
+          since Bootsy Collins at 23% and Jaco Pastorius at 39% joined them.
+          Geddy Lee, on the same amplifier, reads 14% and does earn it.
         caveat: >-
           measures the record rather than the player: the amp, the mic, the
           desk and the master are all in these numbers. The word is kept
