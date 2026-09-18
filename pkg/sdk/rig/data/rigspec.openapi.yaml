@@ -248,6 +248,51 @@ components:
           enum: [none, palm]
           x-enum-varnames: [MutingNone, MutingPalm]
 
+    Played:
+      type: object
+      additionalProperties: false
+      description: >
+        The instrument itself, which no device models and every figure
+        carries.
+
+
+        A rig names an amplifier, a cabinet and pedals, and the thing making
+        the sound is upstream of all of them. Jaco Pastorius reads a 259Hz
+        centroid against 170Hz for the other players, and the reason is a
+        fretless played near the bridge; Geddy Lee earns mid-forward on a
+        Rickenbacker. Without this those belong to nothing, and a measured
+        word moves an amplifier control that was never responsible for the
+        figure.
+
+
+        It resolves to no block and changes no preset. It is here so that two
+        rigs on the same amplifier are legible as different sounds, and so
+        that somebody reading a figure knows how much of it left the
+        instrument that way.
+      required: [gear]
+      properties:
+        gear:
+          type: string
+          minLength: 1
+          pattern: "\\S"
+          description: >
+            The instrument, as a person would say it: "Rickenbacker 4001",
+            "Fender Jazz Bass, fretless", "Hofner 500/1".
+        strings:
+          type: string
+          description: >
+            What is on it, where somebody knows. Flatwounds and roundwounds
+            are a larger difference than most pedals.
+          enum: [round, flat, tape, unknown]
+          x-enum-varnames: [StringsRound, StringsFlat, StringsTape, StringsUnknown]
+        evidence:
+          type: array
+          items: { $ref: "#/components/schemas/Evidence" }
+          description: >
+            Why this is believed. A player owns several instruments and uses
+            one of them on a record, so this needs a source the way the
+            amplifier does.
+
     Subject:
       type: object
       additionalProperties: false
@@ -1038,6 +1083,8 @@ components:
           minItems: 1
           items: { $ref: "#/components/schemas/ChainEntry" }
           description: The signal path, in order.
+        played:
+          $ref: "#/components/schemas/Played"
         technique:
           $ref: "#/components/schemas/Technique"
         character:

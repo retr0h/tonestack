@@ -109,6 +109,30 @@ func (e Kind) Valid() bool {
 	}
 }
 
+// Defines values for PlayedStrings.
+const (
+	StringsFlat    PlayedStrings = "flat"
+	StringsRound   PlayedStrings = "round"
+	StringsTape    PlayedStrings = "tape"
+	StringsUnknown PlayedStrings = "unknown"
+)
+
+// Valid indicates whether the value is a known member of the PlayedStrings enum.
+func (e PlayedStrings) Valid() bool {
+	switch e {
+	case StringsFlat:
+		return true
+	case StringsRound:
+		return true
+	case StringsTape:
+		return true
+	case StringsUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for RequirementKind.
 const (
 	Ir    RequirementKind = "ir"
@@ -575,6 +599,25 @@ type Mutation struct {
 	Verdict *string `json:"verdict,omitempty"`
 }
 
+// Played The instrument itself, which no device models and every figure carries.
+//
+// A rig names an amplifier, a cabinet and pedals, and the thing making the sound is upstream of all of them. Jaco Pastorius reads a 259Hz centroid against 170Hz for the other players, and the reason is a fretless played near the bridge; Geddy Lee earns mid-forward on a Rickenbacker. Without this those belong to nothing, and a measured word moves an amplifier control that was never responsible for the figure.
+//
+// It resolves to no block and changes no preset. It is here so that two rigs on the same amplifier are legible as different sounds, and so that somebody reading a figure knows how much of it left the instrument that way.
+type Played struct {
+	// Evidence Why this is believed. A player owns several instruments and uses one of them on a record, so this needs a source the way the amplifier does.
+	Evidence *[]Evidence `json:"evidence,omitempty"`
+
+	// Gear The instrument, as a person would say it: "Rickenbacker 4001", "Fender Jazz Bass, fretless", "Hofner 500/1".
+	Gear string `json:"gear"`
+
+	// Strings What is on it, where somebody knows. Flatwounds and roundwounds are a larger difference than most pedals.
+	Strings *PlayedStrings `json:"strings,omitempty"`
+}
+
+// PlayedStrings What is on it, where somebody knows. Flatwounds and roundwounds are a larger difference than most pedals.
+type PlayedStrings string
+
 // Requirement Something a rig needs that a device does not ship with.
 //
 // Only what a catalog cannot see belongs here. Whether a model exists on a device tier, or needs newer firmware, is already known — the catalog carries the supported device list and the release it came from. What nothing can know is a third-party impulse response or purchased content, so those are declared.
@@ -641,9 +684,16 @@ type RigSpec struct {
 	ID string `json:"id"`
 
 	// Instrument Selects which half of a device's catalog is eligible. Line 6 tags every amp and cabinet Guitar or Bass; everything else serves either.
-	Instrument Instrument     `json:"instrument"`
-	Mutations  *[]Mutation    `json:"mutations,omitempty"`
-	Requires   *[]Requirement `json:"requires,omitempty"`
+	Instrument Instrument  `json:"instrument"`
+	Mutations  *[]Mutation `json:"mutations,omitempty"`
+
+	// Played The instrument itself, which no device models and every figure carries.
+	//
+	// A rig names an amplifier, a cabinet and pedals, and the thing making the sound is upstream of all of them. Jaco Pastorius reads a 259Hz centroid against 170Hz for the other players, and the reason is a fretless played near the bridge; Geddy Lee earns mid-forward on a Rickenbacker. Without this those belong to nothing, and a measured word moves an amplifier control that was never responsible for the figure.
+	//
+	// It resolves to no block and changes no preset. It is here so that two rigs on the same amplifier are legible as different sounds, and so that somebody reading a figure knows how much of it left the instrument that way.
+	Played   *Played        `json:"played,omitempty"`
+	Requires *[]Requirement `json:"requires,omitempty"`
 
 	// Schema Names the format, so a file says what it is without relying on where it was found.
 	Schema RigSpecSchema `json:"schema"`

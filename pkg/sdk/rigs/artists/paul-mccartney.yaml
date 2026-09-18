@@ -150,6 +150,18 @@ character:
           a forum thread that blocks automated readers, so found by search
           and not read
 
+played:
+  gear: Rickenbacker 4001S
+  strings: flat
+  evidence:
+    - kind: user
+      url: https://www.talkbass.com/threads/paul-mccartneys-rig.469978/
+      note: flatwounds named there as important to the sound
+      caveat: >-
+        a forum thread that blocks automated readers, so found by search and
+        not read. The Rickenbacker is asserted rather than cited, and two of
+        the three records measured for him predate the rig this describes.
+
 technique:
   attack: pick
   position: neck
