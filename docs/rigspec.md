@@ -231,6 +231,7 @@ Who or what this rig belongs to.
 | `era` | string | open | — |
 | `kind *` | string | closed | `artist`, `band`, `song`, `genre`, `sound` |
 | `name *` | string | shaped | `\S` |
+| `years` | Years | — | [Years](#years) |
 
 ## Substitute
 
@@ -262,3 +263,12 @@ How the instrument is played, where it changes the sound. Not modelled by any de
 | `evidence` | list of Evidence | — | [Evidence](#evidence) |
 | `muting` | string | closed | `none`, `palm` |
 | `position` | string | closed | `bridge`, `middle`, `neck` |
+
+## Years
+
+The same era as years, so a machine can hold records to it.
+
+| field | holds | grammar | allowed |
+| --- | --- | --- | --- |
+| `from *` | integer | shaped | `1900` to `2100` |
+| `to *` | integer | shaped | `1900` to `2100` |

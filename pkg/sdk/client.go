@@ -414,6 +414,22 @@ func (c *Client) Recipe(
 	return recipes.Show(c.rigs(), id)
 }
 
+// Backing reads which records back each rig, and holds them to its era.
+//
+// The rig says which years its gear describes and the manifest says when each
+// record was made, and until these were joined nothing noticed that four of
+// the shipped rigs derive words from records made on other gear.
+func (c *Client) Backing(
+	ctx context.Context,
+	corpus string,
+) ([]Backing, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	return recipes.Backing(c.rigs(), corpus)
+}
+
 // NewRecipe describes a rig to scaffold from the gear it names.
 type NewRecipe struct {
 	// ID is the identifier, and the filename stem.

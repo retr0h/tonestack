@@ -19,6 +19,7 @@ subject:
   name: Paul McCartney
   band: Wings
   era: mid to late seventies touring
+  years: { from: 1975, to: 1979 }
 
 instrument: bass
 

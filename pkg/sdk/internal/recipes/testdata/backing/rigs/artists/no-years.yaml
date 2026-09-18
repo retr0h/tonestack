@@ -1,0 +1,8 @@
+schema: RigSpec
+version: 2
+id: no-years
+subject: { kind: artist, name: No Years }
+instrument: bass
+chain:
+  - { role: amp, gear: Ampeg SVT }
+confidence: low

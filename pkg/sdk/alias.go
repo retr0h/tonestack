@@ -69,6 +69,11 @@ type (
 	Recipe = result.Recipe
 	// Variant is a rig that extends another.
 	Variant = result.Variant
+	// Backing is which records back a rig, and whether they were made when
+	// its gear was.
+	Backing = result.Backing
+	// Record is one record measured for a rig.
+	Record = result.Record
 	// Scaffolded is a recipe this wrote.
 	Scaffolded = result.Scaffolded
 

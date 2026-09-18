@@ -43,7 +43,15 @@ produces. Flea's record is the Red Hot Chili Peppers cover on *Mother's Milk*.
 Check the credits, and take most care with covers, where the title names two
 recordings.
 
-### 2. Name it in the manifest first
+### 2. Check the record was made when the rig was
+
+A rig says which years its gear describes. A record from another period measures
+another rig, and the figures come out looking like the one in the file.
+`tonestack recipes records --corpus resources/music/bass` says which rigs
+already disagree with their records, and adding to those without reading it
+makes the disagreement bigger.
+
+### 3. Name it in the manifest first
 
 Add the entry to `resources/music/<artist>/corpus.yaml` before downloading, with
 the Spotify track link as its `url`:
@@ -51,6 +59,7 @@ the Spotify track link as its `url`:
 ```yaml
   - track: silly-love-songs
     url: https://open.spotify.com/track/…
+    year: 1976
     note: Wings at the Speed of Sound, 1976
 ```
 
@@ -58,13 +67,15 @@ The link does two jobs. It is the evidence a person without the file can check,
 and it is what the next step downloads, so the record measured is the record the
 evidence names.
 
-Every entry carries a `url`. An entry without one is not finished, whatever else
-it has. Flea, Mike Dirnt and Paul McCartney each got three tracks and no links,
-and once the audio was gone nobody could fetch those records again or check
-which takes had been measured. The album in `note` does not stand in for the
-link. "Mother's Milk, 1989" does not say which of the several Spotify tracks
-called "Higher Ground" was meant, and step 1 is about the one that would be
-wrong.
+Every entry carries a `url` and a `year`. The year is what holds the record to
+the rig it is measured for, and a manifest without one does not read.
+
+An entry without one is not finished, whatever else it has. Flea, Mike Dirnt and
+Paul McCartney each got three tracks and no links, and once the audio was gone
+nobody could fetch those records again or check which takes had been measured.
+The album in `note` does not stand in for the link. "Mother's Milk, 1989" does
+not say which of the several Spotify tracks called "Higher Ground" was meant,
+and step 1 is about the one that would be wrong.
 
 `ReadManifest` refuses an entry with no url, the way it refuses one with no
 track name, so a manifest missing a link fails where it is read rather than
@@ -81,7 +92,7 @@ from the record you wanted. Searching for "Suck My Kiss" returned two links that
 were both the song "Blood Sugar Sex Magik", and one "Welcome to Paradise" was a
 1994 Chicago live broadcast.
 
-### 3. Download it under the manifest's name
+### 4. Download it under the manifest's name
 
 ```bash
 just record resources/music/bass/paul-mccartney silly-love-songs \
@@ -113,7 +124,7 @@ nothing, and `measure` reports it as unnamed.
 
 The recipe fails if no file appears. Do not read success from spotdl's output.
 
-### 4. When spotdl cannot find the audio
+### 5. When spotdl cannot find the audio
 
 spotdl reads the song from Spotify and fetches audio from YouTube. Two failures
 are routine and neither is fatal.
@@ -161,7 +172,7 @@ did not help for those two, but the link a search returns is often a live take
 or a compilation edit, and a different one for the same recording downloads
 fine.
 
-### 5. Check it is the recording
+### 6. Check it is the recording
 
 A wrong file measures without complaint, so compare lengths. Spotify's is in
 what spotdl saves:
@@ -189,7 +200,7 @@ Delete it and go back to step 4.
 Compilations are fine when they reuse the recording. "Higher Ground" came back
 tagged *Greatest Hits*, 2003, which carries the *Mother's Milk* take.
 
-### 6. Separate and measure
+### 7. Separate and measure
 
 Carry on from step 2 of
 [Measure a player's sound](measure-a-players-sound.md#2-separate-the-bass-from-each).

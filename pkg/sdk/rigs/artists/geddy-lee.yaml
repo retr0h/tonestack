@@ -14,6 +14,7 @@ subject:
   name: Geddy Lee
   band: Rush
   era: Fly by Night through Hemispheres
+  years: { from: 1975, to: 1978 }
 
 instrument: bass
 

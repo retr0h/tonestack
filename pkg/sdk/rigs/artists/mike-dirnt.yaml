@@ -17,6 +17,7 @@ subject:
   name: Mike Dirnt
   band: Green Day
   era: American Idiot
+  years: { from: 2004, to: 2004 }
 
 instrument: bass
 default: true

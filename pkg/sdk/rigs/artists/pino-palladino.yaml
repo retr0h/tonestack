@@ -13,6 +13,7 @@ subject:
   name: Pino Palladino
   band: D'Angelo
   era: Voodoo
+  years: { from: 2000, to: 2000 }
 
 instrument: bass
 

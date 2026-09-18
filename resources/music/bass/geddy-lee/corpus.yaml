@@ -5,13 +5,17 @@ artist: Geddy Lee
 tracks:
   - track: anthem
     url: https://open.spotify.com/track/481S5BKOolPHU4VDkDBHqn
+    year: 1975
     note: Fly by Night, 1975
   - track: a-passage-to-bangkok
     url: https://open.spotify.com/track/1p9hRNRKVFPuYv0ADlkl1l
+    year: 1976
     note: 2112, 1976
   - track: cygnus-x-1
     url: https://open.spotify.com/track/4rbOGzYeCesTT5GDGA1XTM
+    year: 1977
     note: A Farewell to Kings, 1977. Book I, The Voyage, which opens on the bass
   - track: la-villa-strangiato
     url: https://open.spotify.com/track/4CyElmiM9EF9aURGWlPZLi
+    year: 1978
     note: Hemispheres, 1978. Instrumental, so nothing competes with the bass

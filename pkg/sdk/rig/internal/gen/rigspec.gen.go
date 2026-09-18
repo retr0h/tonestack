@@ -845,12 +845,19 @@ type Subject struct {
 	// Band The group, where the subject is a person.
 	Band *string `json:"band,omitempty"`
 
-	// Era When this rig applies — "1994", "American Idiot". A player's rig changes; a rig that does not say when it applies claims to be timeless and usually is not.
+	// Era When this rig applies, as a person would say it: "1994", "American Idiot". A player's rig changes; a rig that does not say when it applies claims to be timeless and usually is not.
 	Era *string `json:"era,omitempty"`
 
 	// Kind What a rig is attributed to. Artist is the common case, but a rig can belong to a song, a genre, or to nothing at all.
 	Kind Kind   `json:"kind"`
 	Name string `json:"name"`
+
+	// Years The same era as years, so a machine can hold records to it.
+	//
+	// `era` is prose and prose cannot be checked. A rig's audio evidence is measured from records, and a record made on other gear measures other gear: Paul McCartney's rig describes an Acoustic 360, which did not exist when one of his measured records was cut. `tonestack recipes records` reads these and says which records fall outside the rig they are attached to.
+	//
+	// One year is a rig that applied for one year: from and to the same.
+	Years *Years `json:"years,omitempty"`
 }
 
 // Substitute What to use when the device cannot do what the rig names.
@@ -914,3 +921,16 @@ type TechniqueMuting string
 
 // TechniquePosition Where along the string, which decides how much fundamental there is against harmonics. Omit it where it does not matter.
 type TechniquePosition string
+
+// Years The same era as years, so a machine can hold records to it.
+//
+// `era` is prose and prose cannot be checked. A rig's audio evidence is measured from records, and a record made on other gear measures other gear: Paul McCartney's rig describes an Acoustic 360, which did not exist when one of his measured records was cut. `tonestack recipes records` reads these and says which records fall outside the rig they are attached to.
+//
+// One year is a rig that applied for one year: from and to the same.
+type Years struct {
+	// From The first year this rig describes.
+	From int `json:"from"`
+
+	// To The last year, which may be the first.
+	To int `json:"to"`
+}

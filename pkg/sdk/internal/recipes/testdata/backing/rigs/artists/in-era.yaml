@@ -1,0 +1,12 @@
+schema: RigSpec
+version: 2
+id: in-era
+subject:
+  kind: artist
+  name: In Era
+  era: the years the records come from
+  years: { from: 1990, to: 1995 }
+instrument: bass
+chain:
+  - { role: amp, gear: Ampeg SVT }
+confidence: low

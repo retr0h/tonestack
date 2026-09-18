@@ -7,13 +7,17 @@ artist: Jaco Pastorius
 tracks:
   - track: continuum
     url: https://open.spotify.com/track/5t74NZUEHOTjBqv4IjPLe8
+    year: 1976
     note: Jaco Pastorius, 1976. The fretless singing, near the top of its range
   - track: barbary-coast
     url: https://open.spotify.com/track/33dzCF8R1qMzwmkdGGnm1j
+    year: 1976
     note: Weather Report, Black Market, 1976
   - track: teen-town
     url: https://open.spotify.com/track/3Vnd9kqU36jdtgXXcxEJHW
+    year: 1977
     note: Weather Report, Heavy Weather, 1977. He played the drums on it too
   - track: three-views-of-a-secret
     url: https://open.spotify.com/track/5MtbFaq3wc3R20zo3P5kZy
+    year: 1981
     note: Word of Mouth, 1981

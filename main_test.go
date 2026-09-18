@@ -35,6 +35,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/suite"
+
+	"github.com/retr0h/tonestack/pkg/sdk/audio"
 )
 
 // mod is this module, so a test can tell its own packages from anybody's.
@@ -83,6 +85,28 @@ func (s *MainTestSuite) TestEveryManifestSitsUnderAnInstrument() {
 	s.Require().NoError(err)
 	s.Require().Empty(stray,
 		"a manifest beside the instrument directories rather than inside one")
+}
+
+// TestEveryManifestReads parses every manifest the repository ships.
+//
+// Nothing read them until this. A note written as a plain multi-line scalar
+// with a colon in it, added by hand, made one manifest unparseable and the
+// whole suite stayed green: `tonestack measure --manifest` failed on it and
+// no test did.
+func (s *MainTestSuite) TestEveryManifestReads() {
+	found, err := filepath.Glob(filepath.Join("resources", "music", "*", "*", "corpus.yaml"))
+	s.Require().NoError(err)
+	s.Require().NotEmpty(found)
+
+	for _, at := range found {
+		f, err := os.Open(at) //nolint:gosec // a path from this repository
+		s.Require().NoError(err)
+
+		m, err := audio.ReadManifest(f)
+		s.Require().NoError(f.Close())
+		s.Require().NoError(err, "%s does not read", at)
+		s.Require().NotEmpty(m.Tracks, "%s names no records", at)
+	}
 }
 
 // TestATestFileSaysWhichKindItIs asserts the suffix and the package agree.
