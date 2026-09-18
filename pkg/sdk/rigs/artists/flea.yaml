@@ -92,8 +92,20 @@ character:
           the word is kept because a citation outranks a measurement here, and
           three records of one player are not his whole catalogue.
 played:
-  gear: Fender Jazz Bass, 1961, Shell Pink
+  gear: Fender Jazz Bass, 1961
+  strings: round
   evidence:
+    # Both ends of this rig's window, in his own words, on the same bass.
+    - kind: cited
+      url: http://web.archive.org/web/20170504000530/http://www.bassplayer.com/artists/1171/flea-association/26543
+      note: >-
+        asked "What basses did you use for this record?" on I'm With You:
+        "Old Fenders. I used my '61 Jazz and I used another '61 Jazz that my
+        friend Damien Hirst put butterflies all over."
+      caveat: >-
+        two instruments, not one, and he does not say which is on which
+        track. Both are 1961 Jazz Basses, so the field names what they have
+        in common. bassplayer.com is gone and this is its archived copy.
     - kind: cited
       url: https://www.notreble.com/buzz/2016/07/14/fender-unveils-flea-signature-jazz-bass/
       note: >-
@@ -101,10 +113,21 @@ played:
         "he received from a fan and used to record the Red Hot Chili Peppers
         albums Stadium Arcadium and The Getaway"
       caveat: >-
-        The Getaway only. Nothing found says which bass he recorded I'm With
-        You on, and the 2012 rundown covers that tour rather than those
-        sessions: Modulus basses live, the Fender explicitly not used live.
-        Two of the three records measured here are from that album.
+        Fender names The Getaway, the far end of this rig's window, and
+        describes only the Shell Pink bass. The 2011 interview above covers
+        the near end and adds the second one Fender had no reason to mention.
+    # Strings, which are a tour source rather than a session one.
+    - kind: cited
+      url: https://www.premierguitar.com/rig-rundown-red-hot-chili-peppers-flea
+      note: >-
+        "Flea uses his signature set of GHS Boomers", a roundwound line
+      caveat: >-
+        the 2012 tour rig, and the basses it describes are the Modulus ones
+        he says elsewhere are tour-only: "For the last ten years that's all I
+        played on tour." Nothing found says what is on the Jazz Basses in the
+        sessions, and this is the endorsement either side of them. The gauge
+        printed there, ".105 - .145", is not a set GHS sells, so it is left
+        out rather than repeated.
 
 technique:
   attack: slap

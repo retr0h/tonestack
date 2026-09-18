@@ -77,13 +77,52 @@ character:
           measures the record rather than the player, and the envelope filter
           this rig is mostly about is a mid-band effect: the figure describes
           the Mu-Tron as much as the bass.
-# No `played` here on purpose. The star-shaped Space Bass was built in 1975 and
-# was in his hands for the Stretchin' Out cover shoot in 1976, per
-# https://guitar.com/features/opinion-analysis/the-story-of-bootsy-collins-space-bass/
-# — which says it was on the album cover, not on the recording. Nothing found
-# says which bass was played on either album this rig covers, and through the
-# seventies he alternated a Fender Jazz and a 1975 Precision. Left empty rather
-# than filled with the instrument everybody pictures.
+played:
+  gear: Space Bass
+  # `unknown` because somebody looked. The only flatwound line anybody has
+  # from him is about the Vox Apollo he played with James Brown around
+  # 1970, described as it stands in 2017: "those old flatwound strings on
+  # top of that hollow Vox bass guitar." Different bass, different decade,
+  # and he does not say the strings are original. Every "Bootsy used
+  # flatwounds" claim found traces back to that one sentence. His DR
+  # signature set is present-day and carries no endorsement date.
+  strings: unknown
+  evidence:
+    - kind: cited
+      url: https://www.discogs.com/release/570769
+      note: >-
+        the Stretchin' Out sleeve credits "Bootsy Collins — Bass [Space
+        Bass]" and names who built it, "Sir Larry Pless" and "Gus Zuppi
+        Music". The 1977 album's sleeve credits the Space Bass the same way.
+      caveat: >-
+        a sleeve transcription rather than a scan, though it is consistent
+        across independent pressings. An instrument credit is the label's
+        claim about the sessions, which is the strongest thing here, and it
+        is contradicted below.
+    - kind: cited
+      url: https://web.archive.org/web/2020/https://www.angelfire.com/music2/pfunk/feat-spacebass.html
+      note: >-
+        the builder's own account: called to Los Angeles for the Stretchin'
+        Out cover shoot, "I had the bass about half built ... The bass had a
+        coat of white paint on it and the pick-guard and thats about all."
+      caveat: >-
+        which makes the bass on that sleeve photograph an unplayable body,
+        and breaks the inference everybody draws from the cover. It does not
+        settle the sessions: the album was cut across 1975 and 1976, so the
+        bass could have been finished between the tracking and the shoot.
+        Pless never dates the completion, and the first use he describes is
+        a Cincinnati show rather than a studio.
+    - kind: cited
+      url: https://www.premierguitar.com/artists/bootsy-collins-bass-from-outer-space
+      note: >-
+        his own words on the P-Funk sessions generally: "No, I went back to
+        the P bass ... The first recordings I did with Parliament Funkadelic
+        were with that P bass."
+      caveat: >-
+        he never names these two albums. Stretchin' Out was cut at United
+        Sound alongside Mothership Connection, which makes the Precision a
+        live possibility for it, and that is an inference rather than a
+        finding. The field keeps what the sleeve says.
 
 technique:
   attack: slap

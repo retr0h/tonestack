@@ -154,8 +154,9 @@ played:
   gear: Fender Mike Dirnt Signature Precision Bass
   # `strings` takes round, flat, tape or unknown. Say `unknown` rather than
   # leaving it out when nobody has established it: the two look the same in a
-  # file and mean different things.
-  strings: unknown
+  # file and mean different things. Bootsy Collins and Tim Commerford both
+  # carry `unknown` with a note saying where somebody already looked.
+  strings: round
   evidence:
     - kind: cited
       url: https://www.notreble.com/buzz/2026/08/22/mike-dirnt-is-selling-american-idiot-tour-basses-and-a-fender-used-to-record-nimrod/
