@@ -7,6 +7,11 @@ one piece works; this says which pieces to use and when. If you are an agent
 being asked for help with any of the tasks below, start here and follow the
 links rather than reading everything.
 
+Commands are written as `tonestack ...`, which is how somebody with it installed
+runs them. From a checkout, run `go run main.go ...` instead: it builds what is
+in front of you, where an installed release does not carry anything added since
+it shipped.
+
 Building a preset needs no device and no HX Edit, because the catalog, the
 corpus statistics and the rigs are built into the binary. Only the commands that
 read or write a device need a Helix plugged in, HX Edit quit, and a build with

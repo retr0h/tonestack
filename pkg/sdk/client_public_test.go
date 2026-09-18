@@ -895,6 +895,52 @@ func (s *ClientPublicTestSuite) TestRecipes() {
 	}
 }
 
+// TestBacking covers reading which records back each rig.
+//
+// The two halves live in different files, a rig and a manifest, and only
+// reading them together says whether a rig's evidence was measured from
+// records made when its gear was.
+func (s *ClientPublicTestSuite) TestBacking() {
+	tests := []struct {
+		name   string
+		ctx    context.Context
+		corpus string
+		err    bool
+	}{
+		{
+			// The rigs that ship, against a corpus directory nobody has: a
+			// rig with no records is the ordinary case, not a fault.
+			name:   "rigs nobody has measured",
+			corpus: filepath.Join("testdata", "nowhere"),
+		},
+		{name: "a caller who stopped waiting", ctx: cancelled(), err: true},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			ctx := tt.ctx
+			if ctx == nil {
+				ctx = context.Background()
+			}
+
+			got, err := sdk.New().Backing(ctx, tt.corpus)
+
+			if tt.err {
+				s.Require().Error(err)
+
+				return
+			}
+
+			s.Require().NoError(err)
+			s.Require().NotEmpty(got, "the rigs this binary ships")
+
+			for _, b := range got {
+				s.Require().Empty(b.Records)
+			}
+		})
+	}
+}
+
 // TestRecipe covers reading one of them.
 func (s *ClientPublicTestSuite) TestRecipe() {
 	tests := []struct {
