@@ -22,64 +22,210 @@ chain:
   - role: amp
     gear: Ampeg SVT
     evidence:
+      - kind: cited
+        url: http://www.2112.net/powerwindows/transcripts/19800600guitarplayer.htm
+        note: >-
+          Guitar Player, June 1980, in his own words, describing the rig he
+          built when he bought the Rickenbacker: "I decided to go stereo
+          onstage, so I bought an extra bass setup: 2 Ampeg V-4B bottoms, and
+          an SVT head. For my low end, I would run the bass pickup through
+          the Ampegs, and the treble went to the Sunn."
+        caveat: >-
+          checked against a scan of the issue itself, at
+          cygnus-x1.net/links/rush/images/scans/Guitar_Player_06.1980-Geddy_Lee.pdf,
+          so this is the magazine rather than somebody's retyping of it.
+          Dated from inside the interview rather than by its cover: the
+          passage sits directly after Neil Peart joining and the first
+          American tour, and the Rickenbacker was bought with that first
+          advance, which puts this setup at the front of this rig's years.
+          Two amplifiers split by frequency, and a rig is one path, so this
+          is the low half.
+      - kind: cited
+        url: http://www.2112.net/powerwindows/transcripts/19800600guitarplayer.htm
+        note: >-
+          the same interview, on how the records were cut, dated by him to
+          Caress of Steel in 1975: "That's when I discovered that the best way
+          for me to record my bass was to approach it as if I were playing
+          onstage: Use the direct bass from the low-end pickup, and mike the
+          amp for the high-end pickup. I've just been refining that ever
+          since." So the studio split and the stage split are the same split,
+          by his own rule, across every record this rig covers.
+        caveat: >-
+          which means the half this rig models went to the desk rather than
+          through a microphone, on the records as well as live. The cabinet
+          below was only ever in the treble path. Kept because a preset with
+          no cab into a PA is not the sound either. Verified word for word
+          against the scan of the issue, since this one sentence is what puts
+          four of the nine rigs here on a direct signal.
       - kind: user
         url: https://www.talkbass.com/threads/geddy-lee-amps.847050/
         note: >-
-          Ampeg from the first album to about Hemispheres. By 2112, two SVTs,
-          one into Sunn 215s and one into Ampeg V4b 215s.
+          read with `just forum`, and one post of the ten carries anything:
+          "Geddy did use Ampeg on the first album up to about Hemispheres ...
+          If you look very closely at the beginning of the Fly By Night
+          video, you can see a bunch of Ampeg SVT amps." That is the era this
+          rig claims, from somebody who went and looked at the film.
         caveat: >-
-          this thread blocks automated readers, so it was found by search and
-          not read. Somebody should open it.
+          a recollection, and it has the Sunn arriving by Permanent Waves
+          when Geddy says above he had it from about 1972 and ran both at
+          once. It says SVT amps, heads, and this rig used to cite it for an
+          SVT-810 cabinet, which is not what it says and not what he played.
+      - kind: cited
+        url: http://www.2112.net/powerwindows/transcripts/19790600canadianmusician.htm
+        note: >-
+          the same sentence the cabinet below is taken from, read whole:
+          "The bass part of his system is run stereo through two BGW 750-B
+          amplifiers via two Ashley Audio pre-amplifiers ... The low end is
+          run through two Ampeg V4-B cabinets with four JBL 140 speakers."
+        caveat: >-
+          which says this head is the front of the era and not all of it. The
+          SVT is dated by his own account to when he bought the Rickenbacker
+          around 1975, and by the Hemispheres tour in June 1979 the same
+          publication has power amplifiers and preamps driving the same
+          cabinets. The name here stays because a BGW and an Ashly are not
+          modelled by anything and an SVT is, and because two of the four
+          records measured sit in the earlier half. It is a stand-in for the
+          later ones rather than a claim about them.
     confidence: medium
 
   - role: cab
-    gear: Ampeg 8x10
+    gear: Ampeg V-4B
+    substitute:
+      gear: Mesa/Boogie 2x15
+      evidence:
+        - kind: llm
+          note: >-
+            the only 2x15 this device carries. Both cabinets were reloaded
+            with fifteens that were not the factory ones, JBL 140s here and
+            Electro-Voice in the model, which makes the size right and the
+            voicing a guess.
+      confidence: low
     evidence:
-      - kind: user
-        url: https://www.talkbass.com/threads/geddy-lee-amps.847050/
-        note: the SVT-810 in the Fly by Night footage
-        caveat: the same unread thread
-    confidence: medium
-
-character:
-  # `bright` was here on a model's say-so until his records were measured. His
-  # centroid sits at 177Hz, the middle of the eight players in the music
-  # corpus, with Claypool at 264Hz, Jaco at 259Hz and Bootsy at 214Hz above
-  # him. Audio outranks a model here, so the word is gone rather than argued
-  # with. What his records do say is that he is the most saturated of the
-  # eight, at 29% against a middle of 24%, which is not clear enough of the
-  # rest to earn `saturated` either.
-  # `mid-forward` was earned here and is not any more. He reads 14% of his
-  # energy in the mid band, which cleared the line while Mike Dirnt's records
-  # were Dookie at 8% and Paul McCartney's were Beatles takes at 0%. Both
-  # players now carry records from the era their rigs describe, the middle
-  # moved to 10%, and 14% is not clear of it. Nothing about his records
-  # changed.
-  - term: percussive
-    evidence:
-      - kind: user
-        url: https://www.talkbass.com/threads/how-do-you-get-that-aggresive-geddy-lee-sound.764407/
-        note: a thread on the aggressive right hand
+      - kind: cited
+        url: http://www.2112.net/powerwindows/transcripts/19790600canadianmusician.htm
+        note: >-
+          Canadian Musician, June 1979, on the Hemispheres tour: "The low end
+          is run through two Ampeg V4-B cabinets with four JBL 140 speakers."
+          Four speakers across two cabinets is two apiece, so the article
+          settles the configuration from inside itself.
+      - kind: cited
+        url: http://www.2112.net/powerwindows/transcripts/19811200canadianmusician.htm
+        note: >-
+          Canadian Musician, December 1981, in his own words: "The low-end
+          pickup goes through a similar amplification system, then to Ampeg
+          V4B cabinets with 15\" J8L speakers", the transcription's typo for
+          JBL.
+      - kind: cited
+        url: http://www.2112.net/powerwindows/transcripts/19800600guitarplayer.htm
+        note: >-
+          Guitar Player, June 1980, current tense: "For the low end, I still
+          use two Ampeg V-4B speaker cabinets."
         caveat: >-
-          opinion rather than measurement, and the thread blocks automated
-          readers so it was not read
+          an 8x10 stood here on a thread nobody opened, citing footage nobody
+          watched. Every period source found says V-4B and none says 8x10.
+    confidence: high
+
+# No `character` block. Every word this rig carried has been removed on
+# evidence, and nothing has replaced them, so the preset is built from the
+# gear and the instrument alone.
+#
+# `bright` was here on a model's say-so until his records were measured. His
+# centroid sits at 177Hz, the middle of the eight players in the music
+# corpus, with Claypool at 264Hz, Jaco at 259Hz and Bootsy at 214Hz above
+# him. Audio outranks a model here, so the word is gone rather than argued
+# with. What his records do say is that he is the most saturated of the
+# eight, at 29% against a middle of 24%, which is not clear enough of the
+# rest to earn `saturated` either.
+# `mid-forward` was earned here and is not any more. He reads 14% of his
+# energy in the mid band, which cleared the line while Mike Dirnt's records
+# were Dookie at 8% and Paul McCartney's were Beatles takes at 0%. Both
+# players now carry records from the era their rigs describe, the middle
+# moved to 10%, and 14% is not clear of it. Nothing about his records
+# changed.
+# `percussive` was here on a thread nobody opened. Forty-two period articles
+# from 1974 to 1984 were read looking for it and none applies the word to
+# him; the only "percussive" in the set is Neil's tympani and bells. What
+# the era does give him is trebly and twangy, and those describe the treble
+# half of a stereo rig. This file is the low half, so a word borrowed from
+# the other side would name a signal path this chain does not contain.
 
 played:
   gear: Rickenbacker 4001
   strings: round
   evidence:
-    - kind: llm
-      caveat: not sourced. The Rickenbacker years and the Ampeg years overlap
-  # He earns `mid-forward` at 14% against 4%, on the same amplifier Tim
-  # Commerford reads 2% on. A Rickenbacker through an SVT and a Fender
-  # through an SVT are not the same instrument into the same amp.
+    - kind: cited
+      url: http://www.2112.net/powerwindows/transcripts/20110400bassguitaruk.htm
+      note: >-
+        Bass Guitar UK, April 2011, Joel McIver: "When we signed our first
+        record deal in 1974, I got my share of our small advance and the
+        first thing I did was buy a Rickenbacker. I think I paid about $400
+        for it." He bought it for a sound he never got: "Much to my dismay,
+        when I plugged it in, it didn't sound like Chris Squire."
+      caveat: >-
+        told in 2011 about 1974. The period source is Guitar Player, June
+        1980, which settles the model and puts it on the record: "When we got
+        our first advance, the first thing I did was run out and buy a
+        Rickenbacker 400 I", the transcription's error for 4001, which its
+        own writer spells correctly as "his black Rickenbacker 4001 bass".
+        Asked what he used on Fly By Night: "I used the Rickenbacker on every
+        track." The scan settles the model outright where the transcription
+        garbled it: the magazine's own intro reads "his black Rickenbacker
+        4001 bass".
+    - kind: cited
+      url: http://www.2112.net/powerwindows/transcripts/20110400bassguitaruk.htm
+      note: >-
+        the same interview, on why this rig is one half of a pair: "it had a
+        great trebly sound, but I had a hard time getting the right amount of
+        bottom end out of it unless I used the Rick-O-Sound feature ... I
+        used to send the bass pickup to a bass amp and the treble pickup to
+        an amp that was set up for that twangy sound."
+      caveat: >-
+        which is the instrument's own explanation for the split chain. The
+        trebly half he describes is the one this file does not model. Two
+        things this field cannot hold: the By-Tor growl on Fly By Night is a
+        Fender through a fuzz into the board rather than this bass, and from
+        A Farewell to Kings he also plays a double-neck whose bass he says
+        "has a better low-end response than the standard 4001", which covers
+        two of the four records measured here.
+    - kind: cited
+      url: http://www.2112.net/powerwindows/transcripts/19800600guitarplayer.htm
+      note: >-
+        Guitar Player, June 1980, asked what bass strings he uses: "Rotosound
+        Swing Bass, long-scale. I change them every four dates." He dates the
+        switch himself, talking about his pre-Rush Precision: "I was using
+        LaBella flat-wounds for a few years. Then around 1972 there was a big
+        turning point for my sound when I discovered Rotosound round-wounds."
+        He changed in 1972 and got the Rickenbacker in 1974, so there is no
+        window in which this instrument had anything else on it.
+      caveat: >-
+        a fan archive's transcription of a print article rather than a scan,
+        and the 1980 answer is his touring habit. Do not let Rotosound's own
+        history page unsettle this: its 1985 entry has him "starts using the
+        new Funkmaster strings", which dates a later endorsement on the Wal
+        and reads like a first-contact date. He is on record five years
+        earlier. No gauge, because the figure everybody repeats traces to one
+        forum post recalling a conversation.
+  # The instrument is why he reads 14% in the mid band where Tim Commerford
+  # reads 2% on the same amplifier. A Rickenbacker through an SVT and a
+  # Fender through an SVT are not the same instrument into the same amp.
+  # Neither figure earns a word now, and this is still the reason they differ.
 
 technique:
   attack: fingers
+  position: bridge
   evidence:
-    - kind: user
-      url: https://www.talkbass.com/threads/how-do-you-get-that-aggresive-geddy-lee-sound.764407/
-      note: digging in hard with the right hand
-      caveat: the same unread thread
+    - kind: cited
+      url: http://www.2112.net/powerwindows/transcripts/19800600guitarplayer.htm
+      note: >-
+        Guitar Player, June 1980, in his own words. On the attack: "I never
+        used a pick. In fact, I can't even play guitar very well with a pick."
+        On where: "I usually rest my hand towards the back, and place my
+        fingers between the bridge and the treble pickup."
+      caveat: >-
+        `fingers` understates it and this format has no better word. He also
+        plays with his nails: "I sometimes rest my hand on the E string and
+        pick with my nails. I use them a lot, in fact ... so if I want a
+        pick-like attack, I can get it with my nails, rather than having to
+        use a pick." A rig tuned for flesh will read duller than the records.
 
 confidence: low

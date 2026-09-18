@@ -31,6 +31,32 @@ chain:
           says in the same piece that he is "a multiple amp kind of guy",
           one on all the time and one for when he wants the sound different.
           A preset is one path, so this is the one that is always on.
+      - kind: cited
+        url: https://tapeop.com/interviews/28/gggarth-richardson
+        note: >-
+          Garth Richardson, who produced the record, on how it was cut: "we
+          had brought in a big concert P.A. system and we had Brad Wilk
+          sitting behind the actual P.A. with his drums and we had Tom's
+          guitar, Tim's bass and Zack's vocals coming though the P.A."
+        caveat: >-
+          which describes the room rather than the bass rig, and says the
+          amplifier was not the only thing making the sound in it. Nothing
+          here names the amplifier for the sessions; the quote above is him
+          describing his Rage rig years later.
+      - kind: cited
+        url: https://www.guitarworld.com/artists/bassists/tim-commerford-rage-against-the-machine-bass-tone
+        note: >-
+          the nearest thing to how he records, and it is the wrong album:
+          "Commerford's favorite recorded sound with Rage Against The Machine
+          was on the group's second album, Evil Empire, on which he used two
+          SVT heads and two Classic 8x10 cabinets, both mic'd and direct." On
+          direct generally: "I let producers use as much DI as they want
+          until I start noticing it."
+        caveat: >-
+          Evil Empire is 1996 and this rig is 1992, so this is the shape of
+          his recording rather than this record's. It does put the same two
+          heads and two 8x10s in a studio, with a microphone and a DI on them
+          at once.
     confidence: high
 
   - role: cab
@@ -41,24 +67,55 @@ chain:
         note: two Ampeg 8x10 cabinets, in the same sentence
     confidence: high
 
-character:
-  - term: dry
-    evidence:
-      - kind: llm
-  # `minimal-drive` was here on a model's say-so. His records measure 24% of
-  # their energy above the fundamental, and the middle of the other eight
-  # players is also 24%: he is the corpus average on that axis to the point.
-  # A word claiming less breakup than usual, on a player who reads exactly
-  # usual, is a word the records refuse. Audio outranks a model here.
+# No `character` block. Both words this rig carried have gone on evidence and
+# nothing replaced them, so the preset is built from the gear and the
+# instrument alone.
+#
+# `dry` was here on a model's say-so and three things lean against it. The
+# producer tracked the record with a concert PA in the room, quoted on the
+# amplifier above. Guitar World has his founding Rage sound built on a
+# Marshall Guv'nor distortion pedal. And what does hold up is narrower than
+# the word: Clash, listening back, found that "where you once assumed Timmy
+# C was injecting considerable squall into his brutal basslines, later you
+# realise it's the shapeshifting work of guitarist Tom Morello".
+# `minimal-drive` was here on a model's say-so. His records measure 24% of
+# their energy above the fundamental, and the middle of the other eight
+# players is also 24%: he is the corpus average on that axis to the point.
+# A word claiming less breakup than usual, on a player who reads exactly
+# usual, is a word the records refuse. Audio outranks a model here.
+
+played:
+  gear: Ernie Ball Music Man StingRay
+  strings: unknown
+  evidence:
+    - kind: cited
+      url: https://www.musicradar.com/guitars/bass-guitars/ernie-ball-music-man-tim-commerford-ltd-edition-signature-stingray
+      note: >-
+        his own words: "This is a bass that I fell in love with at a pawnshop
+        and used to play the first Rage record"
+      caveat: >-
+        the finish details people repeat with this, a blonde body and a
+        removed pickguard, are on no page anybody has opened. The model is
+        sourced and the rest is not.
+  # Not the Precision people assume. He reads 5% in the mid band and 109Hz
+  # where Mike Dirnt and Geddy Lee read 1% and 14% on the same amplifier, and
+  # the instrument is where a difference like that starts.
 
 technique:
   attack: fingers
   evidence:
-    - kind: llm
+    - kind: cited
+      url: https://premierguitar.com/articles/24644-tim-commerford-wakrat-and-the-power-of-now?page=2
       note: >-
-        widely said to be a fingers-only player who used to slap
+        Premier Guitar, Freddy Villano, asked to describe his right hand: "I
+        grew up using three fingers ... Then when I got playing with Rage, I
+        was more diehard, I felt like it was more solid to play with two
+        fingers. So with Rage I did everything with two fingers."
       caveat: >-
-        the equipboard page this was first attributed to covers his gear and
-        says nothing about his hands. Not sourced.
+        a 2016 interview, and it dates itself to the Rage period rather than
+        to 1992 in particular. Two fingers rather than the three he came from
+        is the part this format cannot hold. Several readers put slapped
+        playing on "Take the Power Back"; none of them was there, and his own
+        "everything with two fingers" outranks them.
 
 confidence: medium

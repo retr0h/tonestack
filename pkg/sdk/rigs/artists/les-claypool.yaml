@@ -37,6 +37,17 @@ chain:
       - kind: cited
         url: https://mixdownmag.com.au/features/rig-rundown-les-claypool/
         note: two 2x15 Mesa/Boogie Diesel cabinets
+      - kind: cited
+        url: http://www.ram.org/music/primus/articles/bp1.html
+        note: >-
+          asked how he records: "I go out of the back of my MESA/Boogie amp
+          direct into the board. They pad the signal somehow. We've always
+          put up a mike in front of the bass amp, but we've never used it."
+        caveat: >-
+          which says this cabinet is not on the records this rig is measured
+          against. It stays because a preset with no cab into a PA is not the
+          sound either, and swapping it for a DI is a decision nobody has
+          made. The figures here are a direct signal and the cab is not.
     confidence: medium
 
 character:
@@ -55,7 +66,80 @@ character:
   # that is a word his records refuse.
   - term: percussive
     evidence:
-      - kind: llm
+      - kind: cited
+        url: http://www.ram.org/music/primus/articles/cyberfunk.html
+        note: >-
+          Guitar School, August 1995, on Tales from the Punchbowl, the album
+          that closes this rig's years: "Claypool's dizzying, violently
+          percussive textures are still on display". Claypool in the same
+          piece: "even when I've soloed, I've never really played melodies as
+          much as percussive rhythmic pieces."
+        caveat: >-
+          a fan transcription rather than a scan, from the same archive this
+          file cites twice already, and read narrowly the second quote is
+          about what he plays rather than how it sounds.
+
+played:
+  gear: Carl Thompson 4-string
+  strings: round
+  evidence:
+    - kind: cited
+      url: https://ctbasses.com/players/les-claypool
+      note: >-
+        the luthier's own pages, with build dates: the 4-string he has played
+        since he was a teenager, and a 6-string fretted "sold to Les just
+        before Pork Soda was recorded in 1993"
+      caveat: >-
+        he plays a four and a six across these records and this field names
+        one of them. See the note under this block for which is where.
+    - kind: cited
+      url: http://www.ram.org/music/primus/articles/funky.html
+      note: >-
+        Guitar Player, August 1991, three months after the album: while Carl
+        Thompson was building the Rainbow Bass, "I used a Japanese Tune
+        fretless ... When I first ripped the frets out, it freaked me out".
+      caveat: >-
+        a fan transcription of a print article rather than a scan, with the
+        typos to prove it. Nothing here names the Tune's model; two dealer
+        listings call it a Zi-III and a dealer selling one is not a source.
+    - kind: cited
+      url: https://ctbasses.com/les-claypool-primus
+      note: >-
+        Bass Player, February 1993: "If I'd had this fretted bass for 'Jerry
+        Was a Racecar Drive' ... I'd probably have used it instead. It makes
+        your fingers super-strong to do tapping on a fretless."
+      caveat: >-
+        an excerpt hosted by the luthier rather than the magazine's own page.
+    - kind: cited
+      url: http://www.ram.org/music/primus/articles/bp1.html
+      note: >-
+        Bass Player, c. February 1993: "On his 4-string electrics, Les uses
+        Dean Markley nickel roundwounds -- but here's the secret: his set
+        consists of two A strings (.080) and two G strings (.040)."
+      caveat: >-
+        the four-string only, which is what this field names. The six takes
+        "a standard light-gauge set" and the winding is not given. Dated from
+        inside the article rather than a masthead: Seas of Cheese is "their
+        latest full-length album" and he has just won the 1992 readers' poll.
+  # Which bass is on which record, which the figures need and no single field
+  # can hold. The album was tracked in January 1991 and credits a six-string
+  # fretless; Carl Thompson finished the Rainbow Bass on 5 February 1991 and
+  # Les "received the bass just in time to tour following recording". So the
+  # fretless six on Sailing the Seas of Cheese is the de-fretted Tune, and the
+  # Rainbow everybody pictures is on the records after it.
+  #
+  # What does NOT explain his centroid split, recorded because it was written
+  # here as though it did. Jerry Was a Race Car Driver reads 275Hz and Tommy
+  # the Cat reads 113Hz off the same album, and the tempting story is that one
+  # is the four and the other the six. Both are the six. The Guitar Player
+  # piece cited above, three months after the album, opens by describing "his
+  # 6-string fretless work behing Tom Waits' cameo vocal on 'Tommy The Cat'",
+  # and the Bass Player quote above has Jerry tapped on a fretless too. The
+  # same page carried both facts and only one of them was read.
+  #
+  # So a 162Hz spread across one session on one instrument is unexplained, and
+  # `bright` stays removed for a spread nobody can account for rather than for
+  # one with a cause.
 
 technique:
   attack: slap

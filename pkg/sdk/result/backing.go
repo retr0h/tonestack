@@ -40,6 +40,13 @@ type Backing struct {
 	// Records are what was measured for it, in the order the manifest names
 	// them.
 	Records []Record
+	// NoRig says these records sit in a directory no rig answers to.
+	//
+	// A rig is joined to its records by the directory being named for it, and
+	// a directory named anything else is silently measured by nobody. Records
+	// arriving before the rig that will use them is the ordinary reason; a
+	// typo is the other one, and it looks identical until this says so.
+	NoRig bool
 }
 
 // Stated says whether the rig gives years its records can be held to.

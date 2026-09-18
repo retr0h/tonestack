@@ -40,6 +40,31 @@ mise install
   Only needed if you are measuring audio. `brew install ffmpeg`.
 - **[just].** Task runner used for building, testing, formatting, and other
   development workflows. Install with `brew install just`.
+- **[Node] 18 or newer.** Only for the optional Reddit MCP server described
+  below. Nothing in the build uses it, and `just forum` does not need it.
+
+### Reading the forums
+
+TalkBass and Reddit are the two forums this project treats as first-class
+sources, and **neither needs an account, a key or anything configured**.
+`just forum` and `just forum-search` read both.
+
+They block automated readers differently, which is why one script sends each a
+different request. TalkBass fingerprints the TLS handshake, so curl_cffi
+reproduces a browser's. Reddit refuses its JSON API to logged-out readers
+whatever is sent, but still serves its RSS feeds to anything carrying a browser
+user agent, and refuses the impersonated handshake TalkBass requires. Sending
+both to both fails both.
+
+Reddit throttles a logged-out reader to roughly a request a minute. The script
+waits a 429 out and says so on stderr. **Treat an empty answer as the throttle
+rather than as an absent source** — those look identical and confusing them is
+the failure this project keeps having.
+
+`.mcp.json` also declares a Reddit MCP server, which is convenience rather than
+a dependency: it puts the same search in front of Claude as a tool. It needs no
+credentials either, and it is pinned to a commit. Nothing in the repository
+requires it, and a subagent or a script should use `just forum` instead.
 
 ### Claude Code
 
@@ -299,6 +324,84 @@ preference. The largest one here was the em dash. There were 242, and each stood
 in for a decision the sentence had not made about whether the clause was a new
 sentence, a parenthetical, or a list. One slopped paragraph is unremarkable. A
 repository of them reads as though nobody was home.
+
+## Sourcing a rig
+
+A rig's claims about real gear are the only knowledge in this repository that is
+ours. Everything else is generated. So the standard for a claim is the same as
+the standard for code, and the work of meeting it is research rather than
+typing.
+
+### Finish the research before opening the pull request
+
+A change to a rig is finished when every claim it touches has a source somebody
+opened, and not before.
+
+**Correct what you find rather than reporting it.** Noticing that a citation is
+wrong, or that it contradicts another line in the same file, is the start of the
+job. A task is for work somebody else has to do, a decision that changes what
+the preset builds, or a source behind a paywall. It is not somewhere to put a
+problem so that it stops being yours.
+
+**A url nobody opened is worse than no url**, because it looks like work. A
+search result is a title and a guess at what the page says. Nine citations here
+were entered that way and every one had to come out again. Open the page, quote
+the sentence you are relying on, and if you cannot open it do not cite it.
+
+**Follow a citation to the bottom.** The default rig's amplifier was sourced to
+an aggregator, which was quoting Wikipedia, which cited a print magazine from
+2006\. Three hops, and only the last one is a source.
+
+**Two sources disagreeing usually means they answer different questions.** Check
+whether one describes the studio and the other the stage, or whether one is
+dated to the record and the other to a tour five years later, before deciding
+either is wrong.
+
+**A rig is not a notebook.** It carries claims and their sources. What was
+searched for and not found belongs in a task. An absent field already says
+nobody established it, so it needs no paragraph explaining the absence.
+
+Which sources are worth searching, what each is good for, and which look like
+sources and are not, is
+[Where to look](docs/workflows/create-a-rig-for-a-player.md#where-to-look-and-what-not-to-accept).
+Search that list rather than the open web. What the fields themselves mean is
+[docs/recipes.md](docs/recipes.md#say-where-each-claim-came-from).
+
+### Changing a source is never one file
+
+A record and a rig are joined by measurement, so a change at either end has to
+be carried through in the same pull request. Half of it done leaves figures
+describing audio nobody has any more.
+
+Changing which **records** back a player:
+
+1. Fetch the new audio under the manifest's own track name.
+2. Re-separate it with `just stems IN OUT bass`. An entry with no stem measures
+   as nothing.
+3. Re-measure the player: `go run main.go measure --dir <stems>`.
+4. **Re-measure the whole corpus**:
+   `go run main.go measure --corpus resources/music/bass`. This is the step that
+   gets forgotten. A word is earned by sitting outside the middle half of the
+   *other* players, so one player's records moving moves the line everybody else
+   is judged against. Nine rigs can change because one record did.
+5. Update every `character` term whose `measured` and `against` figures moved,
+   in every rig rather than only the one whose records changed.
+6. Re-run the era check:
+   `go run main.go recipes records --corpus resources/music/bass`.
+
+Changing a **gear or instrument** claim:
+
+1. The `chain`, `played` or `technique` entry, with its new evidence.
+2. Its `confidence`, which is a judgement about the new source rather than
+   something to leave at whatever the old one earned.
+3. Anything else in the file that leaned on the old source. A citation is often
+   quoted twice, for the amplifier and for the instrument, and correcting one
+   while leaving the other is how a file ends up arguing with itself.
+4. `just generate` if the contract changed. [docs/rigspec.md](docs/rigspec.md)
+   and the Go types are compiled from `pkg/sdk/rig/data/rigspec.openapi.yaml`
+   and are never hand-edited.
+5. `go run main.go presets make --id <rig>` to confirm it still builds and the
+   gear still resolves.
 
 ## Code standards
 
@@ -693,6 +796,7 @@ If you have questions, open a [Discussion] on GitHub.
 [just]: https://just.systems
 [mdformat]: https://pypi.org/project/mdformat/
 [mise]: https://mise.jdx.dev
+[node]: https://nodejs.org
 [superpowers]: https://github.com/pcvelz/superpowers
 [unslop]: https://github.com/cursor/plugins/blob/main/pstack/skills/unslop/SKILL.md
 [uv]: https://docs.astral.sh/uv/

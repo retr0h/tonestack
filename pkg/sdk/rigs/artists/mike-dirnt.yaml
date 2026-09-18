@@ -29,26 +29,89 @@ chain:
     gear: Ampeg SVT
     evidence:
       - kind: cited
-        url: https://equipboard.com/pros/mike-dirnt
+        url: https://en.wikipedia.org/wiki/American_Idiot#Recording
         note: >-
-          "for most of the record [American Idiot], Dirnt used an Ampeg SVT
-          bass amplifier, recording with his signature bass and a Precision
-          Bass"
+          "For most of the record, Dirnt used an Ampeg SVT bass amplifier,
+          recording with his signature Fender Precision Bass ... he and
+          Cavallo strived for a 'solid, big, thunderous' bass sound as
+          opposed to one centered on countermelodies."
         caveat: >-
-          one record. His gear pages list Fender Bassman and Pro heads, Mesa
-          M-2000s and Yamaha G100s across other eras, so this is the American
-          Idiot sound rather than his rig.
-    confidence: high
+          Wikipedia is the reachable end of a chain, not the source. Its
+          reference is Bradman, E.E. and Buddingh, Terry, "Ready Set Go!:
+          Studio Secrets of Mike Dirnt and Green Day Producer Rob Cavallo",
+          Bass Guitar, 18 January 2006, ISSN 1476-5217, which is print. Cite
+          that if you get hold of it. The same reference carries the rest of
+          the session chain, including an Evil Twin direct box "a staple of
+          his recording methods since Dookie".
+      - kind: cited
+        url: https://web.archive.org/web/20040908171044/http://www.bassplayer.com/archive/0904/0904_Features1.htm
+        note: >-
+          Bass Player, September 2004, the month of the album, and the only
+          contemporaneous interview anybody here has read. It puts him on
+          Fender: "a Bassman 1200 Pro head with the EQ essentially flat ...
+          Each amp is connected to a Bassman 810 Pro 8x10 cabinet with the
+          tweeter turned off", and "I just switched back to 8x10s".
+        caveat: >-
+          this is not the contradiction it looks like. The passage opens
+          "Live, Dirnt goes from a Shure ULX wireless", so it is the touring
+          rig, and the claim above is explicitly about the sessions. Fender
+          on stage and an SVT in the studio in the same year are both true.
+          Worth knowing that in this interview he prefers Fender: "I like the
+          Ampeg cabs' low-end response, but the Fenders give me the attack
+          I'm looking for."
+    confidence: medium
 
   - role: cab
-    gear: Ampeg 8x10
+    gear: Acoustic 6x10
+    substitute:
+      gear: Ampeg 8x10
+      evidence:
+        - kind: llm
+          note: >-
+            the device carries no 6x10 at all. Its nearest is a big sealed
+            multi-ten, which is the 8x10 this rig used to name outright.
+      confidence: low
     evidence:
-      - kind: llm
-        note: assumed from the amplifier, which Ampeg sold as a stack
+      - kind: user
+        url: https://www.talkbass.com/threads/i-wanna-get-a-mike-dirnt-like-tone-when-i-play-my-p-bass-how-to.1111702/
+        note: >-
+          Dirnt's own words, asked whether he uses his big rig in the studio,
+          in a Guitar Center interview the poster EastCoastThump transcribes:
+          "I've used a 6x10 combo on every record we've ever done, this old
+          Acoustic 6x10 cabinet that I have ... I'd use a little 4x10 guitar
+          combo for the super highs, maybe an Ampeg, and a Mesa/Boogie 6x10,
+          along with some other stuff. Basically, I'll just do a blend of two
+          amps."
         caveat: >-
-          not sourced. The cabinets anybody lists for him are a Fender Pro
-          810, a Mesa 6x10 and an Acoustic 104 6x10, none of which is this
-          and none of which is tied to the record.
+          first-hand from him and second-hand to us: the Guitar Center link
+          in the post is dead and no archived copy was found, so the
+          interview cannot be dated. "Every record we've ever done" covers
+          this one whenever it was said. Ampeg appears once and hedged,
+          attached to a guitar combo. He also blends two amplifiers per song
+          and a rig is one path, so this names the one he says is always
+          there.
+      - kind: cited
+        url: https://www.notreble.com/buzz/2026/08/24/mike-dirnt-is-opening-his-reverb-shop-and-we-got-to-check-out-the-gear/
+        note: >-
+          his own Ampeg 8x10 belongs to a different record. Coverage of him
+          selling his gear ties it to 1994: "one of the first Ampeg SVT-810
+          cabinets he bought with his first Green Day paycheck, which
+          subsequently went out on the Dookie tour". The American Idiot items
+          in the same sale are basses.
+        caveat: >-
+          which places his own Ampeg eight by ten on a different record, and
+          agrees with him about the split: the big cabinets are what he
+          carries, and a six by ten is what he records through.
+      - kind: cited
+        url: https://web.archive.org/web/20040908171044/http://www.bassplayer.com/archive/0904/0904_Features1.htm
+        note: >-
+          Bass Player, September 2004: "Each amp is connected to a Bassman
+          810 Pro 8x10 cabinet with the tweeter turned off. Says Dirnt, 'For
+          my tone, I don't need that spitty sound up top.'"
+        caveat: >-
+          his live rig, so it says the size he was carrying rather than what
+          the sessions were miked through. The tweeter being off is the one
+          thing here that describes a sound rather than a box.
     confidence: low
 
 # How it should sound, in the words a person would use. Describe the result,
@@ -83,26 +146,75 @@ character:
         caveat: >-
           measures the record rather than the player. `grit-on-attack` stood
           here until the records measuring this rig were the ones measured.
-  - term: tight-low-end
-    evidence:
-      - { kind: llm }
-  - term: short-decay
-    evidence:
-      - { kind: llm }
   - term: audible-pick-attack
     evidence:
-      - kind: llm
+      - kind: cited
+        url: https://web.archive.org/web/20040908171044/http://www.bassplayer.com/archive/0904/0904_Features1.htm
+        note: >-
+          Bass Player, September 2004. He names the frequency: "Dirnt can
+          even pinpoint the frequency that captures the pickstyle click he
+          craves on records: '2kHz,' he says." And describes it: "I also like
+          a tic-tac click, like the sound of the baritone guitar parts on old
+          country records, where it would double the bass line. I like the
+          ice-pick-in-the-ear upper-midrange sound, and I like my bass to
+          have punch."
+        caveat: >-
+          what he wants rather than what the record does, and on this rig
+          those differ. He says in the same answer "I try to cut through with
+          midrange" while American Idiot measures 1% in the mid band against
+          10% for the other eight players, the most scooped record in the
+          corpus. The click he is describing is upper-midrange, which a
+          scooped mix keeps and a scooped amplifier would not.
+  # `tight-low-end` and `short-decay` were here on a model's say-so and the
+  # only person on record about this tone contradicts the first: asked to
+  # describe it he says "I also like my sound to be round and warm".
+
+played:
+  gear: Fender Mike Dirnt Signature Precision Bass
+  strings: round
+  evidence:
+    - kind: cited
+      url: https://web.archive.org/web/20040908171044/http://www.bassplayer.com/archive/0904/0904_Features1.htm
+      note: >-
+        Bass Player, September 2004, the month American Idiot was released:
+        "Dirnt uses nickel-plated medium-gauge Fender Super Bass strings,
+        saying, 'They've got great snap.'"
+      caveat: >-
+        the set, not the winding. `round` is read off Fender's Super Bass
+        line rather than off this page, which never says the word. The
+        sidebar also opens "bringing a big quiver of Fender basses on the
+        upcoming Green Day tour", so it describes the rig in the month of
+        release rather than what was strung up in the sessions. The
+        flatwounds in the same interview are his first bass, aged twelve.
+    - kind: cited
+      url: https://www.notreble.com/buzz/2026/08/22/mike-dirnt-is-selling-american-idiot-tour-basses-and-a-fender-used-to-record-nimrod/
+      note: >-
+        "two American Idiot-era Fender Mike Dirnt Signature Precisions used on
+        tour", from coverage of him selling his own instruments
+      caveat: >-
+        this page says toured, not recorded, and describes the signature
+        basses as what he is "bringing ... on the upcoming Green Day tour".
+        What puts the same bass in the sessions is the source behind the
+        amplifier: Bass Guitar, January 2006, "recording with his signature
+        Fender Precision Bass". Print, unread here, and the same claim the
+        amplifier rests on, so the bass and the amp stand or fall together.
 
 technique:
   attack: pick
-  position: bridge
   evidence:
-    - kind: llm
-      note: widely said to be a pick player
+    - kind: cited
+      url: https://web.archive.org/web/20040908171044/http://www.bassplayer.com/archive/0904/0904_Features1.htm
+      note: >-
+        Bass Player, September 2004, asked "Do you always play with a pick?":
+        "Yeah. It's a product of starting on guitar. It just seemed more
+        natural, since my rotation with my fingers isn't that good. You might
+        catch me playing slap and fingerstyle before practice, but not
+        onstage."
       caveat: >-
-        not sourced. This rig cited a 2024 official music video for it, which
-        is twenty years after the record it describes and which nobody
-        watched.
+        `position` is gone. He describes what his right hand is for, "I try
+        to be percussive with my right hand, finding something that has its
+        own motor, with a bounce to it", and never says where along the
+        string it sits.
 
 confidence: medium
 

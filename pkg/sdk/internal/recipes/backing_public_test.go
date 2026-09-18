@@ -20,6 +20,7 @@
 package recipes_test
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -75,6 +76,91 @@ func (s *BackingPublicTestSuite) TestARecordOutsideTheEra() {
 	s.Require().False(got.Records[1].Outside, "2004 against a 2004 rig")
 }
 
+// TestRecordsNoRigIsNamedFor covers the join failing quietly.
+//
+// A rig reaches its records by the directory carrying its identifier. A
+// directory called anything else reads exactly like a rig nobody has measured
+// yet, so the typo survives until something says which it is.
+func (s *BackingPublicTestSuite) TestRecordsNoRigIsNamedFor() {
+	got := s.read()["mccartney"]
+
+	s.Require().True(got.NoRig)
+	s.Require().NotEmpty(got.Records, "the records are there, and nobody claims them")
+	s.Require().Zero(got.Outside(), "there is no era to be outside of")
+}
+
+// TestARigIsNotItsOwnOrphan covers the ordinary directories staying ordinary.
+func (s *BackingPublicTestSuite) TestARigIsNotItsOwnOrphan() {
+	for _, id := range []string{"in-era", "out-of-era", "no-years"} {
+		s.Require().False(s.read()[id].NoRig, id)
+	}
+}
+
+// TestADirectoryWithNoManifest covers a directory somebody made and has not
+// filled, which claims nothing and is nobody's problem.
+//
+// Built here rather than kept in testdata, because git does not track an
+// empty directory: as a fixture this passed locally and never ran anywhere
+// else, which is the kind of test that reports coverage it does not have.
+func (s *BackingPublicTestSuite) TestADirectoryWithNoManifest() {
+	corpus := s.T().TempDir()
+
+	s.Require().NoError(os.MkdirAll(filepath.Join(corpus, "empty-dir"), 0o750))
+	s.Require().NoError(os.MkdirAll(filepath.Join(corpus, "mccartney"), 0o750))
+
+	named, err := os.ReadFile(
+		filepath.Join("testdata", "backing", "music", "mccartney", "corpus.yaml"))
+	s.Require().NoError(err)
+	s.Require().NoError(os.WriteFile(
+		filepath.Join(corpus, "mccartney", "corpus.yaml"), named, 0o600))
+
+	got, err := recipes.Backing(
+		recipes.Source{Dir: filepath.Join("testdata", "backing", "rigs")}, corpus)
+	s.Require().NoError(err)
+
+	seen := map[string]bool{}
+	for _, b := range got {
+		seen[b.ID] = true
+	}
+
+	s.Require().True(seen["mccartney"], "records nobody's rig is named for")
+	s.Require().False(seen["empty-dir"], "nothing in it to report")
+}
+
+// TestAnOrphanManifestThatWillNotRead covers a directory no rig claims whose
+// manifest is broken, which is reported rather than passed over.
+func (s *BackingPublicTestSuite) TestAnOrphanManifestThatWillNotRead() {
+	_, err := recipes.Backing(
+		recipes.Source{Dir: filepath.Join("testdata", "backing", "rigs")},
+		filepath.Join("testdata", "backing", "brokenorphan"),
+	)
+
+	s.Require().Error(err)
+}
+
+// TestACorpusDirectoryThatIsAFile covers the corpus argument naming a file,
+// which is caught reading the rigs' own records.
+func (s *BackingPublicTestSuite) TestACorpusDirectoryThatIsAFile() {
+	_, err := recipes.Backing(
+		recipes.Source{Dir: filepath.Join("testdata", "backing", "rigs")},
+		filepath.Join("testdata", "backing", "notadir", "in-era"),
+	)
+
+	s.Require().Error(err)
+}
+
+// TestACorpusThatIsAFileWithNoRigsToRead covers the same argument reaching
+// the scan for directories nobody claims, which is the other way in.
+func (s *BackingPublicTestSuite) TestACorpusThatIsAFileWithNoRigsToRead() {
+	_, err := recipes.Backing(
+		recipes.Source{Dir: filepath.Join("testdata", "backing", "notadir")},
+		filepath.Join("testdata", "backing", "notadir", "in-era"),
+	)
+
+	s.Require().Error(err)
+	s.Require().Contains(err.Error(), "in-era")
+}
+
 // TestARigThatStatesNoEra covers what cannot be checked.
 //
 // Reported rather than passed over: a rig with no years is a rig nothing can
@@ -124,8 +210,11 @@ func (s *BackingPublicTestSuite) TestAManifestThatWillNotRead() {
 	s.Require().Error(err)
 }
 
-// TestARecipeDirectoryNobodyHas covers a directory nobody has, which is an
-// empty answer rather than a failure.
+// TestARecipeDirectoryNobodyHas covers reading a corpus with no rigs to read
+// it against.
+//
+// Not an empty answer: the records are there and nothing claims them, which
+// is the same thing as a misspelt directory and reads the same way.
 func (s *BackingPublicTestSuite) TestARecipeDirectoryNobodyHas() {
 	got, err := recipes.Backing(
 		recipes.Source{Dir: filepath.Join("testdata", "nowhere")},
@@ -133,7 +222,11 @@ func (s *BackingPublicTestSuite) TestARecipeDirectoryNobodyHas() {
 	)
 
 	s.Require().NoError(err)
-	s.Require().Empty(got, "no rigs there, and nothing to say about them")
+	s.Require().NotEmpty(got)
+
+	for _, b := range got {
+		s.Require().True(b.NoRig, b.ID)
+	}
 }
 
 // TestACorpusPathThatIsNotADirectory covers a corpus argument naming a file.

@@ -77,10 +77,9 @@ Then:
    stems on disk.** Nothing here deletes a record, and the file costs nothing;
    somebody re-scoping the rig later may want it back, and refetching it took an
    afternoon the last time.
-3. Re-separate and re-measure. Records changing means figures changing, and
-   figures changing means the words every player earns can change: the corpus is
-   a comparison, so nine new records move the middle everybody is measured
-   against.
+3. Carry the change through every file it reaches, which is more than this
+   player's:
+   [Changing a source is never one file](../../CONTRIBUTING.md#changing-a-source-is-never-one-file).
 
 ### 4. Name it in the manifest first
 
@@ -237,6 +236,12 @@ Carry on from step 2 of
 [Measure a player's sound](measure-a-players-sound.md#2-separate-the-bass-from-each).
 The audio stays git-ignored. Commit only the manifest change.
 
+Measure the whole corpus rather than this player, and update every rig whose
+figures moved rather than only this one. A word is earned against the other
+players, so adding records here can take one away from somebody you did not
+touch:
+[Changing a source is never one file](../../CONTRIBUTING.md#changing-a-source-is-never-one-file).
+
 ### 9. Read the era check again
 
 ```bash
@@ -246,3 +251,14 @@ tonestack recipes records --corpus resources/music/bass
 The rig you added to should now read `records match the era`. If it does not,
 the manifest and the rig still disagree and the figures measured from it
 describe gear the rig does not name.
+
+It also names a directory no rig answers to. Records are joined to a rig by the
+directory carrying the rig's identifier, so `mccartney` beside a rig called
+`paul-mccartney` is measured by nobody.
+
+Then carry the measurement back into the rig: the words its records earn, with
+both sides of the comparison, per
+[Measure a player's sound](measure-a-players-sound.md#6-compare-them-against-the-other-players).
+If the rig has no `played`, fill it first — every figure a record produces
+carries the instrument, and without it the figure is attributed to the
+amplifier.

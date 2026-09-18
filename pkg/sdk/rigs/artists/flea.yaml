@@ -65,9 +65,10 @@ chain:
     confidence: medium
 
 character:
-  - term: percussive
-    evidence:
-      - kind: llm
+  # `percussive` was here on a model's say-so. Nothing found says it of him,
+  # and `technique.attack: slap` below is sourced and already carries what
+  # the word was reaching for: a character term is meant to describe the
+  # result, and this one only repeated the hand.
   - term: dark
     evidence:
       - kind: cited
@@ -91,6 +92,70 @@ character:
         caveat: >-
           the word is kept because a citation outranks a measurement here, and
           three records of one player are not his whole catalogue.
+played:
+  gear: Fender Jazz Bass, 1961
+  strings: flat
+  evidence:
+    # Both ends of this rig's window, in his own words, on the same bass.
+    - kind: cited
+      url: https://web.archive.org/web/20170504000530/http://www.bassplayer.com/artists/1171/flea-association/26543
+      note: >-
+        asked "What basses did you use for this record?" on I'm With You:
+        "Old Fenders. I used my '61 Jazz and I used another '61 Jazz that my
+        friend Damien Hirst put butterflies all over."
+      caveat: >-
+        two instruments, not one, and he does not say which is on which
+        track. Both are 1961 Jazz Basses, so the field names what they have
+        in common. bassplayer.com is gone and this is its archived copy.
+        See the task on `played` carrying more than one instrument.
+    - kind: cited
+      url: https://www.notreble.com/buzz/2016/07/14/fender-unveils-flea-signature-jazz-bass/
+      note: >-
+        Fender's own text for the signature model, which recreates the bass
+        "he received from a fan and used to record the Red Hot Chili Peppers
+        albums Stadium Arcadium and The Getaway"
+      caveat: >-
+        Fender names The Getaway, the far end of this rig's window, and
+        describes only the Shell Pink bass. The 2011 interview above covers
+        the near end and adds the second one Fender had no reason to mention.
+    # Strings. `round` stood here off the tour rundown below until somebody
+    # read what is on the instrument this field actually names.
+    - kind: user
+      url: https://www.talkbass.com/threads/so-which-flats-is-flea-playing.269755/
+      note: >-
+        his bass tech, quoted from Bass Guitar Magazine by the poster Nigel:
+        "the strings on his Jazz are 'old GHS flatwounds'". The same
+        interview has him going back to the Modulus for live work because
+        "The Jazz sounded great on stage and in in-ear monitors but got a bit
+        lost in the FOH mix."
+      caveat: >-
+        first-hand from the tech and second-hand to us, and it is 2006 rather
+        than this rig's years. Nothing found says what was on the Jazz Basses
+        in 2011. It is kept because it is the only evidence about the
+        instrument this rig names, and because "old" flatwounds is not a set
+        somebody changes often.
+    - kind: user
+      url: https://www.talkbass.com/threads/what-songs-on-stadium-arcadium-does-flea-uses-flatwounds-on.457174/
+      note: >-
+        Bass Player's gear box for Stadium Arcadium, transcribed by the
+        poster GianGian: "Flea's Gear Basses '61 Fender Jazz and '62 Fender
+        Jazz, both with old flatwounds".
+      caveat: >-
+        a transcription of a url that is now dead, so it corroborates the
+        tech rather than standing alone. It also has a '61 and a '62 where
+        Flea says two '61s.
+    - kind: cited
+      url: https://www.premierguitar.com/rig-rundown-red-hot-chili-peppers-flea
+      note: >-
+        "Flea uses his signature set of GHS Boomers", a roundwound line
+      caveat: >-
+        which is why this field used to say `round`, and it was the wrong
+        instrument. The 2012 rundown documents the Modulus basses he calls
+        tour-only, "For the last ten years that's all I played on tour", and
+        this rig names the Jazz Basses he recorded on. Two instruments, two
+        sets of strings, and the records are the Jazz. The gauge printed
+        there, ".105 - .145", is not a set GHS sells either.
+
 technique:
   attack: slap
   evidence:

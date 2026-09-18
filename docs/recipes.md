@@ -347,6 +347,14 @@ That is the largest correctness risk in this project. A rig sourced that way
 should carry `confidence: low` and be shown as unverified whatever it claims
 about itself.
 
+`note` carries the sentence the claim rests on, quoted, not a summary of it. It
+is what lets the next reader see whether the source says what the field claims
+without opening anything.
+
+What a source has to be worth before it goes in a `url`, and what a pull request
+touching a rig has to have finished, is
+[Sourcing a rig](../CONTRIBUTING.md#sourcing-a-rig).
+
 ## Declare what the device does not ship with
 
 ```yaml

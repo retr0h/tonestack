@@ -34,3 +34,6 @@ resources/music/**
 # Rebuild with `just catalog` and `just gear-map`.
 resources/schemas/hx-stomp.catalog.json
 resources/schemas/gear-map.json
+
+# Reddit MCP credentials, exported rather than committed
+.env

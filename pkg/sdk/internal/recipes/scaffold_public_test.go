@@ -258,9 +258,15 @@ func (s *ScaffoldPublicTestSuite) TestNewFrom() {
 			loadsKind: "song",
 		},
 		{
+			// The cab here tracks what mike-dirnt.yaml actually says, so
+			// this fails whenever research corrects that rig. It has done
+			// once already, from an Ampeg 8x10 to the Acoustic 6x10 he names
+			// for records. Update it rather than loosening it: what is being
+			// tested is that a copy carries the parent's chain through, and
+			// an assertion that accepts anything tests nothing.
 			name: "a copy of a rig that ships in the binary",
 			from: "mike-dirnt",
-			cab:  "Ampeg 8x10",
+			cab:  "Acoustic 6x10",
 			want: []string{"extends: mike-dirnt", "gear: Ampeg SVT"},
 		},
 		{

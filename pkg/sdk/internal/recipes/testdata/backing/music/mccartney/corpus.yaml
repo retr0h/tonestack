@@ -1,0 +1,8 @@
+artist: In Era
+tracks:
+  - track: one
+    url: https://open.spotify.com/track/abc
+    year: 1991
+  - track: two
+    url: https://open.spotify.com/track/def
+    year: 1994

@@ -162,6 +162,75 @@ func (s *ManifestPublicTestSuite) TestARecordWithNoYearIsRefused() {
 	s.Require().Contains(err.Error(), "no year")
 }
 
+// TestAUrlSomewhereElseIsRefused covers the link naming a recording rather
+// than a copy of one.
+//
+// A Spotify track link identifies one master, which is what tells the album
+// take apart from the live one and the remaster. Anything else names a file,
+// and the mistake it prevents is invisible once the audio is on disk and
+// measuring fine.
+func (s *ManifestPublicTestSuite) TestAUrlSomewhereElseIsRefused() {
+	_, err := audio.ReadManifest(strings.NewReader(
+		"tracks:\n  - track: longview\n    year: 1994\n" +
+			"    url: https://example.com/longview.mp3\n"))
+
+	s.Require().Error(err)
+	s.Require().Contains(err.Error(), "longview")
+	s.Require().Contains(err.Error(), "Spotify")
+}
+
+// TestAYouTubeUrlIsRefused covers the fallback being offered as the evidence.
+//
+// YouTube is where the audio comes down from, never what a rig quotes: the
+// same song is up there as the album take, a live take and three lyric
+// videos.
+func (s *ManifestPublicTestSuite) TestAYouTubeUrlIsRefused() {
+	_, err := audio.ReadManifest(strings.NewReader(
+		"tracks:\n  - track: longview\n    year: 1994\n" +
+			"    url: https://www.youtube.com/watch?v=abc\n"))
+
+	s.Require().Error(err)
+	s.Require().Contains(err.Error(), "Spotify")
+}
+
+// TestASourceFromYouTubeIsAccepted covers the ordinary fallback.
+func (s *ManifestPublicTestSuite) TestASourceFromYouTubeIsAccepted() {
+	got := s.read(
+		"tracks:\n  - track: longview\n    year: 1994\n" +
+			"    url: https://open.spotify.com/track/abc\n" +
+			"    source: https://www.youtube.com/watch?v=abc\n")
+
+	s.Require().Equal("https://www.youtube.com/watch?v=abc", got.Tracks[0].Source)
+}
+
+// TestASourceSomewhereElseIsRefused covers a host spotdl cannot fetch from.
+func (s *ManifestPublicTestSuite) TestASourceSomewhereElseIsRefused() {
+	_, err := audio.ReadManifest(strings.NewReader(
+		"tracks:\n  - track: longview\n    year: 1994\n" +
+			"    url: https://open.spotify.com/track/abc\n" +
+			"    source: https://example.com/longview.mp3\n"))
+
+	s.Require().Error(err)
+	s.Require().Contains(err.Error(), "longview")
+	s.Require().Contains(err.Error(), "YouTube")
+}
+
+// TestAUrlTheParserCannotReadIsRefused covers a link that looks like one and
+// is not.
+//
+// The shape check ahead of this only asks for `https://` and no spaces, so a
+// malformed host walks straight past it: "http://[::1" is missing the bracket
+// that closes an IPv6 address. It reaches the host check, which cannot parse
+// it and therefore cannot match it against anything.
+func (s *ManifestPublicTestSuite) TestAUrlTheParserCannotReadIsRefused() {
+	_, err := audio.ReadManifest(strings.NewReader(
+		"tracks:\n  - track: longview\n    year: 1994\n" +
+			"    url: \"http://[::1\"\n"))
+
+	s.Require().Error(err)
+	s.Require().Contains(err.Error(), "Spotify")
+}
+
 // TestABadLinkIsCaughtHere covers the other thing a rig will refuse.
 func (s *ManifestPublicTestSuite) TestABadLinkIsCaughtHere() {
 	_, err := audio.ReadManifest(strings.NewReader(
@@ -210,10 +279,11 @@ func (s *ManifestPublicTestSuite) TestJoinKeepsEverything() {
 // TestJoinIgnoresCase covers a manifest written by a person.
 func (s *ManifestPublicTestSuite) TestJoinIgnoresCase() {
 	got := s.read(
-		"tracks:\n  - track: LongView\n    year: 1994\n    url: https://example.com/a\n").
+		"tracks:\n  - track: LongView\n    year: 1994\n    url: https://open.spotify.com/track/ghi\n",
+	).
 		Join([]audio.Named{{Name: "longview"}})
 
-	s.Require().Equal("https://example.com/a", got[0].Source.URL)
+	s.Require().Equal("https://open.spotify.com/track/ghi", got[0].Source.URL)
 }
 
 // TestUnmatchedReportsBothDirections covers the two mistakes worth telling.

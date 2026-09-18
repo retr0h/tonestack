@@ -44,9 +44,12 @@ chain:
           sizeable rig there, with two Crown 300A amps and an Audio Master
           preamp, and these drove a set of JBL speakers, a Roy Clare 2x12
           midrange bin and JBL horns." John Hammel, McCartney's assistant
-          since the Beatles split, to Mark Cunningham, 18 June 2019. The same
-          passage puts the Acoustic 360 on the 1972 and 1973 tours, not this
-          one.
+          since the Beatles split, to Mark Cunningham, published September
+          1993 and put online in 2019. The same passage puts the Acoustic 360
+          on the 1972 and 1973 tours rather than this one, and ends the era
+          this rig covers on something else again: "for the last UK tour in
+          1979, Paul switched to using 120-watt Fender Bassmans and three 4x12
+          cabinets with angled speakers."
         caveat: >-
           so the Acoustic 360 here is the wrong tour's amplifier, kept only
           because nothing models a Crown, an Audio Master or a JBL. What the
@@ -77,21 +80,16 @@ chain:
 character:
   - term: mid-forward
     evidence:
-      - kind: cited
+      - kind: user
         url: https://www.rickresource.com/forum/viewtopic.php?t=411797
         note: >-
-          "that middley mid, cut through the mix flatwound tone" of the live
-          Wings Over America album, recorded on the 1976 US tour
+          "I've also been obsessed with that middley mid, cut through the mix
+          flatwound tone of the live Wings Rockshow/Wings Over America
+          album", and "that cut through the mix, but in a not bright way".
         caveat: >-
-          a forum thread that blocks automated readers, so the line was read
-          in search results and the page was not. Somebody should open it.
-      - kind: cited
-        url: https://www.talkbass.com/threads/paul-mccartney-wings-over-america-rickenbacker-4003s-4001s-tone.1408772/
-        note: >-
-          "sounds like he boosts low mids and rolls off the treble a little",
-          about the same album
-        caveat: >-
-          the same kind of thread, found by search and not read.
+          an enthusiast in 2014 describing a record by ear, which is the
+          weakest thing this word rests on. It agrees with the measurement
+          below and that is the whole of its value.
       - kind: audio
         measured: { mid: 0.15 }
         against: { mid: 0.10 }
@@ -108,59 +106,77 @@ character:
   # Measured from the Wings records this rig describes he reads 18% of his
   # energy above the fundamental against 24% for the other eight players,
   # which is not the clean end of the corpus and earns nothing.
-  - term: dark
-    evidence:
-      - kind: cited
-        url: https://www.talkbass.com/threads/paul-mccartney-wings-over-america-rickenbacker-4003s-4001s-tone.1408772/
-        note: >-
-          the thread behind `mid-forward` also says he "rolls off the treble a
-          little"
-        caveat: >-
-          found by search and not read, like the other citation from it
-      - kind: audio
-        measured: { centroid: 166 }
-        against: { centroid: 172 }
-        note: >-
-          his Wings records measure a centroid of 166Hz against 172Hz for the
-          other eight players: barely below the middle, and the word is not
-          earned. It was earned from the Beatles records measured before them,
-          at 138Hz, and those were cut on other gear a decade earlier.
-        caveat: >-
-          kept on the citation rather than the measurement, which is the order
-          this project ranks them in.
-  - term: neck-forward
-    evidence:
-      - kind: llm
-  - term: quiet-strings
-    evidence:
-      - kind: cited
-        url: https://www.talkbass.com/threads/paul-mccartneys-rig.469978/
-        note: flatwounds named there as important to the sound
-        caveat: >-
-          a forum thread that blocks automated readers, so found by search
-          and not read
+  # `dark` was here on a thread nobody opened. Its measurement never earned it
+  # either, 166Hz against a middle of 172Hz, and a witness to the tour
+  # contradicts it: "in every single pic from those shows you can clearly see
+  # that all knobs are up full. And there's a few times in the show 'Rock
+  # Show' film where when he takes the bass off to go play piano he turns
+  # down every knob 1 by 1."
+  # https://www.rickresource.com/forum/viewtopic.php?f=2&t=411797&start=15
+  #
+  # `quiet-strings` was here on the same kind of thread and nothing replaced
+  # it. Flatwounds being quieter is a fact about strings, not an observation
+  # about this player, and `played.strings` already carries it.
+  #
+  # `neck-forward` was here on a model's say-so and the tour contradicts it
+  # twice over. The selector is seen in the middle position in the footage,
+  # and the bass went out with an overwound BRIDGE coil built for it, which
+  # is the opposite end of the instrument from the word.
 
 played:
   gear: Rickenbacker 4001S
   strings: flat
   evidence:
+    # Cite the person, not the thread: this one held the instrument, and the
+    # post directly above his is somebody guessing "Rotosound's are a
+    # possibility but I don't know".
     - kind: user
-      url: https://www.talkbass.com/threads/paul-mccartneys-rig.469978/
-      note: flatwounds named there as important to the sound
+      url: https://www.rickresource.com/forum/viewtopic.php?t=13
+      note: >-
+        Mark Arnquist, 11 August 2000: "When I worked on his bass in the mid
+        1970's he did NOT have rotosound strings of any kind on it. They were
+        flats but not rickenbacker or roto's. I have no idea what they were."
+        First-hand, on this instrument, immediately before the tour that
+        produced the live album measured for this rig. The brand is nobody's
+        to name: the man who restrung it does not know it.
       caveat: >-
-        a forum thread that blocks automated readers, so found by search and
-        not read. The Rickenbacker is asserted rather than cited, and two of
-        the three records measured for him predate the rig this describes.
+        the post is signed "Mark". The interview below is what makes him
+        Arnquist, on the zero fret and the nameplate holes he describes in
+        both.
+    - kind: cited
+      url: http://www.thecanteen.com/arnquist.html
+      note: >-
+        Mark Arnquist, Rickenbacker's lead man in finishing and repair "from
+        July 1972 to October 1976", to John F. Crowley: "The P.M. bass came
+        back to the factory prior to the 'Wings over America tour.'" The
+        horseshoe magnets were dead, so "we opted for a custom coil/pickup
+        for 'The Man.' The idea was to overwind a stock coil for a 4001."
+        It went back out "restrung with the strings that it came in with",
+        which is what makes his account of them first-hand.
+      caveat: >-
+        the resistance figures people quote with this, a 7k neck and a 9k
+        bridge, are not on this page. They come from a forum post relaying a
+        phone call. The page gives no numbers and makes no claim about tone.
+        This is also the touring instrument rather than the studio one.
 
 technique:
   attack: pick
-  position: neck
   evidence:
     - kind: cited
-      url: https://www.talkbass.com/threads/paul-mccartneys-rig.469978/
-      note: played with a pick, plucking closer to the neck
+      url: https://www.guitarworld.com/artists/bassists/paul-mccartney-wings-silly-love-songs
+      note: >-
+        Chris Jisi, Guitar World, quoting Laurence Juber, who played guitar
+        in Wings from 1978: "Juber confirmed that Paul played his
+        flatwound-strung Rickenbacker 4001S with a heavy-gauge pick".
+        Juber on the difference the rig has to cover: "Paul plays with a very
+        hard touch onstage, but he has a real sensitivity to dynamics and
+        note duration in the studio."
       caveat: >-
-        about the Abbey Road sessions, and this rig is the Wings tours. He
-        plays both pick and fingers, and the thread was not read.
+        Juber joined in 1978, so he is first-hand for Goodnight Tonight and
+        not for the two earlier records here; Jisi extrapolates back to
+        Silly Love Songs. `position` is gone rather than guessed: the same
+        Wings-era discussion has him heard as bridge pickup soloed and seen
+        with the selector in the middle, which is about pickups and says
+        nothing about where his right hand sat.
 
 confidence: low
