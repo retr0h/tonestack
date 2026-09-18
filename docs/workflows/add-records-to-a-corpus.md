@@ -84,7 +84,7 @@ were both the song "Blood Sugar Sex Magik", and one "Welcome to Paradise" was a
 ### 3. Download it under the manifest's name
 
 ```bash
-just record resources/music/paul-mccartney silly-love-songs \
+just record resources/music/bass/paul-mccartney silly-love-songs \
   https://open.spotify.com/track/…
 ```
 
@@ -131,7 +131,7 @@ uvx yt-dlp --flat-playlist \
   --print "%(id)s | %(title)s | %(duration_string)s" \
   "ytsearch6:Wings Silly Love Songs"
 
-just record resources/music/paul-mccartney silly-love-songs \
+just record resources/music/bass/paul-mccartney silly-love-songs \
   "https://www.youtube.com/watch?v=…|https://open.spotify.com/track/…"
 ```
 
@@ -175,8 +175,8 @@ The file's length, and any silence at its end:
 
 ```bash
 ffprobe -v error -show_entries format=duration \
-  resources/music/paul-mccartney/silly-love-songs.mp3
-ffmpeg -hide_banner -i resources/music/paul-mccartney/silly-love-songs.mp3 \
+  resources/music/bass/paul-mccartney/silly-love-songs.mp3
+ffmpeg -hide_banner -i resources/music/bass/paul-mccartney/silly-love-songs.mp3 \
   -af silencedetect=n=-45dB:d=1 -f null - 2>&1 | grep silence_
 ```
 

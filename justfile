@@ -98,17 +98,30 @@ corpus:
 gear-map:
     uvx --with pypdf --with fonttools python3 resources/schemas/extract_gear_map.py
 
-# Separate the bass out of every recording in a directory, for `tonestack measure --dir`
+# Separate one instrument out of every recording in a directory, for `tonestack measure --dir`
 #
-# A mix measures the band, so the bass has to come out of it before any number
-# describes the player. Python because Demucs is; the same category as ffmpeg
-# converting an MP3, and nothing downstream of it leaves Go.
+# A mix measures the band, so the instrument has to come out of it before any
+# number describes the player. Python because Demucs is; the same category as
+# ffmpeg converting an MP3, and nothing downstream of it leaves Go.
+#
+# INSTRUMENT is bass or guitar, and it chooses the model as well as the stem.
+# The default four-source model has no guitar in it: drums, bass, vocals and
+# one bucket called "other" holding everything else. Guitar needs htdemucs_6s,
+# which separates six and is slower. A guitar stem is also a worse stem than a
+# bass one — six sources share the same training and a guitar overlaps the
+# vocals and the keys far more than a bass does — so a figure measured from it
+# carries more of the rest of the band with it.
 #
 # `--with numpy` is not optional: Demucs does not declare it and fails without it.
-stems IN OUT:
-    uvx --from demucs --with numpy demucs --two-stems=bass -o {{ OUT }} {{ IN }}/*
-    @echo "stems written to {{ OUT }}/htdemucs — measure them with:"
-    @echo "    tonestack measure --dir {{ OUT }}/htdemucs"
+stems IN OUT INSTRUMENT="bass":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    model=htdemucs
+    if [ "{{ INSTRUMENT }}" = "guitar" ]; then model=htdemucs_6s; fi
+    uvx --from demucs --with numpy demucs -n "$model" \
+      --two-stems={{ INSTRUMENT }} -o {{ OUT }} {{ IN }}/*
+    echo "stems written to {{ OUT }}/$model — measure them with:"
+    echo "    tonestack measure --dir {{ OUT }}/$model"
 
 # Download one record into an artist's corpus, named for its manifest entry
 #
