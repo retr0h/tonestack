@@ -189,7 +189,7 @@ A figure on its own is a fact about a recording. A word is a claim about a
 player, and it is earned by sitting clear of everybody else:
 
 ```bash
-tonestack measure --corpus resources/music
+tonestack measure --corpus resources/music/bass
 ```
 
 ```
@@ -230,7 +230,7 @@ A word this earns is a word for the rig's `character`, and `--evidence` writes
 the block to paste:
 
 ```bash
-tonestack measure --corpus resources/music --evidence
+tonestack measure --corpus resources/music/bass --evidence
 ```
 
 ```yaml

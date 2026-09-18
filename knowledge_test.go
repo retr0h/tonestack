@@ -161,10 +161,11 @@ func (s *KnowledgeTestSuite) TestTheFiguresMatchTheData() {
 
 // players counts the artists the music corpus holds records for.
 //
-// One directory each, with the manifest naming the tracks. The records
-// themselves are not in the repository.
+// One directory each, under the instrument they play, with the manifest
+// naming the tracks. The records themselves are not in the repository.
 func (s *KnowledgeTestSuite) players() int {
-	found, err := filepath.Glob(filepath.Join("resources", "music", "*", "corpus.yaml"))
+	found, err := filepath.Glob(
+		filepath.Join("resources", "music", "*", "*", "corpus.yaml"))
 	s.Require().NoError(err)
 
 	return len(found)

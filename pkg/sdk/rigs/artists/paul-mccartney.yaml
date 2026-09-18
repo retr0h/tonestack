@@ -97,7 +97,7 @@ character:
           the three records measured for him, Rain, Come Together and Silly
           Love Songs, hold 0% of their energy in the mid band against 5% for
           the other seven players in the music corpus. The lowest of the
-          eight. Reproduce with `tonestack measure --corpus resources/music`.
+          eight. Reproduce with `tonestack measure --corpus resources/music/bass`.
         caveat: >-
           not the record the citations describe. Both are about Wings Over
           America, a 1976 live album played on a Rickenbacker, and none of the

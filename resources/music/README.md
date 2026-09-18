@@ -1,6 +1,18 @@
 # music
 
-Records measured to describe how somebody plays, one directory per artist.
+Records measured to describe how somebody plays: one directory per instrument,
+then one per artist.
+
+```text
+resources/music/bass/flea/
+```
+
+The instrument is not tidiness. A word is earned by sitting clear of the other
+players in the tree, and a guitar's centre of gravity sits an octave above a
+bass guitar's. One guitarist in a corpus of bassists would earn every bassist
+`dark` and every guitarist `bright`, and both words would stop meaning anything.
+So the directory that holds a comparison is the instrument, and
+`measure --corpus` is pointed at one of them.
 
 Nothing here travels. The audio is somebody else's and the stems are cut from
 it, so both are git-ignored. What is committed is `corpus.yaml`: which songs
@@ -10,7 +22,7 @@ for presets, where the fetch script and the attribution are kept and the payload
 is not.
 
 ```text
-resources/music/flea/
+resources/music/bass/flea/
   corpus.yaml                 committed
   Some Record.mp3             ignored
   stems/htdemucs/...          ignored
@@ -38,8 +50,8 @@ wants to separate it again with different settings, and then it is gone.
 To see what the manifest names but the disk does not hold:
 
 ```bash
-tonestack measure --dir resources/music/flea/stems/htdemucs \
-  --manifest resources/music/flea/corpus.yaml
+tonestack measure --dir resources/music/bass/flea/stems/htdemucs \
+  --manifest resources/music/bass/flea/corpus.yaml
 ```
 
 It reports `named in the manifest but not measured` for each one.
@@ -47,9 +59,9 @@ It reports `named in the manifest but not measured` for each one.
 ## Measuring one
 
 ```bash
-just stems resources/music/flea resources/music/flea/stems
-tonestack measure --dir resources/music/flea/stems/htdemucs \
-  --manifest resources/music/flea/corpus.yaml
+just stems resources/music/bass/flea resources/music/bass/flea/stems
+tonestack measure --dir resources/music/bass/flea/stems/htdemucs \
+  --manifest resources/music/bass/flea/corpus.yaml
 ```
 
 `track` in the manifest matches the stem directory, which is the source file's
@@ -62,7 +74,7 @@ is the full procedure.
 ## Adding one
 
 ```bash
-just record resources/music/flea aeroplane https://open.spotify.com/track/0VLdJcQUsqHBBwqPp4CIKJ
+just record resources/music/bass/flea aeroplane https://open.spotify.com/track/0VLdJcQUsqHBBwqPp4CIKJ
 ```
 
 [workflows/add-records-to-a-corpus.md](../../docs/workflows/add-records-to-a-corpus.md)

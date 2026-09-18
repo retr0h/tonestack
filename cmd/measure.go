@@ -79,8 +79,12 @@ which words each one's records earn. A word is earned by sitting clear of the
 other players, so this is the only mode that produces any: one player has
 nobody to be clear of.
 
-    tonestack measure --corpus resources/music
-    tonestack measure --corpus resources/music --evidence`,
+Point it at one instrument. A bass centroid sits an octave below a guitar's, so
+a corpus holding both would earn every bassist "dark" and every guitarist
+"bright" and mean nothing by either.
+
+    tonestack measure --corpus resources/music/bass
+    tonestack measure --corpus resources/music/bass --evidence`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		if measureCorpus != "" {
