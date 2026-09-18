@@ -44,15 +44,28 @@ character:
         note: '"keeping the volume turned all the way up and the tone all the way down"'
       - kind: audio
         measured: { centroid: 96 }
-        against: { centroid: 176 }
+        against: { centroid: 172 }
         note: >-
-          his centroid sits at 96Hz against 176Hz for the other eight players,
-          clear of the line by 28Hz. The darkest of the nine, and the only
-          player who has earned the same word on every corpus it has been
-          measured against.
+          his centroid sits at 96Hz against 172Hz for the other eight players,
+          the darkest of the nine. Clear of the line by 3Hz, where it was 28Hz
+          before the four rigs measuring records from the wrong era were
+          corrected: Tim Commerford at 109Hz and Mike Dirnt at 126Hz now sit
+          between him and the middle.
         caveat: >-
           measures the record rather than the player, and all three records
-          are one album cut by one engineer. 
+          are one album cut by one engineer.
+  - term: scooped
+    evidence:
+      - kind: audio
+        measured: { mid: 0.02 }
+        against: { mid: 0.10 }
+        note: >-
+          2% of his energy sits in the mid band against 10% for the other
+          eight players. Earned, and by the narrowest margin in the corpus:
+          0.1%, which one more player between him and the middle would take.
+        caveat: >-
+          measures the record rather than the player. Read the margin before
+          believing this one.
   - term: short-decay
     evidence:
       - kind: llm

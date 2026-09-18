@@ -54,27 +54,35 @@ chain:
 # How it should sound, in the words a person would use. Describe the result,
 # not the control.
 character:
-  - term: mid-forward
+  # `mid-forward` and `grit-on-attack` were here on a model's say-so, and the
+  # figures beside the first were measured from Dookie and Insomniac. This rig
+  # describes the American Idiot rig, and those records were made on the Mesa
+  # and Yamaha amplifiers its own evidence names for other years. Measured
+  # from American Idiot, where the SVT was, his records say the opposite on
+  # both axes.
+  - term: scooped
     evidence:
-      - { kind: llm }
       - kind: audio
-        measured: { mid: 0.08 }
-        against: { mid: 0.04 }
+        measured: { mid: 0.01 }
+        against: { mid: 0.10 }
         note: >-
-          8% of his energy sits in the mid band across Longview, Welcome to
-          Paradise and Stuart and the Ave, against 4% for the other eight
-          players in the music corpus. Above the middle and not clear of it:
-          he earned this word against four players and has earned nothing
-          since Bootsy Collins at 23% and Jaco Pastorius at 39% joined them.
-          Geddy Lee, on the same amplifier, reads 14% and does earn it.
+          1% of his energy sits in the mid band across American Idiot, Holiday
+          and St. Jimmy, against 10% for the other eight players, clear of the
+          line by 2%.
         caveat: >-
-          measures the record rather than the player: the amp, the mic, the
-          desk and the master are all in these numbers. The word is kept
-          because the gap is real and still points the same way; it is worth
-          less of a move than it was, which is what the figures now say.
-  - term: grit-on-attack
+          measures the record rather than the player, and that album is a
+          scooped mix before the bass rig is accounted for.
+  - term: clean
     evidence:
-      - { kind: llm }
+      - kind: audio
+        measured: { harmonics: 0.17 }
+        against: { harmonics: 0.24 }
+        note: >-
+          17% of his energy sits above the fundamental against 24% for the
+          other eight players, clear of the line by 2%.
+        caveat: >-
+          measures the record rather than the player. `grit-on-attack` stood
+          here until the records measuring this rig were the ones measured.
   - term: tight-low-end
     evidence:
       - { kind: llm }

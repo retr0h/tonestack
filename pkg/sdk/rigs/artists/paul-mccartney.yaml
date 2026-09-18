@@ -91,54 +91,43 @@ character:
           "sounds like he boosts low mids and rolls off the treble a little",
           about the same album
         caveat: >-
-          the same kind of thread, found by search and not read. It also
-          suggests a darker top, which one unread post is too thin to claim.
+          the same kind of thread, found by search and not read.
       - kind: audio
+        measured: { mid: 0.15 }
+        against: { mid: 0.10 }
         note: >-
-          the three records measured for him, Rain, Come Together and Silly
-          Love Songs, hold 0% of their energy in the mid band against 5% for
-          the other seven players in the music corpus. The lowest of the
-          eight. Reproduce with `tonestack measure --corpus resources/music/bass`.
+          15% of his energy sits in the mid band across Silly Love Songs, With
+          a Little Luck and Goodnight Tonight, against 10% for the other eight
+          players. Above the middle, not clear of it, so the word is not
+          earned and the records now point the way the citations do.
         caveat: >-
-          not the record the citations describe. Both are about Wings Over
-          America, a 1976 live album played on a Rickenbacker, and none of the
-          three measured records is from it. Measuring that album is what
-          would settle this either way.
-  - term: clean
-    evidence:
-      - kind: audio
-        measured: { harmonics: 0.10 }
-        against: { harmonics: 0.24 }
-        note: >-
-          10% of his energy sits above the fundamental against 24% for the
-          rest of the corpus, clear of the line by 5%. The cleanest of the
-          nine.
-        caveat: >-
-          measures the record rather than the player, and two of the three are
-          Beatles records cut on a Hofner rather than the Rickenbacker rig
-          this describes.
+          the three records measured before these were Beatles takes from 1966
+          and 1969, a decade before the rig this describes, and they read 0%.
+          Measuring the era the rig claims is what moved this figure.
+  # `clean` was earned from Rain and Come Together, which are not this rig.
+  # Measured from the Wings records this rig describes he reads 18% of his
+  # energy above the fundamental against 24% for the other eight players,
+  # which is not the clean end of the corpus and earns nothing.
   - term: dark
     evidence:
-      - kind: audio
-        measured: { centroid: 138 }
-        against: { centroid: 176 }
-        note: >-
-          his centroid sits at 138Hz against 176Hz for the other eight
-          players, the third darkest of the nine behind Pino Palladino at
-          96Hz and Tim Commerford at 122Hz. Earned outright against seven
-          players and not against eight: Commerford arriving between him and
-          the middle is what took it.
-        caveat: >-
-          two of the three records are Beatles takes cut on a Hofner rather
-          than the Rickenbacker rig this describes, and a Hofner is darker
-          before any amplifier is involved.
       - kind: cited
         url: https://www.talkbass.com/threads/paul-mccartney-wings-over-america-rickenbacker-4003s-4001s-tone.1408772/
         note: >-
-          the same thread behind `mid-forward` also says he "rolls off the
-          treble a little", which is the half of it the records agree with
+          the thread behind `mid-forward` also says he "rolls off the treble a
+          little"
         caveat: >-
           found by search and not read, like the other citation from it
+      - kind: audio
+        measured: { centroid: 166 }
+        against: { centroid: 172 }
+        note: >-
+          his Wings records measure a centroid of 166Hz against 172Hz for the
+          other eight players: barely below the middle, and the word is not
+          earned. It was earned from the Beatles records measured before them,
+          at 138Hz, and those were cut on other gear a decade earlier.
+        caveat: >-
+          kept on the citation rather than the measurement, which is the order
+          this project ranks them in.
   - term: neck-forward
     evidence:
       - kind: llm
