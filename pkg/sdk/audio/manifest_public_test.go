@@ -215,14 +215,20 @@ func (s *ManifestPublicTestSuite) TestASourceSomewhereElseIsRefused() {
 	s.Require().Contains(err.Error(), "YouTube")
 }
 
-// TestAUrlThatIsNotAUrlAtAllIsRefused covers a link the parser cannot read,
-// which reaches the host check as something with no host.
-func (s *ManifestPublicTestSuite) TestAUrlThatIsNotAUrlAtAllIsRefused() {
+// TestAUrlTheParserCannotReadIsRefused covers a link that looks like one and
+// is not.
+//
+// The shape check ahead of this only asks for `https://` and no spaces, so a
+// malformed host walks straight past it: "http://[::1" is missing the bracket
+// that closes an IPv6 address. It reaches the host check, which cannot parse
+// it and therefore cannot match it against anything.
+func (s *ManifestPublicTestSuite) TestAUrlTheParserCannotReadIsRefused() {
 	_, err := audio.ReadManifest(strings.NewReader(
 		"tracks:\n  - track: longview\n    year: 1994\n" +
-			"    url: \"https://open spotify.com/track/abc\"\n"))
+			"    url: \"http://[::1\"\n"))
 
 	s.Require().Error(err)
+	s.Require().Contains(err.Error(), "Spotify")
 }
 
 // TestABadLinkIsCaughtHere covers the other thing a rig will refuse.

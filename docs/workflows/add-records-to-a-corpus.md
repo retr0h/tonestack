@@ -77,10 +77,9 @@ Then:
    stems on disk.** Nothing here deletes a record, and the file costs nothing;
    somebody re-scoping the rig later may want it back, and refetching it took an
    afternoon the last time.
-3. Re-separate and re-measure. Records changing means figures changing, and
-   figures changing means the words every player earns can change: the corpus is
-   a comparison, so nine new records move the middle everybody is measured
-   against.
+3. Carry the change through every file it reaches, which is more than this
+   player's:
+   [Changing a source is never one file](../../CONTRIBUTING.md#changing-a-source-is-never-one-file).
 
 ### 4. Name it in the manifest first
 
@@ -236,6 +235,12 @@ tagged *Greatest Hits*, 2003, which carries the *Mother's Milk* take.
 Carry on from step 2 of
 [Measure a player's sound](measure-a-players-sound.md#2-separate-the-bass-from-each).
 The audio stays git-ignored. Commit only the manifest change.
+
+Measure the whole corpus rather than this player, and update every rig whose
+figures moved rather than only this one. A word is earned against the other
+players, so adding records here can take one away from somebody you did not
+touch:
+[Changing a source is never one file](../../CONTRIBUTING.md#changing-a-source-is-never-one-file).
 
 ### 9. Read the era check again
 
