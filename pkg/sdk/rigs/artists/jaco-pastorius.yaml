@@ -21,6 +21,7 @@ instrument: bass
 chain:
   - role: amp
     gear: Acoustic 360
+    capture: both
     evidence:
       - kind: cited
         url: https://mixdownmag.com.au/features/rig-rundown-jaco-pastorius/
@@ -50,6 +51,7 @@ chain:
 
   - role: cab
     gear: Acoustic 361
+    capture: both
     substitute:
       gear: Acoustic 360
       evidence:

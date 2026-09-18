@@ -20,6 +20,7 @@ instrument: bass
 chain:
   - role: amp
     gear: Ampeg SVT
+    stage: true
     evidence:
       - kind: cited
         url: https://www.mixonline.com/the-wire/why-tim-commerford-will-never-give-his-ampeg-svts-430713
@@ -61,6 +62,7 @@ chain:
 
   - role: cab
     gear: Ampeg 8x10
+    stage: true
     evidence:
       - kind: cited
         url: https://www.mixonline.com/the-wire/why-tim-commerford-will-never-give-his-ampeg-svts-430713

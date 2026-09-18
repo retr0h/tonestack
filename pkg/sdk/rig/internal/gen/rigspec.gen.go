@@ -7,6 +7,27 @@ import (
 	"encoding/json"
 )
 
+// Defines values for Capture.
+const (
+	CaptureBoth   Capture = "both"
+	CaptureDirect Capture = "direct"
+	CaptureMiked  Capture = "miked"
+)
+
+// Valid indicates whether the value is a known member of the Capture enum.
+func (e Capture) Valid() bool {
+	switch e {
+	case CaptureBoth:
+		return true
+	case CaptureDirect:
+		return true
+	case CaptureMiked:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for Confidence.
 const (
 	ConfidenceHigh   Confidence = "high"
@@ -301,10 +322,24 @@ func (e TechniquePosition) Valid() bool {
 	}
 }
 
+// Capture How this reached the tape: down a cable, through a microphone, or both blended.
+//
+// A cabinet models the air in front of a speaker, and on most bass records there was none. Five of the nine rigs here measure a signal that went to the desk: Geddy Lee set the rule on Caress of Steel in 1975 and kept it, "Use the direct bass from the low-end pickup, and mike the amp for the high-end pickup"; Les Claypool put a microphone up and never used it; Mike Dirnt ran an Evil Twin direct box from Dookie on. Pino Palladino is the one who was only ever miked, and the engineer says so: "no di's whatsoever on the album". Jaco Pastorius took both at once, "a little bit of both, the highs and lows".
+//
+// This changes no preset. Every chain still ends in a cabinet, because a preset with none into a PA is not the sound either. It is here so that a figure measured off a record is legible against what the record was made of, and so nobody reads a cabinet as a claim that one was in the signal.
+type Capture string
+
 // ChainEntry One piece of gear, in signal order.
 //
 // Order is the signal path. It is not decoration: drive ahead of an amp overdrives its input, drive after it does something else entirely.
 type ChainEntry struct {
+	// Capture How this reached the tape: down a cable, through a microphone, or both blended.
+	//
+	// A cabinet models the air in front of a speaker, and on most bass records there was none. Five of the nine rigs here measure a signal that went to the desk: Geddy Lee set the rule on Caress of Steel in 1975 and kept it, "Use the direct bass from the low-end pickup, and mike the amp for the high-end pickup"; Les Claypool put a microphone up and never used it; Mike Dirnt ran an Evil Twin direct box from Dookie on. Pino Palladino is the one who was only ever miked, and the engineer says so: "no di's whatsoever on the album". Jaco Pastorius took both at once, "a little bit of both, the highs and lows".
+	//
+	// This changes no preset. Every chain still ends in a cabinet, because a preset with none into a PA is not the sound either. It is here so that a figure measured off a record is legible against what the record was made of, and so nobody reads a cabinet as a claim that one was in the signal.
+	Capture *Capture `json:"capture,omitempty"`
+
 	// Confidence How far a claim should be trusted. Set by a person, not derived. A claim asserting high confidence with no evidence behind it is worth showing as unverified whatever it says about itself.
 	Confidence *Confidence `json:"confidence,omitempty"`
 
@@ -348,6 +383,13 @@ type ChainEntry struct {
 	//
 	// `Sag`, `Bias X` and `Ripple` are one manufacturer's controls and belong to the compiler, which sets them from catalog defaults, corpus medians and the manual's own directional guidance. A rig that carried device parameters would not survive being read on different hardware, which is the whole point of the format.
 	Settings *Settings `json:"settings,omitempty"`
+
+	// Stage Whether this entry documents a stage rather than a record.
+	//
+	// A rig rundown photographs a backline. The corpus measures records. Both are true and they are not the same rig, and the second kind of wrong-era mistake is evidence from the right years describing the wrong room. Four of the nine rigs here name gear that is only ever documented on tour.
+	//
+	// Set it where the only evidence is a tour, so a reader knows the figures and the gear were never in the same room.
+	Stage *bool `json:"stage,omitempty"`
 
 	// Substitute What to use when the device cannot do what the rig names.
 	//

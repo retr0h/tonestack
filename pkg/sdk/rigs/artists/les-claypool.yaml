@@ -20,6 +20,7 @@ instrument: bass
 chain:
   - role: amp
     gear: Mesa/Boogie Bass 400+
+    capture: direct
     evidence:
       - kind: cited
         url: https://mixdownmag.com.au/features/rig-rundown-les-claypool/
@@ -33,6 +34,7 @@ chain:
 
   - role: cab
     gear: Mesa/Boogie 2x15
+    capture: direct
     evidence:
       - kind: cited
         url: https://mixdownmag.com.au/features/rig-rundown-les-claypool/

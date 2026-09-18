@@ -1,0 +1,13 @@
+schema: RigSpec
+version: 2
+id: took-both
+subject:
+  kind: artist
+  name: Took Both
+  era: a DI and a microphone at once
+  years: { from: 1990, to: 1995 }
+instrument: bass
+chain:
+  - { role: amp, gear: Acoustic 360, capture: both }
+  - { role: cab, gear: Acoustic 361, capture: miked }
+confidence: low

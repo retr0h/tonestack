@@ -27,6 +27,7 @@ import (
 
 	"github.com/retr0h/tonestack/pkg/sdk/audio"
 	"github.com/retr0h/tonestack/pkg/sdk/result"
+	"github.com/retr0h/tonestack/pkg/sdk/rig"
 )
 
 // manifestName is what a player's corpus directory calls its manifest.
@@ -67,6 +68,8 @@ func Backing(
 		if spec.Subject.Years != nil {
 			one.From, one.To = spec.Subject.Years.From, spec.Subject.Years.To
 		}
+
+		one.Direct, one.Both, one.Captured, one.Stage = rooms(spec.Chain)
 
 		records, err := recordsFor(corpus, spec.ID)
 		if err != nil {
@@ -171,4 +174,34 @@ func recordsFor(
 	}
 
 	return m.Tracks, nil
+}
+
+// rooms counts the chain entries that never met a microphone, and those whose
+// only evidence is a tour.
+//
+// Both are the same mistake wearing different clothes: a figure measured off a
+// record attributed to gear that was not in the room. The era check catches
+// the wrong decade; this catches the right decade and the wrong room.
+func rooms(
+	chain []rig.ChainEntry,
+) (direct, both, captured, stage int) {
+	for _, e := range chain {
+		if e.Capture != nil {
+			captured++
+
+			switch *e.Capture {
+			case rig.CaptureDirect:
+				direct++
+			case rig.CaptureBoth:
+				both++
+			case rig.CaptureMiked:
+			}
+		}
+
+		if e.Stage != nil && *e.Stage {
+			stage++
+		}
+	}
+
+	return direct, both, captured, stage
 }

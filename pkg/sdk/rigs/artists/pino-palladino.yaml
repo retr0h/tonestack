@@ -20,6 +20,7 @@ instrument: bass
 chain:
   - role: amp
     gear: Ampeg B-15
+    capture: miked
     evidence:
       - kind: cited
         url: https://mixdownmag.com.au/features/rig-rundown-pino-palladino/
@@ -54,6 +55,7 @@ chain:
 
   - role: cab
     gear: Ampeg B-15
+    capture: miked
     evidence:
       - kind: cited
         url: https://mixdownmag.com.au/features/rig-rundown-pino-palladino/

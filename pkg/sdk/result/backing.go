@@ -47,6 +47,28 @@ type Backing struct {
 	// arriving before the rig that will use them is the ordinary reason; a
 	// typo is the other one, and it looks identical until this says so.
 	NoRig bool
+	// Direct counts the chain entries whose signal never met a microphone.
+	//
+	// The second kind of wrong-era mistake. A record made in the right years
+	// can still have been made in another room: five of the nine rigs here
+	// measure a signal that went to the desk, and every one of them ends in a
+	// cabinet. The cabinet is not wrong, since a preset with none into a PA
+	// is not the sound either, but a figure measured off that record was not
+	// shaped by it.
+	Direct int
+	// Both counts the entries that went to the desk and through a microphone
+	// at once, which is a third answer rather than a hedge. Jaco Pastorius
+	// took "a little bit of both, the highs and lows".
+	Both int
+	// Captured counts the entries that say anything at all about how they
+	// reached the tape. Zero means nobody has established it, which is not
+	// the same as miked and must not read as it.
+	Captured int
+	// Stage counts the chain entries whose only evidence is a tour.
+	//
+	// A rig rundown photographs a backline and the corpus measures records.
+	// Both are honest and they are not the same rig.
+	Stage int
 }
 
 // Stated says whether the rig gives years its records can be held to.

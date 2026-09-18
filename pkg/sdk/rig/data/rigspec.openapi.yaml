@@ -490,6 +490,23 @@ components:
             Centaur". Never a device model identifier: those are one
             manufacturer's internal names, they change, and they do not
             survive being read on other hardware.
+        capture:
+          $ref: "#/components/schemas/Capture"
+        stage:
+          type: boolean
+          description: >
+            Whether this entry documents a stage rather than a record.
+
+
+            A rig rundown photographs a backline. The corpus measures
+            records. Both are true and they are not the same rig, and the
+            second kind of wrong-era mistake is evidence from the right years
+            describing the wrong room. Four of the nine rigs here name gear
+            that is only ever documented on tour.
+
+
+            Set it where the only evidence is a tour, so a reader knows the
+            figures and the gear were never in the same room.
         substitute:
           $ref: "#/components/schemas/Substitute"
         settings:
@@ -591,6 +608,32 @@ components:
           type: string
           pattern: "^https?://\\S+$"
           x-go-name: URL
+
+    Capture:
+      type: string
+      description: >
+        How this reached the tape: down a cable, through a microphone, or
+        both blended.
+
+
+        A cabinet models the air in front of a speaker, and on most bass
+        records there was none. Five of the nine rigs here measure a signal
+        that went to the desk: Geddy Lee set the rule on Caress of Steel in
+        1975 and kept it, "Use the direct bass from the low-end pickup, and
+        mike the amp for the high-end pickup"; Les Claypool put a microphone
+        up and never used it; Mike Dirnt ran an Evil Twin direct box from
+        Dookie on. Pino Palladino is the one who was only ever miked, and the
+        engineer says so: "no di's whatsoever on the album". Jaco Pastorius
+        took both at once, "a little bit of both, the highs and lows".
+
+
+        This changes no preset. Every chain still ends in a cabinet, because
+        a preset with none into a PA is not the sound either. It is here so
+        that a figure measured off a record is legible against what the
+        record was made of, and so nobody reads a cabinet as a claim that one
+        was in the signal.
+      enum: [direct, miked, both]
+      x-enum-varnames: [CaptureDirect, CaptureMiked, CaptureBoth]
 
     Substitute:
       type: object

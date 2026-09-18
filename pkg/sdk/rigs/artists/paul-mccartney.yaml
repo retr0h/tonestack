@@ -26,6 +26,8 @@ instrument: bass
 chain:
   - role: amp
     gear: Acoustic 360
+    capture: direct
+    stage: true
     substitute:
       gear: Acoustic 360
       evidence:
@@ -58,6 +60,8 @@ chain:
 
   - role: cab
     gear: Acoustic 361
+    capture: direct
+    stage: true
     substitute:
       gear: Acoustic 360
       evidence:
