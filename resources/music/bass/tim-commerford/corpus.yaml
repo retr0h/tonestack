@@ -1,0 +1,21 @@
+artist: Tim Commerford
+# All three carry a source. Every one of them failed on its url alone, the
+# same way both Flea records do: YouTube Music finds nothing and the video
+# spotdl falls back to will not download. The links below are what worked.
+tracks:
+  - track: bombtrack
+    url: https://open.spotify.com/track/2rBHnIxbhkMGLpqmsNX91M
+    source: https://www.youtube.com/watch?v=hVck6DkOi38
+    note: Rage Against the Machine, 1992. The file is tagged XX, the 20th
+      anniversary reissue, so the recording is the 1992 one and the master is
+      the 2012 one. It reads on the dynamics figure before it reads anywhere
+      else
+  - track: take-the-power-back
+    url: https://open.spotify.com/track/25CbtOzU8Pn17SAaXFjIR3
+    source: https://www.youtube.com/watch?v=qKSNABST4b0
+    note: Rage Against the Machine, 1992. The bass carries the intro alone.
+      Tagged XX as well, so the same reissue master
+  - track: sleep-now-in-the-fire
+    url: https://open.spotify.com/track/1MQTmpYOZ6fcMQc56Hdo7T
+    source: https://www.youtube.com/watch?v=65hy_DCpIIs
+    note: The Battle of Los Angeles, 1999

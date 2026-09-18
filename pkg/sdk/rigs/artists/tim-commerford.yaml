@@ -44,9 +44,11 @@ character:
   - term: dry
     evidence:
       - kind: llm
-  - term: minimal-drive
-    evidence:
-      - kind: llm
+  # `minimal-drive` was here on a model's say-so. His records measure 24% of
+  # their energy above the fundamental, and the middle of the other eight
+  # players is also 24%: he is the corpus average on that axis to the point.
+  # A word claiming less breakup than usual, on a player who reads exactly
+  # usual, is a word the records refuse. Audio outranks a model here.
 
 technique:
   attack: fingers

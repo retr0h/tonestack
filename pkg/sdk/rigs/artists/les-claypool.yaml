@@ -44,23 +44,14 @@ character:
       - kind: cited
         url: https://mixdownmag.com.au/features/rig-rundown-les-claypool/
         note: described there as a heavy, thumping tone
-  - term: bright
-    evidence:
-      - kind: llm
-        caveat: >-
-          not sourced. This was split off a line saying "thumping low end
-          under a hard top", and the rundown behind that line describes the
-          low end and says nothing about the top.
-      - kind: audio
-        note: >-
-          his centroid sits at 264Hz, the highest middle of the eight players
-          in the music corpus, so the records point the way the word does. It
-          is not earned: Wynona's Big Brown Beaver reads 114Hz against 264Hz
-          and 275Hz for the other two, and a player whose own records
-          disagree that much is clear of nobody.
-        caveat: >-
-          a fourth record would say whether that one is the outlier or the
-          other two are.
+  # `bright` was here unsourced, split off a line about the low end, and a
+  # fourth record was fetched to settle whether Wynona's Big Brown Beaver at
+  # 114Hz was an outlier against 264Hz and 275Hz. Tommy the Cat reads 113Hz.
+  # Two records at 113 and 114, two at 264 and 275: not an outlier, a player
+  # whose records split in half. He earns nothing on any axis and his own
+  # centroid range runs 113Hz to 275Hz, wider than the gap between the
+  # darkest and brightest players in the corpus. A word claiming one end of
+  # that is a word his records refuse.
   - term: percussive
     evidence:
       - kind: llm

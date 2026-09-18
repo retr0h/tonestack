@@ -119,11 +119,13 @@ character:
     evidence:
       - kind: audio
         measured: { centroid: 138 }
-        against: { centroid: 177 }
+        against: { centroid: 176 }
         note: >-
-          his centroid sits at 138Hz against 177Hz for the other seven
-          players, the second darkest of the eight behind Pino Palladino.
-          Earned outright, and nobody had written the word down.
+          his centroid sits at 138Hz against 176Hz for the other eight
+          players, the third darkest of the nine behind Pino Palladino at
+          96Hz and Tim Commerford at 122Hz. Earned outright against seven
+          players and not against eight: Commerford arriving between him and
+          the middle is what took it.
         caveat: >-
           two of the three records are Beatles takes cut on a Hofner rather
           than the Rickenbacker rig this describes, and a Hofner is darker

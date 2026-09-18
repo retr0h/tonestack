@@ -62,10 +62,10 @@ character:
       - kind: llm
       - kind: audio
         measured: { centroid: 259 }
-        against: { centroid: 176 }
+        against: { centroid: 170 }
         note: >-
           his centroid across Continuum, Barbary Coast, Teen Town and Three
-          Views of a Secret, against the middle of the other seven players in
+          Views of a Secret, against the middle of the other eight players in
           the music corpus. Earned outright: his whole range sits above them.
         caveat: >-
           measures the record rather than the player, and a fretless played
@@ -74,10 +74,10 @@ character:
     evidence:
       - kind: audio
         measured: { mid: 0.39 }
-        against: { mid: 0.05 }
+        against: { mid: 0.04 }
         note: >-
-          39% of his energy sits in the mid band against 5% for the other
-          seven, the widest gap any player has on any axis here. Nobody wrote
+          39% of his energy sits in the mid band against 4% for the other
+          eight, the widest gap any player has on any axis here. Nobody wrote
           this word down before the records were measured.
         caveat: >-
           measures the record rather than the player: a fretless singing near
