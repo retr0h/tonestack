@@ -74,10 +74,19 @@ def talkbass(url: str) -> list[str]:
         at = url if page == 1 else f"{url.rstrip('/')}/page-{page}"
         body = fetch(at)
 
-        # XenForo wraps each post's text in this class and nothing else uses
-        # it, which makes the posts separable from the chrome around them.
-        found = [strip(b) for b in re.findall(r'(?is)<div class="bbWrapper">(.*?)</div>', body)]
-        found = [p for p in found if p]
+        # XenForo wraps each post in an article carrying the author's name,
+        # and the text itself in a bbWrapper inside it. Both are needed: a
+        # post without its author cannot be weighed, and the whole rule here
+        # is to cite the person rather than the thread.
+        found = []
+        for article in re.findall(r'(?is)<article[^>]*data-author="([^"]*)"(.*?)</article>', body):
+            who, inner = article
+            body_match = re.search(r'(?is)<div class="bbWrapper">(.*?)</div>', inner)
+            if not body_match:
+                continue
+            said = strip(body_match.group(1))
+            if said:
+                found.append(f"{html.unescape(who)}: {said}")
 
         if not found:
             break
@@ -140,10 +149,16 @@ def main() -> None:
     elif "reddit.com" in url:
         posts = reddit(url)
     else:
-        sys.exit(
-            "read_forum: only talkbass.com and reddit.com are handled. "
-            "Other sites answer an ordinary fetch."
-        )
+        # Anything else is printed as its words. The handshake this uses gets
+        # into more than the two sites it was written for: guitarworld,
+        # bassmagazine and gearspace all refuse a plain fetch now and answer
+        # this one, so refusing them here would send somebody back to a curl
+        # that no longer works.
+        text = strip(fetch(url))
+        print(f"# {url}\n")
+        print(text)
+
+        return
 
     if not posts:
         sys.exit("read_forum: no posts found. The page shape may have changed.")

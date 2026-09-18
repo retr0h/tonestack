@@ -65,9 +65,10 @@ chain:
     confidence: medium
 
 character:
-  - term: percussive
-    evidence:
-      - kind: llm
+  # `percussive` was here on a model's say-so. Nothing found says it of him,
+  # and `technique.attack: slap` below is sourced and already carries what
+  # the word was reaching for: a character term is meant to describe the
+  # result, and this one only repeated the hand.
   - term: dark
     evidence:
       - kind: cited

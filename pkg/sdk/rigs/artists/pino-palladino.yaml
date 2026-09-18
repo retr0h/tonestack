@@ -26,6 +26,16 @@ chain:
         note: >-
           the Voodoo configuration, "recorded from the amp without using a
           DI"
+      - kind: cited
+        url: https://www.guitarworld.com/artists/bassists/pino-palladino-dangelo-voodoo
+        note: >-
+          Pino, asked what he used to record: "I plugged into a miked Ampeg
+          B-15, and I'm pretty sure that was the only signal we took."
+        caveat: >-
+          the one rig here whose records went through a microphone and a
+          cabinet rather than to the desk. Claypool, Dirnt, Geddy and
+          McCartney all went direct in whole or in part, so this chain
+          describes what was recorded more literally than any other.
     confidence: high
 
   - role: cab
@@ -66,14 +76,9 @@ character:
         caveat: >-
           measures the record rather than the player. Read the margin before
           believing this one.
-  - term: short-decay
-    evidence:
-      - kind: llm
-        note: inferred from the flatwounds, which the rundown does name
-        caveat: >-
-          not sourced. Flatwounds and a short decay go together and the
-          rundown does not say so, which makes this a reasonable guess and
-          not a citation.
+  # `short-decay` was here, inferred from the flatwounds and sourced to
+  # nobody. Pino says the reason for the heavy flats was the tuning rather
+  # than the decay, and nothing found describes note length on this record.
   - term: quiet-strings
     evidence:
       - kind: cited
@@ -90,13 +95,36 @@ played:
     - kind: cited
       url: https://mixdownmag.com.au/features/rig-rundown-pino-palladino/
       note: the 1963 Precision with flatwounds is what the rundown describes
-  # He is the darkest of the nine players at 96Hz against 176Hz, and
-  # flatwounds on a Precision are dark before any amplifier is involved.
+    - kind: cited
+      url: https://www.guitarworld.com/artists/bassists/pino-palladino-dangelo-voodoo
+      note: >-
+        Pino's own answer: "I played either my '63 P-Bass tuned down to D or
+        my Moon Larry Graham signature 4-string tuned down to C#. Both had
+        heavy-gauge La Bella flatwounds, which can be rough on necks; that's
+        originally why I tuned down the Precision."
+      caveat: >-
+        two instruments, and he does not say which track took which. The
+        tuning is the part this rig cannot carry: a whole tone down on heavy
+        flats is most of why he reads 96Hz, the darkest of the nine players,
+        and no field here holds a tuning.
 
 technique:
   attack: fingers
+  muting: palm
   evidence:
-    - kind: llm
-      note: fingerstyle, not sourced to a rundown
+    - kind: cited
+      url: https://web.archive.org/web/20110518211048/http://bassplayer.com/article/pino-palladino-steps/April-2011/130905
+      note: >-
+        Bass Player, April 2011, Chris Jisi, Pino describing the technique he
+        brought from this period: "the fingerstyle technique I developed
+        playing hip-hop on my P-Bass, where I pluck the E string with my
+        thumb, the A with my index finger, the D with my middle finger, and
+        the G with my ring finger, all while muting with my palm."
+      caveat: >-
+        `fingers` is his own word for it and the lowest string is not one:
+        the E is plucked with his thumb, and on this record that is the
+        string tuned down to D, so it is the one doing most of the work. The
+        interview is 2011 and describes carrying an existing technique
+        forward, so it is close to this era rather than inside it.
 
 confidence: medium
