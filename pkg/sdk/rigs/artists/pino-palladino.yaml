@@ -69,6 +69,16 @@ character:
           strings are not modelled by anything. This term is here for a
           reader, not for the compiler.
 
+played:
+  gear: Fender Precision Bass, 1963
+  strings: flat
+  evidence:
+    - kind: cited
+      url: https://mixdownmag.com.au/features/rig-rundown-pino-palladino/
+      note: the 1963 Precision with flatwounds is what the rundown describes
+  # He is the darkest of the nine players at 96Hz against 176Hz, and
+  # flatwounds on a Precision are dark before any amplifier is involved.
+
 technique:
   attack: fingers
   evidence:

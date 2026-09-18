@@ -138,6 +138,32 @@ Leaving `settings` out is fine, and often better. What happens then:
 spread. The spread is the useful column: it says how much of an opinion is worth
 having.
 
+## Say what it is played on
+
+```yaml
+played:
+  gear: Fender Jazz Bass, fretless
+  strings: round
+  evidence:
+    - kind: cited
+      url: ...
+```
+
+No device models an instrument, and every measured figure carries one. Jaco
+Pastorius earns `bright` at a 259Hz centroid against 170Hz for the other
+players, and a fretless played near the bridge is bright before an amplifier is
+involved. Pino Palladino is the darkest of the nine on flatwounds. Without this
+field those figures read as the amplifier's doing, and a word derived from them
+moves an amplifier control that was never responsible.
+
+It resolves to no block and changes no preset. It is here so that two rigs on
+the same amplifier are legible as different sounds, and so that a reader knows
+how much of a figure left the instrument that way.
+
+`strings` takes `round`, `flat`, `tape` or `unknown`. Flatwounds against
+roundwounds is a larger difference than most pedals, and `unknown` is worth
+saying out loud rather than omitting.
+
 ## Character describes the result, not the control
 
 Each term is one thing, from a list that ships beside the catalog. A term is one

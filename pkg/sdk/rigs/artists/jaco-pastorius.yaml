@@ -87,6 +87,20 @@ character:
     evidence:
       - kind: llm
 
+played:
+  gear: Fender Jazz Bass, fretless
+  strings: round
+  evidence:
+    - kind: llm
+      caveat: >-
+        the fretless Jazz Bass is the best known instrument in the
+        instrument's history and this still cites nobody. Somebody should put
+        a rundown behind it.
+  # The word this rig earns from its records is `bright`, at 259Hz against
+  # 170Hz for the other eight players, and a fretless played near the bridge
+  # is bright before an amplifier is involved. Without this field that figure
+  # reads as the Acoustic 360's doing.
+
 technique:
   attack: fingers
   position: bridge

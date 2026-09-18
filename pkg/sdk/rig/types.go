@@ -80,6 +80,8 @@ type (
 	Footswitch = gen.Footswitch
 	// Section is one part of a song, as the roles that play in it.
 	Section = gen.Section
+	// Played is the instrument a rig is played on, which no device models.
+	Played = gen.Played
 	// Snapshot is one set of values a preset can recall.
 	Snapshot = gen.Snapshot
 	// DeviceState is everything a preset carries that this format does not

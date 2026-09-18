@@ -72,6 +72,16 @@ character:
           opinion rather than measurement, and the thread blocks automated
           readers so it was not read
 
+played:
+  gear: Rickenbacker 4001
+  strings: round
+  evidence:
+    - kind: llm
+      caveat: not sourced. The Rickenbacker years and the Ampeg years overlap
+  # He earns `mid-forward` at 14% against 4%, on the same amplifier Tim
+  # Commerford reads 2% on. A Rickenbacker through an SVT and a Fender
+  # through an SVT are not the same instrument into the same amp.
+
 technique:
   attack: fingers
   evidence:
