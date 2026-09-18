@@ -94,10 +94,10 @@ character:
           suggests a darker top, which one unread post is too thin to claim.
       - kind: audio
         note: >-
-          the three records measured for him — Rain, Come Together and Silly
-          Love Songs — hold 0% of their energy in the mid band, the lowest of
-          the five players in the music corpus. Reproduce with `tonestack
-          measure --corpus resources/music`.
+          the three records measured for him, Rain, Come Together and Silly
+          Love Songs, hold 0% of their energy in the mid band against 5% for
+          the other seven players in the music corpus. The lowest of the
+          eight. Reproduce with `tonestack measure --corpus resources/music`.
         caveat: >-
           not the record the citations describe. Both are about Wings Over
           America, a 1976 live album played on a Rickenbacker, and none of the
@@ -115,6 +115,26 @@ character:
           measures the record rather than the player, and two of the three are
           Beatles records cut on a Hofner rather than the Rickenbacker rig
           this describes.
+  - term: dark
+    evidence:
+      - kind: audio
+        measured: { centroid: 138 }
+        against: { centroid: 177 }
+        note: >-
+          his centroid sits at 138Hz against 177Hz for the other seven
+          players, the second darkest of the eight behind Pino Palladino.
+          Earned outright, and nobody had written the word down.
+        caveat: >-
+          two of the three records are Beatles takes cut on a Hofner rather
+          than the Rickenbacker rig this describes, and a Hofner is darker
+          before any amplifier is involved.
+      - kind: cited
+        url: https://www.talkbass.com/threads/paul-mccartney-wings-over-america-rickenbacker-4003s-4001s-tone.1408772/
+        note: >-
+          the same thread behind `mid-forward` also says he "rolls off the
+          treble a little", which is the half of it the records agree with
+        caveat: >-
+          found by search and not read, like the other citation from it
   - term: neck-forward
     evidence:
       - kind: llm

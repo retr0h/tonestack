@@ -76,10 +76,10 @@ character:
           about where the record lands.
       - kind: audio
         note: >-
-          his three records measure a centroid of 163 Hz, which is the middle
-          of the five players in the music corpus: Pino Palladino reads 96 Hz
-          and Paul McCartney 138 Hz. Reproduce with `tonestack measure
-          --corpus resources/music`.
+          his three records measure a centroid of 163Hz, third darkest of the
+          eight players in the music corpus: Pino Palladino reads 96Hz and
+          Paul McCartney 138Hz, and both earn `dark` where he does not.
+          Reproduce with `tonestack measure --corpus resources/music`.
         caveat: >-
           the word is kept because a citation outranks a measurement here, and
           because three records of one player are not his whole catalogue.

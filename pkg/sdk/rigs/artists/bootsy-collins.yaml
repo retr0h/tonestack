@@ -60,9 +60,21 @@ character:
       - kind: cited
         url: https://mixdownmag.com.au/features/gear-rundown-bootsy-collins/
         note: '"a squelchy, synth-like tone when playing leads or slap"' 
-  - term: clean
+  # `clean` was here on a model's say-so. His records measure 22% of their
+  # energy above the fundamental against a middle of 24%, which is the middle
+  # of the corpus rather than the clean end of it, so the word is gone.
+  - term: mid-forward
     evidence:
-      - kind: llm
+      - kind: audio
+        measured: { mid: 0.23 }
+        against: { mid: 0.05 }
+        note: >-
+          23% of his energy sits in the mid band across the four records,
+          against 5% for the other seven players. Earned outright.
+        caveat: >-
+          measures the record rather than the player, and the envelope filter
+          this rig is mostly about is a mid-band effect: the figure describes
+          the Mu-Tron as much as the bass.
 
 technique:
   attack: slap

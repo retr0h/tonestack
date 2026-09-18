@@ -147,10 +147,11 @@ The other two do not, and no threshold is invented for them. `low-end` is Sag,
 which is touch response and sustain, and `space` is how much room is on the
 part. Nothing measured describes either, so both stay words somebody chose.
 
-What is still missing is a population. A figure names nothing on its own: 91% of
-the energy below 250Hz is not "scooped", because every isolated bass stem is
-mostly low. A measurement becomes a word by sitting somewhere among other
-artists measured the same way, and one artist has been measured so far.
+A figure names nothing on its own: 91% of the energy below 250Hz is not
+"scooped", because every isolated bass stem is mostly low. A measurement becomes
+a word by sitting somewhere among other artists measured the same way, and eight
+have been measured. Adding three of them took two words away from players who
+had earned them against four, which is the population doing its job.
 [The measured sound profile](superpowers/specs/2026-09-16-the-measured-sound-profile-design.md)
 carries the whole argument.
 
@@ -252,7 +253,7 @@ The step from figures to words exists too, for three axes. `tonestack measure`
 compares an artist against the others measured the same way, and earns them a
 term only where their whole spread sits clear of the rest: mid-forward or
 scooped from the mid band, bright or dark from the centroid, saturated or clean
-from the harmonics. The music corpus names 5 players, which is what makes the
+from the harmonics. The music corpus names 8 players, which is what makes the
 comparison possible at all: one artist has nothing to be clear of.
 
 Three axes rather than the six a rig can say. `attack` is not among them,

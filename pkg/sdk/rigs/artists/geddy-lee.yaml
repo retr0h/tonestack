@@ -41,9 +41,13 @@ chain:
     confidence: medium
 
 character:
-  - term: bright
-    evidence:
-      - kind: llm
+  # `bright` was here on a model's say-so until his records were measured. His
+  # centroid sits at 177Hz, the middle of the eight players in the music
+  # corpus, with Claypool at 264Hz, Jaco at 259Hz and Bootsy at 214Hz above
+  # him. Audio outranks a model here, so the word is gone rather than argued
+  # with. What his records do say is that he is the most saturated of the
+  # eight, at 29% against a middle of 24%, which is not clear enough of the
+  # rest to earn `saturated` either.
   - term: percussive
     evidence:
       - kind: user

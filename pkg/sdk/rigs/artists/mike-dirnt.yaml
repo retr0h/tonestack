@@ -58,14 +58,19 @@ character:
       - { kind: llm }
       - kind: audio
         measured: { mid: 0.08 }
-        against: { mid: 0.02 }
+        against: { mid: 0.05 }
         note: >-
           8% of his energy sits in the mid band across Longview, Welcome to
-          Paradise and Stuart and the Ave, against 2% for the other four
-          players in the music corpus. The only player who earns this word.
+          Paradise and Stuart and the Ave, against 5% for the other seven
+          players in the music corpus. Above the middle, and no longer clear
+          of it: he earned this word against four players and earns nothing
+          against seven, because Bootsy Collins at 23% and Jaco Pastorius at
+          39% moved the population he is measured against.
         caveat: >-
           measures the record rather than the player: the amp, the mic, the
-          desk and the master are all in these numbers.
+          desk and the master are all in these numbers. The word is kept
+          because the gap is real and still points the same way; it is worth
+          less of a move than it was, which is what the figures now say.
   - term: grit-on-attack
     evidence:
       - { kind: llm }
