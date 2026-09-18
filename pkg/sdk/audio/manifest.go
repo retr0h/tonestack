@@ -23,7 +23,9 @@ package audio
 import (
 	"fmt"
 	"io"
+	"net/url"
 	"regexp"
+	"slices"
 	"strings"
 
 	"go.yaml.in/yaml/v3"
@@ -86,7 +88,39 @@ type Manifest struct {
 var (
 	atPattern  = regexp.MustCompile(`^\d{1,2}:\d{2}(:\d{2})?(-\d{1,2}:\d{2}(:\d{2})?)?$`)
 	urlPattern = regexp.MustCompile(`^https?://\S+$`)
+
+	// Where a record is allowed to come from.
+	//
+	// `url` is the evidence a rig quotes, and it names the recording rather
+	// than a copy of it: a Spotify track link identifies one master, which is
+	// what tells the album take apart from the live one and the remaster. A
+	// link to anywhere else names a file, and a file is not a record.
+	//
+	// `source` is only the downloader's way back to the same audio when the
+	// url alone failed, so YouTube belongs there and nowhere else. `just
+	// record` runs spotdl, which reads the song from Spotify and fetches
+	// audio from YouTube, so these two are also the only hosts it can use.
+	//
+	// The corpus was already all Spotify and YouTube when this was added.
+	// The check is here to keep it that way, because the thing it prevents,
+	// a plausible link off a search page standing in for the record, is
+	// invisible once the audio is on disk and measuring fine.
+	urlHosts    = []string{"open.spotify.com"}
+	sourceHosts = []string{"open.spotify.com", "www.youtube.com", "youtu.be", "music.youtube.com"}
 )
+
+// hosted reports whether a link points at one of the hosts given.
+func hosted(
+	link string,
+	hosts []string,
+) bool {
+	u, err := url.Parse(link)
+	if err != nil {
+		return false
+	}
+
+	return slices.Contains(hosts, u.Host)
+}
 
 // ReadManifest reads a corpus manifest.
 //
@@ -140,9 +174,21 @@ func (r Record) check() error {
 			"reading manifest: %s has a url that is not a link: %q", r.Track, r.URL)
 	}
 
+	if !hosted(r.URL, urlHosts) {
+		return fmt.Errorf("reading manifest: %s has a url that is not a Spotify "+
+			"track: %q. The url names which recording was measured, and only a "+
+			"track link does that", r.Track, r.URL)
+	}
+
 	if r.Source != "" && !urlPattern.MatchString(r.Source) {
 		return fmt.Errorf(
 			"reading manifest: %s has a source that is not a link: %q", r.Track, r.Source)
+	}
+
+	if r.Source != "" && !hosted(r.Source, sourceHosts) {
+		return fmt.Errorf("reading manifest: %s has a source that is not Spotify "+
+			"or YouTube: %q. A source is what spotdl fetches the audio from, and "+
+			"it reads those two", r.Track, r.Source)
 	}
 
 	if r.At != "" && !atPattern.MatchString(r.At) {

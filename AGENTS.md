@@ -43,9 +43,12 @@ otherwise.
 conventions, testing and the licence header every file carries. It applies to
 agents exactly as it applies to people, and none of it is repeated here.
 
-Two of its rules are easy to skip and worth naming: run `just ready` before
-committing, and put every markdown change through the unslop skill first. See
-[Prose](CONTRIBUTING.md#prose).
+Three of its rules are easy to skip and worth naming. Run `just ready` before
+committing. Put every markdown change through the unslop skill first, see
+[Prose](CONTRIBUTING.md#prose). And when the change touches a rig, read
+[Sourcing a rig](CONTRIBUTING.md#sourcing-a-rig) before starting: it is the
+difference between research and typing, and it says what a pull request has to
+have finished before it is opened.
 
 ## Finding your way around the domain
 

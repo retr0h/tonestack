@@ -53,14 +53,6 @@ character:
 
 played:
   gear: Ernie Ball Music Man StingRay
-  # `unknown` because somebody looked, not because nobody filled it in. What
-  # exists brackets 1992 and never lands on it: Ernie Ball's own blog has him
-  # on Regular Slinky roundwounds in 2016, and a 2017 Bass Player equipment
-  # box has him running Rotosound Tru Bass 88 nylon tapewounds *and* Slinky
-  # roundwounds at once. Two types in one rig twenty-five years later says
-  # nothing about the first Rage record. He also declines to say: "I spent 10
-  # years getting it to be the way it is, and for me to just break it down
-  # and tell everyone exactly what I've done, is just blowing it."
   strings: unknown
   evidence:
     - kind: cited

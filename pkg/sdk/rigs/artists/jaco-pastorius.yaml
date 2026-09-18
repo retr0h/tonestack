@@ -93,11 +93,22 @@ played:
   gear: Fender Jazz Bass, fretless
   strings: round
   evidence:
-    - kind: llm
+    - kind: cited
+      url: https://jacopastorius.com/features-2/interviews/portrait-of-jaco/
+      note: >-
+        "Portrait of Jaco", Steve Rosen, 1978, on his estate's own site, in
+        the middle of this rig's years. Asked what strings he uses:
+        "Rotosounds." And why: "To me Rotosound has what no other string has
+        and that's pure harmonics and the closest to playing harmonics in
+        tune."
       caveat: >-
-        the fretless Jazz Bass is the best known instrument in the
-        instrument's history and this still cites nobody. Somebody should put
-        a rundown behind it.
+        he names the brand and not the type, and in 1978 Rotosound also sold
+        the Jazz Bass 77 flatwound and the Tru Bass 88 nylon tapewound, which
+        their own history confirms. `round` is therefore inferred twice over:
+        the argument he makes is about brightness and harmonic content, which
+        is a roundwound argument, and the fingerboard is epoxied, which is
+        what roundwounds on a bare fretless board make necessary. No gauge:
+        the set everybody names comes from present-day aggregators.
   # The word this rig earns from its records is `bright`, at 259Hz against
   # 170Hz for the other eight players, and a fretless played near the bridge
   # is bright before an amplifier is involved. Without this field that figure

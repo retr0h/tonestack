@@ -133,6 +133,14 @@ record DIR TRACK URL:
     uvx spotdl download "{{ URL }}" --output "{{ DIR }}/{{ TRACK }}.{output-ext}"
     @test -f "{{ DIR }}/{{ TRACK }}.mp3" || { echo "no {{ DIR }}/{{ TRACK }}.mp3: see docs/workflows/add-records-to-a-corpus.md" >&2; exit 1; }
 
+# Read a TalkBass or Reddit thread as plain text
+#
+# Both refuse an ordinary fetch: TalkBass answers a Cloudflare challenge and
+# Reddit answers 403, whatever user agent is sent, because what they check is
+# the TLS handshake. This reproduces a browser's. See resources/read_forum.py.
+forum URL:
+    uvx --with curl_cffi python3 resources/read_forum.py "{{ URL }}"
+
 # Generate code
 generate:
     just go-generate

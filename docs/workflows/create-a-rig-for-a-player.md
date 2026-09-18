@@ -2,6 +2,97 @@
 
 The whole path, from a name to a file that loads.
 
+## Where to look, and what not to accept
+
+Search a list, not the open web. A rig is only as good as where its claims came
+from, and the failure this list exists to prevent is a plausible URL off a
+search page being pasted in as though somebody had read it.
+
+The standard a source has to meet before it goes into a rig is
+[Sourcing a rig](../../CONTRIBUTING.md#sourcing-a-rig). This page is the other
+half of it: which places are worth searching, and what each one is good for.
+
+Where the answers have actually come from, roughly in order of how often they
+settle something:
+
+| Source                                                                 | Good for                                                                                                                                     |
+| ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| **web.archive.org**                                                    | dead magazines. `bassplayer.com` no longer exists and its interviews are the single richest seam here                                        |
+| **Forums, searched first**: talkbass.com, reddit, rickresource.com     | people who were there. A Rickenbacker tech who had McCartney's bass on his bench answered a question no magazine had. Read with `just forum` |
+| **Fan transcript archives**: `2112.net` for Rush, `ram.org` for Primus | full bodies of print articles that exist nowhere else online                                                                                 |
+| **Estate and luthier sites**: `jacopastorius.com`, `ctbasses.com`      | first-party, and often carry build dates that settle which instrument was on which record                                                    |
+| **Discogs and Reverb JSON APIs**                                       | sleeve credits, which are the label's own statement of who played what                                                                       |
+| **premierguitar.com, guitarworld.com, mixonline.com**                  | rundowns and session pieces, and reprints of dead magazines                                                                                  |
+| **Maker artist pages**, archived                                       | endorsements, where the capture date brackets the era                                                                                        |
+| **Wikipedia**                                                          | never as a source, only to find the print reference underneath a claim                                                                       |
+
+Two that are not on it. **equipboard.com** looks like a source and is not: it
+scrapes Wikipedia, says so in its own text, and tags its own entries
+"Unverified". **A search engine** is how you find a page on this list, not a
+source in itself.
+
+### Search the forums first, then read them
+
+TalkBass and Reddit come before a search engine, not after it. They are where
+people who were there turn up, and a search engine's job is to find a page on
+this list rather than to rank the web.
+
+```bash
+just forum https://www.talkbass.com/threads/geddy-lee-amps.847050/
+just forum https://www.reddit.com/r/Bass/comments/…/…/
+```
+
+`just forum` prints a thread as numbered posts. Both sites refuse an ordinary
+fetch, TalkBass with a Cloudflare challenge and Reddit with a 403, and no user
+agent helps because what they check is the TLS handshake.
+[resources/read_forum.py](../../resources/read_forum.py) reproduces a browser's,
+which is the whole trick.
+
+To search them, put the site in the query rather than trusting a general web
+search to surface it:
+
+```text
+site:talkbass.com geddy lee ampeg cabinets 1977
+site:reddit.com/r/Bass mccartney rickenbacker flatwounds wings
+```
+
+Then open every thread you intend to cite. This is not a formality. Every forum
+citation in this repository before `just forum` existed was entered from a
+search result and never opened, and reading them found:
+
+- a quote that **does not appear in the thread at all**. The McCartney tone
+  thread was cited for "sounds like he boosts low mids and rolls off the treble
+  a little". The word "boost" appears zero times across its 33 posts.
+- a claim **changed in the copying**. The Geddy thread says "a bunch of Ampeg
+  SVT amps" in the Fly by Night film. It was cited as an SVT-810 cabinet, which
+  is a different object, and five period sources say he used neither.
+- a thread about the **wrong era**. One McCartney citation came from a thread
+  whose first post asks about "the 1960's", cited in a rig covering 1975 to
+  1979\.
+
+### Cite the person, not the thread
+
+A thread holds the best and the worst evidence in this repository, often on the
+same page. One rickresource.com thread carries both the tech who restrung the
+instrument:
+
+> When I worked on his bass in the mid 1970's he did NOT have rotosound strings
+> of any kind on it. They were flats but not rickenbacker or roto's.
+
+and, in the post directly above it, somebody guessing:
+
+> Rotosound's are a possibility but I don't know.
+
+So cite the person, not the thread. A post counts when a named person with
+first-hand access is talking about something they did or saw, and it does not
+count when it is opinion, however confident. Say which one you have.
+
+Quote the post you are relying on into `note`, and name what makes the person
+worth believing: the tech above is evidence because he had the instrument on his
+bench, not because he posted confidently. A thread that turns out to be somebody
+guessing is a thread with nothing in it, and the honest thing is to leave the
+claim unsourced rather than dress the guess up in a url.
+
 ### 1. Find out whether the gear exists
 
 Before writing anything. A rig naming an amplifier no device models is only
@@ -74,6 +165,32 @@ is a claim this project will repeat back as fact.
 means a model asserted it and nobody checked. That is reliable for well-known
 players, unreliable for obscure ones, and the model cannot tell which it is
 doing, which makes it the largest correctness risk here.
+
+**When the page is dead, cite the archived copy and pin it.** Most of the
+interviews worth citing here are twenty years old and half the magazines that
+ran them are gone. `bassplayer.com` no longer resolves and its article bodies
+are only in the Internet Archive. Write the capture, not the dead original:
+
+```text
+https://web.archive.org/web/20040908171044/http://www.bassplayer.com/archive/0904/0904_Features1.htm
+└─ the archive ─┘└── capture ──┘└────────── the page as it was ──────────┘
+```
+
+The fourteen digits are the capture's timestamp, `YYYYMMDDhhmmss`, so that one
+is 8 September 2004. Use that form rather than the shorthand
+`web.archive.org/web/2020/<url>`, which redirects to whatever capture happens to
+be nearest and can therefore point somewhere else later. Resolve the shorthand
+once and write down what it gave you:
+
+```bash
+curl -sI "https://web.archive.org/web/2020/<url>" | grep -i location
+```
+
+Two habits that go with this. Say in the `note` or `caveat` that the original is
+gone, so a reader knows the ugly URL is the only one there is. And prefer
+`https`, which the archive serves, even when the captured page inside the URL is
+`http`: that inner address is a label for what was fetched, not something
+anybody re-fetches.
 
 **If this player will ever be measured**, the records go in
 `resources/music/<instrument>/<id>/`, and `<id>` is this rig's identifier. That
