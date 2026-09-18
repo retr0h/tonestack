@@ -16,6 +16,34 @@ resources/music/flea/
   stems/htdemucs/...          ignored
 ```
 
+## Keeping it
+
+Git will not bring this back. The audio and the stems are ignored, so nothing
+here is in a commit, and the only copy is the one on your disk.
+
+Two things delete it, and neither announces itself:
+
+- `git clean -fdx`, which removes ignored files. That is the whole corpus.
+- Removing a git worktree you filled. A worktree has its own `resources/music/`,
+  and audio written there is inside that temporary directory rather than beside
+  the manifests. It goes when the worktree does.
+
+So fetch, separate and measure from the main checkout. Nine records were lost
+this way once, and refetching them took longer than the separation had.
+
+Keep the `.mp3` beside the stems rather than deleting it once the stems exist.
+`measure` reads the stems, so a missing source file is silent until somebody
+wants to separate it again with different settings, and then it is gone.
+
+To see what the manifest names but the disk does not hold:
+
+```bash
+tonestack measure --dir resources/music/flea/stems/htdemucs \
+  --manifest resources/music/flea/corpus.yaml
+```
+
+It reports `named in the manifest but not measured` for each one.
+
 ## Measuring one
 
 ```bash
