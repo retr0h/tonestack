@@ -152,6 +152,34 @@ func (s *CorpusPublicTestSuite) TestAPlayerIsComparedAgainstEverybodyElse() {
 	}
 }
 
+// TestAWordSaysHowFarPastTheLineItSits covers the margin, which is what
+// tells a word that will never flip from one that flips on the next player.
+func (s *CorpusPublicTestSuite) TestAWordSaysHowFarPastTheLineItSits() {
+	for _, player := range []string{"low-one", "low-two", "low-three"} {
+		for _, track := range []string{"one", "two", "three"} {
+			s.record(player, track, audio.Sine(80, 1, rate, 0.8))
+		}
+	}
+
+	for _, track := range []string{"one", "two", "three"} {
+		s.record("bright-one", track, audio.Sine(2000, 1, rate, 0.8))
+	}
+
+	for _, p := range s.corpus() {
+		for _, t := range p.Terms {
+			if t.Term == "bright" {
+				s.Require().Positive(t.Margin,
+					"a word is earned by clearing a line, so it clears it by something")
+				s.Require().Greater(t.Mine, t.Others)
+
+				return
+			}
+		}
+	}
+
+	s.Require().Fail("nobody earned bright")
+}
+
 // TestADirectoryWithNoRecordingsIsNotAPlayer covers a manifest waiting for
 // audio somebody has not separated yet.
 func (s *CorpusPublicTestSuite) TestADirectoryWithNoRecordingsIsNotAPlayer() {

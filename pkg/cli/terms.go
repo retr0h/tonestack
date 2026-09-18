@@ -127,6 +127,7 @@ func noteForTerm(
 	p audio.Player,
 	t audio.Derived,
 ) string {
-	return fmt.Sprintf("%s across %s, against %d other players measured the same way",
-		t.Why, recordsRead(p.Records), t.Of-1)
+	return fmt.Sprintf(
+		"%s across %s, against %d other players measured the same way, clear of them by %s",
+		t.Why, recordsRead(p.Records), t.Of-1, figure(t.Key, t.Margin))
 }

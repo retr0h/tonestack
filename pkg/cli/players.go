@@ -46,6 +46,7 @@ func Players(
 			paint.Accent(w, p.ID),
 			fmt.Sprintf("%d", p.Records),
 			termsOf(w, p),
+			holdsOf(p),
 			paint.Mute(w, againstOf(p)),
 		})
 	}
@@ -53,14 +54,14 @@ func Players(
 	return paint.Section{
 		Title:   "What the records say",
 		Detail:  playersRead(len(of)),
-		Headers: []string{"player", "records", "earns", "against the others"},
+		Headers: []string{"player", "records", "earns", "holds", "against the others"},
 		Rows:    rows,
 		Align: []lipgloss.Position{
-			lipgloss.Left, lipgloss.Right, lipgloss.Left, lipgloss.Left,
+			lipgloss.Left, lipgloss.Right, lipgloss.Left, lipgloss.Left, lipgloss.Left,
 		},
 		Empty: "no players to compare: one directory of recordings each",
 		Summary: "a word is earned by sitting clear of the other players, " +
-			"so nothing earned means the evidence is mixed",
+			"and the margin is how far the rest of them would have to move to take it",
 	}.Render(w)
 }
 
@@ -80,6 +81,29 @@ func termsOf(
 	}
 
 	return strings.Join(words, ", ")
+}
+
+// holdsOf says how well each word stands up, as the margin past the line it
+// had to clear.
+//
+// A word that flips when the population changes and one that never will read
+// the same until this is beside them: 39% of the energy in the mid band
+// against 4% is not the same claim as 8% against 4%, and both print as
+// `mid-forward`.
+func holdsOf(
+	p audio.Player,
+) string {
+	if len(p.Terms) == 0 {
+		return ""
+	}
+
+	out := make([]string, 0, len(p.Terms))
+
+	for _, t := range p.Terms {
+		out = append(out, fmt.Sprintf("%s: clear by %s", t.Term, figure(t.Key, t.Margin)))
+	}
+
+	return strings.Join(out, "; ")
 }
 
 // againstOf is the figures behind each word: this player, then the middle of
@@ -104,12 +128,21 @@ func againstOf(
 //
 // A centroid is hertz and the rest are shares of the whole, and printing a
 // share as 264 or a frequency as 26400% is how a table stops being read.
+//
+// A share under one percent keeps a decimal. Whole percents are enough for
+// where a player sits and not for how far past the line they sit: Geddy Lee
+// clears `mid-forward` by four tenths of a percent, and rounding that to "0%"
+// hides the one thing the column is for.
 func figure(
 	key string,
 	v float64,
 ) string {
 	if key == audio.KeyCentroid {
 		return fmt.Sprintf("%.0f Hz", v)
+	}
+
+	if share := v * 100; share < 1 {
+		return fmt.Sprintf("%.1f%%", share)
 	}
 
 	return fmt.Sprintf("%.0f%%", v*100)

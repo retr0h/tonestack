@@ -195,15 +195,15 @@ tonestack measure --corpus resources/music/bass
 ```
   What the records say  9 players
 
-  PLAYER          RECORDS  EARNS                AGAINST THE OTHERS
-  bootsy-collins        4  mid-forward          mid 23% against 4%
-  flea                  3  clean                harmonics 12% against 24%
-  geddy-lee             4  mid-forward          mid 14% against 4%
-  jaco-pastorius        4  mid-forward, bright  mid 39% against 4%; centroid 259 Hz against 170 Hz
+  PLAYER          RECORDS  EARNS                HOLDS                       AGAINST THE OTHERS
+  bootsy-collins        4  mid-forward          mid-forward: clear by 9%    mid 23% against 4%
+  flea                  3  clean                clean: clear by 3%          harmonics 12% against 24%
+  geddy-lee             4  mid-forward          mid-forward: clear by 0.1%  mid 14% against 4%
+  jaco-pastorius        4  mid-forward, bright  mid-forward: clear by 8%    mid 39% against 4%
   les-claypool          4  nothing
   mike-dirnt            3  nothing
-  paul-mccartney        3  clean                harmonics 10% against 24%
-  pino-palladino        3  dark                 centroid 96 Hz against 176 Hz
+  paul-mccartney        3  clean                clean: clear by 5%          harmonics 10% against 24%
+  pino-palladino        3  dark                 dark: clear by 28 Hz        centroid 96 Hz against 176 Hz
   tim-commerford        3  nothing
 ```
 
@@ -221,6 +221,19 @@ eight. Nothing about his records changed. Bootsy Collins and Jaco Pastorius sit
 further into the mids than he does, so the middle of the population moved and
 what used to be clear of it no longer is. A word lost this way was never
 evidence; it was a small population.
+
+`holds` is what tells one of those words from another. It is the margin past the
+line the word had to clear, in the measure's own unit, so Jaco Pastorius
+clearing the mids by 8% and Geddy Lee clearing them by 0.1% stop reading as the
+same claim. A word with a wide margin survives the next player being measured;
+one at a tenth of a percent is the next thing to move.
+
+The margin is about the other players rather than this one. Dropping one of a
+player's own records and deriving again cannot take a word away, because the
+test reads their range as a tenth and a ninetieth percentile and removing a
+record can only raise the first or lower the second. That check was built, run
+against all nine players, and reported nothing for every word, which is what the
+arithmetic says it must do.
 
 It moves both ways. Geddy Lee earned nothing against seven players and earns
 `mid-forward` against eight, because Tim Commerford arrived at 2% and pulled the

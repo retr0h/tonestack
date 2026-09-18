@@ -111,6 +111,24 @@ type Derived struct {
 	Mine, Others float64
 	// Of is how many artists the comparison was against, this one included.
 	Of int
+	// Margin is how far past the line this player sits, in the measure's own
+	// units: how much the other players' quartile would have to move to take
+	// the word away.
+	//
+	// Two words that read alike are not alike. 39% of the energy in the mid
+	// band against 4% is a word nothing will overturn; 8% against 4% flipped
+	// the first time somebody else was measured, and nothing in the word
+	// said which kind it was.
+	//
+	// This is the only stability figure there is, and it is about the other
+	// players rather than this one. Dropping one of a player's own records
+	// and deriving again cannot take a word away: the test is their whole
+	// range against a quartile, the range is read as a tenth and a ninetieth
+	// percentile, and removing a record can only raise the tenth or lower
+	// the ninetieth. It was built, run against the nine players here, and
+	// reported nothing for every word, which is what the arithmetic says it
+	// must do.
+	Margin float64
 }
 
 // Derive is what an artist's measurements say about them, against others
@@ -160,9 +178,13 @@ func Derive(
 
 		switch {
 		case span.Low > between(rest, 0.75):
-			out = append(out, made(ax, ax.More, mine, rest, len(others)+1))
+			out = append(out, made(
+				ax, ax.More, mine, rest, len(others)+1,
+				span.Low-between(rest, 0.75)))
 		case span.High < between(rest, 0.25):
-			out = append(out, made(ax, ax.Less, mine, rest, len(others)+1))
+			out = append(out, made(
+				ax, ax.Less, mine, rest, len(others)+1,
+				between(rest, 0.25)-span.High))
 		}
 	}
 
@@ -178,6 +200,7 @@ func made(
 	mine Across,
 	rest []float64,
 	of int,
+	margin float64,
 ) Derived {
 	return Derived{
 		Term: term,
@@ -188,6 +211,7 @@ func made(
 		// clear of rather than only that it was.
 		Others: between(rest, 0.5),
 		Of:     of,
+		Margin: margin,
 	}
 }
 
