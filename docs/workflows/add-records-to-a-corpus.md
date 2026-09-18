@@ -51,7 +51,34 @@ another rig, and the figures come out looking like the one in the file.
 already disagree with their records, and adding to those without reading it
 makes the disagreement bigger.
 
-### 3. Name it in the manifest first
+### 3. Replacing a record that is from the wrong era
+
+Four of the nine rigs here were found deriving words from records made on other
+gear, so this is the ordinary case rather than an exception.
+
+Decide which half is wrong, and only somebody who knows the player can:
+
+- **The records are wrong** where the rig's gear evidence is specific about a
+  period. Mike Dirnt's rig cites the Ampeg SVT as his American Idiot rig and
+  names the Mesa and Yamaha amplifiers he used in other years, so his Dookie
+  records are the half to replace.
+- **The rig is wrong** where its evidence sits inside a wider period than the
+  years say. Flea's gear comes from a 2012 rundown and his records run 2011 to
+  2016, so widening `years` to that window is the honest fix and costs nothing.
+
+Then:
+
+1. Fetch the replacements the way this page describes, into the same directory.
+2. Take the out-of-era entries out of the manifest. **Leave their audio and
+   stems on disk.** Nothing here deletes a record, and the file costs nothing;
+   somebody re-scoping the rig later may want it back, and refetching it took an
+   afternoon the last time.
+3. Re-separate and re-measure. Records changing means figures changing, and
+   figures changing means the words every player earns can change: the corpus is
+   a comparison, so nine new records move the middle everybody is measured
+   against.
+
+### 4. Name it in the manifest first
 
 Add the entry to `resources/music/<artist>/corpus.yaml` before downloading, with
 the Spotify track link as its `url`:
@@ -92,7 +119,7 @@ from the record you wanted. Searching for "Suck My Kiss" returned two links that
 were both the song "Blood Sugar Sex Magik", and one "Welcome to Paradise" was a
 1994 Chicago live broadcast.
 
-### 4. Download it under the manifest's name
+### 5. Download it under the manifest's name
 
 ```bash
 just record resources/music/bass/paul-mccartney silly-love-songs \
@@ -102,7 +129,7 @@ just record resources/music/bass/paul-mccartney silly-love-songs \
 The url is the one the manifest already holds. Copy it from there rather than
 finding it a second time, or the file on disk and the evidence beside it stop
 being the same recording. An entry that also carries a `source` is fetched from
-both, source first, which is what step 4 writes down. Reading every track and
+both, source first, which is what step 5 writes down. Reading every track and
 the string that fetches it:
 
 ```bash
@@ -124,7 +151,7 @@ nothing, and `measure` reports it as unnamed.
 
 The recipe fails if no file appears. Do not read success from spotdl's output.
 
-### 5. When spotdl cannot find the audio
+### 6. When spotdl cannot find the audio
 
 spotdl reads the song from Spotify and fetches audio from YouTube. Two failures
 are routine and neither is fatal.
@@ -163,7 +190,7 @@ Write the link that worked into the entry's `source`:
 
 `url` stays the evidence, and is what a rig quotes. `source` is only the
 downloader's way back to the same audio, so the next person to want this record
-runs step 3 and gets it rather than repeating the search. Both Flea records need
+runs step 5 and gets it rather than repeating the search. Both Flea records need
 one: every Spotify link tried for them failed here, four apiece, while the other
 seven in the corpus came down from their url alone.
 
@@ -172,7 +199,7 @@ did not help for those two, but the link a search returns is often a live take
 or a compilation edit, and a different one for the same recording downloads
 fine.
 
-### 6. Check it is the recording
+### 7. Check it is the recording
 
 A wrong file measures without complaint, so compare lengths. Spotify's is in
 what spotdl saves:
@@ -195,13 +222,23 @@ Subtract trailing silence from the file's length and it should land within a few
 seconds of Spotify's. Lyric videos pad the end: the "Silly Love Songs" file was
 6:05, with 12.7 seconds of silence, leaving 5:52 of music against the album's
 5:54. A difference the silence does not explain means a different recording.
-Delete it and go back to step 4.
+Delete it and go back to step 5.
 
 Compilations are fine when they reuse the recording. "Higher Ground" came back
 tagged *Greatest Hits*, 2003, which carries the *Mother's Milk* take.
 
-### 7. Separate and measure
+### 8. Separate and measure
 
 Carry on from step 2 of
 [Measure a player's sound](measure-a-players-sound.md#2-separate-the-bass-from-each).
 The audio stays git-ignored. Commit only the manifest change.
+
+### 9. Read the era check again
+
+```bash
+tonestack recipes records --corpus resources/music/bass
+```
+
+The rig you added to should now read `records match the era`. If it does not,
+the manifest and the rig still disagree and the figures measured from it
+describe gear the rig does not name.
