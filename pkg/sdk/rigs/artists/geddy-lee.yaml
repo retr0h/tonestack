@@ -70,7 +70,23 @@ chain:
           when Geddy says above he had it from about 1972 and ran both at
           once. It says SVT amps, heads, and this rig used to cite it for an
           SVT-810 cabinet, which is not what it says and not what he played.
-    confidence: high
+      - kind: cited
+        url: http://www.2112.net/powerwindows/transcripts/19790600canadianmusician.htm
+        note: >-
+          the same sentence the cabinet below is taken from, read whole:
+          "The bass part of his system is run stereo through two BGW 750-B
+          amplifiers via two Ashley Audio pre-amplifiers ... The low end is
+          run through two Ampeg V4-B cabinets with four JBL 140 speakers."
+        caveat: >-
+          which says this head is the front of the era and not all of it. The
+          SVT is dated by his own account to when he bought the Rickenbacker
+          around 1975, and by the Hemispheres tour in June 1979 the same
+          publication has power amplifiers and preamps driving the same
+          cabinets. The name here stays because a BGW and an Ashly are not
+          modelled by anything and an SVT is, and because two of the four
+          records measured sit in the earlier half. It is a stand-in for the
+          later ones rather than a claim about them.
+    confidence: medium
 
   - role: cab
     gear: Ampeg V-4B
