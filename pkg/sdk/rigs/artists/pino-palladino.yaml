@@ -36,6 +36,20 @@ chain:
           cabinet rather than to the desk. Claypool, Dirnt, Geddy and
           McCartney all went direct in whole or in part, so this chain
           describes what was recorded more literally than any other.
+      - kind: user
+        url: https://www.talkbass.com/threads/dangelo-voodoo.146620/
+        note: >-
+          Russell Elevado, who engineered the album, in a Q&A quoted by the
+          poster rochishin: "for amps we used an Ampeg B15, B18 and an old
+          solid state amp in a big cabinet that's at electric lady ... mics
+          were fet47 ... and usually a pre or focusrite isa115 ... everything
+          went to tape and no di's whatsoever on the album."
+        caveat: >-
+          first-hand from the engineer and second-hand to us: the gearslutz
+          link in the post is dead, so what was read is the transcription.
+          Three amplifiers were in use and this chain names one. "No di's
+          whatsoever" is the line that makes this the only rig here whose
+          cabinet is genuinely in the signal.
     confidence: high
 
   - role: cab
@@ -76,9 +90,18 @@ character:
         caveat: >-
           measures the record rather than the player. Read the margin before
           believing this one.
-  # `short-decay` was here, inferred from the flatwounds and sourced to
-  # nobody. Pino says the reason for the heavy flats was the tuning rather
-  # than the decay, and nothing found describes note length on this record.
+  - term: short-decay
+    evidence:
+      - kind: user
+        url: https://www.talkbass.com/threads/dangelo-voodoo.146620/
+        note: >-
+          Russell Elevado, the album's engineer, on how Pino played it: "He
+          has an amazing touch and he'll use his palm to get a 'deader' sound
+          or just barely pluck it."
+        caveat: >-
+          a description of the playing rather than a measurement, from the
+          person who put it on tape. It stood here as a guess off the
+          flatwounds until he was found saying it.
   - term: quiet-strings
     evidence:
       - kind: cited
@@ -104,9 +127,23 @@ played:
         originally why I tuned down the Precision."
       caveat: >-
         two instruments, and he does not say which track took which. The
-        tuning is the part this rig cannot carry: a whole tone down on heavy
-        flats is most of why he reads 96Hz, the darkest of the nine players,
-        and no field here holds a tuning.
+        tuning is the part this rig cannot carry: dropping the bottom on
+        heavy flats is most of why he reads 96Hz, the darkest of the nine
+        players, and no field here holds a tuning.
+    - kind: user
+      url: https://www.talkbass.com/threads/dangelo-voodoo.146620/
+      note: >-
+        Russell Elevado, who engineered the album: "Pino mostly used his
+        favourite bass, which is a 1961 Fender Precision ... He tunes his e
+        string down sometimes as well."
+      caveat: >-
+        two first-hand accounts that disagree, and both are kept because
+        neither is obviously wrong. Pino says a 1963 and Elevado a 1961; Pino
+        is the better witness to his own instrument and Elevado to what was
+        in the room. The tuning matters more than the year: Pino describes
+        the whole bass down a tone and the engineer describes the E string
+        down sometimes, which are different sounds, and the second is the
+        looser claim from the person watching.
 
 technique:
   attack: fingers

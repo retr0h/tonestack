@@ -31,12 +31,15 @@ chain:
           an SVT head. For my low end, I would run the bass pickup through
           the Ampegs, and the treble went to the Sunn."
         caveat: >-
-          a fan archive's transcription rather than a scan. Dated from inside
-          the interview rather than by its cover: the passage sits directly
-          after Neil Peart joining and the first American tour, and the
-          Rickenbacker was bought with that first advance, which puts this
-          setup at the front of this rig's years. Two amplifiers split by
-          frequency, and a rig is one path, so this is the low half.
+          checked against a scan of the issue itself, at
+          cygnus-x1.net/links/rush/images/scans/Guitar_Player_06.1980-Geddy_Lee.pdf,
+          so this is the magazine rather than somebody's retyping of it.
+          Dated from inside the interview rather than by its cover: the
+          passage sits directly after Neil Peart joining and the first
+          American tour, and the Rickenbacker was bought with that first
+          advance, which puts this setup at the front of this rig's years.
+          Two amplifiers split by frequency, and a rig is one path, so this
+          is the low half.
       - kind: cited
         url: http://www.2112.net/powerwindows/transcripts/19800600guitarplayer.htm
         note: >-
@@ -51,7 +54,9 @@ chain:
           which means the half this rig models went to the desk rather than
           through a microphone, on the records as well as live. The cabinet
           below was only ever in the treble path. Kept because a preset with
-          no cab into a PA is not the sound either.
+          no cab into a PA is not the sound either. Verified word for word
+          against the scan of the issue, since this one sentence is what puts
+          four of the nine rigs here on a direct signal.
       - kind: user
         url: https://www.talkbass.com/threads/geddy-lee-amps.847050/
         note: >-
@@ -147,7 +152,9 @@ played:
         Rickenbacker 400 I", the transcription's error for 4001, which its
         own writer spells correctly as "his black Rickenbacker 4001 bass".
         Asked what he used on Fly By Night: "I used the Rickenbacker on every
-        track."
+        track." The scan settles the model outright where the transcription
+        garbled it: the magazine's own intro reads "his black Rickenbacker
+        4001 bass".
     - kind: cited
       url: http://www.2112.net/powerwindows/transcripts/20110400bassguitaruk.htm
       note: >-

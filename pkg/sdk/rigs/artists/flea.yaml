@@ -94,7 +94,7 @@ character:
           three records of one player are not his whole catalogue.
 played:
   gear: Fender Jazz Bass, 1961
-  strings: round
+  strings: flat
   evidence:
     # Both ends of this rig's window, in his own words, on the same bass.
     - kind: cited
@@ -118,16 +118,43 @@ played:
         Fender names The Getaway, the far end of this rig's window, and
         describes only the Shell Pink bass. The 2011 interview above covers
         the near end and adds the second one Fender had no reason to mention.
-    # Strings, which are a tour source rather than a session one.
+    # Strings. `round` stood here off the tour rundown below until somebody
+    # read what is on the instrument this field actually names.
+    - kind: user
+      url: https://www.talkbass.com/threads/so-which-flats-is-flea-playing.269755/
+      note: >-
+        his bass tech, quoted from Bass Guitar Magazine by the poster Nigel:
+        "the strings on his Jazz are 'old GHS flatwounds'". The same
+        interview has him going back to the Modulus for live work because
+        "The Jazz sounded great on stage and in in-ear monitors but got a bit
+        lost in the FOH mix."
+      caveat: >-
+        first-hand from the tech and second-hand to us, and it is 2006 rather
+        than this rig's years. Nothing found says what was on the Jazz Basses
+        in 2011. It is kept because it is the only evidence about the
+        instrument this rig names, and because "old" flatwounds is not a set
+        somebody changes often.
+    - kind: user
+      url: https://www.talkbass.com/threads/what-songs-on-stadium-arcadium-does-flea-uses-flatwounds-on.457174/
+      note: >-
+        Bass Player's gear box for Stadium Arcadium, transcribed by the
+        poster GianGian: "Flea's Gear Basses '61 Fender Jazz and '62 Fender
+        Jazz, both with old flatwounds".
+      caveat: >-
+        a transcription of a url that is now dead, so it corroborates the
+        tech rather than standing alone. It also has a '61 and a '62 where
+        Flea says two '61s.
     - kind: cited
       url: https://www.premierguitar.com/rig-rundown-red-hot-chili-peppers-flea
       note: >-
         "Flea uses his signature set of GHS Boomers", a roundwound line
       caveat: >-
-        the 2012 tour rig, and the basses it describes are the Modulus ones
-        he says elsewhere are tour-only: "For the last ten years that's all I
-        played on tour." The gauge printed there, ".105 - .145", is not a set
-        GHS sells.
+        which is why this field used to say `round`, and it was the wrong
+        instrument. The 2012 rundown documents the Modulus basses he calls
+        tour-only, "For the last ten years that's all I played on tour", and
+        this rig names the Jazz Basses he recorded on. Two instruments, two
+        sets of strings, and the records are the Jazz. The gauge printed
+        there, ".105 - .145", is not a set GHS sells either.
 
 technique:
   attack: slap

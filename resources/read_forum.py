@@ -92,11 +92,17 @@ def fetch(url: str) -> str:
 
         break
 
+    if r.status_code == 429:
+        sys.exit(
+            f"read_forum: {url} is throttling. A 429 means wait, not that "
+            f"there is nothing there. Reddit allows a logged-out reader about "
+            f"a request a minute and Brave rate-limits after a few queries."
+        )
+
     sys.exit(
-        f"read_forum: {url} answered {r.status_code}. A 429 is Reddit "
-        f"throttling and means wait, not that the thread is empty. A 403 on "
-        f"TalkBass means the impersonation profile has aged out; try another "
-        f"from curl_cffi's list."
+        f"read_forum: {url} answered {r.status_code}. A 403 on TalkBass means "
+        f"the impersonation profile has aged out; try another from "
+        f"curl_cffi's list."
     )
 
 
@@ -163,8 +169,13 @@ def talkbass(url: str) -> list[str]:
     return posts
 
 
-def entries(xml: str) -> list[tuple[str, str, str]]:
-    """Pull (author, title, body) out of an Atom feed."""
+def entries(xml: str) -> list[tuple[str, str, str, str]]:
+    """Pull (author, title, body, link) out of an Atom feed.
+
+    The link is not decoration. A search result without it is a thread
+    nobody can open, which makes it exactly the kind of unread citation
+    this file exists to prevent.
+    """
     out = []
 
     for entry in re.findall(r"(?is)<entry>(.*?)</entry>", xml):
@@ -177,7 +188,8 @@ def entries(xml: str) -> list[tuple[str, str, str]]:
             (
                 html.unescape(who.group(1)) if who else "?",
                 html.unescape(title.group(1)) if title else "",
-                strip(content.group(1)) if content else (link.group(1) if link else ""),
+                strip(content.group(1)) if content else "",
+                html.unescape(link.group(1)) if link else "",
             )
         )
 
@@ -194,7 +206,42 @@ def reddit(url: str) -> list[str]:
     """
     at = url.split("?")[0].rstrip("/") + ".rss"
 
-    return [f"{who}: {body}" for who, _, body in entries(fetch(at)) if body]
+    return [f"{who}: {body}" for who, _, body, _link in entries(fetch(at)) if body]
+
+
+def web(query: str) -> list[str]:
+    """Search the open web, for finding a thread rather than citing one.
+
+    Reddit's own search is poor at this: a site-wide relevance query for a
+    bassist came back with American politics. TalkBass has no search anybody
+    here can reach at all. Brave answers a plain fetch where DuckDuckGo,
+    Ecosia, Startpage, searx and Mojeek all refuse, so it is what this uses.
+
+    Nothing is ever cited from these results. They are addresses to go and
+    open, which is why an imperfect searcher is safe and an unread url is
+    not.
+    """
+    from urllib.parse import quote
+
+    body = fetch("https://search.brave.com/search?q=" + quote(query))
+
+    seen: list[str] = []
+
+    for href, label in re.findall(r'(?is)<a[^>]+href="(https?://[^"]+)"[^>]*>(.*?)</a>', body):
+        if "brave.com" in href or not label.strip():
+            continue
+
+        text = strip(label)
+
+        if len(text) < 15 or href in [s.split("\n")[1].strip() for s in seen]:
+            continue
+
+        seen.append(f"{text[:110]}\n  {href}")
+
+        if len(seen) >= 20:
+            break
+
+    return seen
 
 
 def search(query: str, sub: str | None) -> list[str]:
@@ -213,12 +260,34 @@ def search(query: str, sub: str | None) -> list[str]:
 
     found = entries(fetch(where + params))
 
-    return [f"{who} — {title}\n  {body}" for who, title, body in found]
+    return [
+        f"{who} — {title}\n  {link}" + (f"\n  {body[:400]}" if body else "")
+        for who, title, body, link in found
+    ]
 
 
 def main() -> None:
     if len(sys.argv) < 2:
-        sys.exit("usage: read_forum.py <thread url> | --search <query> [subreddit]")
+        sys.exit("usage: read_forum.py <url> | --search <query> [sub] | --web <query>")
+
+    if sys.argv[1] == "--web":
+        if len(sys.argv) < 3:
+            sys.exit("usage: read_forum.py --web <query>")
+
+        found = web(sys.argv[2])
+
+        if not found:
+            sys.exit(
+                "read_forum: nothing came back. Brave rate-limits after a few "
+                "queries; wait and retry before believing there is nothing "
+                "there."
+            )
+
+        print(f"# {len(found)} results\n")
+        for i, hit in enumerate(found, 1):
+            print(f"--- {i} ---\n{hit}\n")
+
+        return
 
     if sys.argv[1] == "--search":
         if len(sys.argv) < 3:
@@ -241,9 +310,17 @@ def main() -> None:
 
     url = sys.argv[1]
 
-    if "talkbass.com" in url:
+    # Routed on the host rather than on the url containing a name. A search
+    # result whose query mentions talkbass.com is not a TalkBass thread, and
+    # sending it to the XenForo parser finds no posts and reports the page
+    # empty.
+    from urllib.parse import urlparse
+
+    host = (urlparse(url).hostname or "").lower()
+
+    if host.endswith("talkbass.com"):
         posts = talkbass(url)
-    elif "reddit.com" in url:
+    elif host.endswith("reddit.com"):
         posts = reddit(url)
     else:
         # Anything else is printed as its words. The handshake this uses gets

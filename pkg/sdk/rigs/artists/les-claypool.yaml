@@ -128,11 +128,18 @@ played:
   # fretless six on Sailing the Seas of Cheese is the de-fretted Tune, and the
   # Rainbow everybody pictures is on the records after it.
   #
-  # This is what splits his centroid. Jerry Was a Race Car Driver reads 275Hz
-  # and Tommy the Cat reads 113Hz off the same album and the same session, and
-  # he says above that Jerry was tapped on a fretless. Two instruments, not a
-  # player who cannot make up his mind, and `bright` was removed for a spread
-  # that turns out to have a cause.
+  # What does NOT explain his centroid split, recorded because it was written
+  # here as though it did. Jerry Was a Race Car Driver reads 275Hz and Tommy
+  # the Cat reads 113Hz off the same album, and the tempting story is that one
+  # is the four and the other the six. Both are the six. The Guitar Player
+  # piece cited above, three months after the album, opens by describing "his
+  # 6-string fretless work behing Tom Waits' cameo vocal on 'Tommy The Cat'",
+  # and the Bass Player quote above has Jerry tapped on a fretless too. The
+  # same page carried both facts and only one of them was read.
+  #
+  # So a 162Hz spread across one session on one instrument is unexplained, and
+  # `bright` stays removed for a spread nobody can account for rather than for
+  # one with a cause.
 
 technique:
   attack: slap

@@ -150,6 +150,17 @@ forum URL:
 forum-search QUERY SUB="":
     uvx --with curl_cffi python3 resources/read_forum.py --search "{{ QUERY }}" {{ SUB }}
 
+# Search the open web for pages worth reading
+#
+# For finding a thread or an article, never for citing one: nothing here is
+# evidence until somebody opens it. Brave answers a plain fetch where the other
+# engines refuse, and rate-limits after a few queries, so pace it. Put the site
+# in the query to reach TalkBass, which has no search anybody here can use:
+#
+# just web "site:talkbass.com geddy lee ampeg cabinets 1977"
+web QUERY:
+    uvx --with curl_cffi python3 resources/read_forum.py --web "{{ QUERY }}"
+
 # Generate code
 generate:
     just go-generate

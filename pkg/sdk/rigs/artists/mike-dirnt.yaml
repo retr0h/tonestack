@@ -62,8 +62,34 @@ chain:
     confidence: medium
 
   - role: cab
-    gear: Ampeg 8x10
+    gear: Acoustic 6x10
+    substitute:
+      gear: Ampeg 8x10
+      evidence:
+        - kind: llm
+          note: >-
+            the device carries no 6x10 at all. Its nearest is a big sealed
+            multi-ten, which is the 8x10 this rig used to name outright.
+      confidence: low
     evidence:
+      - kind: user
+        url: https://www.talkbass.com/threads/i-wanna-get-a-mike-dirnt-like-tone-when-i-play-my-p-bass-how-to.1111702/
+        note: >-
+          Dirnt's own words, asked whether he uses his big rig in the studio,
+          in a Guitar Center interview the poster EastCoastThump transcribes:
+          "I've used a 6x10 combo on every record we've ever done, this old
+          Acoustic 6x10 cabinet that I have ... I'd use a little 4x10 guitar
+          combo for the super highs, maybe an Ampeg, and a Mesa/Boogie 6x10,
+          along with some other stuff. Basically, I'll just do a blend of two
+          amps."
+        caveat: >-
+          first-hand from him and second-hand to us: the Guitar Center link
+          in the post is dead and no archived copy was found, so the
+          interview cannot be dated. "Every record we've ever done" covers
+          this one whenever it was said. Ampeg appears once and hedged,
+          attached to a guitar combo. He also blends two amplifiers per song
+          and a rig is one path, so this names the one he says is always
+          there.
       - kind: cited
         url: https://www.notreble.com/buzz/2026/08/24/mike-dirnt-is-opening-his-reverb-shop-and-we-got-to-check-out-the-gear/
         note: >-
@@ -73,11 +99,9 @@ chain:
           subsequently went out on the Dookie tour". The American Idiot items
           in the same sale are basses.
         caveat: >-
-          an eight by ten is what this block carries because it is the size
-          he has always played and the nearest thing the device has to the
-          Fender the 2004 interview puts him behind. Which cabinet was in
-          front of a microphone for these sessions is in the print source the
-          amplifier rests on.
+          which places his own Ampeg eight by ten on a different record, and
+          agrees with him about the split: the big cabinets are what he
+          carries, and a six by ten is what he records through.
       - kind: cited
         url: https://web.archive.org/web/20040908171044/http://www.bassplayer.com/archive/0904/0904_Features1.htm
         note: >-
