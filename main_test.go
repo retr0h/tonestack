@@ -58,6 +58,33 @@ func (s *MainTestSuite) TestThereIsNoTopLevelInternal() {
 		"put a private package under the package that owns it, as pkg/<name>/internal/")
 }
 
+// TestEveryManifestSitsUnderAnInstrument holds the music corpus to its shape.
+//
+// A word is earned by sitting clear of the other players in the tree, and a
+// guitar's centre of gravity sits an octave above a bass guitar's, so the
+// directory holding a comparison is the instrument. A manifest anywhere else
+// is a player nothing compares, or a leftover of a move: three of them
+// survived nesting the corpus, byte-identical to the real ones and invisible
+// to everything that reads them.
+func (s *MainTestSuite) TestEveryManifestSitsUnderAnInstrument() {
+	found, err := filepath.Glob(filepath.Join("resources", "music", "*", "*", "corpus.yaml"))
+	s.Require().NoError(err)
+	s.Require().NotEmpty(found)
+
+	instruments := map[string]bool{"bass": true, "guitar": true}
+
+	for _, at := range found {
+		s.Require().True(instruments[filepath.Base(filepath.Dir(filepath.Dir(at)))],
+			"%s: the directory above a player names the instrument they play", at)
+	}
+
+	// Anything at another depth, which is what a move leaves behind.
+	stray, err := filepath.Glob(filepath.Join("resources", "music", "*", "corpus.yaml"))
+	s.Require().NoError(err)
+	s.Require().Empty(stray,
+		"a manifest beside the instrument directories rather than inside one")
+}
+
 // TestATestFileSaysWhichKindItIs asserts the suffix and the package agree.
 //
 // CONTRIBUTING gives two kinds of test file and a name for each: a
