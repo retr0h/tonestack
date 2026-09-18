@@ -174,12 +174,39 @@ only somebody who knows the player can say which.
 
 ```yaml
 played:
-  gear: Fender Jazz Bass, fretless
-  strings: round
-  evidence:
-    - kind: cited
-      url: ...
+  - gear: Carl Thompson 4-string
+    strings: round
+    evidence:
+      - kind: cited
+        url: https://ctbasses.com/players/les-claypool
+        note: the 4-string he has played since he was a teenager
+  - gear: Tune 6-string, de-fretted
+    records: [jerry-was-a-race-car-driver, tommy-the-cat]
+    evidence:
+      - kind: cited
+        url: http://www.ram.org/music/primus/articles/funky.html
+        note: >-
+          Guitar Player, August 1991: "I used a Japanese Tune fretless ...
+          When I first ripped the frets out, it freaked me out"
 ```
+
+That is Les Claypool's actual entry, urls and all, rather than a shape with the
+evidence left blank. A citation nobody can open is the thing this format exists
+to prevent, and an example that models one teaches the wrong habit.
+
+A list, because players use more than one and the figures know it. Flea recorded
+I'm With You on two 1961 Jazz Basses; Les Claypool took a four and a de-fretted
+six to the same session.
+
+`records` names which measured records an instrument made, by the track names
+the corpus manifest uses. It is the same join the corpus directory already
+makes, and `recipes records` reports a name no manifest carries rather than
+attributing a figure to nothing. Leave it out where nobody knows: Flea never
+says which bass took which track, so neither of his entries has one.
+
+Getting it wrong is not free. This repository once explained a 162Hz spread
+across one session as a four-string against a six-string, and the source it
+already cited put both records on the six.
 
 No device models an instrument, and every measured figure carries one. Jaco
 Pastorius earns `bright` at a 259Hz centroid against 170Hz for the other

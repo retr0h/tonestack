@@ -114,38 +114,38 @@ character:
           reader, not for the compiler.
 
 played:
-  gear: Fender Precision Bass, 1963
-  strings: flat
-  evidence:
-    - kind: cited
-      url: https://mixdownmag.com.au/features/rig-rundown-pino-palladino/
-      note: the 1963 Precision with flatwounds is what the rundown describes
-    - kind: cited
-      url: https://www.guitarworld.com/artists/bassists/pino-palladino-dangelo-voodoo
-      note: >-
-        Pino's own answer: "I played either my '63 P-Bass tuned down to D or
-        my Moon Larry Graham signature 4-string tuned down to C#. Both had
-        heavy-gauge La Bella flatwounds, which can be rough on necks; that's
-        originally why I tuned down the Precision."
-      caveat: >-
-        two instruments, and he does not say which track took which. The
-        tuning is the part this rig cannot carry: dropping the bottom on
-        heavy flats is most of why he reads 96Hz, the darkest of the nine
-        players, and no field here holds a tuning.
-    - kind: user
-      url: https://www.talkbass.com/threads/dangelo-voodoo.146620/
-      note: >-
-        Russell Elevado, who engineered the album: "Pino mostly used his
-        favourite bass, which is a 1961 Fender Precision ... He tunes his e
-        string down sometimes as well."
-      caveat: >-
-        two first-hand accounts that disagree, and both are kept because
-        neither is obviously wrong. Pino says a 1963 and Elevado a 1961; Pino
-        is the better witness to his own instrument and Elevado to what was
-        in the room. The tuning matters more than the year: Pino describes
-        the whole bass down a tone and the engineer describes the E string
-        down sometimes, which are different sounds, and the second is the
-        looser claim from the person watching.
+  - gear: Fender Precision Bass, 1963
+    strings: flat
+    evidence:
+      - kind: cited
+        url: https://mixdownmag.com.au/features/rig-rundown-pino-palladino/
+        note: the 1963 Precision with flatwounds is what the rundown describes
+      - kind: cited
+        url: https://www.guitarworld.com/artists/bassists/pino-palladino-dangelo-voodoo
+        note: >-
+          Pino's own answer: "I played either my '63 P-Bass tuned down to D or
+          my Moon Larry Graham signature 4-string tuned down to C#. Both had
+          heavy-gauge La Bella flatwounds, which can be rough on necks; that's
+          originally why I tuned down the Precision."
+        caveat: >-
+          two instruments, and he does not say which track took which. The
+          tuning is the part this rig cannot carry: dropping the bottom on
+          heavy flats is most of why he reads 96Hz, the darkest of the nine
+          players, and no field here holds a tuning.
+      - kind: user
+        url: https://www.talkbass.com/threads/dangelo-voodoo.146620/
+        note: >-
+          Russell Elevado, who engineered the album: "Pino mostly used his
+          favourite bass, which is a 1961 Fender Precision ... He tunes his e
+          string down sometimes as well."
+        caveat: >-
+          two first-hand accounts that disagree, and both are kept because
+          neither is obviously wrong. Pino says a 1963 and Elevado a 1961; Pino
+          is the better witness to his own instrument and Elevado to what was
+          in the room. The tuning matters more than the year: Pino describes
+          the whole bass down a tone and the engineer describes the E string
+          down sometimes, which are different sounds, and the second is the
+          looser claim from the person watching.
 
 technique:
   attack: fingers

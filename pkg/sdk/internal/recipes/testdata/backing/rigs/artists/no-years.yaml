@@ -5,4 +5,8 @@ subject: { kind: artist, name: No Years }
 instrument: bass
 chain:
   - { role: amp, gear: Ampeg SVT }
+# An instrument with no `records`, which is the ordinary case: most rigs name
+# what was played without knowing which take took which bass.
+played:
+  - gear: A Bass
 confidence: low

@@ -40,7 +40,7 @@ A rig, complete. Sparse when hand-written; the same document carries settings an
 | `id *` | string | shaped | `^[a-z0-9]+(-[a-z0-9]+)*$` |
 | `instrument *` | string | closed | `guitar`, `bass` |
 | `mutations` | list of Mutation | — | [Mutation](#mutation) |
-| `played` | Played | — | [Played](#played) |
+| `played` | list of Played | — | [Played](#played) |
 | `requires` | list of Requirement | — | [Requirement](#requirement) |
 | `schema *` | string | closed | `RigSpec` |
 | `sections` | list of Section | — | [Section](#section) |
@@ -170,6 +170,7 @@ The instrument itself, which no device models and every figure carries.
 | --- | --- | --- | --- |
 | `evidence` | list of Evidence | — | [Evidence](#evidence) |
 | `gear *` | string | shaped | `\S` |
+| `records` | list of string | open | — |
 | `strings` | string | closed | `round`, `flat`, `tape`, `unknown` |
 
 ## Requirement

@@ -304,3 +304,20 @@ func (s *BackingPublicTestSuite) TestNobodyEstablishedTheRoom() {
 	s.Require().Zero(got.Direct)
 	s.Require().Zero(got.Stage)
 }
+
+// TestAnInstrumentNamingARecordNobodyHas covers the join `played.records`
+// borrows, and the way it fails.
+//
+// An instrument claims the records it made by their track names, the same
+// join the corpus directory makes. A name matching nothing attributes a figure
+// to nothing, and it reads exactly like an instrument nobody has got to yet.
+func (s *BackingPublicTestSuite) TestAnInstrumentNamingARecordNobodyHas() {
+	got := s.read()["misnamed"]
+
+	s.Require().Equal([]string{"a-track-nobody-has"}, got.Misnamed)
+}
+
+// TestAnInstrumentNamingRecordsThatExist covers the ordinary case.
+func (s *BackingPublicTestSuite) TestAnInstrumentNamingRecordsThatExist() {
+	s.Require().Empty(s.read()["in-era"].Misnamed)
+}

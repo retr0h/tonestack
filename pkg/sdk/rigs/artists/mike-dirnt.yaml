@@ -172,34 +172,34 @@ character:
   # describe it he says "I also like my sound to be round and warm".
 
 played:
-  gear: Fender Mike Dirnt Signature Precision Bass
-  strings: round
-  evidence:
-    - kind: cited
-      url: https://web.archive.org/web/20040908171044/http://www.bassplayer.com/archive/0904/0904_Features1.htm
-      note: >-
-        Bass Player, September 2004, the month American Idiot was released:
-        "Dirnt uses nickel-plated medium-gauge Fender Super Bass strings,
-        saying, 'They've got great snap.'"
-      caveat: >-
-        the set, not the winding. `round` is read off Fender's Super Bass
-        line rather than off this page, which never says the word. The
-        sidebar also opens "bringing a big quiver of Fender basses on the
-        upcoming Green Day tour", so it describes the rig in the month of
-        release rather than what was strung up in the sessions. The
-        flatwounds in the same interview are his first bass, aged twelve.
-    - kind: cited
-      url: https://www.notreble.com/buzz/2026/08/22/mike-dirnt-is-selling-american-idiot-tour-basses-and-a-fender-used-to-record-nimrod/
-      note: >-
-        "two American Idiot-era Fender Mike Dirnt Signature Precisions used on
-        tour", from coverage of him selling his own instruments
-      caveat: >-
-        this page says toured, not recorded, and describes the signature
-        basses as what he is "bringing ... on the upcoming Green Day tour".
-        What puts the same bass in the sessions is the source behind the
-        amplifier: Bass Guitar, January 2006, "recording with his signature
-        Fender Precision Bass". Print, unread here, and the same claim the
-        amplifier rests on, so the bass and the amp stand or fall together.
+  - gear: Fender Mike Dirnt Signature Precision Bass
+    strings: round
+    evidence:
+      - kind: cited
+        url: https://web.archive.org/web/20040908171044/http://www.bassplayer.com/archive/0904/0904_Features1.htm
+        note: >-
+          Bass Player, September 2004, the month American Idiot was released:
+          "Dirnt uses nickel-plated medium-gauge Fender Super Bass strings,
+          saying, 'They've got great snap.'"
+        caveat: >-
+          the set, not the winding. `round` is read off Fender's Super Bass
+          line rather than off this page, which never says the word. The
+          sidebar also opens "bringing a big quiver of Fender basses on the
+          upcoming Green Day tour", so it describes the rig in the month of
+          release rather than what was strung up in the sessions. The
+          flatwounds in the same interview are his first bass, aged twelve.
+      - kind: cited
+        url: https://www.notreble.com/buzz/2026/08/22/mike-dirnt-is-selling-american-idiot-tour-basses-and-a-fender-used-to-record-nimrod/
+        note: >-
+          "two American Idiot-era Fender Mike Dirnt Signature Precisions used on
+          tour", from coverage of him selling his own instruments
+        caveat: >-
+          this page says toured, not recorded, and describes the signature
+          basses as what he is "bringing ... on the upcoming Green Day tour".
+          What puts the same bass in the sessions is the source behind the
+          amplifier: Bass Guitar, January 2006, "recording with his signature
+          Fender Precision Bass". Print, unread here, and the same claim the
+          amplifier rests on, so the bass and the amp stand or fall together.
 
 technique:
   attack: pick

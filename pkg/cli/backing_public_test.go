@@ -212,3 +212,19 @@ func (s *BackingPublicTestSuite) TestRecordsNoRigIsNamedForSayNothingAboutTheRoo
 
 	s.Require().Contains(got, "no rig is named for this directory")
 }
+
+// TestAnInstrumentNamingARecordNobodyHas covers the join failing loudly.
+//
+// `played.records` attributes a figure to the instrument that made it. A name
+// no manifest carries attributes it to nothing, and silence there looks
+// identical to an instrument nobody has got to yet.
+func (s *BackingPublicTestSuite) TestAnInstrumentNamingARecordNobodyHas() {
+	got := s.render([]sdk.Backing{{
+		ID: "les-claypool", Era: "Seas of Cheese through Punchbowl",
+		From: 1991, To: 1995,
+		Records:  []sdk.Record{{Track: "tommy-the-cat", Year: 1991}},
+		Misnamed: []string{"jerry-was-a-race-car-drivr"},
+	}})
+
+	s.Require().Contains(got, "no record called jerry-was-a-race-car-drivr")
+}

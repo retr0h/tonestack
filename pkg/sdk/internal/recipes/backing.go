@@ -24,6 +24,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/retr0h/tonestack/pkg/sdk/audio"
 	"github.com/retr0h/tonestack/pkg/sdk/result"
@@ -75,6 +76,8 @@ func Backing(
 		if err != nil {
 			return nil, err
 		}
+
+		one.Misnamed = misnamed(spec.Played, records)
 
 		for _, r := range records {
 			one.Records = append(one.Records, result.Record{
@@ -204,4 +207,40 @@ func rooms(
 	}
 
 	return direct, both, captured, stage
+}
+
+// misnamed finds track names an instrument claims that no manifest carries.
+//
+// `played[].records` joins an instrument to the records it made by their track
+// names, which is the same join the corpus directory uses and fails the same
+// way: a name matching nothing is silently attributed to nothing, and reads
+// like an instrument nobody has got to yet.
+func misnamed(
+	played *[]rig.Played,
+	have []audio.Record,
+) []string {
+	known := map[string]bool{}
+	for _, r := range have {
+		known[strings.ToLower(r.Track)] = true
+	}
+
+	var out []string
+
+	if played == nil {
+		return nil
+	}
+
+	for _, p := range *played {
+		if p.Records == nil {
+			continue
+		}
+
+		for _, name := range *p.Records {
+			if !known[strings.ToLower(name)] {
+				out = append(out, name)
+			}
+		}
+	}
+
+	return out
 }

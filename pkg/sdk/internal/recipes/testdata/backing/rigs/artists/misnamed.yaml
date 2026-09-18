@@ -1,15 +1,15 @@
 schema: RigSpec
 version: 2
-id: in-era
+id: misnamed
 subject:
   kind: artist
-  name: In Era
-  era: the years the records come from
+  name: Misnamed
+  era: an instrument claiming a record nobody has
   years: { from: 1990, to: 1995 }
 instrument: bass
 chain:
   - { role: amp, gear: Ampeg SVT }
 played:
   - gear: A Bass
-    records: [one, two]
+    records: [a-track-nobody-has]
 confidence: low

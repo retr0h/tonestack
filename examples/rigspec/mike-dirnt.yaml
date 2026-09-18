@@ -151,19 +151,19 @@ character:
 # two rigs on the same amplifier read as different sounds, and so that a
 # figure measured from a record is not read as the amplifier's doing.
 played:
-  gear: Fender Mike Dirnt Signature Precision Bass
-  # `strings` takes round, flat, tape or unknown. Say `unknown` rather than
-  # leaving it out when nobody has established it: the two look the same in a
-  # file and mean different things. Bootsy Collins and Tim Commerford both
-  # carry `unknown` with a note saying where somebody already looked.
-  strings: round
-  evidence:
-    - kind: cited
-      url: https://www.notreble.com/buzz/2026/08/22/mike-dirnt-is-selling-american-idiot-tour-basses-and-a-fender-used-to-record-nimrod/
-      note: >-
-        "two American Idiot-era Fender Mike Dirnt Signature Precisions used on
-        tour", from coverage of him selling his own instruments
-      caveat: says toured, not recorded
+  - gear: Fender Mike Dirnt Signature Precision Bass
+    # `strings` takes round, flat, tape or unknown. Say `unknown` rather than
+    # leaving it out when nobody has established it: the two look the same in a
+    # file and mean different things. Bootsy Collins and Tim Commerford both
+    # carry `unknown` with a note saying where somebody already looked.
+    strings: round
+    evidence:
+      - kind: cited
+        url: https://www.notreble.com/buzz/2026/08/22/mike-dirnt-is-selling-american-idiot-tour-basses-and-a-fender-used-to-record-nimrod/
+        note: >-
+          "two American Idiot-era Fender Mike Dirnt Signature Precisions used on
+          tour", from coverage of him selling his own instruments
+        caveat: says toured, not recorded
 
 technique:
   # What sets the string moving. The one part that is always true.

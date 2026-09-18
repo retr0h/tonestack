@@ -152,65 +152,65 @@ chain:
 # the other side would name a signal path this chain does not contain.
 
 played:
-  gear: Rickenbacker 4001
-  strings: round
-  evidence:
-    - kind: cited
-      url: http://www.2112.net/powerwindows/transcripts/20110400bassguitaruk.htm
-      note: >-
-        Bass Guitar UK, April 2011, Joel McIver: "When we signed our first
-        record deal in 1974, I got my share of our small advance and the
-        first thing I did was buy a Rickenbacker. I think I paid about $400
-        for it." He bought it for a sound he never got: "Much to my dismay,
-        when I plugged it in, it didn't sound like Chris Squire."
-      caveat: >-
-        told in 2011 about 1974. The period source is Guitar Player, June
-        1980, which settles the model and puts it on the record: "When we got
-        our first advance, the first thing I did was run out and buy a
-        Rickenbacker 400 I", the transcription's error for 4001, which its
-        own writer spells correctly as "his black Rickenbacker 4001 bass".
-        Asked what he used on Fly By Night: "I used the Rickenbacker on every
-        track." The scan settles the model outright where the transcription
-        garbled it: the magazine's own intro reads "his black Rickenbacker
-        4001 bass".
-    - kind: cited
-      url: http://www.2112.net/powerwindows/transcripts/20110400bassguitaruk.htm
-      note: >-
-        the same interview, on why this rig is one half of a pair: "it had a
-        great trebly sound, but I had a hard time getting the right amount of
-        bottom end out of it unless I used the Rick-O-Sound feature ... I
-        used to send the bass pickup to a bass amp and the treble pickup to
-        an amp that was set up for that twangy sound."
-      caveat: >-
-        which is the instrument's own explanation for the split chain. The
-        trebly half he describes is the one this file does not model. Two
-        things this field cannot hold: the By-Tor growl on Fly By Night is a
-        Fender through a fuzz into the board rather than this bass, and from
-        A Farewell to Kings he also plays a double-neck whose bass he says
-        "has a better low-end response than the standard 4001", which covers
-        two of the four records measured here.
-    - kind: cited
-      url: http://www.2112.net/powerwindows/transcripts/19800600guitarplayer.htm
-      note: >-
-        Guitar Player, June 1980, asked what bass strings he uses: "Rotosound
-        Swing Bass, long-scale. I change them every four dates." He dates the
-        switch himself, talking about his pre-Rush Precision: "I was using
-        LaBella flat-wounds for a few years. Then around 1972 there was a big
-        turning point for my sound when I discovered Rotosound round-wounds."
-        He changed in 1972 and got the Rickenbacker in 1974, so there is no
-        window in which this instrument had anything else on it.
-      caveat: >-
-        a fan archive's transcription of a print article rather than a scan,
-        and the 1980 answer is his touring habit. Do not let Rotosound's own
-        history page unsettle this: its 1985 entry has him "starts using the
-        new Funkmaster strings", which dates a later endorsement on the Wal
-        and reads like a first-contact date. He is on record five years
-        earlier. No gauge, because the figure everybody repeats traces to one
-        forum post recalling a conversation.
-  # The instrument is why he reads 14% in the mid band where Tim Commerford
-  # reads 2% on the same amplifier. A Rickenbacker through an SVT and a
-  # Fender through an SVT are not the same instrument into the same amp.
-  # Neither figure earns a word now, and this is still the reason they differ.
+  - gear: Rickenbacker 4001
+    strings: round
+    evidence:
+      - kind: cited
+        url: http://www.2112.net/powerwindows/transcripts/20110400bassguitaruk.htm
+        note: >-
+          Bass Guitar UK, April 2011, Joel McIver: "When we signed our first
+          record deal in 1974, I got my share of our small advance and the
+          first thing I did was buy a Rickenbacker. I think I paid about $400
+          for it." He bought it for a sound he never got: "Much to my dismay,
+          when I plugged it in, it didn't sound like Chris Squire."
+        caveat: >-
+          told in 2011 about 1974. The period source is Guitar Player, June
+          1980, which settles the model and puts it on the record: "When we got
+          our first advance, the first thing I did was run out and buy a
+          Rickenbacker 400 I", the transcription's error for 4001, which its
+          own writer spells correctly as "his black Rickenbacker 4001 bass".
+          Asked what he used on Fly By Night: "I used the Rickenbacker on every
+          track." The scan settles the model outright where the transcription
+          garbled it: the magazine's own intro reads "his black Rickenbacker
+          4001 bass".
+      - kind: cited
+        url: http://www.2112.net/powerwindows/transcripts/20110400bassguitaruk.htm
+        note: >-
+          the same interview, on why this rig is one half of a pair: "it had a
+          great trebly sound, but I had a hard time getting the right amount of
+          bottom end out of it unless I used the Rick-O-Sound feature ... I
+          used to send the bass pickup to a bass amp and the treble pickup to
+          an amp that was set up for that twangy sound."
+        caveat: >-
+          which is the instrument's own explanation for the split chain. The
+          trebly half he describes is the one this file does not model. Two
+          things this field cannot hold: the By-Tor growl on Fly By Night is a
+          Fender through a fuzz into the board rather than this bass, and from
+          A Farewell to Kings he also plays a double-neck whose bass he says
+          "has a better low-end response than the standard 4001", which covers
+          two of the four records measured here.
+      - kind: cited
+        url: http://www.2112.net/powerwindows/transcripts/19800600guitarplayer.htm
+        note: >-
+          Guitar Player, June 1980, asked what bass strings he uses: "Rotosound
+          Swing Bass, long-scale. I change them every four dates." He dates the
+          switch himself, talking about his pre-Rush Precision: "I was using
+          LaBella flat-wounds for a few years. Then around 1972 there was a big
+          turning point for my sound when I discovered Rotosound round-wounds."
+          He changed in 1972 and got the Rickenbacker in 1974, so there is no
+          window in which this instrument had anything else on it.
+        caveat: >-
+          a fan archive's transcription of a print article rather than a scan,
+          and the 1980 answer is his touring habit. Do not let Rotosound's own
+          history page unsettle this: its 1985 entry has him "starts using the
+          new Funkmaster strings", which dates a later endorsement on the Wal
+          and reads like a first-contact date. He is on record five years
+          earlier. No gauge, because the figure everybody repeats traces to one
+          forum post recalling a conversation.
+    # The instrument is why he reads 14% in the mid band where Tim Commerford
+    # reads 2% on the same amplifier. A Rickenbacker through an SVT and a
+    # Fender through an SVT are not the same instrument into the same amp.
+    # Neither figure earns a word now, and this is still the reason they differ.
 
 technique:
   attack: fingers

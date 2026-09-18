@@ -128,40 +128,40 @@ character:
   # is the opposite end of the instrument from the word.
 
 played:
-  gear: Rickenbacker 4001S
-  strings: flat
-  evidence:
-    # Cite the person, not the thread: this one held the instrument, and the
-    # post directly above his is somebody guessing "Rotosound's are a
-    # possibility but I don't know".
-    - kind: user
-      url: https://www.rickresource.com/forum/viewtopic.php?t=13
-      note: >-
-        Mark Arnquist, 11 August 2000: "When I worked on his bass in the mid
-        1970's he did NOT have rotosound strings of any kind on it. They were
-        flats but not rickenbacker or roto's. I have no idea what they were."
-        First-hand, on this instrument, immediately before the tour that
-        produced the live album measured for this rig. The brand is nobody's
-        to name: the man who restrung it does not know it.
-      caveat: >-
-        the post is signed "Mark". The interview below is what makes him
-        Arnquist, on the zero fret and the nameplate holes he describes in
-        both.
-    - kind: cited
-      url: http://www.thecanteen.com/arnquist.html
-      note: >-
-        Mark Arnquist, Rickenbacker's lead man in finishing and repair "from
-        July 1972 to October 1976", to John F. Crowley: "The P.M. bass came
-        back to the factory prior to the 'Wings over America tour.'" The
-        horseshoe magnets were dead, so "we opted for a custom coil/pickup
-        for 'The Man.' The idea was to overwind a stock coil for a 4001."
-        It went back out "restrung with the strings that it came in with",
-        which is what makes his account of them first-hand.
-      caveat: >-
-        the resistance figures people quote with this, a 7k neck and a 9k
-        bridge, are not on this page. They come from a forum post relaying a
-        phone call. The page gives no numbers and makes no claim about tone.
-        This is also the touring instrument rather than the studio one.
+  - gear: Rickenbacker 4001S
+    strings: flat
+    evidence:
+      # Cite the person, not the thread: this one held the instrument, and the
+      # post directly above his is somebody guessing "Rotosound's are a
+      # possibility but I don't know".
+      - kind: user
+        url: https://www.rickresource.com/forum/viewtopic.php?t=13
+        note: >-
+          Mark Arnquist, 11 August 2000: "When I worked on his bass in the mid
+          1970's he did NOT have rotosound strings of any kind on it. They were
+          flats but not rickenbacker or roto's. I have no idea what they were."
+          First-hand, on this instrument, immediately before the tour that
+          produced the live album measured for this rig. The brand is nobody's
+          to name: the man who restrung it does not know it.
+        caveat: >-
+          the post is signed "Mark". The interview below is what makes him
+          Arnquist, on the zero fret and the nameplate holes he describes in
+          both.
+      - kind: cited
+        url: http://www.thecanteen.com/arnquist.html
+        note: >-
+          Mark Arnquist, Rickenbacker's lead man in finishing and repair "from
+          July 1972 to October 1976", to John F. Crowley: "The P.M. bass came
+          back to the factory prior to the 'Wings over America tour.'" The
+          horseshoe magnets were dead, so "we opted for a custom coil/pickup
+          for 'The Man.' The idea was to overwind a stock coil for a 4001."
+          It went back out "restrung with the strings that it came in with",
+          which is what makes his account of them first-hand.
+        caveat: >-
+          the resistance figures people quote with this, a 7k neck and a 9k
+          bridge, are not on this page. They come from a forum post relaying a
+          phone call. The page gives no numbers and makes no claim about tone.
+          This is also the touring instrument rather than the studio one.
 
 technique:
   attack: pick
