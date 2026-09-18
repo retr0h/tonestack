@@ -146,6 +146,24 @@ character:
       - kind: llm
         caveat: nobody has listened for this
 
+# What makes the sound, which no device models and every measured figure
+# carries. It resolves to no block and changes no preset: it is here so that
+# two rigs on the same amplifier read as different sounds, and so that a
+# figure measured from a record is not read as the amplifier's doing.
+played:
+  gear: Fender Mike Dirnt Signature Precision Bass
+  # `strings` takes round, flat, tape or unknown. Say `unknown` rather than
+  # leaving it out when nobody has established it: the two look the same in a
+  # file and mean different things.
+  strings: unknown
+  evidence:
+    - kind: cited
+      url: https://www.notreble.com/buzz/2026/08/22/mike-dirnt-is-selling-american-idiot-tour-basses-and-a-fender-used-to-record-nimrod/
+      note: >-
+        "two American Idiot-era Fender Mike Dirnt Signature Precisions used on
+        tour", from coverage of him selling his own instruments
+      caveat: says toured, not recorded
+
 technique:
   # What sets the string moving. The one part that is always true.
   attack: pick
