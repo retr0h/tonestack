@@ -40,6 +40,14 @@ type Backing struct {
 	// Records are what was measured for it, in the order the manifest names
 	// them.
 	Records []Record
+	// Misnamed are track names a `played.records` entry gives that no
+	// manifest has.
+	//
+	// The list exists so a figure can be read against the instrument that
+	// made it, and a name matching nothing joins to nothing. It fails exactly
+	// like the directory-name join it borrows: silently, and looking like an
+	// instrument nobody has attributed yet.
+	Misnamed []string
 	// NoRig says these records sit in a directory no rig answers to.
 	//
 	// A rig is joined to its records by the directory being named for it, and

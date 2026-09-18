@@ -653,6 +653,17 @@ type Played struct {
 	// Gear The instrument, as a person would say it: "Rickenbacker 4001", "Fender Jazz Bass, fretless", "Hofner 500/1".
 	Gear string `json:"gear"`
 
+	// Records Which measured records this instrument made, by their track names in the corpus manifest.
+	//
+	// Not called `on`. YAML reads a bare `on` as the boolean true, so the field parsed as a property named "true" and the rig was refused. The same trap takes `off`, `yes` and `no`.
+	//
+	// The same join the corpus already uses: a directory is named for a rig, and a track is named for itself. Naming them here is what lets a figure be read against the thing that made it rather than against the player's whole catalogue.
+	//
+	// Leave it out where nobody knows. Flea says he recorded on two 1961 Jazz Basses and never says which took which track, so neither entry carries one. Les Claypool's six is on two of his four, and saying so is what stops the other two being explained by it.
+	//
+	// Getting this wrong is not free. A rig here once explained a 162Hz spread across one session as a four-string and a six-string, and the source it already cited said both records were the six.
+	Records *[]string `json:"records,omitempty"`
+
 	// Strings What is on it, where somebody knows. Flatwounds and roundwounds are a larger difference than most pedals.
 	Strings *PlayedStrings `json:"strings,omitempty"`
 }
@@ -729,12 +740,10 @@ type RigSpec struct {
 	Instrument Instrument  `json:"instrument"`
 	Mutations  *[]Mutation `json:"mutations,omitempty"`
 
-	// Played The instrument itself, which no device models and every figure carries.
+	// Played The instruments the rig is played on, most used first.
 	//
-	// A rig names an amplifier, a cabinet and pedals, and the thing making the sound is upstream of all of them. Jaco Pastorius reads a 259Hz centroid against 170Hz for the other players, and the reason is a fretless played near the bridge; Geddy Lee earns mid-forward on a Rickenbacker. Without this those belong to nothing, and a measured word moves an amplifier control that was never responsible for the figure.
-	//
-	// It resolves to no block and changes no preset. It is here so that two rigs on the same amplifier are legible as different sounds, and so that somebody reading a figure knows how much of it left the instrument that way.
-	Played   *Played        `json:"played,omitempty"`
+	// A list because players use more than one and the figures know it. Flea recorded I'm With You on two 1961 Jazz Basses. Les Claypool took a Carl Thompson four and a de-fretted Tune six to the same session, and two of his four measured records are the six.
+	Played   *[]Played      `json:"played,omitempty"`
 	Requires *[]Requirement `json:"requires,omitempty"`
 
 	// Schema Names the format, so a file says what it is without relying on where it was found.

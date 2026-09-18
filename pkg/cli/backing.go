@@ -160,6 +160,9 @@ func verdictOf(
 	switch {
 	case b.NoRig:
 		return paint.Err(w, "no rig is named for this directory")
+	case len(b.Misnamed) > 0:
+		return paint.Err(w, fmt.Sprintf("no record called %s",
+			strings.Join(b.Misnamed, ", ")))
 	case len(b.Records) == 0:
 		return paint.Mute(w, "nothing measured for it")
 	case !b.Stated():
