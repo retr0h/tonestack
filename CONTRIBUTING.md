@@ -40,32 +40,31 @@ mise install
   Only needed if you are measuring audio. `brew install ffmpeg`.
 - **[just].** Task runner used for building, testing, formatting, and other
   development workflows. Install with `brew install just`.
-- **[Node] 18 or newer.** Only needed to read Reddit, which runs the MCP server
-  below. mise supplies it; nothing in the build uses it.
+- **[Node] 18 or newer.** Only for the optional Reddit MCP server described
+  below. Nothing in the build uses it, and `just forum` does not need it.
 
-### Reading Reddit
+### Reading the forums
 
-Reddit is one of the two forums this project treats as a first-class source.
-`.mcp.json` declares an MCP server for it, Claude Code starts it, and **there is
-nothing to authenticate**. No account, no API key, no token.
+TalkBass and Reddit are the two forums this project treats as first-class
+sources, and **neither needs an account, a key or anything configured**.
+`just forum` and `just forum-search` read both.
 
-That is possible because of a split in how Reddit blocks readers. Its JSON API
-refuses anonymous requests outright, which is why `old.reddit.com` answers a
-login wall and `.json` answers 403 whatever you send. Its **RSS feeds still
-serve 200**, and this server reads only those. The one thing that matters is a
-browser user agent: the same RSS url answers 403 without one and 200 with one.
+They block automated readers differently, which is why one script sends each a
+different request. TalkBass fingerprints the TLS handshake, so curl_cffi
+reproduces a browser's. Reddit refuses its JSON API to logged-out readers
+whatever is sent, but still serves its RSS feeds to anything carrying a browser
+user agent, and refuses the impersonated handshake TalkBass requires. Sending
+both to both fails both.
 
-The cost is throttling rather than refusal. Sustained reading earns a 429,
-roughly after a handful of requests, and clears in under a minute. That is fine
-for reading a few threads and slow for sweeping a subreddit, which is the shape
-of the work here anyway.
+Reddit throttles a logged-out reader to roughly a request a minute. The script
+waits a 429 out and says so on stderr. **Treat an empty answer as the throttle
+rather than as an absent source** — those look identical and confusing them is
+the failure this project keeps having.
 
-It is pinned to a commit rather than a branch, so what runs does not change
-under you. Before changing that pin, read `server.js`: it is one file, has no
-dependencies at all, and the only host it contacts is `www.reddit.com`.
-
-TalkBass needs none of this. `just forum` reads it, and reads a Reddit thread
-too once you have the url, so the MCP server mostly earns its place on search.
+`.mcp.json` also declares a Reddit MCP server, which is convenience rather than
+a dependency: it puts the same search in front of Claude as a tool. It needs no
+credentials either, and it is pinned to a commit. Nothing in the repository
+requires it, and a subagent or a script should use `just forum` instead.
 
 ### Claude Code
 

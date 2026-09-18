@@ -38,31 +38,34 @@ people who were there turn up, and a search engine's job is to find a page on
 this list rather than to rank the web.
 
 ```bash
-just forum https://www.talkbass.com/threads/geddy-lee-amps.847050/
+just forum-search "geddy lee rickenbacker tone" Bass
 just forum https://www.reddit.com/r/Bass/comments/…/…/
+just forum https://www.talkbass.com/threads/geddy-lee-amps.847050/
 ```
 
-`just forum` prints a thread as numbered posts, each with its author. Both sites
-refuse an ordinary fetch and they refuse it differently, which is worth knowing
-because the fix differs too. TalkBass checks the TLS handshake, so no user agent
-gets past its Cloudflare challenge;
-[resources/read_forum.py](../../resources/read_forum.py) reproduces a browser's
-handshake, which is the whole trick. Reddit blocks its JSON API to anonymous
-readers however you ask, but still serves RSS to anything sending a browser user
-agent.
+`forum-search` searches Reddit, with the subreddit optional. `forum` reads a
+thread from either site as numbered posts, each carrying its author, which is
+what lets you cite the person rather than the thread.
 
-To search them, put the site in the query rather than trusting a general web
-search to surface it:
+Both sites refuse an ordinary fetch and they refuse it differently, which is why
+one script handles both and sends each a different request. TalkBass checks the
+TLS handshake, so no user agent gets past its Cloudflare challenge, and
+[resources/read_forum.py](../../resources/read_forum.py) reproduces a browser's.
+Reddit blocks its JSON API to logged-out readers however you ask, but its RSS
+feeds still serve anything sending a browser user agent, and refuse the
+impersonated one TalkBass needs. Sending both to both fails both.
+
+**A 429 from Reddit means wait, not that the thread is empty.** It throttles a
+logged-out reader to roughly a request a minute. The script waits one out and
+says so; if it still fails, try again rather than recording that nothing was
+found. An empty answer and an absent source look identical, and telling them
+apart is the whole job.
+
+For TalkBass, find threads with a search engine and the site in the query:
 
 ```text
 site:talkbass.com geddy lee ampeg cabinets 1977
-site:reddit.com/r/Bass mccartney rickenbacker flatwounds wings
 ```
-
-Searching Reddit goes through the MCP server that `.mcp.json` declares, which
-needs no account and nothing configured: it reads Reddit's RSS feeds, which
-still serve where the JSON API refuses anonymous readers. Expect a 429 if you
-hurry it. See [Reading Reddit](../../CONTRIBUTING.md#reading-reddit).
 
 Then open every thread you intend to cite. This is not a formality. Every forum
 citation in this repository before `just forum` existed was entered from a

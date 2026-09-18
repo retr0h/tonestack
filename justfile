@@ -133,13 +133,22 @@ record DIR TRACK URL:
     uvx spotdl download "{{ URL }}" --output "{{ DIR }}/{{ TRACK }}.{output-ext}"
     @test -f "{{ DIR }}/{{ TRACK }}.mp3" || { echo "no {{ DIR }}/{{ TRACK }}.mp3: see docs/workflows/add-records-to-a-corpus.md" >&2; exit 1; }
 
-# Read a TalkBass or Reddit thread as plain text
+# Read a TalkBass or Reddit thread as plain text, one post per author
 #
-# Both refuse an ordinary fetch: TalkBass answers a Cloudflare challenge and
-# Reddit answers 403, whatever user agent is sent, because what they check is
-# the TLS handshake. This reproduces a browser's. See resources/read_forum.py.
+# Both refuse an ordinary fetch and for different reasons: TalkBass checks the
+# TLS handshake, Reddit checks the user agent. read_forum.py sends each what it
+# wants, because sending both to both fails both.
 forum URL:
     uvx --with curl_cffi python3 resources/read_forum.py "{{ URL }}"
+
+# Search Reddit for threads worth reading
+#
+# SUB narrows it to one subreddit and may be left off. Reddit throttles hard,
+# so an empty result means try again in a minute rather than that nothing is
+# there. Finding the thread is the half a web search cannot do here: it has a
+# session budget and reddit.com is blocked to it outright.
+forum-search QUERY SUB="":
+    uvx --with curl_cffi python3 resources/read_forum.py --search "{{ QUERY }}" {{ SUB }}
 
 # Generate code
 generate:
