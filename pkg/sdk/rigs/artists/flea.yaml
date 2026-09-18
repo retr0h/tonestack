@@ -25,6 +25,7 @@ instrument: bass
 chain:
   - role: amp
     gear: Gallien-Krueger 2001RB
+    stage: true
     substitute:
       gear: Gallien-Krueger 800RB
       evidence:
@@ -50,6 +51,7 @@ chain:
 
   - role: cab
     gear: Gallien-Krueger 410
+    stage: true
     substitute:
       gear: Ampeg SVT 410HLF
       evidence:

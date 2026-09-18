@@ -259,3 +259,48 @@ func TestBackingPublicTestSuite(
 ) {
 	suite.Run(t, new(BackingPublicTestSuite))
 }
+
+// TestASignalThatNeverMetAMicrophone covers the second kind of wrong-era
+// mistake.
+//
+// The era check asks whether the records were made when the gear was. This
+// asks whether they were made through it. Five of the nine rigs that ship
+// measure a signal that went to the desk, and every one of them ends in a
+// cabinet, so a figure read off those records was not shaped by the box the
+// preset builds.
+func (s *BackingPublicTestSuite) TestASignalThatNeverMetAMicrophone() {
+	got := s.read()["went-direct"]
+
+	s.Require().Equal(2, got.Direct)
+	s.Require().Equal(2, got.Captured)
+	s.Require().Zero(got.Both)
+
+	s.Require().Equal(1, got.Stage,
+		"a rundown photographs a backline and the corpus measures records")
+}
+
+// TestADirectAndAMicrophoneAtOnce covers the third answer.
+//
+// Jaco Pastorius took "a little bit of both, the highs and lows", which is
+// neither of the other two and must not be counted as direct.
+func (s *BackingPublicTestSuite) TestADirectAndAMicrophoneAtOnce() {
+	got := s.read()["took-both"]
+
+	s.Require().Equal(1, got.Both)
+	s.Require().Zero(got.Direct)
+	s.Require().Equal(2, got.Captured,
+		"the miked entry is established too, and says so")
+}
+
+// TestNobodyEstablishedTheRoom covers silence, which is not the same as miked.
+//
+// A rig nobody has asked the question of reads as miked unless the count of
+// answers is kept separately, and that would turn an open question into a
+// claim.
+func (s *BackingPublicTestSuite) TestNobodyEstablishedTheRoom() {
+	got := s.read()["in-era"]
+
+	s.Require().Zero(got.Captured)
+	s.Require().Zero(got.Direct)
+	s.Require().Zero(got.Stage)
+}

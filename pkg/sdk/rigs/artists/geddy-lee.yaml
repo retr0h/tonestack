@@ -21,6 +21,7 @@ instrument: bass
 chain:
   - role: amp
     gear: Ampeg SVT
+    capture: direct
     evidence:
       - kind: cited
         url: http://www.2112.net/powerwindows/transcripts/19800600guitarplayer.htm
@@ -90,6 +91,7 @@ chain:
 
   - role: cab
     gear: Ampeg V-4B
+    capture: direct
     substitute:
       gear: Mesa/Boogie 2x15
       evidence:

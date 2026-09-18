@@ -1,0 +1,13 @@
+schema: RigSpec
+version: 2
+id: went-direct
+subject:
+  kind: artist
+  name: Went Direct
+  era: a record that never met a microphone
+  years: { from: 1990, to: 1995 }
+instrument: bass
+chain:
+  - { role: amp, gear: Ampeg SVT, capture: direct }
+  - { role: cab, gear: Ampeg 8x10, capture: direct, stage: true }
+confidence: low

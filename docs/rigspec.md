@@ -56,6 +56,7 @@ One piece of gear, in signal order.
 
 | field | holds | grammar | allowed |
 | --- | --- | --- | --- |
+| `capture` | string | closed | `direct`, `miked`, `both` |
 | `confidence` | string | closed | `low`, `medium`, `high` |
 | `enabled` | boolean | — | `true` or `false` |
 | `evidence` | list of Evidence | — | [Evidence](#evidence) |
@@ -66,6 +67,7 @@ One piece of gear, in signal order.
 | `position` | integer | — | — |
 | `role *` | string | closed | `amp`, `cab`, `drive`, `comp`, `gate`, `eq`, `mod`, `delay`, `reverb`, `wah`, `pitch`, `filter`, `utility`, `other` |
 | `settings` | Settings | — | [Settings](#settings) |
+| `stage` | boolean | — | `true` or `false` |
 | `substitute` | Substitute | — | [Substitute](#substitute) |
 
 ## Change

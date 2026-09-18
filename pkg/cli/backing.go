@@ -49,6 +49,7 @@ func Backing(
 			paint.Accent(w, b.ID),
 			eraOf(w, b),
 			recordsOf(w, b),
+			roomOf(w, b),
 			verdictOf(w, b),
 		})
 	}
@@ -56,14 +57,16 @@ func Backing(
 	return paint.Section{
 		Title:   "What backs each rig",
 		Detail:  ridingOn(all),
-		Headers: []string{"rig", "era", "records", "reads"},
+		Headers: []string{"rig", "era", "records", "room", "reads"},
 		Rows:    rows,
 		Align: []lipgloss.Position{
 			lipgloss.Left, lipgloss.Left, lipgloss.Left, lipgloss.Left,
+			lipgloss.Left,
 		},
 		Empty: "no rigs to read",
 		Summary: "a record made outside a rig's era measures gear the rig " +
-			"does not describe, whichever of the two is wrong",
+			"does not describe, and one made in another room measures gear " +
+			"that was never in the signal",
 	}.Render(w)
 }
 
@@ -108,6 +111,45 @@ func recordsOf(
 	}
 
 	return strings.Join(out, " ")
+}
+
+// roomOf says whether the gear was in the room the record was made in.
+//
+// The era check asks whether the records were made when the gear was. This
+// asks whether they were made through it. A rig can pass the first and fail
+// the second: gear from the right years, documented on a stage, in front of a
+// signal that went to the desk.
+func roomOf(
+	w io.Writer,
+	b sdk.Backing,
+) string {
+	room := ""
+
+	switch {
+	case b.Captured == 0:
+		room = ""
+	case b.Direct > 0:
+		room = "direct"
+	case b.Both > 0:
+		room = "direct and miked"
+	default:
+		room = "miked"
+	}
+
+	switch {
+	case b.NoRig:
+		return paint.Mute(w, "—")
+	case room == "" && b.Stage == 0:
+		return paint.Info(w, "not established")
+	case room == "":
+		return paint.Err(w, "gear from a stage")
+	case b.Stage > 0:
+		return paint.Err(w, room+", gear from a stage")
+	case room == "miked":
+		return paint.OK(w, room)
+	default:
+		return paint.Err(w, room)
+	}
 }
 
 // verdictOf says what the years amount to.

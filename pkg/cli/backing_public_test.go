@@ -148,3 +148,67 @@ func TestBackingPublicTestSuite(
 ) {
 	suite.Run(t, new(BackingPublicTestSuite))
 }
+
+// TestTheRoomIsReported covers every answer the room column can give.
+//
+// The era check and this one are independent: a rig passes the first by
+// measuring records made when its gear was, and fails the second by measuring
+// records made through something else. All nine rigs that ship pass the era
+// check and five of them read `direct` here.
+func (s *BackingPublicTestSuite) TestTheRoomIsReported() {
+	for _, tt := range []struct {
+		name string
+		in   sdk.Backing
+		want string
+	}{
+		{
+			name: "a signal that went to the desk",
+			in:   sdk.Backing{ID: "geddy-lee", Direct: 2, Captured: 2},
+			want: "direct",
+		},
+		{
+			name: "a DI and a microphone at once",
+			in:   sdk.Backing{ID: "jaco-pastorius", Both: 2, Captured: 2},
+			want: "direct and miked",
+		},
+		{
+			name: "the one that was only ever miked",
+			in:   sdk.Backing{ID: "pino-palladino", Captured: 2},
+			want: "miked",
+		},
+		{
+			name: "gear only a tour documents",
+			in:   sdk.Backing{ID: "tim-commerford", Stage: 2},
+			want: "gear from a stage",
+		},
+		{
+			name: "both faults at once",
+			in:   sdk.Backing{ID: "paul-mccartney", Direct: 2, Captured: 2, Stage: 2},
+			want: "direct, gear from a stage",
+		},
+		{
+			// Silence is not an answer. A rig nobody has asked would read as
+			// miked if the count of answers were not kept separately.
+			name: "nobody established it",
+			in:   sdk.Backing{ID: "bootsy-collins"},
+			want: "not established",
+		},
+	} {
+		s.Run(tt.name, func() {
+			s.Require().Contains(s.render([]sdk.Backing{tt.in}), tt.want)
+		})
+	}
+}
+
+// TestRecordsNoRigIsNamedForSayNothingAboutTheRoom covers the orphan case.
+//
+// A directory no rig answers to has no chain to read, so the column has
+// nothing to say and must not guess.
+func (s *BackingPublicTestSuite) TestRecordsNoRigIsNamedForSayNothingAboutTheRoom() {
+	got := s.render([]sdk.Backing{{
+		ID: "nobody", NoRig: true,
+		Records: []sdk.Record{{Track: "a-record", Year: 1990}},
+	}})
+
+	s.Require().Contains(got, "no rig is named for this directory")
+}

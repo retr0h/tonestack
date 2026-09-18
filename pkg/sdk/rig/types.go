@@ -46,6 +46,8 @@ type (
 	ChainEntry = gen.ChainEntry
 	// Role is what a piece of gear does: amp, cab, drive.
 	Role = gen.Role
+	// Capture is how the signal reached the tape: direct, miked, or both.
+	Capture = gen.Capture
 	// Technique is how the instrument is played.
 	Technique = gen.Technique
 	// Position is where on the string it is played.
@@ -94,6 +96,12 @@ const (
 	// RoleAmp and RoleCab are the two a listing looks for by name.
 	RoleAmp = gen.RoleAmp
 	RoleCab = gen.RoleCab
+
+	// How the signal reached the tape. `direct` is the one worth counting:
+	// it says a cabinet in the chain was not in the recorded signal.
+	CaptureDirect = gen.CaptureDirect
+	CaptureMiked  = gen.CaptureMiked
+	CaptureBoth   = gen.CaptureBoth
 
 	// Where on the string a note is played.
 	PositionBridge = gen.PositionBridge
