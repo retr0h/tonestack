@@ -98,7 +98,7 @@ the string that fetches it:
 awk '/^  - track:/{ if(t!="") print t, (s!=""? s"|"u : u); t=$3; u=""; s="" }
      /^    url:/{ u=$2 } /^    source:/{ s=$2 }
      END{ if(t!="") print t, (s!=""? s"|"u : u) }' \
-  resources/music/flea/corpus.yaml
+  resources/music/bass/flea/corpus.yaml
 ```
 
 Reset `u` and `s` on every new track. An awk that only tracks the current name

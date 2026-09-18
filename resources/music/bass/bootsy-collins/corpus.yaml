@@ -1,0 +1,22 @@
+artist: Bootsy Collins
+# Two albums rather than four productions, because the rig claims Stretchin'
+# Out through Ahh... The Name Is Bootsy and that is all the era holds. The
+# same compromise pino-palladino.yaml makes, and for the same reason.
+#
+# The James Brown records are earlier than the rig and out of it. Flash Light
+# is not here at all: that line is a Moog, played by Bernie Worrell, and it
+# would measure a synthesiser as a bassist.
+tracks:
+  - track: stretchin-out
+    url: https://open.spotify.com/track/6uMVhDeEggpgKdSAjqtCdw
+    note: Stretchin' Out in Bootsy's Rubber Band, 1976
+  - track: i-d-rather-be-with-you
+    url: https://open.spotify.com/track/0rDzbrqJfF0zgQKvrnAjRJ
+    note: Stretchin' Out in Bootsy's Rubber Band, 1976. The envelope filter
+      the rig is mostly about
+  - track: the-pinocchio-theory
+    url: https://open.spotify.com/track/1kbNfis640l0Y32BDfDdzR
+    note: Ahh... The Name Is Bootsy, Baby!, 1977
+  - track: munchies-for-your-love
+    url: https://open.spotify.com/track/6gOY69g42Ex8Kad665i53a
+    note: Ahh... The Name Is Bootsy, Baby!, 1977

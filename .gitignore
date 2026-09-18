@@ -25,7 +25,8 @@ resources/schemas/corpus/**
 resources/music/**
 !resources/music/README.md
 !resources/music/*/
-!resources/music/*/corpus.yaml
+!resources/music/*/*/
+!resources/music/*/*/corpus.yaml
 
 # Generated from an HX Edit installation. The catalog itself is committed
 # under pkg/catalog/data/ and ships in the binary, so nobody needs HX Edit to
