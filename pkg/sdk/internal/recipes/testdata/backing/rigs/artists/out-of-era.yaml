@@ -1,0 +1,12 @@
+schema: RigSpec
+version: 2
+id: out-of-era
+subject:
+  kind: artist
+  name: Out Of Era
+  era: a decade after the records
+  years: { from: 2004, to: 2004 }
+instrument: bass
+chain:
+  - { role: amp, gear: Ampeg SVT }
+confidence: low

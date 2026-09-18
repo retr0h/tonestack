@@ -13,6 +13,7 @@ subject:
   name: Jaco Pastorius
   band: Weather Report
   era: Weather Report through Word of Mouth
+  years: { from: 1976, to: 1981 }
 
 instrument: bass
 

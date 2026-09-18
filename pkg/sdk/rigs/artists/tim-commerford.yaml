@@ -13,6 +13,7 @@ subject:
   name: Tim Commerford
   band: Rage Against the Machine
   era: Rage Against the Machine
+  years: { from: 1992, to: 1992 }
 
 instrument: bass
 

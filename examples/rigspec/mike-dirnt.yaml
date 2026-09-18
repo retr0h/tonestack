@@ -20,6 +20,8 @@ subject:
   # A player's rig changes. Saying when this one applies is more honest than
   # implying it is timeless.
   era: Dookie through American Idiot
+  # The same era as years, so `recipes records` can hold his records to it.
+  years: { from: 1994, to: 2004 }
 
 instrument: bass
 default: true

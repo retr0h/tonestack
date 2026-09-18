@@ -50,11 +50,13 @@ artist: Mike Dirnt
 tracks:
   - track: longview
     url: https://open.spotify.com/track/abc
+    year: 1994
     source: https://www.youtube.com/watch?v=abc
     at: "1:20-1:45"
     note: the bass carries the verse alone
   - track: basket-case
     url: https://open.spotify.com/track/def
+    year: 1994
 `
 
 // TestItReadsWhatWasMeasured covers the whole shape.
@@ -86,7 +88,7 @@ func (s *ManifestPublicTestSuite) TestASourceIsOptional() {
 func (s *ManifestPublicTestSuite) TestABadSourceIsCaughtHere() {
 	_, err := audio.ReadManifest(strings.NewReader(
 		"tracks:\n  - track: longview\n    url: https://open.spotify.com/track/abc\n" +
-			"    source: watch?v=abc\n"))
+			"    year: 1994\n    source: watch?v=abc\n"))
 
 	s.Require().Error(err)
 	s.Require().Contains(err.Error(), "longview")
@@ -124,7 +126,7 @@ func (s *ManifestPublicTestSuite) TestATypoStops() {
 func (s *ManifestPublicTestSuite) TestABadTimestampIsCaughtHere() {
 	_, err := audio.ReadManifest(strings.NewReader(
 		"tracks:\n  - track: longview\n    url: https://open.spotify.com/track/abc\n" +
-			"    at: \"about a minute in\"\n"))
+			"    year: 1994\n    at: \"about a minute in\"\n"))
 
 	s.Require().Error(err)
 	s.Require().Contains(err.Error(), "longview")
@@ -139,17 +141,31 @@ func (s *ManifestPublicTestSuite) TestABadTimestampIsCaughtHere() {
 // refused, and nothing said so.
 func (s *ManifestPublicTestSuite) TestARecordWithNoLinkIsRefused() {
 	_, err := audio.ReadManifest(strings.NewReader(
-		"tracks:\n  - track: longview\n    note: no link\n"))
+		"tracks:\n  - track: longview\n    year: 1994\n    note: no link\n"))
 
 	s.Require().Error(err)
 	s.Require().Contains(err.Error(), "longview")
 	s.Require().Contains(err.Error(), "no url")
 }
 
+// TestARecordWithNoYearIsRefused covers holding a record to an era.
+//
+// A rig's gear claims describe a period and a record from another one
+// measures another rig. Without the year nothing can say so, and four of the
+// nine rigs here turned out to be measuring records from the wrong decade.
+func (s *ManifestPublicTestSuite) TestARecordWithNoYearIsRefused() {
+	_, err := audio.ReadManifest(strings.NewReader(
+		"tracks:\n  - track: longview\n    url: https://open.spotify.com/track/abc\n"))
+
+	s.Require().Error(err)
+	s.Require().Contains(err.Error(), "longview")
+	s.Require().Contains(err.Error(), "no year")
+}
+
 // TestABadLinkIsCaughtHere covers the other thing a rig will refuse.
 func (s *ManifestPublicTestSuite) TestABadLinkIsCaughtHere() {
 	_, err := audio.ReadManifest(strings.NewReader(
-		"tracks:\n  - track: longview\n    url: spotify:track:abc\n"))
+		"tracks:\n  - track: longview\n    year: 1994\n    url: spotify:track:abc\n"))
 
 	s.Require().Error(err)
 	s.Require().Contains(err.Error(), "longview")
@@ -193,7 +209,8 @@ func (s *ManifestPublicTestSuite) TestJoinKeepsEverything() {
 
 // TestJoinIgnoresCase covers a manifest written by a person.
 func (s *ManifestPublicTestSuite) TestJoinIgnoresCase() {
-	got := s.read("tracks:\n  - track: LongView\n    url: https://example.com/a\n").
+	got := s.read(
+		"tracks:\n  - track: LongView\n    year: 1994\n    url: https://example.com/a\n").
 		Join([]audio.Named{{Name: "longview"}})
 
 	s.Require().Equal("https://example.com/a", got[0].Source.URL)

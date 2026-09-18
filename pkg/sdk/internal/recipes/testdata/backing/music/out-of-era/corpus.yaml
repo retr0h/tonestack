@@ -1,0 +1,8 @@
+artist: Out Of Era
+tracks:
+  - track: one
+    url: https://open.spotify.com/track/abc
+    year: 1994
+  - track: two
+    url: https://open.spotify.com/track/def
+    year: 2004

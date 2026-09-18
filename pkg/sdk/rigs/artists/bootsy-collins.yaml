@@ -13,6 +13,7 @@ subject:
   name: Bootsy Collins
   band: Parliament-Funkadelic
   era: Stretchin' Out through Ahh... The Name Is Bootsy
+  years: { from: 1976, to: 1977 }
 
 instrument: bass
 

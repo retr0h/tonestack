@@ -56,6 +56,13 @@ type Record struct {
 	// Both Flea records failed on every Spotify link tried, and the pair that
 	// worked lived in one person's shell history until it was written here.
 	Source string `yaml:"source"`
+	// Year is when the record was made, which is what holds it to the rig it
+	// is measured for.
+	//
+	// Required. A rig's gear claims describe a period, and a record from
+	// another one measures another rig: an Acoustic 360 cannot be on a 1966
+	// record because Acoustic had not built one.
+	Year int `yaml:"year"`
 	// At is the part measured, as "1:20" or "1:20-1:45".
 	At string `yaml:"at"`
 	// Note is anything worth saying about this recording in particular.
@@ -118,6 +125,11 @@ func (r Record) check() error {
 	// source is "a file on somebody's disk" is worth no more than an
 	// assertion. Three players had three tracks each and no links between
 	// them before this was refused.
+	if r.Year == 0 {
+		return fmt.Errorf("reading manifest: %s has no year, and a record that "+
+			"names no year cannot be held to the era of the rig it measures", r.Track)
+	}
+
 	if r.URL == "" {
 		return fmt.Errorf("reading manifest: %s has no url, and a record nobody "+
 			"can find is a measurement nobody can check", r.Track)

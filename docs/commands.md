@@ -507,6 +507,7 @@ tonestack recipes <command> [flags]
 | --- | --- |
 | [list](#tonestack-recipes-list) | List available recipes |
 | [new](#tonestack-recipes-new) | Scaffold a recipe |
+| [records](#tonestack-recipes-records) | Show which records back each rig, and whether they match its era |
 | [show](#tonestack-recipes-show) | Show one recipe in full |
 
 | flag | takes | default | what it does |
@@ -555,6 +556,29 @@ tonestack recipes new [flags]
 | `--kind` | string |  | what the copy is attributed to: artist, band, song, genre or sound |
 | `--name` | string |  | the player or style |
 | `--pedal` | stringSlice |  | real-world pedal, in signal order; repeat for more |
+
+## tonestack recipes records
+
+Join what a rig claims to what was measured for it.
+
+A rig says which years its gear describes. A manifest says when each measured
+record was made. Both are honest on their own, and the join between them can
+still be wrong: a record cut before the amplifier existed measures a different
+rig, and the words derived from it describe gear the rig does not name.
+
+Which half is wrong is a judgement nobody here can make. The rig may describe
+the wrong period, or the records may be the wrong records, and only somebody
+who knows the player can say which.
+
+    tonestack recipes records --corpus resources/music/bass
+
+```text
+tonestack recipes records [flags]
+```
+
+| flag | takes | default | what it does |
+| --- | --- | --- | --- |
+| `--corpus` | string |  | the music corpus holding one directory of records per player |
 
 ## tonestack recipes show
 

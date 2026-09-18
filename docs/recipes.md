@@ -138,6 +138,38 @@ Leaving `settings` out is fine, and often better. What happens then:
 spread. The spread is the useful column: it says how much of an opinion is worth
 having.
 
+## Say when the rig applied
+
+```yaml
+subject:
+  era: American Idiot
+  years: { from: 2004, to: 2004 }
+```
+
+`era` is how a person says it and `years` is the same thing a machine can check.
+They matter together because a rig's audio evidence comes from records, and a
+record made outside the period the gear describes measures other gear. Paul
+McCartney's rig names an Acoustic 360; one of his measured records was cut in
+1966, two years before Acoustic built one. Both halves are honest and the join
+between them is wrong.
+
+```bash
+tonestack recipes records --corpus resources/music/bass
+```
+
+reads every rig against its manifest and says which records fall outside:
+
+```
+  RIG             ERA        RECORDS              READS
+  geddy-lee       1975–1978  1975 1976 1977 1978  records match the era
+  mike-dirnt      2004       1994* 1994* 1995*    every record is from another era
+  tim-commerford  1992       1992 1992 1999*      1 of 3 from another era
+```
+
+It reports rather than refuses, because which half is wrong is a judgement. The
+rig may describe the wrong period, or the records may be the wrong records, and
+only somebody who knows the player can say which.
+
 ## Say what it is played on
 
 ```yaml

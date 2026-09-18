@@ -2,16 +2,21 @@ artist: Les Claypool
 tracks:
   - track: jerry-was-a-race-car-driver
     url: https://open.spotify.com/track/19C0LKY3DCcQtuviPJNy5d
+    year: 1991
     note: Primus, Sailing the Seas of Cheese, 1991
   - track: my-name-is-mud
     url: https://open.spotify.com/track/5c6gkexa2eWCCBmEb0zXCZ
+    year: 1993
     note: Primus, Pork Soda, 1993
   - track: wynonas-big-brown-beaver
     url: https://open.spotify.com/track/5WzdX4iArSQZELuxI0Oq5Q
+    year: 1995
     note: Primus, Tales from the Punchbowl, 1995
   - track: tommy-the-cat
     url: https://open.spotify.com/track/0kquzTsZG4m9qmLJaPSY9U
-    note: Primus, Sailing the Seas of Cheese, 1991. The album take, not the
+    year: 1991
+    note: >-
+      Primus, Sailing the Seas of Cheese, 1991. The album take, not the
       earlier one on Frizzle Fry. Shares a production with
       jerry-was-a-race-car-driver, which is a compromise: the four records
       cover three albums rather than four

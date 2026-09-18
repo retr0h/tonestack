@@ -13,6 +13,7 @@ subject:
   name: Les Claypool
   band: Primus
   era: Sailing the Seas of Cheese through Tales from the Punchbowl
+  years: { from: 1991, to: 1995 }
 
 instrument: bass
 
