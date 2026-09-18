@@ -14,3 +14,26 @@ tracks:
     url: https://open.spotify.com/track/0rtCtx7ntrbB9fNB9zciXG
     year: 1995
     note: Insomniac, 1995
+  - track: american-idiot
+    url: https://open.spotify.com/track/6nTiIhLmQ3FWhvrGafw2zj
+    year: 2004
+    note: American Idiot, 2004
+  - track: holiday
+    url: https://open.spotify.com/track/0lvhEsN1zkMzfp2M1o17yy
+    year: 2004
+    note: American Idiot, 2004, from the twentieth anniversary edition of 2024.
+      A different master of the 2004 recording, which reads on the dynamics
+      figure before it reads anywhere else. The edition is what splits the
+      song out, because the original album tracks it as "Holiday / Boulevard of Broken
+      Dreams", one eight minute piece. The file runs to 240s against the 232s
+      Spotify holds, and the extra is music rather than silence, so it carries
+      the segue into Boulevard. Kept rather than trimmed, because a trimmed
+      file matches no release and the file is meant to be the recording the
+      link names. Eight seconds of the same band and the same player in four
+      minutes moves nothing
+  - track: st-jimmy
+    url: https://open.spotify.com/track/09hW1hlP52DBiU3aO8jkgz
+    year: 2004
+    note: American Idiot, 2004, from the twentieth anniversary edition of 2024.
+      A different master of the 2004 recording, so the same dynamics caveat as
+      holiday. The original album pairs it as "Are We the Waiting / St. Jimmy"
