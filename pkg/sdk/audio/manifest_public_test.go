@@ -50,6 +50,7 @@ artist: Mike Dirnt
 tracks:
   - track: longview
     url: https://open.spotify.com/track/abc
+    source: https://www.youtube.com/watch?v=abc
     at: "1:20-1:45"
     note: the bass carries the verse alone
   - track: basket-case
@@ -65,8 +66,31 @@ func (s *ManifestPublicTestSuite) TestItReadsWhatWasMeasured() {
 
 	s.Require().Equal("longview", got.Tracks[0].Track)
 	s.Require().Equal("https://open.spotify.com/track/abc", got.Tracks[0].URL)
+	s.Require().Equal("https://www.youtube.com/watch?v=abc", got.Tracks[0].Source)
 	s.Require().Equal("1:20-1:45", got.Tracks[0].At)
 	s.Require().Equal("the bass carries the verse alone", got.Tracks[0].Note)
+}
+
+// TestASourceIsOptional covers the ordinary record, which needs no fallback.
+//
+// Most links download from the url alone. A source is only written down when
+// that failed once and somebody found what did work.
+func (s *ManifestPublicTestSuite) TestASourceIsOptional() {
+	got := s.read(full)
+
+	s.Require().Empty(got.Tracks[1].Source)
+}
+
+// TestABadSourceIsCaughtHere covers the fallback held to the same shape as
+// the link it stands in for.
+func (s *ManifestPublicTestSuite) TestABadSourceIsCaughtHere() {
+	_, err := audio.ReadManifest(strings.NewReader(
+		"tracks:\n  - track: longview\n    url: https://open.spotify.com/track/abc\n" +
+			"    source: watch?v=abc\n"))
+
+	s.Require().Error(err)
+	s.Require().Contains(err.Error(), "longview")
+	s.Require().Contains(err.Error(), "source")
 }
 
 // TestItNamesNoFiles is the point of a manifest rather than a directory
@@ -99,11 +123,27 @@ func (s *ManifestPublicTestSuite) TestATypoStops() {
 // which says nothing about which song was wrong.
 func (s *ManifestPublicTestSuite) TestABadTimestampIsCaughtHere() {
 	_, err := audio.ReadManifest(strings.NewReader(
-		"tracks:\n  - track: longview\n    at: \"about a minute in\"\n"))
+		"tracks:\n  - track: longview\n    url: https://open.spotify.com/track/abc\n" +
+			"    at: \"about a minute in\"\n"))
 
 	s.Require().Error(err)
 	s.Require().Contains(err.Error(), "longview")
 	s.Require().Contains(err.Error(), "timestamp")
+}
+
+// TestARecordWithNoLinkIsRefused covers the reason a manifest exists.
+//
+// The figures measured from a record travel into a rig as evidence, and
+// evidence nobody can trace is an assertion with numbers on it. Three players
+// carried three tracks each with no links between them before this was
+// refused, and nothing said so.
+func (s *ManifestPublicTestSuite) TestARecordWithNoLinkIsRefused() {
+	_, err := audio.ReadManifest(strings.NewReader(
+		"tracks:\n  - track: longview\n    note: no link\n"))
+
+	s.Require().Error(err)
+	s.Require().Contains(err.Error(), "longview")
+	s.Require().Contains(err.Error(), "no url")
 }
 
 // TestABadLinkIsCaughtHere covers the other thing a rig will refuse.

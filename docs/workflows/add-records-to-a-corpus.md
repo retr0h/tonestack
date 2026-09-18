@@ -16,6 +16,8 @@ wrong is a file that downloads cleanly and is the wrong recording.
 - `tonestack measure --manifest` reports
   `named in the manifest but not measured`. The manifest names a record whose
   audio is not on disk.
+- An entry has no `url`. The record cannot be fetched again and nobody can check
+  what was measured, so the entry needs a link before it needs anything else.
 - The artist has fewer than three records, or they all come from one production.
 - A width is too wide to call a habit, and one record sits alone at one end of
   it. A fourth record says whether that one is the outlier.
@@ -56,9 +58,28 @@ The link does two jobs. It is the evidence a person without the file can check,
 and it is what the next step downloads, so the record measured is the record the
 evidence names.
 
+Every entry carries a `url`. An entry without one is not finished, whatever else
+it has. Flea, Mike Dirnt and Paul McCartney each got three tracks and no links,
+and once the audio was gone nobody could fetch those records again or check
+which takes had been measured. The album in `note` does not stand in for the
+link. "Mother's Milk, 1989" does not say which of the several Spotify tracks
+called "Higher Ground" was meant, and step 1 is about the one that would be
+wrong.
+
+`ReadManifest` refuses an entry with no url, the way it refuses one with no
+track name, so a manifest missing a link fails where it is read rather than
+years later when somebody wants the record back.
+
 Use the link, never a search. Asked for a song that does not exist, spotdl
 downloaded "ZzONE - NOBODY" rather than failing. A real title gets the same
 treatment, and a wrong match is harder to spot.
+
+Check the link before writing it down.
+`uvx spotdl save "<url>" --save-file song.spotdl` prints the artist, album, year
+and duration Spotify holds for it, which is what tells a search result apart
+from the record you wanted. Searching for "Suck My Kiss" returned two links that
+were both the song "Blood Sugar Sex Magik", and one "Welcome to Paradise" was a
+1994 Chicago live broadcast.
 
 ### 3. Download it under the manifest's name
 
@@ -66,6 +87,24 @@ treatment, and a wrong match is harder to spot.
 just record resources/music/paul-mccartney silly-love-songs \
   https://open.spotify.com/track/…
 ```
+
+The url is the one the manifest already holds. Copy it from there rather than
+finding it a second time, or the file on disk and the evidence beside it stop
+being the same recording. An entry that also carries a `source` is fetched from
+both, source first, which is what step 4 writes down. Reading every track and
+the string that fetches it:
+
+```bash
+awk '/^  - track:/{ if(t!="") print t, (s!=""? s"|"u : u); t=$3; u=""; s="" }
+     /^    url:/{ u=$2 } /^    source:/{ s=$2 }
+     END{ if(t!="") print t, (s!=""? s"|"u : u) }' \
+  resources/music/flea/corpus.yaml
+```
+
+Reset `u` and `s` on every new track. An awk that only tracks the current name
+prints the first entry's link against every later one, and the recipe then
+writes the wrong recording under a name that looks right. That happened here:
+"Aeroplane" landed as `higher-ground.mp3` and only the length check caught it.
 
 The recipe runs `uvx spotdl` and writes `silly-love-songs.mp3`. The name matters
 because `track` in the manifest matches the file's name without its extension.
@@ -101,6 +140,26 @@ nothing about live, cover, remix or a performance name like *Rockshow*. The
 Spotify half still supplies the tags. Never pass the YouTube link alone: spotdl
 then searches Spotify for the video's title, and one link for "Aeroplane" came
 back tagged as a Tape B song.
+
+Write the link that worked into the entry's `source`:
+
+```yaml
+  - track: higher-ground
+    url: https://open.spotify.com/track/3gDxDN503aZr5aeFtn6VwI
+    source: https://www.youtube.com/watch?v=3jFHoGaempM
+    note: Mother's Milk, 1989
+```
+
+`url` stays the evidence, and is what a rig quotes. `source` is only the
+downloader's way back to the same audio, so the next person to want this record
+runs step 3 and gets it rather than repeating the search. Both Flea records need
+one: every Spotify link tried for them failed here, four apiece, while the other
+seven in the corpus came down from their url alone.
+
+Trying another Spotify link first is still worth it, and cheaper than this. It
+did not help for those two, but the link a search returns is often a live take
+or a compilation edit, and a different one for the same recording downloads
+fine.
 
 ### 5. Check it is the recording
 
