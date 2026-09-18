@@ -81,12 +81,7 @@ func Corpus(
 			continue
 		}
 
-		all := make([]Profile, 0, len(got))
-		for _, n := range got {
-			all = append(all, n.Profile)
-		}
-
-		a := Together(all)
+		a := Together(profilesOf(got))
 		together[e.Name()] = a
 
 		out = append(out, Player{ID: e.Name(), Records: len(got), Across: a})
@@ -99,6 +94,18 @@ func Corpus(
 	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
 
 	return out, nil
+}
+
+// profilesOf is what each of a player's records measured as.
+func profilesOf(
+	of []Named,
+) []Profile {
+	out := make([]Profile, 0, len(of))
+	for _, n := range of {
+		out = append(out, n.Profile)
+	}
+
+	return out
 }
 
 // without is everybody else, which is what a player is compared against.
