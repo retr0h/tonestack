@@ -72,6 +72,10 @@ func eraOf(
 	w io.Writer,
 	b sdk.Backing,
 ) string {
+	if b.NoRig {
+		return paint.Mute(w, "—")
+	}
+
 	if !b.Stated() {
 		return paint.Info(w, "says none")
 	}
@@ -112,6 +116,8 @@ func verdictOf(
 	b sdk.Backing,
 ) string {
 	switch {
+	case b.NoRig:
+		return paint.Err(w, "no rig is named for this directory")
 	case len(b.Records) == 0:
 		return paint.Mute(w, "nothing measured for it")
 	case !b.Stated():
@@ -133,7 +139,7 @@ func ridingOn(
 	bad := 0
 
 	for _, b := range all {
-		if b.Outside() > 0 {
+		if b.Outside() > 0 || b.NoRig {
 			bad++
 		}
 	}
@@ -142,5 +148,5 @@ func ridingOn(
 		return fmt.Sprintf("%d rigs, every record in era", len(all))
 	}
 
-	return fmt.Sprintf("%d rigs, %d measuring records from another era", len(all), bad)
+	return fmt.Sprintf("%d rigs, %d with something to answer for", len(all), bad)
 }

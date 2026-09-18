@@ -54,8 +54,10 @@ func Backing(
 	}
 
 	out := []result.Backing(nil)
+	claimed := map[string]bool{}
 
 	for _, spec := range specs(all.merged()) {
+		claimed[spec.ID] = true
 		one := result.Backing{ID: spec.ID}
 
 		if spec.Subject.Era != nil {
@@ -82,7 +84,61 @@ func Backing(
 		out = append(out, one)
 	}
 
+	orphans, err := unclaimed(corpus, claimed)
+	if err != nil {
+		return nil, err
+	}
+
+	out = append(out, orphans...)
+
 	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
+
+	return out, nil
+}
+
+// unclaimed finds records sitting in a directory no rig is named for.
+//
+// A rig reaches its records by the directory carrying its identifier, and
+// nothing else joins the two. A directory called anything else is measured by
+// nobody, and it reads exactly like a rig nobody has measured yet, which is
+// how a typo survives. Records fetched before the rig that will use them look
+// the same and are fine, so this reports rather than refuses.
+func unclaimed(
+	corpus string,
+	claimed map[string]bool,
+) ([]result.Backing, error) {
+	entries, err := os.ReadDir(corpus)
+	if os.IsNotExist(err) {
+		return nil, nil
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("reading %s: %w", corpus, err)
+	}
+
+	out := []result.Backing(nil)
+
+	for _, e := range entries {
+		if !e.IsDir() || claimed[e.Name()] {
+			continue
+		}
+
+		records, err := recordsFor(corpus, e.Name())
+		if err != nil {
+			return nil, err
+		}
+
+		if len(records) == 0 {
+			continue
+		}
+
+		one := result.Backing{ID: e.Name(), NoRig: true}
+		for _, r := range records {
+			one.Records = append(one.Records, result.Record{Track: r.Track, Year: r.Year})
+		}
+
+		out = append(out, one)
+	}
 
 	return out, nil
 }

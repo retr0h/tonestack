@@ -7,6 +7,12 @@ then one per artist.
 resources/music/bass/flea/
 ```
 
+`flea` is the rig's own identifier, and that is the only thing joining a rig to
+its records. A directory spelled any other way leaves the rig reading as one
+nobody has measured and the records as belonging to nobody, which look identical
+to the ordinary cases. `tonestack recipes records --corpus resources/music/bass`
+names both.
+
 The instrument is not tidiness. A word is earned by sitting clear of the other
 players in the tree, and a guitar's centre of gravity sits an octave above a
 bass guitar's. One guitarist in a corpus of bassists would earn every bassist

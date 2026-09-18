@@ -75,7 +75,7 @@ func (s *BackingPublicTestSuite) TestEveryRecordFromAnotherEra() {
 
 	s.Require().Contains(got, "every record is from another era")
 	s.Require().Contains(got, "2012")
-	s.Require().Contains(got, "1 measuring records from another era")
+	s.Require().Contains(got, "1 with something to answer for")
 }
 
 // TestSomeRecordsFromAnotherEra covers the partial case, which is the one
@@ -91,6 +91,18 @@ func (s *BackingPublicTestSuite) TestSomeRecordsFromAnotherEra() {
 
 	s.Require().Contains(got, "1 of 2 from another era")
 	s.Require().Contains(got, "1992")
+}
+
+// TestRecordsNoRigIsNamedFor covers the row for a directory nobody claims,
+// which otherwise reads as a rig nobody has measured.
+func (s *BackingPublicTestSuite) TestRecordsNoRigIsNamedFor() {
+	got := s.render([]sdk.Backing{{
+		ID: "mccartney", NoRig: true,
+		Records: []sdk.Record{{Track: "silly-love-songs", Year: 1976}},
+	}})
+
+	s.Require().Contains(got, "no rig is named for this directory")
+	s.Require().Contains(got, "1 with something to answer for")
 }
 
 // TestARigWithNoEra covers what cannot be checked, which is worth seeing.

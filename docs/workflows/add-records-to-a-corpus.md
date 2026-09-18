@@ -246,3 +246,14 @@ tonestack recipes records --corpus resources/music/bass
 The rig you added to should now read `records match the era`. If it does not,
 the manifest and the rig still disagree and the figures measured from it
 describe gear the rig does not name.
+
+It also names a directory no rig answers to. Records are joined to a rig by the
+directory carrying the rig's identifier, so `mccartney` beside a rig called
+`paul-mccartney` is measured by nobody.
+
+Then carry the measurement back into the rig: the words its records earn, with
+both sides of the comparison, per
+[Measure a player's sound](measure-a-players-sound.md#6-compare-them-against-the-other-players).
+If the rig has no `played`, fill it first — every figure a record produces
+carries the instrument, and without it the figure is attributed to the
+amplifier.

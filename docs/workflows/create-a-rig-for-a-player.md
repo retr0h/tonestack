@@ -51,17 +51,36 @@ only found when you name the same directory again, with `--dir` or with
 `--kind` changes what a copy made with `--from` is attributed to, and is refused
 without `--from`. A rig written from gear is always an artist.
 
-Then open the file and fill in what the flags cannot express: `character`,
-`technique`, and honest `provenance`. [recipes.md](../recipes.md) covers each
-field and
-[`examples/rigspec/mike-dirnt.yaml`](../../examples/rigspec/mike-dirnt.yaml)
-shows all of them on one subject.
+Then open the file. The flags write the chain; everything that makes the rig
+worth reading is what you add next.
 
-**Be honest about where the gear came from.** `source: llm` means a model
-asserted it and nobody checked. That is reliable for well-known players,
-unreliable for obscure ones, and the model cannot tell which it is doing. That
-makes it the largest correctness risk here. Say `confidence: low` and let the
-tool display it as unverified.
+| field           | what it carries                                  | why it is not optional in practice                                                  |
+| --------------- | ------------------------------------------------ | ----------------------------------------------------------------------------------- |
+| `evidence`      | where each gear claim came from, per chain entry | a chain with no sources is a model's guess wearing a filename                       |
+| `confidence`    | how much of the above you believe                | `low` is an honest answer and the tool displays it as unverified                    |
+| `subject.era`   | when the rig applied, in words                   | a rig that does not say when it applies claims to be timeless and usually is not    |
+| `subject.years` | the same period as numbers                       | nothing can be measured for this rig without it: records are held to these years    |
+| `played`        | the instrument and its strings                   | a figure measured without it is attributed to the amplifier, which did not cause it |
+| `technique`     | pick or fingers, and where on the string         | a picked record tuned by ear sounds dull played fingered                            |
+| `character`     | how it should sound, each word with its evidence | this is what moves controls when the preset is built                                |
+
+[recipes.md](../recipes.md) has a section per field and
+[`examples/rigspec/mike-dirnt.yaml`](../../examples/rigspec/mike-dirnt.yaml)
+shows all of them on one subject. Fill what you can source and leave the rest
+out: an empty field is a gap somebody can close, and a filled one nobody checked
+is a claim this project will repeat back as fact.
+
+**Be honest about where the gear came from.** `kind: llm` on a piece of evidence
+means a model asserted it and nobody checked. That is reliable for well-known
+players, unreliable for obscure ones, and the model cannot tell which it is
+doing, which makes it the largest correctness risk here.
+
+**If this player will ever be measured**, the records go in
+`resources/music/<instrument>/<id>/`, and `<id>` is this rig's identifier. That
+directory name is the only thing joining a rig to its records: spell it
+differently and the rig reads as one nobody has measured, while the records read
+as belonging to nobody. `tonestack recipes records --corpus <dir>` says so when
+it happens. [Add records to a corpus](add-records-to-a-corpus.md) is the rest.
 
 ### 4. Build it
 
