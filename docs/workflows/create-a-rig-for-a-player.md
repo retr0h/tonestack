@@ -42,11 +42,14 @@ just forum https://www.talkbass.com/threads/geddy-lee-amps.847050/
 just forum https://www.reddit.com/r/Bass/comments/…/…/
 ```
 
-`just forum` prints a thread as numbered posts. Both sites refuse an ordinary
-fetch, TalkBass with a Cloudflare challenge and Reddit with a 403, and no user
-agent helps because what they check is the TLS handshake.
-[resources/read_forum.py](../../resources/read_forum.py) reproduces a browser's,
-which is the whole trick.
+`just forum` prints a thread as numbered posts, each with its author. Both sites
+refuse an ordinary fetch and they refuse it differently, which is worth knowing
+because the fix differs too. TalkBass checks the TLS handshake, so no user agent
+gets past its Cloudflare challenge;
+[resources/read_forum.py](../../resources/read_forum.py) reproduces a browser's
+handshake, which is the whole trick. Reddit blocks its JSON API to anonymous
+readers however you ask, but still serves RSS to anything sending a browser user
+agent.
 
 To search them, put the site in the query rather than trusting a general web
 search to surface it:
@@ -55,6 +58,11 @@ search to surface it:
 site:talkbass.com geddy lee ampeg cabinets 1977
 site:reddit.com/r/Bass mccartney rickenbacker flatwounds wings
 ```
+
+Searching Reddit goes through the MCP server that `.mcp.json` declares, which
+needs no account and nothing configured: it reads Reddit's RSS feeds, which
+still serve where the JSON API refuses anonymous readers. Expect a 429 if you
+hurry it. See [Reading Reddit](../../CONTRIBUTING.md#reading-reddit).
 
 Then open every thread you intend to cite. This is not a formality. Every forum
 citation in this repository before `just forum` existed was entered from a

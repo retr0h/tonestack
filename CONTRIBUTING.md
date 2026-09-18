@@ -40,6 +40,32 @@ mise install
   Only needed if you are measuring audio. `brew install ffmpeg`.
 - **[just].** Task runner used for building, testing, formatting, and other
   development workflows. Install with `brew install just`.
+- **[Node] 18 or newer.** Only needed to read Reddit, which runs the MCP server
+  below. mise supplies it; nothing in the build uses it.
+
+### Reading Reddit
+
+Reddit is one of the two forums this project treats as a first-class source.
+`.mcp.json` declares an MCP server for it, Claude Code starts it, and **there is
+nothing to authenticate**. No account, no API key, no token.
+
+That is possible because of a split in how Reddit blocks readers. Its JSON API
+refuses anonymous requests outright, which is why `old.reddit.com` answers a
+login wall and `.json` answers 403 whatever you send. Its **RSS feeds still
+serve 200**, and this server reads only those. The one thing that matters is a
+browser user agent: the same RSS url answers 403 without one and 200 with one.
+
+The cost is throttling rather than refusal. Sustained reading earns a 429,
+roughly after a handful of requests, and clears in under a minute. That is fine
+for reading a few threads and slow for sweeping a subreddit, which is the shape
+of the work here anyway.
+
+It is pinned to a commit rather than a branch, so what runs does not change
+under you. Before changing that pin, read `server.js`: it is one file, has no
+dependencies at all, and the only host it contacts is `www.reddit.com`.
+
+TalkBass needs none of this. `just forum` reads it, and reads a Reddit thread
+too once you have the url, so the MCP server mostly earns its place on search.
 
 ### Claude Code
 
@@ -771,6 +797,7 @@ If you have questions, open a [Discussion] on GitHub.
 [just]: https://just.systems
 [mdformat]: https://pypi.org/project/mdformat/
 [mise]: https://mise.jdx.dev
+[node]: https://nodejs.org
 [superpowers]: https://github.com/pcvelz/superpowers
 [unslop]: https://github.com/cursor/plugins/blob/main/pstack/skills/unslop/SKILL.md
 [uv]: https://docs.astral.sh/uv/

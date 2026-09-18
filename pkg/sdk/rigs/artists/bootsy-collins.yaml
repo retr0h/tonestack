@@ -79,8 +79,23 @@ character:
           the Mu-Tron as much as the bass.
 played:
   gear: Space Bass
-  strings: unknown
+  strings: round
   evidence:
+    - kind: cited
+      url: https://worldradiohistory.com/Archive-All-Music/International-Musician/70s/International-Musician-1978-08.pdf
+      note: >-
+        International Musician, August 1978, page 79, "Bootsy's Spaced-Out
+        Bass", a gear interview built around the instrument: "On his basses
+        he used Rotosound Swingbass strings." Swing Bass is a roundwound, and
+        the same issue calls it "probably the biggest selling string for bass
+        guitar in the world". The piece also gives the order of instruments:
+        "He had been using both Fender Precision and Jazz basses, but wanted
+        something different."
+      caveat: >-
+        eighteen months after the second of these two records, and a
+        statement about what he uses rather than about a session. A scan
+        rather than a transcription, which is the one thing here that is
+        better than usual.
     - kind: cited
       url: https://www.discogs.com/release/570769
       note: >-

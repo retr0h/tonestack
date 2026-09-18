@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "reddit": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "github:ninjackster/reddit-rss-mcp#73bc5bba73d3aed5c09057689d0eecf3f96e0d4a"
+      ]
+    }
+  }
+}
