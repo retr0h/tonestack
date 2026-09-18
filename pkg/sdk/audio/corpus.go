@@ -46,8 +46,8 @@ type Player struct {
 //
 // One directory per player, holding their records somewhere beneath it:
 //
-//	resources/music/mike-dirnt/stems/htdemucs/longview/bass.wav
-//	resources/music/flea/stems/htdemucs/aeroplane/bass.wav
+//	resources/music/bass/mike-dirnt/stems/htdemucs/longview/bass.wav
+//	resources/music/bass/flea/stems/htdemucs/aeroplane/bass.wav
 //
 // Deriving needs the comparison, which is why this exists at all: a term is
 // earned by sitting clear of the other players, so one player's records can

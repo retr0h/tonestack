@@ -59,7 +59,7 @@ It reports `named in the manifest but not measured` for each one.
 ## Measuring one
 
 ```bash
-just stems resources/music/bass/flea resources/music/bass/flea/stems
+just stems resources/music/bass/flea resources/music/bass/flea/stems bass
 tonestack measure --dir resources/music/bass/flea/stems/htdemucs \
   --manifest resources/music/bass/flea/corpus.yaml
 ```
@@ -70,6 +70,11 @@ than ignored, and so is a recording nothing names.
 
 [workflows/measure-a-players-sound.md](../../docs/workflows/measure-a-players-sound.md)
 is the full procedure.
+
+A guitarist takes `guitar` as the third argument, which also switches the model:
+the default one separates four sources and none of them is a guitar. Its stems
+are worse than a bass separation, and a figure measured from one carries more of
+the band with it, so the caveat on that evidence is doing real work.
 
 ## Adding one
 
