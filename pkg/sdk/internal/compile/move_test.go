@@ -458,6 +458,85 @@ func (s *MoveTestSuite) TestMoveSkipsAValueItCannotDo() {
 	s.Require().False(got[0].Acted())
 }
 
+// TestAWordFindsAControlTheAmplifierDoesNotHave covers the equaliser
+// answering a question the amplifier cannot.
+//
+// Two of the rigs here earn `mid-forward` from their own records and name an
+// amplifier with no mid control: an Ampeg B-15NF and an Acoustic 360. The
+// word reached nothing on either. An equaliser in the chain has the same band
+// under another name, and it is in the chain because somebody put it there.
+func (s *MoveTestSuite) TestAWordFindsAControlTheAmplifierDoesNotHave() {
+	// An amplifier with a bass and a treble knob and nothing between them,
+	// which is what those two amps are.
+	twoKnob := catalog.Block{
+		ID: "HD2_AmpTwoKnob", Category: catalog.CategoryAmp,
+		Params: map[string]catalog.Param{"Bass": knob, "Treble": knob},
+	}
+	eq := catalog.Block{
+		ID: "HD2_EQTest", Category: catalog.CategoryEQ,
+		Params: map[string]catalog.Param{"MidGain": knob, "HighGain": knob},
+	}
+
+	tests := []struct {
+		name   string
+		blocks []catalog.Block
+		params []chain.Params
+		want   string
+		acted  bool
+	}{
+		{
+			// The amplifier is the voice, so it answers first even with an
+			// equaliser standing right there.
+			name:   "an amplifier that has the control",
+			blocks: []catalog.Block{s.amp(), eq},
+			params: []chain.Params{s.params(), {"MidGain": catalog.Float(0)}},
+			want:   "Mid",
+			acted:  true,
+		},
+		{
+			name:   "an amplifier that does not, beside an equaliser that does",
+			blocks: []catalog.Block{twoKnob, eq},
+			params: []chain.Params{
+				{"Bass": catalog.Float(0.5), "Treble": catalog.Float(0.5)},
+				{"MidGain": catalog.Float(0)},
+			},
+			want:  "MidGain",
+			acted: true,
+		},
+		{
+			// Nothing in the chain has the band, and saying which block was
+			// asked is what tells somebody why.
+			name:   "neither",
+			blocks: []catalog.Block{twoKnob},
+			params: []chain.Params{{"Bass": catalog.Float(0.5), "Treble": catalog.Float(0.5)}},
+			want:   "has no Mid",
+		},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			built := chain.Chain{}
+			for i, b := range tt.blocks {
+				built.Blocks = append(built.Blocks,
+					chain.Block{Model: b.ID, Params: tt.params[i]})
+			}
+
+			got := move(tt.blocks, built, said("mid-forward"), nil)
+			s.Require().Len(got, 1)
+
+			if !tt.acted {
+				s.Require().False(got[0].Acted())
+				s.Require().Contains(got[0].Because, tt.want)
+
+				return
+			}
+
+			s.Require().Equal(tt.want, got[0].Param)
+			s.Require().Greater(got[0].To, got[0].From, "mid-forward raises it")
+		})
+	}
+}
+
 // TestTermsOf covers reading the words a rig described itself with, and how
 // much of a step each one is worth.
 func (s *MoveTestSuite) TestTermsOf() {
