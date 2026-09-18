@@ -68,17 +68,15 @@ character:
     evidence:
       - kind: audio
         measured: { mid: 0.23 }
-        against: { mid: 0.04 }
+        against: { mid: 0.06 }
         note: >-
           23% of his energy sits in the mid band across the four records,
-          against 4% for the other eight players, clear of the line by 9%.
-          Earned outright and not marginally: it would take a player halfway
-          between him and the middle to unseat it.
+          against 6% for the other eight players, clear of the line by 4%.
+          Earned against every corpus this has been measured against.
         caveat: >-
           measures the record rather than the player, and the envelope filter
           this rig is mostly about is a mid-band effect: the figure describes
           the Mu-Tron as much as the bass.
-
 technique:
   attack: slap
   evidence:

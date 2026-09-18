@@ -180,6 +180,92 @@ func (s *CorpusPublicTestSuite) TestAWordSaysHowFarPastTheLineItSits() {
 	s.Require().Fail("nobody earned bright")
 }
 
+// manifest writes one player's manifest, naming the records given.
+func (s *CorpusPublicTestSuite) manifest(
+	player string,
+	tracks ...string,
+) {
+	body := "artist: " + player + "\ntracks:\n"
+	for _, t := range tracks {
+		body += "  - track: " + t +
+			"\n    url: https://open.spotify.com/track/abc\n    year: 1994\n"
+	}
+
+	s.Require().NoError(os.WriteFile(
+		filepath.Join(s.root, player, "corpus.yaml"), []byte(body), 0o600))
+}
+
+// TestOnlyWhatTheManifestNamesIsMeasured covers the manifest deciding what a
+// player's figures are made of, rather than whatever is on disk.
+//
+// Records get replaced, and the workflow says to keep the audio of the ones
+// taken out because separating it again costs minutes. Six were retired that
+// way and every one of them was still in the figures until this: the counts
+// read six where the manifest said three.
+func (s *CorpusPublicTestSuite) TestOnlyWhatTheManifestNamesIsMeasured() {
+	for _, track := range []string{"kept-one", "kept-two", "retired"} {
+		s.record("mike-dirnt", track, audio.Sine(110, 1, rate, 0.8))
+	}
+
+	s.manifest("mike-dirnt", "kept-one", "kept-two")
+
+	got := s.corpus()
+
+	s.Require().Len(got, 1)
+	s.Require().Equal(2, got[0].Records, "the retired record is still on disk")
+}
+
+// TestAPlayerWithNoManifestIsMeasuredAsFound covers a directory somebody is
+// still assembling, where the manifest has not been written yet.
+func (s *CorpusPublicTestSuite) TestAPlayerWithNoManifestIsMeasuredAsFound() {
+	for _, track := range []string{"one", "two", "three"} {
+		s.record("nobody", track, audio.Sine(110, 1, rate, 0.8))
+	}
+
+	got := s.corpus()
+
+	s.Require().Len(got, 1)
+	s.Require().Equal(3, got[0].Records)
+}
+
+// TestAManifestThatWillNotRead covers a corpus somebody broke, which stops
+// the reading rather than silently measuring the tree instead.
+func (s *CorpusPublicTestSuite) TestAManifestThatWillNotRead() {
+	s.record("mike-dirnt", "one", audio.Sine(110, 1, rate, 0.8))
+	s.Require().NoError(os.WriteFile(
+		filepath.Join(s.root, "mike-dirnt", "corpus.yaml"),
+		[]byte("tracks:\n  - track: one\n    note: a note: with a colon\n"), 0o600))
+
+	_, err := audio.Corpus(os.DirFS(s.root), ".")
+
+	s.Require().Error(err)
+}
+
+// TestAManifestThatCannotBeOpened covers a manifest that is there and shut.
+//
+// Distinct from one that is absent, which measures the tree as found: a
+// manifest nobody can read is a statement of what to measure that nobody can
+// read, and measuring the tree instead would quietly use records somebody
+// took out.
+func (s *CorpusPublicTestSuite) TestAManifestThatCannotBeOpened() {
+	s.record("mike-dirnt", "one", audio.Sine(110, 1, rate, 0.8))
+
+	at := filepath.Join(s.root, "mike-dirnt", "corpus.yaml")
+	s.manifest("mike-dirnt", "one")
+	s.Require().NoError(os.Chmod(at, 0o000))
+
+	defer func() { s.Require().NoError(os.Chmod(at, 0o600)) }()
+
+	if _, err := os.ReadFile(at); err == nil {
+		s.T().Skip("running as a user that reads anything, so there is no error to see")
+	}
+
+	_, err := audio.Corpus(os.DirFS(s.root), ".")
+
+	s.Require().Error(err)
+	s.Require().Contains(err.Error(), "mike-dirnt")
+}
+
 // TestADirectoryWithNoRecordingsIsNotAPlayer covers a manifest waiting for
 // audio somebody has not separated yet.
 func (s *CorpusPublicTestSuite) TestADirectoryWithNoRecordingsIsNotAPlayer() {

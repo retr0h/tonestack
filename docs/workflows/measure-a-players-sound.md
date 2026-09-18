@@ -195,16 +195,17 @@ tonestack measure --corpus resources/music/bass
 ```
   What the records say  9 players
 
-  PLAYER          RECORDS  EARNS                HOLDS                       AGAINST THE OTHERS
-  bootsy-collins        4  mid-forward          mid-forward: clear by 9%    mid 23% against 4%
-  flea                  3  clean                clean: clear by 3%          harmonics 12% against 24%
-  geddy-lee             4  mid-forward          mid-forward: clear by 0.1%  mid 14% against 4%
-  jaco-pastorius        4  mid-forward, bright  mid-forward: clear by 8%    mid 39% against 4%
+  PLAYER          RECORDS  EARNS                HOLDS                     AGAINST THE OTHERS
+  bootsy-collins        4  mid-forward          mid-forward: clear by 4%  mid 23% against 6%
+  flea                  3  nothing
+  geddy-lee             4  nothing
+  jaco-pastorius        4  mid-forward, bright  bright: clear by 21 Hz    centroid 259 Hz against 150 Hz
   les-claypool          4  nothing
-  mike-dirnt            3  nothing
-  paul-mccartney        3  clean                clean: clear by 5%          harmonics 10% against 24%
-  pino-palladino        3  dark                 dark: clear by 28 Hz        centroid 96 Hz against 176 Hz
+  mike-dirnt            3  scooped, clean       scooped: clear by 2%      mid 1% against 10%
+  paul-mccartney        3  nothing
+  pino-palladino        3  scooped, dark        scooped: clear by 0.1%    mid 2% against 10%
   tim-commerford        3  nothing
+
 ```
 
 One directory per player, each holding that player's separated records. This is
@@ -216,11 +217,9 @@ whose records disagree with each other earns nothing, and so does one who sits
 where everybody else sits. Les Claypool reads that way today: one of his three
 records is far darker than the other two.
 
-Mike Dirnt earned `mid-forward` against four players and earns nothing against
-eight. Nothing about his records changed. Bootsy Collins and Jaco Pastorius sit
-further into the mids than he does, so the middle of the population moved and
-what used to be clear of it no longer is. A word lost this way was never
-evidence; it was a small population.
+A word moves when the population moves, and nothing about the player changes.
+Mike Dirnt earned `mid-forward` against four players, and Bootsy Collins and
+Jaco Pastorius arrived further into the mids than he was.
 
 `holds` is what tells one of those words from another. It is the margin past the
 line the word had to clear, in the measure's own unit, so Jaco Pastorius
@@ -235,11 +234,13 @@ record can only raise the first or lower the second. That check was built, run
 against all nine players, and reported nothing for every word, which is what the
 arithmetic says it must do.
 
-It moves both ways. Geddy Lee earned nothing against seven players and earns
-`mid-forward` against eight, because Tim Commerford arrived at 2% and pulled the
-middle down. The three of them claim the same amplifier, an Ampeg SVT into an
-8x10, and read 2%, 8% and 14%: the same rig measured three ways, which is the
-answer to whether this corpus measures the player or the box.
+The records matter more than the population. Mike Dirnt's rig describes his
+American Idiot rig and his first three records were Dookie and Insomniac, made
+on the amplifiers his own rig names for other years. Measured from American
+Idiot he reads 1% in the mid band where those records read 8%, and the word he
+earns is `scooped`: the opposite of the one the rig carried. Geddy Lee earned
+`mid-forward` while those wrong records were in the corpus and stopped earning
+it when they were replaced, without a record of his own changing.
 
 Three axes are derived — `mid-forward`/`scooped`, `bright`/`dark` and
 `saturated`/`clean` — and they are the three whose measure is the same quantity

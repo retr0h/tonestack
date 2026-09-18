@@ -63,11 +63,12 @@ character:
       - kind: llm
       - kind: audio
         measured: { centroid: 259 }
-        against: { centroid: 170 }
+        against: { centroid: 150 }
         note: >-
           his centroid across Continuum, Barbary Coast, Teen Town and Three
-          Views of a Secret, against the middle of the other eight players in
-          the music corpus. Earned outright: his whole range sits above them.
+          Views of a Secret, against the middle of the other eight players,
+          clear of the line by 21Hz. The widest centroid margin in the corpus,
+          and the only word here that has survived every correction to it.
         caveat: >-
           measures the record rather than the player, and a fretless played
           near the bridge is bright before any amplifier touches it.
@@ -75,12 +76,12 @@ character:
     evidence:
       - kind: audio
         measured: { mid: 0.39 }
-        against: { mid: 0.04 }
+        against: { mid: 0.06 }
         note: >-
-          39% of his energy sits in the mid band against 4% for the other
-          eight, clear of the line by 8% and the widest gap any player has on
-          any axis here. Nobody wrote
-          this word down before the records were measured.
+          39% of his energy sits in the mid band against 6% for the other
+          eight, clear of the line by 4% and the widest gap any player has on
+          any axis here. Nobody wrote this word down before the records were
+          measured.
         caveat: >-
           measures the record rather than the player: a fretless singing near
           the top of its range puts energy where a rock bass does not.

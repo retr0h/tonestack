@@ -13,8 +13,12 @@ subject:
   kind: artist
   name: Flea
   band: Red Hot Chili Peppers
-  era: 2012 touring
-  years: { from: 2012, to: 2012 }
+  era: I'm With You through The Getaway
+  # The rundown behind this rig is from 2012 and the switch to Ampeg came with
+  # Unlimited Love in 2022, so the Gallien-Krueger years are wider than the one
+  # the rundown was published in. Bounded by the records measured rather than
+  # by the whole span, because the far end of it has nothing measured on it.
+  years: { from: 2011, to: 2016 }
 
 instrument: bass
 
@@ -76,31 +80,17 @@ character:
           field exists to avoid: where the treble control sits says nothing
           about where the record lands.
       - kind: audio
+        measured: { centroid: 134 }
+        against: { centroid: 172 }
         note: >-
-          his three records measure a centroid of 163Hz, fourth darkest of
-          the nine players in the music corpus, behind Pino Palladino at
-          96Hz, Tim Commerford at 122Hz and Paul McCartney at 138Hz.
-          Reproduce with `tonestack measure --corpus resources/music/bass`.
+          his three records from this rig's own years measure a centroid of
+          134Hz, third darkest of the nine players behind Tim Commerford at
+          109Hz and Mike Dirnt at 126Hz. Below the middle and not clear of it,
+          so the word is not earned. Reproduce with `go run main.go measure
+          --corpus resources/music/bass`.
         caveat: >-
           the word is kept because a citation outranks a measurement here, and
-          because three records of one player are not his whole catalogue.
-          What the records say is that he is not the dark end of this corpus.
-  - term: clean
-    evidence:
-      - kind: audio
-        measured: { harmonics: 0.12 }
-        against: { harmonics: 0.24 }
-        note: >-
-          12% of his energy sits above the fundamental against 24% for the
-          rest of the corpus, clear of the line by 3%. The one term his
-          records earn outright.
-          Both figures are here because the gap between them is what decides
-          how far the word moves the amplifier's drive: half of everybody
-          else is half a step, not a knob at zero.
-        caveat: >-
-          measures the record rather than the player: the amp, the mic, the
-          desk and the master are all in that figure.
-
+          three records of one player are not his whole catalogue.
 technique:
   attack: slap
   evidence:

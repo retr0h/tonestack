@@ -21,6 +21,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -36,6 +37,7 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
+	sdk "github.com/retr0h/tonestack/pkg/sdk"
 	"github.com/retr0h/tonestack/pkg/sdk/audio"
 )
 
@@ -106,6 +108,39 @@ func (s *MainTestSuite) TestEveryManifestReads() {
 		s.Require().NoError(f.Close())
 		s.Require().NoError(err, "%s does not read", at)
 		s.Require().NotEmpty(m.Tracks, "%s names no records", at)
+	}
+}
+
+// TestEveryRecordIsInTheEraItsRigDescribes holds the shipped rigs to their
+// own years.
+//
+// `recipes records` reports this and reporting was right while four of the
+// nine disagreed: which half is wrong is a judgement and a build failing
+// would not have made it. They agree now, so the next one to drift should
+// stop somebody rather than wait to be noticed.
+//
+// A record from another era is not a small error. Mike Dirnt's rig described
+// his American Idiot rig and his records were Dookie, and measured from the
+// right ones he earns the opposite word on two axes.
+func (s *MainTestSuite) TestEveryRecordIsInTheEraItsRigDescribes() {
+	all, err := sdk.New().Backing(
+		context.Background(), filepath.Join("resources", "music", "bass"))
+	s.Require().NoError(err)
+	s.Require().NotEmpty(all)
+
+	for _, b := range all {
+		if len(b.Records) == 0 {
+			continue
+		}
+
+		s.Require().True(b.Stated(),
+			"%s has records and no years to hold them to", b.ID)
+
+		for _, r := range b.Records {
+			s.Require().False(r.Outside,
+				"%s: %s is from %d, outside the %d–%d this rig describes",
+				b.ID, r.Track, r.Year, b.From, b.To)
+		}
 	}
 }
 

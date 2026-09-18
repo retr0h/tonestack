@@ -20,10 +20,12 @@
 package audio
 
 import (
+	"errors"
 	"fmt"
 	"io/fs"
 	"path"
 	"sort"
+	"strings"
 )
 
 // Player is one artist in a music corpus: what their records measure as, and
@@ -77,6 +79,11 @@ func Corpus(
 			return nil, err
 		}
 
+		got, err = named(fsys, path.Join(root, e.Name()), got)
+		if err != nil {
+			return nil, err
+		}
+
 		if len(got) == 0 {
 			continue
 		}
@@ -92,6 +99,59 @@ func Corpus(
 	}
 
 	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
+
+	return out, nil
+}
+
+// named keeps the recordings the manifest names, where there is one.
+//
+// The manifest is the statement of what was measured and the disk is
+// incidental: a record dropped from a manifest is a record somebody decided
+// not to measure, and its stems are still sitting there because separating
+// takes minutes and nothing here deletes audio. Reading the tree alone would
+// measure it anyway.
+//
+// That is not hypothetical. Six records were taken out of four manifests for
+// being from the wrong era, their stems stayed on disk as the workflow says
+// they should, and without this every one of them would still be in the
+// figures.
+//
+// A player with no manifest is measured as found, which is what a directory
+// somebody is still assembling looks like.
+func named(
+	fsys fs.FS,
+	dir string,
+	got []Named,
+) ([]Named, error) {
+	f, err := fsys.Open(path.Join(dir, "corpus.yaml"))
+	if errors.Is(err, fs.ErrNotExist) {
+		return got, nil
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("reading %s: %w", dir, err)
+	}
+
+	// Opened read-only, so Close has nothing to report the read did not.
+	defer func() { _ = f.Close() }()
+
+	m, err := ReadManifest(f)
+	if err != nil {
+		return nil, err
+	}
+
+	wanted := make(map[string]bool, len(m.Tracks))
+	for _, rec := range m.Tracks {
+		wanted[strings.ToLower(rec.Track)] = true
+	}
+
+	out := make([]Named, 0, len(got))
+
+	for _, n := range got {
+		if wanted[strings.ToLower(n.Name)] {
+			out = append(out, n)
+		}
+	}
 
 	return out, nil
 }

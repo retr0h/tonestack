@@ -49,21 +49,12 @@ character:
   # with. What his records do say is that he is the most saturated of the
   # eight, at 29% against a middle of 24%, which is not clear enough of the
   # rest to earn `saturated` either.
-  - term: mid-forward
-    evidence:
-      - kind: audio
-        measured: { mid: 0.14 }
-        against: { mid: 0.04 }
-        note: >-
-          14% of his energy sits in the mid band across Anthem, A Passage to
-          Bangkok, Cygnus X-1 and La Villa Strangiato, against 4% for the
-          other eight players. Earned once Tim Commerford was measured, who
-          reads 2% on the same amplifier. Clear of the line by 0.1%, which is
-          the narrowest margin any word here holds: one more player between
-          him and the middle takes it back.
-        caveat: >-
-          measures the record rather than the player, and a Rickenbacker
-          through an SVT is a different instrument into the same amp.
+  # `mid-forward` was earned here and is not any more. He reads 14% of his
+  # energy in the mid band, which cleared the line while Mike Dirnt's records
+  # were Dookie at 8% and Paul McCartney's were Beatles takes at 0%. Both
+  # players now carry records from the era their rigs describe, the middle
+  # moved to 10%, and 14% is not clear of it. Nothing about his records
+  # changed.
   - term: percussive
     evidence:
       - kind: user

@@ -1,19 +1,5 @@
 artist: Flea
 tracks:
-  - track: aeroplane
-    url: https://open.spotify.com/track/0VLdJcQUsqHBBwqPp4CIKJ
-    year: 1995
-    source: https://www.youtube.com/watch?v=jOZcM5VPevI
-    note: One Hot Minute, 1995
-  - track: higher-ground
-    url: https://open.spotify.com/track/3gDxDN503aZr5aeFtn6VwI
-    year: 1989
-    source: https://www.youtube.com/watch?v=3jFHoGaempM
-    note: Mother's Milk, 1989. The Chili Peppers cover, not Stevie Wonder's Moog
-  - track: suck-my-kiss
-    url: https://open.spotify.com/track/22mLKFanGy1bEb0qWuvMV0
-    year: 1991
-    note: Blood Sugar Sex Magik, 1991
   - track: dark-necessities
     url: https://open.spotify.com/track/2oaK4JLVnmRGIO9ytBE1bt
     year: 2016
