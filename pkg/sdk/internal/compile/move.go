@@ -81,11 +81,28 @@ type turn struct {
 	category catalog.Category
 	param    string
 	steps    float64
+	// also names where else the same question can be answered, when the
+	// block that usually answers it has no such control.
+	//
+	// An Ampeg B-15NF has no Mid and neither does an Acoustic 360, so
+	// `mid-forward` reaches nothing on two of the rigs here, and both earned
+	// that word from their own records. An equaliser in the chain has the
+	// same band under a different name, which is the one place a word can go
+	// looking without inventing anything: the block is already there because
+	// somebody put it there.
+	also []answers
 	// absenceMeans is what it means for the chain to hold no block of this
 	// kind, where that already answers the term. Empty where it does not:
 	// a chain with no compressor is not a chain with a soft attack, but a
 	// chain with no reverb really does have no room on it.
 	absenceMeans string
+}
+
+// answers is one place a question can be put, as the kind of block and the
+// control it calls that band.
+type answers struct {
+	category catalog.Category
+	param    string
 }
 
 // turns is what a term does, for the terms that do anything.
@@ -100,12 +117,27 @@ type turn struct {
 // control for them. A term from one of those is recorded and moves nothing,
 // which a build says out loud.
 var turns = map[string]turn{
-	"mid-forward": {category: catalog.CategoryAmp, param: "Mid", steps: 1},
-	"scooped":     {category: catalog.CategoryAmp, param: "Mid", steps: -1},
+	"mid-forward": {
+		category: catalog.CategoryAmp, param: "Mid", steps: 1,
+		also: []answers{{catalog.CategoryEQ, "MidGain"}},
+	},
+	"scooped": {
+		category: catalog.CategoryAmp, param: "Mid", steps: -1,
+		also: []answers{{catalog.CategoryEQ, "MidGain"}},
+	},
 
-	"dark":   {category: catalog.CategoryAmp, param: "Treble", steps: -1},
-	"bright": {category: catalog.CategoryAmp, param: "Treble", steps: 1},
-	"glassy": {category: catalog.CategoryAmp, param: "Treble", steps: 1},
+	"dark": {
+		category: catalog.CategoryAmp, param: "Treble", steps: -1,
+		also: []answers{{catalog.CategoryEQ, "HighGain"}},
+	},
+	"bright": {
+		category: catalog.CategoryAmp, param: "Treble", steps: 1,
+		also: []answers{{catalog.CategoryEQ, "HighGain"}},
+	},
+	"glassy": {
+		category: catalog.CategoryAmp, param: "Treble", steps: 1,
+		also: []answers{{catalog.CategoryEQ, "HighGain"}},
+	},
 
 	"clean":          {category: catalog.CategoryAmp, param: "Drive", steps: -1},
 	"minimal-drive":  {category: catalog.CategoryAmp, param: "Drive", steps: -0.5},
@@ -182,7 +214,14 @@ func move(
 			continue
 		}
 
-		at := indexOf(blocks, t.category)
+		at, param, found := answered(blocks, t)
+		if found {
+			out = append(out, apply(blocks[at], built.Blocks[at].Params, h, t, param, stats))
+
+			continue
+		}
+
+		at = indexOf(blocks, t.category)
 		if at < 0 {
 			// A word can ask for what the chain already is. Mix at zero and
 			// no reverb at all are the same signal, so a rig asking to stay
@@ -204,10 +243,42 @@ func move(
 			continue
 		}
 
-		out = append(out, apply(blocks[at], built.Blocks[at].Params, h, t, stats))
+		// The block that usually answers is there and has no such control,
+		// and nothing else in the chain has one either.
+		out = append(out, Moved{
+			Term:    term,
+			Because: "the " + blocks[at].Name + " has no " + t.param,
+		})
 	}
 
 	return out
+}
+
+// answered finds the block that will take this word, and what that block
+// calls the control.
+//
+// The kind that usually answers first, then wherever else the same question
+// can be put. An equaliser is second rather than first because a rig naming
+// an amplifier and an equaliser means the amplifier to be the voice.
+func answered(
+	blocks []catalog.Block,
+	t turn,
+) (int, string, bool) {
+	places := append([]answers{{t.category, t.param}}, t.also...)
+
+	for _, place := range places {
+		for i, b := range blocks {
+			if b.Category != place.category {
+				continue
+			}
+
+			if _, held := b.Params[place.param]; held {
+				return i, place.param, true
+			}
+		}
+	}
+
+	return 0, "", false
 }
 
 // indexOf finds the first block of a kind, or reports that there is none.
@@ -233,27 +304,25 @@ func apply(
 	params chain.Params,
 	h heard,
 	t turn,
+	key string,
 	stats *corpus.Stats,
 ) Moved {
 	term := h.term
 
-	p, held := b.Params[t.param]
-	if !held {
-		// Not every amplifier models sag, and an opto compressor has no
-		// attack at all — the circuit decides it.
-		return Moved{Term: term, Because: "the " + b.Name + " has no " + t.param}
-	}
+	// The search established the control is there; what it cannot establish
+	// is that the value is a number. A switch by that name is not a knob.
+	p := b.Params[key]
 
-	from, ok := params[t.param].Float()
+	from, ok := params[key].Float()
 	if !ok {
-		return Moved{Term: term, Because: "the " + b.Name + " has no " + t.param}
+		return Moved{Term: term, Because: "the " + b.Name + " has no " + key}
 	}
 
-	to := clamp(from+t.steps*h.weight*step(b, t.param, p, stats), p.Min, p.Max)
+	to := clamp(from+t.steps*h.weight*step(b, key, p, stats), p.Min, p.Max)
 
-	params[t.param] = catalog.Float(to)
+	params[key] = catalog.Float(to)
 
-	return Moved{Term: term, Param: t.param, From: from, To: to, Weight: h.weight}
+	return Moved{Term: term, Param: key, From: from, To: to, Weight: h.weight}
 }
 
 // step is how far one term moves this parameter.

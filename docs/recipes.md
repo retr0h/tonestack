@@ -189,10 +189,17 @@ these blocks for you.
 
 Six of those axes turn a knob. `mids`, `highs`, `drive` and `low-end` move the
 first amplifier in the chain, `space` moves the first reverb and `attack` moves
-the first compressor. Each word is worth one step from where the corpus left
-that control. A step is how much players disagree about it, and never more than
-a quarter of the control's range, so one word cannot put a knob on its limit. A
-build reports what it heard and what it did about it:
+the first compressor.
+
+Where the amplifier has no such control, `mids` and `highs` look for an
+equaliser in the chain instead, which calls those bands `MidGain` and
+`HighGain`. An Ampeg B-15NF and an Acoustic 360 have a bass knob and a treble
+knob and nothing between them, so on those amps the word would otherwise reach
+nothing. The amplifier answers first where it can: it is the voice, and the
+equaliser is a correction to it. Each word is worth one step from where the
+corpus left that control. A step is how much players disagree about it, and
+never more than a quarter of the control's range, so one word cannot put a knob
+on its limit. A build reports what it heard and what it did about it:
 
 ```console
 $ tonestack presets make --id mike-dirnt
