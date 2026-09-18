@@ -5,6 +5,10 @@ somebody asks an agent to grow a player's corpus. The agent does the whole
 thing, from choosing the record to checking the file, but only when asked. Needs
 uv and ffmpeg; see [Prerequisites](../../CONTRIBUTING.md#prerequisites).
 
+Commands here are written as `tonestack ...`. From a checkout run
+`go run main.go ...`, which builds the branch you are on rather than whatever
+release is installed.
+
 This page is step 1 of [Measure a player's sound](measure-a-players-sound.md)
 done by a machine. Every rule in
 [resources/music/README.md](../../resources/music/README.md) about choosing

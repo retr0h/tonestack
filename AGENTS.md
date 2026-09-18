@@ -23,6 +23,20 @@ The symptom is a check that fails here and passes in continuous integration, on
 a file nobody edited. When that happens, establish which version ran before
 treating the failure as real.
 
+### Running the CLI itself
+
+Every page here writes commands as `tonestack ...`, which is how somebody with
+it installed runs them. From a checkout, run the source:
+
+```bash
+go run main.go recipes records --corpus resources/music/bass
+```
+
+Use an installed `tonestack` only if you have one. It is a release, so it does
+not have a command added on the branch you are working on, and reporting that a
+command "does not exist yet" when it was added an hour ago is what happens
+otherwise.
+
 ## CONTRIBUTING is not optional reading
 
 [CONTRIBUTING.md](CONTRIBUTING.md) is the source of truth for layout,
