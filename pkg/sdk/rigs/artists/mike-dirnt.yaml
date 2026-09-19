@@ -30,20 +30,32 @@ chain:
     capture: direct
     evidence:
       - kind: cited
-        url: https://en.wikipedia.org/wiki/American_Idiot#Recording
+        url: https://web.archive.org/web/20060217083255im_/http://www.greendayauthority.com/TheBand/articles/bassmag/4.jpg
         note: >-
-          "For most of the record, Dirnt used an Ampeg SVT bass amplifier,
-          recording with his signature Fender Precision Bass ... he and
-          Cavallo strived for a 'solid, big, thunderous' bass sound as
-          opposed to one centered on countermelodies."
+          Bradman, E.E. and Buddingh, Terry, "Ready Set Go! Studio Secrets of
+          Mike Dirnt and Green Day Producer Rob Cavallo", Guitar World's Bass
+          Guitar, pages 26-30, whose cover sells it as "IN THE STUDIO WITH
+          MIKE DIRNT". Asked "And what did you use for American Idiot?",
+          Cavallo answers: "Mike and I talked about Boogie, Fender and Ampeg
+          amps, and at the end we went with an Ampeg SVT - it's hard to beat
+          that. Sometimes we used his new signature bass and sometimes we use
+          this fabulous Precision Bass that he's had for so long." The same
+          page gives the microphones: a Neumann U 47 FET close, "six to eight
+          inches away", and a Sennheiser 421 or an SM57 "five or six feet
+          away". Page 28 puts the Evil Twin direct box in the chain "since
+          Dookie".
         caveat: >-
-          Wikipedia is the reachable end of a chain, not the source. Its
-          reference is Bradman, E.E. and Buddingh, Terry, "Ready Set Go!:
-          Studio Secrets of Mike Dirnt and Green Day Producer Rob Cavallo",
-          Bass Guitar, 18 January 2006, ISSN 1476-5217, which is print. Cite
-          that if you get hold of it. The same reference carries the rest of
-          the session chain, including an Evil Twin direct box "a staple of
-          his recording methods since Dookie".
+          the producer's answer, not the player's. Dirnt names no amp for
+          these sessions anywhere in the article, and the only rig he gives
+          in his own voice is the one he is touring. That is a distinction
+          worth keeping rather than smoothing over: Cavallo is the one who
+          decided what went to tape, so this is first-hand about the
+          recording and second-hand about the player.
+
+          The scan is a page photograph hosted by a fan site and recovered
+          through the Wayback Machine, the magazine having no archive of its
+          own. The live urls under greendayauthority.com/TheBand/articles/
+          now 404, so the capture is the only way in.
       - kind: cited
         url: https://web.archive.org/web/20040908171044/http://www.bassplayer.com/archive/0904/0904_Features1.htm
         note: >-
@@ -197,9 +209,31 @@ played:
           this page says toured, not recorded, and describes the signature
           basses as what he is "bringing ... on the upcoming Green Day tour".
           What puts the same bass in the sessions is the source behind the
-          amplifier: Bass Guitar, January 2006, "recording with his signature
-          Fender Precision Bass". Print, unread here, and the same claim the
-          amplifier rests on, so the bass and the amp stand or fall together.
+          amplifier, Cavallo in Guitar World's Bass Guitar: "Sometimes we used
+          his new signature bass". The bass and the amp rest on one sentence
+          from one person, so they stand or fall together.
+
+  - gear: Fender Precision Bass
+    evidence:
+      - kind: cited
+        url: https://web.archive.org/web/20060217083255im_/http://www.greendayauthority.com/TheBand/articles/bassmag/4.jpg
+        note: >-
+          the same Cavallo answer names a second instrument: "Sometimes we
+          used his new signature bass and sometimes we use this fabulous
+          Precision Bass that he's had for so long."
+        caveat: >-
+          "sometimes" for both, and no track is named for either, so nothing
+          here says which bass played which song. That is why this entry
+          carries no `records`.
+      - kind: cited
+        url: https://web.archive.org/web/20051206060450im_/http://greendayauthority.com/TheBand/articles/totalbass_pg3.jpg
+        note: >-
+          Dirnt's own count, in Total Guitar Bass Special 4, Autumn 2004,
+          given mid-sessions: "I'm using two basses on the record and that's
+          one of 'em", the one being the signature Precision.
+        caveat: >-
+          corroborates that there were two and no more. It does not name this
+          one, which only Cavallo does.
 
 technique:
   attack: pick
