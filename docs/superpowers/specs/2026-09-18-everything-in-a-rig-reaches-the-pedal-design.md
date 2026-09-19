@@ -42,8 +42,8 @@ A field earns its place in the contract one of two ways:
 
 Anything in neither category comes out.
 
-The rule as it was put: "RigSpec should only contain what we can actually
-change on the pedal", with one carve-out argued for rather than assumed. Taken
+The rule as it was put: "RigSpec should only contain what we can actually change
+on the pedal", with one carve-out argued for rather than assumed. Taken
 literally the rule deletes the evidence layer, because a citation moves no knob.
 It would also delete `subject.years` and `played[].records`, which exist to
 catch a measured figure taken from a record made on other gear. Those are the
