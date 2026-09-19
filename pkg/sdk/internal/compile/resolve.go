@@ -128,6 +128,13 @@ func Resolve(
 
 	blocks, added := fill(blocks, cat, stats, instrument)
 
+	// After fill, because what a chain of this kind usually has is the wider
+	// claim and should not be displaced by one word. Before specFor, because
+	// a block arriving later would miss the corpus medians and start on
+	// catalog defaults.
+	blocks, asked := demand(blocks, cat, stats, spec, instrument)
+	added = append(added, asked...)
+
 	built := specFor(spec, blocks, stats)
 
 	// After the corpus has had its say, because a term is an opinion about

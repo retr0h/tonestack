@@ -320,6 +320,100 @@
         "prov": "official"
       },
       "prov": "official"
+    },
+    "HD2_EQTestParametric": {
+      "id": "HD2_EQTestParametric",
+      "name": "Test Parametric",
+      "category": "eq",
+      "dsp": {
+        "mono": 2.4,
+        "prov": "official"
+      },
+      "prov": "official",
+      "params": {
+        "HighGain": {
+          "key": "HighGain",
+          "name": "HighGain",
+          "type": "float",
+          "min": -12.0,
+          "max": 12.0,
+          "default": 0.0,
+          "prov": "official"
+        },
+        "MidGain": {
+          "key": "MidGain",
+          "name": "MidGain",
+          "type": "float",
+          "min": -12.0,
+          "max": 12.0,
+          "default": 0.0,
+          "prov": "official"
+        }
+      }
+    },
+    "HD2_EQTestNoMid": {
+      "id": "HD2_EQTestNoMid",
+      "name": "Test Low Cut",
+      "category": "eq",
+      "dsp": {
+        "mono": 2.4,
+        "prov": "official"
+      },
+      "prov": "official",
+      "params": {
+        "HighGain": {
+          "key": "HighGain",
+          "name": "HighGain",
+          "type": "float",
+          "min": -12.0,
+          "max": 12.0,
+          "default": 0.0,
+          "prov": "official"
+        }
+      }
+    },
+    "HD2_FilterTestMutant": {
+      "id": "HD2_FilterTestMutant",
+      "name": "Test Mutant Filter",
+      "category": "filter",
+      "based_on": "Mu-Tron III",
+      "dsp": {
+        "mono": 2.4,
+        "prov": "official"
+      },
+      "prov": "official",
+      "params": {
+        "Sensitivity": {
+          "key": "Sensitivity",
+          "name": "Sensitivity",
+          "type": "float",
+          "min": 0.0,
+          "max": 1.0,
+          "default": 0.5,
+          "prov": "official"
+        }
+      }
+    },
+    "HD2_CompTestDeluxe": {
+      "id": "HD2_CompTestDeluxe",
+      "name": "Test Deluxe Comp",
+      "category": "comp",
+      "dsp": {
+        "mono": 2.4,
+        "prov": "official"
+      },
+      "prov": "official",
+      "params": {
+        "Attack": {
+          "key": "Attack",
+          "name": "Attack",
+          "type": "float",
+          "min": 0.0,
+          "max": 1.0,
+          "default": 0.1,
+          "prov": "official"
+        }
+      }
     }
   },
   "led_colours": [

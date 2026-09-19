@@ -83,7 +83,7 @@ func fill(
 			continue
 		}
 
-		pick, ok := commonest(cat, stats, c, instrument)
+		pick, ok := commonest(cat, stats, c, instrument, "")
 		if !ok {
 			continue
 		}
@@ -141,11 +141,16 @@ func insert(
 //
 // Ties break on the identifier so a chain does not change between runs for
 // reasons nobody chose.
+// holds, where it is not empty, is a control the block must carry. Filling a
+// category wants whatever players reach for; answering a word wants a block
+// that can answer it, and the commonest equaliser is no use to `mid-forward`
+// if it has no Mid.
 func commonest(
 	cat *catalog.Catalog,
 	stats *corpus.Stats,
 	c catalog.Category,
 	instrument string,
+	holds string,
 ) (catalog.Block, bool) {
 	var (
 		best catalog.Block
@@ -159,6 +164,12 @@ func commonest(
 		b, known := cat.Block(id)
 		if !known || b.Category != c || catalog.NeedsUserIR(id) {
 			continue
+		}
+
+		if holds != "" {
+			if _, carries := b.Params[holds]; !carries {
+				continue
+			}
 		}
 
 		// A block whose cost was inferred rather than stated cannot be

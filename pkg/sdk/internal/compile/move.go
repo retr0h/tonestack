@@ -209,6 +209,16 @@ func move(
 
 		t, ok := turns[term]
 		if !ok {
+			// A word naming a block rather than a setting is answered by
+			// that block being in the chain, and demand has already put one
+			// there if the rig had none. So by here it is present, or this
+			// device has nothing of the kind.
+			if want, names := needs[term]; names {
+				out = append(out, satisfied(blocks, term, want))
+
+				continue
+			}
+
 			out = append(out, Moved{Term: term})
 
 			continue
@@ -252,6 +262,29 @@ func move(
 	}
 
 	return out
+}
+
+// satisfied reports on a word whose whole meaning is that a block is there.
+//
+// Naming the block rather than saying "yes": which filter got seated is the
+// part somebody reading the preset can disagree with, and "envelope-swept:
+// satisfied" invites nobody to check.
+func satisfied(
+	blocks []catalog.Block,
+	term string,
+	want catalog.Category,
+) Moved {
+	if at := indexOf(blocks, want); at >= 0 {
+		return Moved{
+			Term:    term,
+			Already: "the " + blocks[at].Name + " is what this asks for",
+		}
+	}
+
+	return Moved{
+		Term:    term,
+		Because: "this device has no " + string(want),
+	}
 }
 
 // answered finds the block that will take this word, and what that block
